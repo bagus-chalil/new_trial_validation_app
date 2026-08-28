@@ -3,6 +3,7 @@
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 function makeDashboardTrial(array $attributes = []): Trial
 {
@@ -122,4 +123,125 @@ test('myWork lists only approvals specifically assigned to the current user, not
         ->where('myWork.pendingApprovalsTotal', 1)
         ->has('myWork.pendingApprovals', 1)
         ->where('myWork.pendingApprovals.0.trial_code', 'TRIAL-APPROVAL-MINE'));
+});
+
+test('overview headline computes approval rate and average approval time from decided trials', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+
+    $approved1 = makeDashboardTrial(['trial_code' => 'TRIAL-OV-APR-1', 'progress_status' => 'Approved', 'approved_at' => Carbon::now()]);
+    $approved1->created_at = Carbon::now()->subDays(2);
+    $approved1->save();
+
+    $approved2 = makeDashboardTrial(['trial_code' => 'TRIAL-OV-APR-2', 'progress_status' => 'Approved', 'approved_at' => Carbon::now()]);
+    $approved2->created_at = Carbon::now()->subDays(4);
+    $approved2->save();
+
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-REJ', 'progress_status' => 'Rejected']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('overview.headline.approvalRate', 66.7)
+        ->where('overview.headline.avgApprovalDays', 3));
+});
+
+test('overview headline approval rate and average approval time are null when nothing has been decided', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-DRAFT', 'progress_status' => 'Draft']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('overview.headline.approvalRate', null)
+        ->where('overview.headline.avgApprovalDays', null));
+});
+
+test('overview headline sums active (in-progress) trials correctly', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-ACT-DRAFT', 'progress_status' => 'Draft']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-ACT-REVIEW', 'progress_status' => 'In Review']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-ACT-READY', 'progress_status' => 'Ready for Approval']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-ACT-REVISION', 'progress_status' => 'Need Revision']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-ACT-APPROVED', 'progress_status' => 'Approved']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page->where('overview.headline.activeTrials', 4));
+});
+
+test('overview headline picks the reviewer department with the most pending reviews as the bottleneck', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    $trialA = makeDashboardTrial(['trial_code' => 'TRIAL-OV-BN-A', 'progress_status' => 'In Review', 'revision_no' => 0]);
+    $trialB = makeDashboardTrial(['trial_code' => 'TRIAL-OV-BN-B', 'progress_status' => 'In Review', 'revision_no' => 0]);
+    TrialReview::create(['trial_id' => $trialA->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trialB->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trialA->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('overview.headline.bottleneckDepartment.department', 'QAC')
+        ->where('overview.headline.bottleneckDepartment.count', 2));
+});
+
+test('overview headline has no bottleneck department when nothing is pending review', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-NOPEND', 'progress_status' => 'Draft']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page->where('overview.headline.bottleneckDepartment', null));
+});
+
+test('overview trend returns every month in the range, including zero-count months, in order', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    $trial = makeDashboardTrial(['trial_code' => 'TRIAL-OV-TREND']);
+    $trial->created_at = Carbon::now()->startOfMonth();
+    $trial->save();
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page->where('overview.trend', function ($trend) {
+        $expectedFirst = Carbon::now()->startOfMonth()->subMonths(5)->format('Y-m');
+        $expectedLast = Carbon::now()->startOfMonth()->format('Y-m');
+
+        return count($trend) === 6
+            && $trend[0]['period'] === $expectedFirst
+            && $trend[5]['period'] === $expectedLast
+            && $trend[5]['count'] === 1;
+    }));
+});
+
+test('overview buckets product types beyond the top 6 into "Lainnya"', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    foreach (range(1, 7) as $i) {
+        makeDashboardTrial(['trial_code' => "TRIAL-OV-PT-{$i}", 'product_type' => "Type{$i}"]);
+    }
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-PT-1B', 'product_type' => 'Type1']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page->where('overview.productTypeBreakdown', function ($rows) {
+        $labels = collect($rows)->pluck('label');
+
+        return $labels->count() === 7 && $labels->contains('Lainnya');
+    }));
+});
+
+test('overview department-pending breakdown only counts trials visible to the acting user', function () {
+    $staff = User::factory()->create(['role' => 'Staff', 'email' => 'staff@local.test']);
+
+    $hiddenTrial = makeDashboardTrial(['trial_code' => 'TRIAL-OV-HIDDEN', 'progress_status' => 'Draft', 'created_by' => 'other@local.test']);
+    TrialReview::create(['trial_id' => $hiddenTrial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $visibleTrial = makeDashboardTrial(['trial_code' => 'TRIAL-OV-VISIBLE', 'progress_status' => 'In Review', 'revision_no' => 0]);
+    TrialReview::create(['trial_id' => $visibleTrial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $response = $this->actingAs($staff)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page->where('overview.departmentPending', function ($rows) {
+        $qac = collect($rows)->firstWhere('department', 'QAC');
+
+        return $qac['count'] === 1;
+    }));
 });

@@ -406,4 +406,144 @@ class Trial extends Model
                 ->orWhere('final_decision', 'Rejected'))->count('trials_header.id'),
         ];
     }
+
+    /**
+     * Trials created per month for the last $months months, scoped by
+     * visibleTo($user) (no status group, same as summaryCounts()). Every
+     * month in the range is present even when its count is 0, so a trend
+     * chart never shows a gap.
+     *
+     * @return list<array{period: string, count: int}>
+     */
+    public static function trendByMonth(User $user, int $months = 6): array
+    {
+        $start = Carbon::now()->startOfMonth()->subMonths($months - 1);
+
+        // Bucketed in PHP rather than a DATE_FORMAT()/GROUP BY query so this
+        // works identically on the shared MySQL DB and sqlite (tests) — no
+        // portable cross-driver month-truncation SQL exists for both.
+        $counts = [];
+        foreach (static::query()->visibleTo($user)->where('trials_header.created_at', '>=', $start)->pluck('trials_header.created_at') as $createdAt) {
+            $ym = Carbon::parse($createdAt)->format('Y-m');
+            $counts[$ym] = ($counts[$ym] ?? 0) + 1;
+        }
+
+        $result = [];
+        for ($i = 0; $i < $months; $i++) {
+            $ym = (clone $start)->addMonths($i)->format('Y-m');
+            $result[] = ['period' => $ym, 'count' => $counts[$ym] ?? 0];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Trial count per product_type, scoped by visibleTo($user), top $top
+     * types by count with everything past that bucketed into one "Lainnya"
+     * row so a long tail of one-off product types doesn't blow up the chart.
+     *
+     * @return list<array{label: string, count: int}>
+     */
+    public static function productTypeBreakdown(User $user, int $top = 6): array
+    {
+        $rows = static::query()->visibleTo($user)
+            ->selectRaw('product_type, COUNT(*) as cnt')
+            ->groupBy('product_type')
+            ->orderByDesc('cnt')
+            ->toBase()
+            ->get();
+
+        $result = [];
+        $otherCount = 0;
+        foreach ($rows as $i => $row) {
+            if ($i < $top) {
+                $result[] = ['label' => (string) $row->product_type, 'count' => (int) $row->cnt];
+            } else {
+                $otherCount += (int) $row->cnt;
+            }
+        }
+
+        if ($otherCount > 0) {
+            $result[] = ['label' => 'Lainnya', 'count' => $otherCount];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Currently-Pending trials_review rows per reviewer department, scoped
+     * to trials visible to $user (visibleTo(), no status group) — the same
+     * "current round" condition (review_round = revision_no + 1) used by
+     * DashboardController::myWorkData() and reviewStatusByDepartment().
+     * Every known reviewer department appears, 0 if none pending.
+     *
+     * @return list<array{department: string, count: int}>
+     */
+    public static function pendingReviewsByDepartment(User $user): array
+    {
+        $visibleIds = static::query()->visibleTo($user)->pluck('trials_header.id');
+
+        $counts = TrialReview::query()
+            ->join('trials_header as h', 'h.id', '=', 'trials_review.trial_id')
+            ->whereIn('trials_review.trial_id', $visibleIds)
+            ->where('trials_review.status', 'Pending')
+            ->whereRaw('trials_review.review_round = h.revision_no + 1')
+            ->selectRaw('UPPER(TRIM(trials_review.department)) as department, COUNT(*) as cnt')
+            ->groupBy('department')
+            ->pluck('cnt', 'department');
+
+        $result = [];
+        foreach (User::reviewerDepartmentCodes() as $dept) {
+            $result[] = ['department' => $dept, 'count' => (int) ($counts[$dept] ?? 0)];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Headline dashboard metrics beyond the plain per-status counts:
+     * approval rate, average time-to-approval, how many trials are actively
+     * in progress right now, and which reviewer department currently has
+     * the most Pending reviews (a bottleneck signal). $summary is the
+     * already-computed summaryCounts($user) result — reused rather than
+     * requeried.
+     *
+     * @param  array{total: int, draft: int, in_review: int, ready: int, approved: int, need_revision: int, rejected: int}  $summary
+     * @return array{approvalRate: float|null, avgApprovalDays: float|null, activeTrials: int, bottleneckDepartment: array{department: string, count: int}|null}
+     */
+    public static function approvalHealth(User $user, array $summary): array
+    {
+        $decided = $summary['approved'] + $summary['rejected'];
+        $approvalRate = $decided > 0 ? round($summary['approved'] / $decided * 100, 1) : null;
+
+        // Averaged in PHP rather than TIMESTAMPDIFF() (MySQL-only, breaks on
+        // the sqlite connection tests run against) — same reasoning as
+        // trendByMonth() above.
+        $approvedTrials = static::query()->visibleTo($user)
+            ->where('progress_status', 'Approved')
+            ->whereNotNull('approved_at')
+            ->get(['created_at', 'approved_at']);
+        $avgApprovalDays = $approvedTrials->isNotEmpty()
+            ? round($approvedTrials->sum(fn (self $t) => $t->created_at->diffInHours($t->approved_at)) / $approvedTrials->count() / 24, 1)
+            : null;
+
+        $activeTrials = $summary['draft'] + $summary['in_review'] + $summary['ready'] + $summary['need_revision'];
+
+        $bottleneck = null;
+        foreach (static::pendingReviewsByDepartment($user) as $row) {
+            if ($bottleneck === null || $row['count'] > $bottleneck['count']) {
+                $bottleneck = $row;
+            }
+        }
+        if ($bottleneck !== null && $bottleneck['count'] === 0) {
+            $bottleneck = null;
+        }
+
+        return [
+            'approvalRate' => $approvalRate,
+            'avgApprovalDays' => $avgApprovalDays,
+            'activeTrials' => $activeTrials,
+            'bottleneckDepartment' => $bottleneck,
+        ];
+    }
 }

@@ -57,11 +57,27 @@ class DashboardController extends Controller
             ->orderBy('name')
             ->pluck('name');
 
+        $overview = [
+            'headline' => Trial::approvalHealth($user, $summary),
+            'trend' => Trial::trendByMonth($user),
+            'statusBreakdown' => [
+                ['status' => 'Draft', 'count' => $summary['draft']],
+                ['status' => 'In Review', 'count' => $summary['in_review']],
+                ['status' => 'Ready for Approval', 'count' => $summary['ready']],
+                ['status' => 'Need Revision', 'count' => $summary['need_revision']],
+                ['status' => 'Approved', 'count' => $summary['approved']],
+                ['status' => 'Rejected', 'count' => $summary['rejected']],
+            ],
+            'productTypeBreakdown' => Trial::productTypeBreakdown($user),
+            'departmentPending' => Trial::pendingReviewsByDepartment($user),
+        ];
+
         return Inertia::render('dashboard', [
             'trials' => $trials,
             'filters' => $filters,
             'productTypes' => $productTypes,
             'summary' => $summary,
+            'overview' => $overview,
         ]);
     }
 

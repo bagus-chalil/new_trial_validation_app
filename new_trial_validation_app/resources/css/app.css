@@ -46,11 +46,12 @@
     --color-ring: var(--ring);
     --color-brand: var(--brand);
 
-    --color-chart-1: var(--chart-1);
-    --color-chart-2: var(--chart-2);
-    --color-chart-3: var(--chart-3);
-    --color-chart-4: var(--chart-4);
-    --color-chart-5: var(--chart-5);
+    --color-chart-status-draft: var(--chart-status-draft);
+    --color-chart-status-in-review: var(--chart-status-in-review);
+    --color-chart-status-ready: var(--chart-status-ready);
+    --color-chart-status-need-revision: var(--chart-status-need-revision);
+    --color-chart-status-approved: var(--chart-status-approved);
+    --color-chart-status-rejected: var(--chart-status-rejected);
 
     --color-sidebar: var(--sidebar);
     --color-sidebar-foreground: var(--sidebar-foreground);
@@ -83,11 +84,18 @@
     --input: oklch(0.922 0 0);
     --ring: oklch(0.598 0.232 27.344);
     --brand: oklch(0.598 0.232 27.344);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
+    /* Dashboard status-distribution chart — a validated categorical set (see
+       the `dataviz` skill's palette validator), distinct from the badge
+       colors in trial-status.ts since 6 adjacent chart bars need clearer
+       separation than 2 badges sharing one amber ever did. Draft uses
+       --muted-foreground instead of its own slot — it's a neutral "off"
+       state, not a competing categorical hue. */
+    --chart-status-draft: var(--muted-foreground);
+    --chart-status-in-review: #2a78d6;
+    --chart-status-ready: #eb6834;
+    --chart-status-need-revision: #4a3aa7;
+    --chart-status-approved: #008300;
+    --chart-status-rejected: #e34948;
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
@@ -120,11 +128,12 @@
     --input: oklch(0.269 0 0);
     --ring: oklch(0.64 0.21 27.34);
     --brand: oklch(0.64 0.21 27.34);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
+    --chart-status-draft: var(--muted-foreground);
+    --chart-status-in-review: #3987e5;
+    --chart-status-ready: #d95926;
+    --chart-status-need-revision: #9085e9;
+    --chart-status-approved: #008300;
+    --chart-status-rejected: #e66767;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.985 0 0);

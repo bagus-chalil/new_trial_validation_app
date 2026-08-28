@@ -1,20 +1,29 @@
 import { Head, router } from '@inertiajs/react';
 import {
+    Activity,
     AlertTriangle,
+    Building2,
     CheckCircle2,
     Clock,
     FileEdit,
     ListChecks,
+    Percent,
     Search,
     XCircle,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { CategoryBarChart } from '@/components/dashboard/category-bar-chart';
+import { KpiTile } from '@/components/dashboard/kpi-tile';
+import { StatusDistributionChart } from '@/components/dashboard/status-distribution-chart';
+import type { StatusDatum } from '@/components/dashboard/status-distribution-chart';
+import { TrendChart } from '@/components/dashboard/trend-chart';
+import type { TrendDatum } from '@/components/dashboard/trend-chart';
 import Heading from '@/components/heading';
 import { TrialsTable } from '@/components/trials-table';
 import type { TrialRow } from '@/components/trials-table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TRIAL_STATUSES } from '@/lib/trial-status';
@@ -40,11 +49,27 @@ type Filters = {
     status: string;
 };
 
+type Headline = {
+    approvalRate: number | null;
+    avgApprovalDays: number | null;
+    activeTrials: number;
+    bottleneckDepartment: { department: string; count: number } | null;
+};
+
+type Overview = {
+    headline: Headline;
+    trend: TrendDatum[];
+    statusBreakdown: StatusDatum[];
+    productTypeBreakdown: { label: string; count: number }[];
+    departmentPending: { department: string; count: number }[];
+};
+
 type PageProps = {
     trials: Paginated<TrialRow>;
     filters: Filters;
     productTypes: string[];
     summary: Summary;
+    overview: Overview;
 };
 
 const summaryCards: {
@@ -102,6 +127,7 @@ export default function Dashboard({
     filters,
     productTypes,
     summary,
+    overview,
 }: PageProps) {
     const [form, setForm] = useState<Filters>(filters);
 
@@ -124,8 +150,51 @@ export default function Dashboard({
             <div className="space-y-6 p-4">
                 <Heading
                     title="Trial Dashboard"
-                    description="Kelola dan pantau proses trial validation."
+                    description="Overview sistem trial validation — kesehatan proses, tren, dan breakdown."
                 />
+
+                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <KpiTile
+                        label="Approval Rate"
+                        value={
+                            overview.headline.approvalRate === null
+                                ? 'Belum ada'
+                                : `${overview.headline.approvalRate}%`
+                        }
+                        caption="dari trial yang sudah diputuskan"
+                        icon={Percent}
+                        accent
+                    />
+                    <KpiTile
+                        label="Rata-rata Waktu Approval"
+                        value={
+                            overview.headline.avgApprovalDays === null
+                                ? 'Belum ada'
+                                : `${overview.headline.avgApprovalDays} hari`
+                        }
+                        caption="dari trial dibuat sampai disetujui"
+                        icon={Clock}
+                    />
+                    <KpiTile
+                        label="Trial Aktif"
+                        value={overview.headline.activeTrials}
+                        caption="trial yang sedang berjalan"
+                        icon={Activity}
+                    />
+                    <KpiTile
+                        label="Departemen Bottleneck"
+                        value={
+                            overview.headline.bottleneckDepartment
+                                ?.department ?? 'Tidak ada'
+                        }
+                        caption={
+                            overview.headline.bottleneckDepartment
+                                ? `${overview.headline.bottleneckDepartment.count} review pending`
+                                : 'Semua review sudah selesai'
+                        }
+                        icon={Building2}
+                    />
+                </section>
 
                 <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                     {summaryCards.map((card) => (
@@ -152,6 +221,68 @@ export default function Dashboard({
                             </Card>
                         </a>
                     ))}
+                </section>
+
+                <section className="grid gap-4 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                Tren Trial Dibuat
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <TrendChart data={overview.trend} />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                Distribusi Status
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <StatusDistributionChart
+                                data={overview.statusBreakdown}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                Breakdown per Product Type
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <CategoryBarChart
+                                data={overview.productTypeBreakdown.map(
+                                    (row) => ({
+                                        label: row.label,
+                                        count: row.count,
+                                    }),
+                                )}
+                                emptyMessage="Belum ada trial."
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                Review Pending per Departemen
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <CategoryBarChart
+                                data={overview.departmentPending.map((row) => ({
+                                    label: row.department,
+                                    count: row.count,
+                                }))}
+                                emptyMessage="Tidak ada review yang pending."
+                            />
+                        </CardContent>
+                    </Card>
                 </section>
 
                 <Card>
