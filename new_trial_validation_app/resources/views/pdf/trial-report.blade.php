@@ -163,7 +163,12 @@
                             @else
                                 <p class="muted" style="height: 55mm; display: flex; align-items: center; justify-content: center;">File tidak ditemukan</p>
                             @endif
-                            <figcaption>{{ $file['file_name'] }}</figcaption>
+                            <figcaption>
+                                @if (filled($file['caption'] ?? null))
+                                    <strong>{{ $file['caption'] }}</strong><br>
+                                @endif
+                                {{ $file['file_name'] }}
+                            </figcaption>
                         </figure>
                     @endforeach
                 </div>
