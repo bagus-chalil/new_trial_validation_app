@@ -1,7 +1,7 @@
 # Trial Validation System PHP + MySQL v4
 
 ## Instalasi
-Requirement: PHP 7.4.30 atau lebih baru, MySQL/MariaDB, dan ekstensi PDO MySQL aktif.
+Requirement: PHP 8.5 bih baru, MySQL/MariaDB, dan ekstensi PDO MySQL aktif.
 
 1. Extract folder `trial_validation_app` ke `C:\xampp\htdocs\trial_validation_app`.
 2. Buka phpMyAdmin, import file: `database/trial_validation_system_mysql.sql`.
