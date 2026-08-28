@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
     Table,
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { dashboard } from '@/routes';
 import { auditPrintLog, index as reportsIndex } from '@/routes/reports';
+import { pdf as auditPrintLogPdf } from '@/routes/reports/audit-print-log';
 import type { Paginated } from '@/types';
 
 type AuditPrintLogItem = {
@@ -32,10 +34,21 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
             <Head title="Audit Print Log" />
 
             <div className="space-y-6 p-4">
-                <Heading
-                    title="Audit Print Log"
-                    description="Log aktivitas print report jika tersedia."
-                />
+                <div className="flex items-center justify-between gap-4 print:hidden">
+                    <Heading
+                        title="Audit Print Log"
+                        description="Log aktivitas print report jika tersedia."
+                    />
+                    <Button variant="outline" asChild>
+                        <a
+                            href={auditPrintLogPdf().url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Unduh PDF
+                        </a>
+                    </Button>
+                </div>
 
                 <Card>
                     <CardContent>

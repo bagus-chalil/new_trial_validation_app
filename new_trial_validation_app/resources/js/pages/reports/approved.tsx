@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { dashboard } from '@/routes';
 import { approved, index as reportsIndex } from '@/routes/reports';
+import { pdf as approvedPdf } from '@/routes/reports/approved';
 import { show as reportShow } from '@/routes/trials/report';
 import type { Paginated } from '@/types';
 
@@ -41,8 +42,14 @@ export default function ReportsApproved({ items }: PageProps) {
                         title="Approved Report"
                         description="Trial dengan status Approved."
                     />
-                    <Button variant="outline" onClick={() => window.print()}>
-                        Print
+                    <Button variant="outline" asChild>
+                        <a
+                            href={approvedPdf().url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Unduh PDF
+                        </a>
                     </Button>
                 </div>
 

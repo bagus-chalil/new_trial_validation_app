@@ -19,6 +19,7 @@ import {
 import { TRIAL_STATUSES, trialStatusBadgeClassName } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { index as reportsIndex, trialSummary } from '@/routes/reports';
+import { pdf as trialSummaryPdf } from '@/routes/reports/trial-summary';
 import { show as reportShow } from '@/routes/trials/report';
 import type { Paginated } from '@/types';
 
@@ -88,8 +89,14 @@ export default function ReportsTrialSummary({
                         title="Trial Summary Report"
                         description="Ringkasan semua trial validation."
                     />
-                    <Button variant="outline" onClick={() => window.print()}>
-                        Print
+                    <Button variant="outline" asChild>
+                        <a
+                            href={trialSummaryPdf({ query: filters }).url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Unduh PDF
+                        </a>
                     </Button>
                 </div>
 

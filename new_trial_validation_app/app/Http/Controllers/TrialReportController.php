@@ -10,10 +10,13 @@ use App\Models\TrialResult;
 use App\Models\TrialReview;
 use App\Models\TrialWeighing;
 use App\Models\User;
+use App\Services\Pdf\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -60,27 +63,7 @@ class TrialReportController extends Controller
                 ->get(['id', 'department']);
         }
 
-        $results = TrialResult::query()
-            ->where('trial_id', $trial->id)
-            ->with('parameter')
-            ->get()
-            ->sortBy(fn (TrialResult $r) => sprintf('%010d-%010d', $r->parameter->sort_order, $r->parameter_id))
-            ->values();
-
-        $weighings = TrialWeighing::query()
-            ->where('trial_id', $trial->id)
-            ->orderBy('item_no')
-            ->get()
-            ->groupBy('section');
-
-        $weighingSections = collect(['Packaging', 'Filling'])->map(function (string $section) use ($weighings) {
-            $items = $weighings->get($section, collect());
-
-            return [
-                'section' => $section,
-                'stats' => TrialWeighing::statsForSection($items),
-            ];
-        });
+        $core = $this->reportCore($trial);
 
         $attachments = TrialAttachmentFile::query()
             ->where('trial_id', $trial->id)
@@ -115,25 +98,12 @@ class TrialReportController extends Controller
 
         return Inertia::render('trials/report', [
             'trial' => $trial,
-            'results' => $results->map(fn (TrialResult $r) => [
-                'parameter_name' => $r->parameter->parameter_name,
-                'specification' => $r->parameter->specification,
-                'decision' => $r->decision,
-                'result_value' => $r->result_value,
-                'remark' => $r->remark,
-            ])->values(),
-            'weighingSections' => $weighingSections,
+            'results' => $core['results'],
+            'weighingSections' => $core['weighingSections'],
             'attachments' => $attachments,
-            'reviews' => collect($reviewByDept)->map(fn (array $entry, string $dept) => [
-                'department' => $dept,
-                'review_round' => $trial->currentReviewRound(),
-                'status' => $entry['status'],
-                'reviewer_name' => $entry['review']?->reviewer_name ? User::displayName($entry['review']->reviewer_name) : null,
-                'reviewed_at' => $entry['review']?->reviewed_at?->toDateTimeString(),
-                'comment' => $entry['review']?->comment,
-            ])->values(),
-            'approvedByName' => $trial->approved_by ? User::displayName($trial->approved_by) : null,
-            'rejectedByName' => $trial->rejected_by ? User::displayName($trial->rejected_by) : null,
+            'reviews' => $core['reviews'],
+            'approvedByName' => $core['approvedByName'],
+            'rejectedByName' => $core['rejectedByName'],
             'completeness' => (new CheckTrialCompleteness)($trial),
             'canEdit' => Gate::allows('update', $trial),
             'canApprove' => $canApprove,
@@ -155,5 +125,117 @@ class TrialReportController extends Controller
         $action($trial, $request->user());
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Server-rendered PDF (spatie/browsershot) of the same report page
+     * show() renders — see ../../../CLAUDE.md "Print/PDF report approach".
+     * Downloading the PDF is treated as "printing" the report, same as
+     * legacy's window.print() flow: it fires the same report_printed audit
+     * write logPrint() does, so no separate fetch-then-print call is needed
+     * from the frontend anymore.
+     */
+    public function pdf(Request $request, int $trial, RecordReportPrint $action, PdfService $pdf): HttpResponse
+    {
+        $trial = Trial::whereNull('deleted_at')->with(['product', 'approver'])->findOrFail($trial);
+
+        Gate::authorize('view', $trial);
+
+        $action($trial, $request->user());
+
+        $core = $this->reportCore($trial);
+
+        $attachments = TrialAttachmentFile::query()
+            ->where('trial_id', $trial->id)
+            ->whereNull('deleted_at')
+            ->orderBy('category')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('category')
+            ->map(fn ($files) => $files->map(fn (TrialAttachmentFile $file) => [
+                'file_name' => $file->file_name,
+                'src' => $this->attachmentDataUri($file),
+            ])->values());
+
+        return $pdf->fromView('pdf.trial-report', [
+            'title' => 'Report — '.$trial->trial_code,
+            'trial' => $trial,
+            'results' => $core['results'],
+            'weighingSections' => $core['weighingSections'],
+            'attachments' => $attachments,
+            'reviews' => $core['reviews'],
+            'approvedByName' => $core['approvedByName'],
+            'rejectedByName' => $core['rejectedByName'],
+        ], "Report-{$trial->trial_code}.pdf");
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function reportCore(Trial $trial): array
+    {
+        $results = TrialResult::query()
+            ->where('trial_id', $trial->id)
+            ->with('parameter')
+            ->get()
+            ->sortBy(fn (TrialResult $r) => sprintf('%010d-%010d', $r->parameter->sort_order, $r->parameter_id))
+            ->values();
+
+        $weighings = TrialWeighing::query()
+            ->where('trial_id', $trial->id)
+            ->orderBy('item_no')
+            ->get()
+            ->groupBy('section');
+
+        $weighingSections = collect(['Packaging', 'Filling'])->map(function (string $section) use ($weighings) {
+            $items = $weighings->get($section, collect());
+
+            return [
+                'section' => $section,
+                'stats' => TrialWeighing::statsForSection($items),
+            ];
+        });
+
+        $reviewByDept = $trial->reviewStatusByDepartment();
+
+        return [
+            'results' => $results->map(fn (TrialResult $r) => [
+                'parameter_name' => $r->parameter->parameter_name,
+                'specification' => $r->parameter->specification,
+                'decision' => $r->decision,
+                'result_value' => $r->result_value,
+                'remark' => $r->remark,
+            ])->values(),
+            'weighingSections' => $weighingSections,
+            'reviews' => collect($reviewByDept)->map(fn (array $entry, string $dept) => [
+                'department' => $dept,
+                'review_round' => $trial->currentReviewRound(),
+                'status' => $entry['status'],
+                'reviewer_name' => $entry['review']?->reviewer_name ? User::displayName($entry['review']->reviewer_name) : null,
+                'reviewed_at' => $entry['review']?->reviewed_at?->toDateTimeString(),
+                'comment' => $entry['review']?->comment,
+            ])->values(),
+            'approvedByName' => $trial->approved_by ? User::displayName($trial->approved_by) : null,
+            'rejectedByName' => $trial->rejected_by ? User::displayName($trial->rejected_by) : null,
+        ];
+    }
+
+    /**
+     * Browsershot renders a standalone HTML string with no HTTP context, so
+     * a relative/authenticated route URL (what show()'s attachments use)
+     * would never load — embed the file directly as a data: URI instead.
+     */
+    private function attachmentDataUri(TrialAttachmentFile $file): string
+    {
+        $disk = Storage::disk('legacy_uploads');
+        $path = $file->trial_id.'/'.$file->file_name;
+
+        if (! $disk->exists($path)) {
+            return '';
+        }
+
+        $mime = $disk->mimeType($path) ?: 'application/octet-stream';
+
+        return 'data:'.$mime.';base64,'.base64_encode($disk->get($path));
     }
 }

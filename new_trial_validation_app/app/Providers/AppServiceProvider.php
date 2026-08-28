@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Pdf\BrowsershotPdfRenderer;
+use App\Services\Pdf\PdfRenderer;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(PdfRenderer::class, BrowsershotPdfRenderer::class);
     }
 
     /**

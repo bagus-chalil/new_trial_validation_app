@@ -268,6 +268,45 @@ test('a reviewer who already reviewed their department sees a note once no pendi
         ->where('approvalBlockedNote', null));
 });
 
+test('each report list has a PDF export that returns a PDF response', function (string $route) {
+    $owner = User::factory()->create();
+    makeReportTrial(['trial_code' => 'TRIAL-PDF-'.$route, 'progress_status' => 'Approved', 'approved_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->get(route($route));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/pdf');
+})->with([
+    'reports.approved.pdf',
+    'reports.rejected.pdf',
+    'reports.trial-summary.pdf',
+    'reports.department-review.pdf',
+    'reports.audit-print-log.pdf',
+]);
+
+test('downloading the per-trial report PDF returns a PDF and writes the report_printed audit trail', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $trial = makeReportTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->get(route('trials.report.pdf', $trial));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/pdf');
+
+    $auditLog = AuditLog::where('trial_id', $trial->id)->where('action', 'report_printed')->first();
+    expect($auditLog)->not->toBeNull();
+
+    $activityLog = ActivityLog::where('module', 'REPORT')->where('action', 'PRINT_REPORT')->first();
+    expect($activityLog)->not->toBeNull();
+});
+
+test('a user without view access is forbidden from the per-trial report PDF', function () {
+    $outsider = User::factory()->create(['role' => 'Random Role', 'department' => 'Nowhere']);
+    $trial = makeReportTrial(['progress_status' => 'In Review']);
+
+    $this->actingAs($outsider)->get(route('trials.report.pdf', $trial))->assertForbidden();
+});
+
 test('printing a report writes both an AuditLog and an ActivityLog row', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $trial = makeReportTrial(['created_by' => $owner->email]);

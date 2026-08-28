@@ -15,7 +15,8 @@
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
-        "laravel/wayfinder": "^0.1.14"
+        "laravel/wayfinder": "^0.1.14",
+        "spatie/browsershot": "^5.4"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",
@@ -49,6 +50,7 @@
             "@php artisan key:generate",
             "@php artisan migrate --force",
             "npm install",
+            "npx puppeteer browsers install chrome chrome-headless-shell",
             "npm run build"
         ],
         "dev": [

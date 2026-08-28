@@ -167,21 +167,6 @@ export default function TrialReport({
             : trial.progress_status;
     const approvalAuthority = approvedByName ?? rejectedByName ?? '-';
 
-    function handlePrint() {
-        const xsrfToken = document.cookie
-            .split('; ')
-            .find((row) => row.startsWith('XSRF-TOKEN='))
-            ?.split('=')[1];
-
-        fetch(TrialReportController.logPrint(trial.id).url, {
-            method: 'POST',
-            headers: xsrfToken
-                ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrfToken) }
-                : {},
-        }).catch(() => {});
-        window.print();
-    }
-
     return (
         <>
             <Head title={`Report — ${trial.trial_code}`} />
@@ -192,7 +177,15 @@ export default function TrialReport({
                         title="Report Summary"
                         description="Trial validation summary dan attachment evidence."
                     />
-                    <Button onClick={handlePrint}>Print</Button>
+                    <Button asChild>
+                        <a
+                            href={TrialReportController.pdf(trial.id).url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Unduh PDF
+                        </a>
+                    </Button>
                 </div>
 
                 {approvalBlockedNote && (

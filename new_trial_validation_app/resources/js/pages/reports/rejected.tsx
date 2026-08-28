@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { dashboard } from '@/routes';
 import { index as reportsIndex, rejected } from '@/routes/reports';
+import { pdf as rejectedPdf } from '@/routes/reports/rejected';
 import { show as reportShow } from '@/routes/trials/report';
 import type { Paginated } from '@/types';
 
@@ -42,8 +43,14 @@ export default function ReportsRejected({ items }: PageProps) {
                         title="Rejected Report"
                         description="Trial yang ditolak final oleh Manager QAC."
                     />
-                    <Button variant="outline" onClick={() => window.print()}>
-                        Print
+                    <Button variant="outline" asChild>
+                        <a
+                            href={rejectedPdf().url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Unduh PDF
+                        </a>
                     </Button>
                 </div>
 

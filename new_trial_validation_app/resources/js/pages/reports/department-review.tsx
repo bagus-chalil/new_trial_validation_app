@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { dashboard } from '@/routes';
 import { departmentReview, index as reportsIndex } from '@/routes/reports';
+import { pdf as departmentReviewPdf } from '@/routes/reports/department-review';
 import { show as reportShow } from '@/routes/trials/report';
 import type { Paginated } from '@/types';
 
@@ -44,8 +45,14 @@ export default function ReportsDepartmentReview({
                         title="Department Review Report"
                         description="Progress review per department."
                     />
-                    <Button variant="outline" onClick={() => window.print()}>
-                        Print
+                    <Button variant="outline" asChild>
+                        <a
+                            href={departmentReviewPdf().url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Unduh PDF
+                        </a>
                     </Button>
                 </div>
 
