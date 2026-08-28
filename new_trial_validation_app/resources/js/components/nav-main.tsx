@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -9,8 +9,29 @@ import {
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import type { NavGroup } from '@/types';
 
-export function NavMain({ groups = [] }: { groups: NavGroup[] }) {
+export function NavMain({ groups = [] }: { readonly groups: NavGroup[] }) {
     const { isCurrentUrl } = useCurrentUrl();
+    const { trial } = usePage<{ trial?: { progress_status?: string } }>().props;
+
+    const statusNavTitles: Record<string, string> = {
+        Draft: 'Draft',
+        'In Review': 'In Review',
+        'Ready for Approval': 'Ready for Approval',
+        Approved: 'Approved',
+        'Need Revision': 'Need Revision',
+        Rejected: 'Rejected',
+    };
+
+    function isItemActive(item: NavGroup['items'][number]) {
+        if (isCurrentUrl(item.href)) {
+            return true;
+        }
+
+        return Boolean(
+            trial?.progress_status &&
+                statusNavTitles[trial.progress_status] === item.title,
+        );
+    }
 
     return (
         <>
@@ -24,7 +45,7 @@ export function NavMain({ groups = [] }: { groups: NavGroup[] }) {
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton
                                             asChild
-                                            isActive={isCurrentUrl(item.href)}
+                                            isActive={isItemActive(item)}
                                             tooltip={{ children: item.title }}
                                             className="data-[active=true]:bg-brand data-[active=true]:text-white data-[active=true]:hover:bg-brand/90"
                                         >
