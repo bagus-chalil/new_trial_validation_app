@@ -20,6 +20,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { formatDate } from '@/lib/utils';
 import { edit as editTrial } from '@/routes/trials';
 import type { Paginated } from '@/types';
 
@@ -77,7 +78,10 @@ const columns = [
             </div>
         ),
     }),
-    columnHelper.accessor('created_at', { header: 'Created Date' }),
+    columnHelper.accessor('created_at', {
+        header: 'Created Date',
+        cell: (info) => formatDate(info.getValue()),
+    }),
     columnHelper.accessor('pending_with', {
         header: 'Pending With',
         cell: (info) => info.getValue() ?? '-',

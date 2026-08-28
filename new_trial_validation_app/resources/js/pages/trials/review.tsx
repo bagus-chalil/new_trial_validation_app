@@ -19,6 +19,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import attachments from '@/routes/trials/attachments';
 
@@ -140,7 +141,7 @@ export default function TrialReview({
                                                 {r.reviewer_name ?? '-'}
                                             </TableCell>
                                             <TableCell>
-                                                {r.reviewed_at ?? '-'}
+                                                {formatDate(r.reviewed_at)}
                                             </TableCell>
                                             <TableCell>
                                                 {r.comment ?? '-'}

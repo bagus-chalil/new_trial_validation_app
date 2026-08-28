@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { index as reportsIndex, rejected } from '@/routes/reports';
 import { pdf as rejectedPdf } from '@/routes/reports/rejected';
@@ -85,7 +86,7 @@ export default function ReportsRejected({ items }: PageProps) {
                                             {item.product_type}
                                         </TableCell>
                                         <TableCell>
-                                            {item.rejected_at ?? '-'}
+                                            {formatDate(item.rejected_at)}
                                         </TableCell>
                                         <TableCell>
                                             {item.rejected_by ?? '-'}

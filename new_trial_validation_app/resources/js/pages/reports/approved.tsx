@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { approved, index as reportsIndex } from '@/routes/reports';
 import { pdf as approvedPdf } from '@/routes/reports/approved';
@@ -83,7 +84,7 @@ export default function ReportsApproved({ items }: PageProps) {
                                             {item.product_type}
                                         </TableCell>
                                         <TableCell>
-                                            {item.approved_at ?? '-'}
+                                            {formatDate(item.approved_at)}
                                         </TableCell>
                                         <TableCell>
                                             {item.approved_by ?? '-'}

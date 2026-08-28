@@ -21,6 +21,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { handleAttachmentImageError } from '@/lib/image-fallback';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { edit as attachmentsEdit } from '@/routes/trials/attachments';
 import { edit as reviewEdit } from '@/routes/trials/review';
@@ -282,7 +283,7 @@ export default function TrialReport({
                                 ['Product Type', trial.product_type],
                                 [
                                     'Validation Date',
-                                    trial.validation_date ?? '-',
+                                    formatDate(trial.validation_date),
                                 ],
                                 ['Risk Level', trial.risk_level],
                                 [
@@ -615,7 +616,7 @@ export default function TrialReport({
                                                 {r.reviewer_name ?? '-'}
                                             </TableCell>
                                             <TableCell>
-                                                {r.reviewed_at ?? '-'}
+                                                {formatDate(r.reviewed_at)}
                                             </TableCell>
                                             <TableCell>
                                                 {r.comment ?? '-'}
@@ -811,7 +812,7 @@ export default function TrialReport({
                                                 {decisionLabel.at}
                                             </TableCell>
                                             <TableCell>
-                                                {decisionAt ?? '-'}
+                                                {formatDate(decisionAt)}
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
