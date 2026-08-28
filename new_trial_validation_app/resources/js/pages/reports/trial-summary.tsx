@@ -1,13 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import type { ActiveFilterChip } from '@/components/filter-bar';
+import { FilterBar, FilterField, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Table,
     TableBody,
@@ -57,9 +58,6 @@ type PageProps = {
     machines: string[];
 };
 
-const selectClassName =
-    'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs dark:bg-input/30';
-
 export default function ReportsTrialSummary({
     items,
     filters,
@@ -78,6 +76,51 @@ export default function ReportsTrialSummary({
     function reset() {
         router.get(url);
     }
+
+    function clearFilter(key: keyof Filters) {
+        const next = { ...form, [key]: '' };
+        setForm(next);
+        router.get(url, next, { preserveState: true, replace: true });
+    }
+
+    const hasActiveFilters = Object.values(filters).some(Boolean);
+    const activeChips: ActiveFilterChip[] = [
+        filters.date_from && {
+            key: 'date_from',
+            label: `Dari: ${filters.date_from}`,
+            onClear: () => clearFilter('date_from'),
+        },
+        filters.date_to && {
+            key: 'date_to',
+            label: `Sampai: ${filters.date_to}`,
+            onClear: () => clearFilter('date_to'),
+        },
+        filters.status && {
+            key: 'status',
+            label: `Status: ${filters.status}`,
+            onClear: () => clearFilter('status'),
+        },
+        filters.product_type && {
+            key: 'product_type',
+            label: `Product Type: ${filters.product_type}`,
+            onClear: () => clearFilter('product_type'),
+        },
+        filters.validation_scope && {
+            key: 'validation_scope',
+            label: `Scope: ${filters.validation_scope}`,
+            onClear: () => clearFilter('validation_scope'),
+        },
+        filters.machine_used && {
+            key: 'machine_used',
+            label: `Machine: ${filters.machine_used}`,
+            onClear: () => clearFilter('machine_used'),
+        },
+        filters.product_name && {
+            key: 'product_name',
+            label: `Product: ${filters.product_name}`,
+            onClear: () => clearFilter('product_name'),
+        },
+    ].filter(Boolean) as ActiveFilterChip[];
 
     return (
         <>
@@ -100,159 +143,82 @@ export default function ReportsTrialSummary({
                     </Button>
                 </div>
 
-                <Card className="print:hidden">
-                    <CardContent>
-                        <form
-                            onSubmit={submit}
-                            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-                        >
-                            <div className="grid gap-2">
-                                <Label htmlFor="date_from">Date From</Label>
-                                <Input
-                                    id="date_from"
-                                    type="date"
-                                    value={form.date_from}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            date_from: e.target.value,
-                                        })
-                                    }
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="date_to">Date To</Label>
-                                <Input
-                                    id="date_to"
-                                    type="date"
-                                    value={form.date_to}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            date_to: e.target.value,
-                                        })
-                                    }
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="status">Status</Label>
-                                <select
-                                    id="status"
-                                    className={selectClassName}
-                                    value={form.status}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            status: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value="">Semua status</option>
-                                    {TRIAL_STATUSES.map((status) => (
-                                        <option key={status} value={status}>
-                                            {status}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="product_type">
-                                    Product Type
-                                </Label>
-                                <select
-                                    id="product_type"
-                                    className={selectClassName}
-                                    value={form.product_type}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            product_type: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value="">Semua product type</option>
-                                    {productTypes.map((type) => (
-                                        <option key={type} value={type}>
-                                            {type}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="validation_scope">
-                                    Validation Scope
-                                </Label>
-                                <select
-                                    id="validation_scope"
-                                    className={selectClassName}
-                                    value={form.validation_scope}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            validation_scope: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value="">Semua scope</option>
-                                    {validationScopes.map((scope) => (
-                                        <option key={scope} value={scope}>
-                                            {scope}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="machine_used">
-                                    Machine Used
-                                </Label>
-                                <select
-                                    id="machine_used"
-                                    className={selectClassName}
-                                    value={form.machine_used}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            machine_used: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value="">Semua machine</option>
-                                    {machines.map((machine) => (
-                                        <option key={machine} value={machine}>
-                                            {machine}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="product_name">
-                                    Product Name
-                                </Label>
-                                <Input
-                                    id="product_name"
-                                    placeholder="Product name"
-                                    value={form.product_name}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            product_name: e.target.value,
-                                        })
-                                    }
-                                />
-                            </div>
-                            <div className="flex items-end gap-2">
-                                <Button type="submit">Search</Button>
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={reset}
-                                >
-                                    Reset
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
+                <FilterBar
+                    className="print:hidden"
+                    onSubmit={submit}
+                    onReset={reset}
+                    hasActiveFilters={hasActiveFilters}
+                    activeChips={activeChips}
+                >
+                    <FilterField label="Date From">
+                        <Input
+                            type="date"
+                            value={form.date_from}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    date_from: e.target.value,
+                                })
+                            }
+                        />
+                    </FilterField>
+                    <FilterField label="Date To">
+                        <Input
+                            type="date"
+                            value={form.date_to}
+                            onChange={(e) =>
+                                setForm({ ...form, date_to: e.target.value })
+                            }
+                        />
+                    </FilterField>
+                    <FilterSelect
+                        label="Status"
+                        value={form.status}
+                        onChange={(value) =>
+                            setForm({ ...form, status: value })
+                        }
+                        options={[...TRIAL_STATUSES]}
+                    />
+                    <FilterSelect
+                        label="Product Type"
+                        value={form.product_type}
+                        onChange={(value) =>
+                            setForm({ ...form, product_type: value })
+                        }
+                        options={productTypes}
+                        placeholder="Semua product type"
+                    />
+                    <FilterSelect
+                        label="Validation Scope"
+                        value={form.validation_scope}
+                        onChange={(value) =>
+                            setForm({ ...form, validation_scope: value })
+                        }
+                        options={validationScopes}
+                        placeholder="Semua scope"
+                    />
+                    <FilterSelect
+                        label="Machine Used"
+                        value={form.machine_used}
+                        onChange={(value) =>
+                            setForm({ ...form, machine_used: value })
+                        }
+                        options={machines}
+                        placeholder="Semua machine"
+                    />
+                    <FilterField label="Product Name">
+                        <Input
+                            placeholder="Product name"
+                            value={form.product_name}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    product_name: e.target.value,
+                                })
+                            }
+                        />
+                    </FilterField>
+                </FilterBar>
 
                 <Card>
                     <CardContent>

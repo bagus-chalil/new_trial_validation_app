@@ -19,13 +19,13 @@ import { StatusDistributionChart } from '@/components/dashboard/status-distribut
 import type { StatusDatum } from '@/components/dashboard/status-distribution-chart';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import type { TrendDatum } from '@/components/dashboard/trend-chart';
+import type { ActiveFilterChip } from '@/components/filter-bar';
+import { FilterBar, FilterField, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
 import { TrialsTable } from '@/components/trials-table';
 import type { TrialRow } from '@/components/trials-table';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { TRIAL_STATUSES } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { index as trialsIndex } from '@/routes/trials';
@@ -142,6 +142,44 @@ export default function Dashboard({
     function reset() {
         router.get(dashboard().url);
     }
+
+    function clearFilter(key: keyof Filters) {
+        const next = { ...form, [key]: '' };
+        setForm(next);
+        router.get(dashboard().url, next, {
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    const hasActiveFilters = Object.values(filters).some(Boolean);
+    const activeChips: ActiveFilterChip[] = [
+        filters.q && {
+            key: 'q',
+            label: `Search: ${filters.q}`,
+            onClear: () => clearFilter('q'),
+        },
+        filters.status && {
+            key: 'status',
+            label: `Status: ${filters.status}`,
+            onClear: () => clearFilter('status'),
+        },
+        filters.product_type && {
+            key: 'product_type',
+            label: `Product Type: ${filters.product_type}`,
+            onClear: () => clearFilter('product_type'),
+        },
+        filters.date_from && {
+            key: 'date_from',
+            label: `Dari: ${filters.date_from}`,
+            onClear: () => clearFilter('date_from'),
+        },
+        filters.date_to && {
+            key: 'date_to',
+            label: `Sampai: ${filters.date_to}`,
+            onClear: () => clearFilter('date_to'),
+        },
+    ].filter(Boolean) as ActiveFilterChip[];
 
     return (
         <>
@@ -285,108 +323,55 @@ export default function Dashboard({
                     </Card>
                 </section>
 
-                <Card>
-                    <CardContent>
-                        <form
-                            onSubmit={submit}
-                            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
-                        >
-                            <div className="grid gap-2 lg:col-span-2">
-                                <Label htmlFor="q">Search</Label>
-                                <Input
-                                    id="q"
-                                    placeholder="Trial, product, FG code, category, scope, machine"
-                                    value={form.q}
-                                    onChange={(e) =>
-                                        setForm({ ...form, q: e.target.value })
-                                    }
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="status">Status</Label>
-                                <select
-                                    id="status"
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs dark:bg-input/30"
-                                    value={form.status}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            status: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value="">Semua status</option>
-                                    {TRIAL_STATUSES.map((status) => (
-                                        <option key={status} value={status}>
-                                            {status}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="product_type">
-                                    Product Type
-                                </Label>
-                                <select
-                                    id="product_type"
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs dark:bg-input/30"
-                                    value={form.product_type}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            product_type: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value="">Semua kategori</option>
-                                    {productTypes.map((type) => (
-                                        <option key={type} value={type}>
-                                            {type}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="date_from">Tanggal Dari</Label>
-                                <Input
-                                    id="date_from"
-                                    type="date"
-                                    value={form.date_from}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            date_from: e.target.value,
-                                        })
-                                    }
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="date_to">Tanggal Sampai</Label>
-                                <Input
-                                    id="date_to"
-                                    type="date"
-                                    value={form.date_to}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            date_to: e.target.value,
-                                        })
-                                    }
-                                />
-                            </div>
-                            <div className="flex items-end gap-2 lg:col-span-5">
-                                <Button type="submit">Search</Button>
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={reset}
-                                >
-                                    Reset
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
+                <FilterBar
+                    searchValue={form.q}
+                    onSearchChange={(value) =>
+                        setForm({ ...form, q: value })
+                    }
+                    searchPlaceholder="Trial, product, FG code, category, scope, machine"
+                    onSubmit={submit}
+                    onReset={reset}
+                    hasActiveFilters={hasActiveFilters}
+                    activeChips={activeChips}
+                >
+                    <FilterSelect
+                        label="Status"
+                        value={form.status}
+                        onChange={(value) =>
+                            setForm({ ...form, status: value })
+                        }
+                        options={[...TRIAL_STATUSES]}
+                    />
+                    <FilterSelect
+                        label="Product Type"
+                        value={form.product_type}
+                        onChange={(value) =>
+                            setForm({ ...form, product_type: value })
+                        }
+                        options={productTypes}
+                    />
+                    <FilterField label="Tanggal Dari">
+                        <Input
+                            type="date"
+                            value={form.date_from}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    date_from: e.target.value,
+                                })
+                            }
+                        />
+                    </FilterField>
+                    <FilterField label="Tanggal Sampai">
+                        <Input
+                            type="date"
+                            value={form.date_to}
+                            onChange={(e) =>
+                                setForm({ ...form, date_to: e.target.value })
+                            }
+                        />
+                    </FilterField>
+                </FilterBar>
 
                 <TrialsTable
                     trials={trials}
