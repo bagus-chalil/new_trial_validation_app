@@ -37,7 +37,7 @@ class SaveTrialAttachments
      * @param  array<int, UploadedFile|null>  $photos
      * @return array{saved: int, errors: array<int, string>}
      */
-    public function __invoke(Trial $trial, string $category, array $photos, User $user): array
+    public function __invoke(Trial $trial, string $category, array $photos, ?string $caption, User $user): array
     {
         $disk = Storage::disk('legacy_uploads');
         $saved = 0;
@@ -79,6 +79,7 @@ class SaveTrialAttachments
                 'category' => $category,
                 'file_name' => $name,
                 'file_path' => "/uploads/{$trial->id}/{$name}",
+                'caption' => $caption,
                 'uploaded_by' => $user->email,
             ]);
 

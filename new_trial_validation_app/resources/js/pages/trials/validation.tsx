@@ -158,7 +158,8 @@ function ValidationParameterRow({
                     onChange={(e) => setRemark(e.target.value)}
                     disabled={!canEdit}
                     readOnly={!canEdit}
-                    rows={2}
+                    rows={4}
+                    className="w-full min-w-[200px]"
                 />
             </TableCell>
         </TableRow>

@@ -75,6 +75,7 @@ class TrialReportController extends Controller
             ->map(fn ($files) => $files->map(fn (TrialAttachmentFile $file) => [
                 'id' => $file->id,
                 'file_name' => $file->file_name,
+                'caption' => $file->caption,
                 'url' => route('trials.attachments.show', [$trial->id, $file->id]),
             ])->values());
 
@@ -154,6 +155,7 @@ class TrialReportController extends Controller
             ->groupBy('category')
             ->map(fn ($files) => $files->map(fn (TrialAttachmentFile $file) => [
                 'file_name' => $file->file_name,
+                'caption' => $file->caption,
                 'src' => $this->attachmentDataUri($file),
             ])->values());
 

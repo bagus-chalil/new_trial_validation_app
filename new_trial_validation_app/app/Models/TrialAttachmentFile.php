@@ -24,10 +24,11 @@ use Illuminate\Support\Carbon;
  * @property string $category
  * @property string $file_name
  * @property string $file_path
+ * @property string|null $caption
  * @property string|null $uploaded_by
  * @property Carbon|null $created_at
  */
-#[Fillable(['trial_id', 'category', 'file_name', 'file_path', 'uploaded_by'])]
+#[Fillable(['trial_id', 'category', 'file_name', 'file_path', 'caption', 'uploaded_by'])]
 class TrialAttachmentFile extends Model
 {
     protected $table = 'trial_attachment_files';

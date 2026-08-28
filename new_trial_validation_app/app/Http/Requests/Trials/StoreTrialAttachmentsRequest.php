@@ -40,6 +40,7 @@ class StoreTrialAttachmentsRequest extends FormRequest
             ],
             'photos' => ['required', 'array', 'min:1'],
             'photos.*' => ['nullable', 'file'],
+            'caption' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

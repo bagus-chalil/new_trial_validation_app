@@ -56,6 +56,7 @@ class TrialAttachmentController extends Controller
                 'id' => $file->id,
                 'category' => $file->category,
                 'file_name' => $file->file_name,
+                'caption' => $file->caption,
                 'url' => route('trials.attachments.show', [$trial->id, $file->id]),
             ]),
             'canEdit' => Gate::allows('update', $trial),
@@ -70,6 +71,7 @@ class TrialAttachmentController extends Controller
             $trial,
             (string) $request->string('category'),
             (array) $request->file('photos', []),
+            $request->filled('caption') ? (string) $request->string('caption') : null,
             $request->user(),
         );
 

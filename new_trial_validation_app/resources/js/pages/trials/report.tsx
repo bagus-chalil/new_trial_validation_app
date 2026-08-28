@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import ApprovalController from '@/actions/App/Http/Controllers/ApprovalController';
 import ReviewController from '@/actions/App/Http/Controllers/ReviewController';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
+import { AttachmentImagePreview } from '@/components/attachment-image-preview';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -19,7 +20,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { handleAttachmentImageError } from '@/lib/image-fallback';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -77,6 +77,7 @@ type WeighingSection = {
 type AttachmentFile = {
     id: number;
     file_name: string;
+    caption: string | null;
     url: string;
 };
 
@@ -564,18 +565,27 @@ export default function TrialReport({
                                                             key={file.id}
                                                             className="space-y-1 rounded-md border p-2"
                                                         >
-                                                            <img
+                                                            <AttachmentImagePreview
                                                                 src={file.url}
                                                                 alt={
                                                                     file.file_name
                                                                 }
-                                                                onError={
-                                                                    handleAttachmentImageError
+                                                                fileName={
+                                                                    file.file_name
                                                                 }
-                                                                className="aspect-square w-full rounded object-cover"
+                                                                caption={
+                                                                    file.caption
+                                                                }
                                                             />
-                                                            <figcaption className="truncate text-xs text-muted-foreground">
-                                                                {file.file_name}
+                                                            <figcaption className="space-y-0.5 text-xs text-muted-foreground">
+                                                                {file.caption && (
+                                                                    <span className="block whitespace-pre-wrap break-words font-medium text-foreground">
+                                                                        {file.caption}
+                                                                    </span>
+                                                                )}
+                                                                <span className="block truncate">
+                                                                    {file.file_name}
+                                                                </span>
                                                             </figcaption>
                                                         </figure>
                                                     ))}

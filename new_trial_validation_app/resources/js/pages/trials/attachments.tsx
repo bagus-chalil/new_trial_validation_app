@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import TrialAttachmentController from '@/actions/App/Http/Controllers/TrialAttachmentController';
+import { AttachmentImagePreview } from '@/components/attachment-image-preview';
 import { Combobox } from '@/components/combobox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -12,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { handleAttachmentImageError } from '@/lib/image-fallback';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { edit as reviewEdit } from '@/routes/trials/review';
@@ -31,6 +31,7 @@ type AttachmentFile = {
     id: number;
     category: string;
     file_name: string;
+    caption: string | null;
     url: string;
 };
 
@@ -169,6 +170,8 @@ export default function TrialAttachments({
                             setSelected([]);
                             syncInput([]);
                             setCategory(categories[0] ?? '');
+                            const captionInput = document.getElementById('caption') as HTMLInputElement | null;
+                            if (captionInput) captionInput.value = '';
                         }}
                         className="space-y-4"
                     >
@@ -210,6 +213,15 @@ export default function TrialAttachments({
                                             type="hidden"
                                             name="category"
                                             value={category}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="caption">Caption (Optional)</Label>
+                                        <Input
+                                            id="caption"
+                                            name="caption"
+                                            placeholder="Tambahkan keterangan singkat tentang foto ini..."
+                                            maxLength={255}
                                         />
                                     </div>
                                     <div className="grid gap-2">
@@ -269,14 +281,21 @@ export default function TrialAttachments({
                                         key={file.id}
                                         className="space-y-1 rounded-md border p-2"
                                     >
-                                        <img
+                                        <AttachmentImagePreview
                                             src={file.url}
                                             alt={file.file_name}
-                                            onError={handleAttachmentImageError}
-                                            className="aspect-square w-full rounded object-cover"
+                                            fileName={file.file_name}
+                                            caption={file.caption}
                                         />
-                                        <figcaption className="truncate text-xs text-muted-foreground">
+                                        <figcaption className="space-y-0.5 text-xs text-muted-foreground">
+                                            {file.caption && (
+                                                <span className="block whitespace-pre-wrap break-words font-medium text-foreground">
+                                                    {file.caption}
+                                                </span>
+                                            )}
+                                            <span className="block truncate">
                                             {file.file_name}
+                                            </span>
                                         </figcaption>
                                         {canEdit && (
                                             <ConfirmDialog
