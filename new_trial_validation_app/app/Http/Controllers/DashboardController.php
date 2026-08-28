@@ -62,8 +62,16 @@ class DashboardController extends Controller
             'filters' => $filters,
             'productTypes' => $productTypes,
             'summary' => $summary,
+        ]);
+    }
+
+    public function myWork(Request $request): Response
+    {
+        $user = $request->user();
+
+        return Inertia::render('my-work', [
             'canCreateTrial' => Gate::forUser($user)->allows('create', Trial::class),
-            'myWork' => $this->myWork($user),
+            'myWork' => $this->myWorkData($user),
         ]);
     }
 
@@ -78,7 +86,7 @@ class DashboardController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function myWork(User $user): array
+    private function myWorkData(User $user): array
     {
         $myTrialsQuery = Trial::query()
             ->whereNull('deleted_at')

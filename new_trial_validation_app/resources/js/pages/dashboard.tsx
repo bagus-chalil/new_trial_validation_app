@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCircle2,
@@ -11,8 +11,6 @@ import {
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
-import { MyWorkSection } from '@/components/my-work-section';
-import type { MyWork } from '@/components/my-work-section';
 import { TrialsTable } from '@/components/trials-table';
 import type { TrialRow } from '@/components/trials-table';
 import { Button } from '@/components/ui/button';
@@ -21,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TRIAL_STATUSES } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
-import { create as createTrial, index as trialsIndex } from '@/routes/trials';
+import { index as trialsIndex } from '@/routes/trials';
 import type { Paginated } from '@/types';
 
 type Summary = {
@@ -47,8 +45,6 @@ type PageProps = {
     filters: Filters;
     productTypes: string[];
     summary: Summary;
-    canCreateTrial: boolean;
-    myWork: MyWork;
 };
 
 const summaryCards: {
@@ -106,8 +102,6 @@ export default function Dashboard({
     filters,
     productTypes,
     summary,
-    canCreateTrial,
-    myWork,
 }: PageProps) {
     const [form, setForm] = useState<Filters>(filters);
 
@@ -128,19 +122,10 @@ export default function Dashboard({
             <Head title="Dashboard" />
 
             <div className="space-y-6 p-4">
-                <div className="flex items-start justify-between gap-4">
-                    <Heading
-                        title="Trial Dashboard"
-                        description="Kelola dan pantau proses trial validation."
-                    />
-                    {canCreateTrial && (
-                        <Button asChild>
-                            <Link href={createTrial().url}>New Trial</Link>
-                        </Button>
-                    )}
-                </div>
-
-                <MyWorkSection myWork={myWork} />
+                <Heading
+                    title="Trial Dashboard"
+                    description="Kelola dan pantau proses trial validation."
+                />
 
                 <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                     {summaryCards.map((card) => (

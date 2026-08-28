@@ -10,6 +10,7 @@ Route::get('sso/exchange', [SsoController::class, 'exchange'])->name('sso.exchan
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('my-work', [DashboardController::class, 'myWork'])->name('my-work');
     Route::get('sso/to-old', [SsoController::class, 'toOld'])->name('sso.to-old');
 });
 

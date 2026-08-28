@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
 import { Maximize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -85,6 +85,7 @@ export function AttachmentImagePreview({
             open={open}
             onOpenChange={(nextOpen) => {
                 setOpen(nextOpen);
+
                 if (nextOpen) {
                     fitPreview();
                 }

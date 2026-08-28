@@ -171,7 +171,10 @@ export default function TrialAttachments({
                             syncInput([]);
                             setCategory(categories[0] ?? '');
                             const captionInput = document.getElementById('caption') as HTMLInputElement | null;
-                            if (captionInput) captionInput.value = '';
+
+                            if (captionInput) {
+captionInput.value = '';
+}
                         }}
                         className="space-y-4"
                     >

@@ -88,7 +88,7 @@ test('myWork lists the current user\'s own active trials but excludes finished o
     makeDashboardTrial(['trial_code' => 'TRIAL-MINE-APPROVED', 'progress_status' => 'Approved', 'created_by' => 'staff@local.test']);
     makeDashboardTrial(['trial_code' => 'TRIAL-SOMEONE-ELSE', 'progress_status' => 'Draft', 'created_by' => 'other@local.test']);
 
-    $response = $this->actingAs($staff)->get(route('dashboard'));
+    $response = $this->actingAs($staff)->get(route('my-work'));
 
     $response->assertInertia(fn ($page) => $page
         ->where('myWork.myTrialsTotal', 1)
@@ -102,7 +102,7 @@ test('myWork lists pending reviews for the current user\'s department only', fun
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
 
-    $response = $this->actingAs($reviewer)->get(route('dashboard'));
+    $response = $this->actingAs($reviewer)->get(route('my-work'));
 
     $response->assertInertia(fn ($page) => $page
         ->where('myWork.pendingReviewsTotal', 1)
@@ -116,7 +116,7 @@ test('myWork lists only approvals specifically assigned to the current user, not
     makeDashboardTrial(['trial_code' => 'TRIAL-APPROVAL-MINE', 'progress_status' => 'Ready for Approval', 'approver_user_id' => $managerQac->id]);
     makeDashboardTrial(['trial_code' => 'TRIAL-APPROVAL-OTHER', 'progress_status' => 'Ready for Approval', 'approver_user_id' => null]);
 
-    $response = $this->actingAs($managerQac)->get(route('dashboard'));
+    $response = $this->actingAs($managerQac)->get(route('my-work'));
 
     $response->assertInertia(fn ($page) => $page
         ->where('myWork.pendingApprovalsTotal', 1)

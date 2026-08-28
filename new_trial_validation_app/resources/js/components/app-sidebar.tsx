@@ -3,12 +3,11 @@ import {
     AlertTriangle,
     ArrowLeftRight,
     Bell,
+    BriefcaseBusiness,
     CheckCircle2,
     CircleCheckBig,
     ClipboardCheck,
     Clock,
-    FileEdit,
-    FilePlus2,
     FlaskConical,
     History,
     KeyRound,
@@ -45,7 +44,7 @@ import { index as usersIndex } from '@/routes/admin/users';
 import { index as approvalsIndex } from '@/routes/approvals';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
-import { create as createTrial, index as trialsIndex } from '@/routes/trials';
+import { index as trialsIndex } from '@/routes/trials';
 import type { Auth, NavGroup } from '@/types';
 
 export function AppSidebar() {
@@ -56,7 +55,6 @@ export function AppSidebar() {
     }>().props;
     const isSuperAdmin = auth.user.role === 'Super Admin';
     const isAdmin = auth.user.role === 'Admin' || isSuperAdmin;
-    const isStaff = auth.user.role === 'Staff' || isAdmin;
     const canManageTemplates = isAdmin || auth.user.role === 'Staff';
 
     const navGroups: NavGroup[] = [
@@ -73,19 +71,10 @@ export function AppSidebar() {
         {
             label: 'Trials',
             items: [
-                ...(isStaff
-                    ? [
-                          {
-                              title: 'New Trial',
-                              href: createTrial(),
-                              icon: FilePlus2,
-                          },
-                      ]
-                    : []),
                 {
-                    title: 'Draft',
-                    href: trialsIndex('draft'),
-                    icon: FileEdit,
+                    title: 'My Work',
+                    href: '/my-work',
+                    icon: BriefcaseBusiness,
                 },
                 {
                     title: 'In Review',
