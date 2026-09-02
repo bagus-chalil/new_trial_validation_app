@@ -13,6 +13,9 @@ return new class extends Migration
             $table->foreignId('filling_check_id')->constrained('filling_checks')->cascadeOnDelete();
             $table->unsignedTinyInteger('sample_no');
             $table->decimal('weight_value', 10, 4)->nullable();
+            // Legacy only computes/stores a per-sample result for samples 1-5 of 10 (a real
+            // limitation of the source app, not a guess) — nullable, left blank for samples 6-10.
+            $table->string('weight_result')->nullable();
             $table->timestamps();
 
             $table->unique(['filling_check_id', 'sample_no']);

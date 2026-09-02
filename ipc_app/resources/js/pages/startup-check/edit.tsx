@@ -29,22 +29,32 @@ interface StartupCheckData {
     [key: string]: unknown;
 }
 
+interface ChecklistGroup {
+    key: string;
+    fields: Record<string, string>;
+    options: string[];
+}
+
 const DEFAULT_SAMPLE_COUNT = 30;
+
+const GROUP_TITLES: Record<string, string> = {
+    availability: 'Ketersediaan',
+    conform: 'Conform / Not Conform',
+    pm_bom_match: 'PM / BOM Match',
+    bulk_status: 'Status Bulk',
+    identity_line_board: 'Identity Line Board',
+};
 
 export default function StartupCheckEdit({
     batch,
     startupCheck,
     isReadOnly,
-    availabilityFields,
-    conformFields,
-    statusOptions,
+    checklistGroups,
 }: {
     batch: Batch;
     startupCheck: StartupCheckData | null;
     isReadOnly: boolean;
-    availabilityFields: Record<string, string>;
-    conformFields: Record<string, string>;
-    statusOptions: { availability: string[]; conform: string[] };
+    checklistGroups: ChecklistGroup[];
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Batches', href: '/batches' },
@@ -63,29 +73,22 @@ export default function StartupCheckEdit({
 
     const [weights, setWeights] = useState<BottleWeight[]>(initialWeights);
 
+    const initialChecklistValues = checklistGroups.reduce<Record<string, string>>((acc, group) => {
+        Object.keys(group.fields).forEach((key) => {
+            acc[key] = (startupCheck?.[key] as string) ?? '';
+        });
+        return acc;
+    }, {});
+
     const { data, setData, put, transform, processing, errors } = useForm<Record<string, string | null>>({
-        product_standard_status: (startupCheck?.product_standard_status as string) ?? '',
-        sample_challenge_test_status: (startupCheck?.sample_challenge_test_status as string) ?? '',
-        wi_im_match_status: (startupCheck?.wi_im_match_status as string) ?? '',
-        pm_bom_match_status: (startupCheck?.pm_bom_match_status as string) ?? '',
-        bulk_status_status: (startupCheck?.bulk_status_status as string) ?? '',
+        ...initialChecklistValues,
         validation_report_status: (startupCheck?.validation_report_status as string) ?? '',
-        identity_line_board_status: (startupCheck?.identity_line_board_status as string) ?? '',
-        machine_vision_status: (startupCheck?.machine_vision_status as string) ?? '',
-        machine_weigher_status: (startupCheck?.machine_weigher_status as string) ?? '',
-        machine_roller_status: (startupCheck?.machine_roller_status as string) ?? '',
-        machine_load_cell_status: (startupCheck?.machine_load_cell_status as string) ?? '',
-        machine_balance_status: (startupCheck?.machine_balance_status as string) ?? '',
         filling_range_min: (startupCheck?.filling_range_min as string) ?? '',
         filling_range_max: (startupCheck?.filling_range_max as string) ?? '',
         density: (startupCheck?.density as string) ?? '',
         heating: (startupCheck?.heating as string) ?? '',
         line_leader_name: (startupCheck?.line_leader_name as string) ?? '',
         operator_name: (startupCheck?.operator_name as string) ?? '',
-        im_number: (startupCheck?.im_number as string) ?? '',
-        color: (startupCheck?.color as string) ?? '',
-        coding: (startupCheck?.coding as string) ?? '',
-        temperature_setting: (startupCheck?.temperature_setting as string) ?? '',
         remarks: (startupCheck?.remarks as string) ?? '',
     });
 
@@ -140,23 +143,16 @@ export default function StartupCheckEdit({
                     )}
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Ketersediaan</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2">
-                        {Object.entries(availabilityFields).map(([key, label]) => renderStatusField(key, label, statusOptions.availability))}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Kondisi Mesin</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2">
-                        {Object.entries(conformFields).map(([key, label]) => renderStatusField(key, label, statusOptions.conform))}
-                    </CardContent>
-                </Card>
+                {checklistGroups.map((group) => (
+                    <Card key={group.key}>
+                        <CardHeader>
+                            <CardTitle>{GROUP_TITLES[group.key] ?? group.key}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 sm:grid-cols-2">
+                            {Object.entries(group.fields).map(([key, label]) => renderStatusField(key, label, group.options))}
+                        </CardContent>
+                    </Card>
+                ))}
 
                 <Card>
                     <CardHeader>
@@ -230,34 +226,14 @@ export default function StartupCheckEdit({
                             <InputError message={errors.operator_name} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="im_number">IM Number</Label>
+                            <Label htmlFor="validation_report_status">Validation Report</Label>
                             <Input
-                                id="im_number"
-                                value={data.im_number ?? ''}
-                                onChange={(e) => setData('im_number', e.target.value)}
+                                id="validation_report_status"
+                                value={data.validation_report_status ?? ''}
+                                onChange={(e) => setData('validation_report_status', e.target.value)}
                                 disabled={isReadOnly}
                             />
-                            <InputError message={errors.im_number} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="color">Color</Label>
-                            <Input id="color" value={data.color ?? ''} onChange={(e) => setData('color', e.target.value)} disabled={isReadOnly} />
-                            <InputError message={errors.color} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="coding">Coding</Label>
-                            <Input id="coding" value={data.coding ?? ''} onChange={(e) => setData('coding', e.target.value)} disabled={isReadOnly} />
-                            <InputError message={errors.coding} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="temperature_setting">Temperature Setting</Label>
-                            <Input
-                                id="temperature_setting"
-                                value={data.temperature_setting ?? ''}
-                                onChange={(e) => setData('temperature_setting', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.temperature_setting} />
+                            <InputError message={errors.validation_report_status} />
                         </div>
                         <div className="grid gap-2 sm:col-span-2 lg:col-span-4">
                             <Label htmlFor="remarks">Remarks</Label>

@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class FinishedCheckSample extends Model
 {
-    // The AQL parameter groups from the legacy Finished Check form (~72 flattened
-    // QST*/QSS*/QSP*/QSF* columns there, one row per group here). Exact wording not yet
-    // verified against the source PDF screenshots — see ipc_app/CLAUDE.md.
+    // The 19 AQL parameter groups from the legacy Finished Check form (76 flattened
+    // QST*/QSS*/QSP*/QSF* x AC/CD/MD/MND columns there, one row per group here). Confirmed
+    // against the real Power Apps export 2026-09-02 (ipc_app/app_legacy/): QSTI/QSTA/QSTCB/
+    // QSTCN/QSTSL (Tersier), QSSI/QSSA/QSSCB/QSSCN/QSSAT (Secondary), QSPP/QSPCS/QSPC/QSPCN/
+    // QSPA (Primary), QSFT (Functional Test), QSSTB/QSSTC/QSSTO (Special Test Bulk/Color/Odor).
     public const PARAMETER_KEYS = [
         'tersier_identity',
         'tersier_appearance',

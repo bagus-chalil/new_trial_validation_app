@@ -57,7 +57,7 @@ class IpcSchemaSmokeTest extends TestCase
         $startupInspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $user->id]);
         StartupInspectionItem::create(['startup_inspection_id' => $startupInspection->id, 'parameter_key' => 'bulk_odor', 'status' => StartupInspectionItem::STATUS_OK]);
         StartupInspectionSample::create(['startup_inspection_id' => $startupInspection->id, 'sample_no' => 1, 'volume' => 100.5]);
-        StartupInspectionTestResult::create(['startup_inspection_id' => $startupInspection->id, 'master_test_type_id' => $testType->id, 'result' => StartupInspectionTestResult::RESULT_PASS]);
+        StartupInspectionTestResult::create(['startup_inspection_id' => $startupInspection->id, 'master_test_type_id' => $testType->id, 'is_performed' => true]);
 
         $fillingCheck = FillingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $user->id, 'decision' => FillingCheck::DECISION_PASSED]);
         FillingCheckSample::create(['filling_check_id' => $fillingCheck->id, 'sample_no' => 1, 'weight_value' => 30.5]);

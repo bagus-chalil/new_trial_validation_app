@@ -30,25 +30,25 @@ class StartupCheckTest extends TestCase
 
     private function validPayload(): array
     {
+        $checklist = [];
+        foreach (StartupCheck::checklistGroups() as $group) {
+            $checklist = [...$checklist, ...array_fill_keys(array_keys($group['fields']), $group['options'][0])];
+        }
+
         return [
-            ...array_fill_keys(array_keys(StartupCheck::AVAILABILITY_FIELDS), StartupCheck::STATUS_AVAILABLE),
-            ...array_fill_keys(array_keys(StartupCheck::CONFORM_FIELDS), StartupCheck::STATUS_CONFORM),
+            ...$checklist,
+            'validation_report_status' => 'Approved',
             'filling_range_min' => 10,
             'filling_range_max' => 12,
             'density' => 1.05,
             'heating' => 'Yes',
             'line_leader_name' => 'Budi',
             'operator_name' => 'Sari',
-            'im_number' => 'IM-001',
-            'color' => 'Clear',
-            'coding' => 'C001',
-            'temperature_setting' => '25C',
             'remarks' => 'OK',
-            'bottle_weights' => [
-                ['sample_no' => 1, 'weight_value' => 21.5],
-                ['sample_no' => 2, 'weight_value' => 21.8],
-                ['sample_no' => 3, 'weight_value' => null],
-            ],
+            'bottle_weights' => array_map(
+                fn (int $sampleNo) => ['sample_no' => $sampleNo, 'weight_value' => 21.5],
+                range(1, 30),
+            ),
         ];
     }
 
@@ -90,7 +90,7 @@ class StartupCheckTest extends TestCase
         $startupCheck = $batch->startupCheck()->with('bottleWeights')->first();
         $this->assertNotNull($startupCheck->completed_at);
         $this->assertSame(StartupCheck::STATUS_AVAILABLE, $startupCheck->product_standard_status);
-        $this->assertCount(2, $startupCheck->bottleWeights);
+        $this->assertCount(30, $startupCheck->bottleWeights);
     }
 
     public function test_missing_checklist_status_is_rejected(): void

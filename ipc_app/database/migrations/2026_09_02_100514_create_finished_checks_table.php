@@ -13,13 +13,21 @@ return new class extends Migration
             $table->foreignId('ipc_batch_id')->unique()->constrained('ipc_batches')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users');
 
-            $table->string('wi_number')->nullable();
-            $table->date('exp_date')->nullable();
+            // NOTE: legacy WI_NUMBER/EXP_DATE are pure photo fields (LargeImage in the real
+            // SharePoint schema, no text/date value) — route through ipc_attachments
+            // (field_label 'wi_number'/'exp_date') instead of dedicated columns here.
             $table->decimal('quantity_wi', 12, 2)->nullable();
             $table->decimal('masterbox', 12, 2)->nullable();
             $table->decimal('no_pallet_qty', 12, 2)->nullable();
             $table->unsignedInteger('quantity_sampling_aql')->nullable();
+            $table->unsignedInteger('quantity_sample_aql_cd')->nullable();
+            $table->unsignedInteger('quantity_sample_aql_md')->nullable();
+            $table->unsignedInteger('quantity_sample_aql_mnd')->nullable();
             $table->unsignedInteger('quantity_special_inspection')->nullable();
+            $table->unsignedInteger('quantity_special_inspection_cd')->nullable();
+            $table->unsignedInteger('quantity_special_inspection_md')->nullable();
+            $table->unsignedInteger('quantity_special_inspection_mnd')->nullable();
+            $table->string('line_leader_name')->nullable();
 
             $table->string('disposition')->nullable();
             $table->text('remarks')->nullable();

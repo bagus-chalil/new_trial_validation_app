@@ -9,9 +9,13 @@ use Illuminate\Database\Seeder;
 
 /**
  * Placeholder master data so batches/startup checks are actually creatable in dev.
- * Not sourced from the real Power Apps master lists (poppler unavailable to read the
- * source PDF's screenshots) — replace with real rows, or build the admin CRUD screens
- * to manage these, before this app goes anywhere near production. See ipc_app/CLAUDE.md.
+ * `master_lines`/`master_products` rows are still illustrative examples, not the real master
+ * lists (those live in SharePoint, not in the Power Apps export) — replace with real rows, or
+ * build the admin CRUD screens to manage these, before this app goes anywhere near production.
+ * `master_test_types`, however, IS the real, complete set of 15 test-type flags wired to
+ * Start_Inspection buttons in the Power Apps export 2026-09-02 (ipc_app/app_legacy/,
+ * Controls/1544.json) — category groupings (Leakage/Functional/Attribute) are still a
+ * reasonable guess, not confirmed by the export. See ipc_app/CLAUDE.md.
  */
 class MasterDataSeeder extends Seeder
 {
@@ -39,8 +43,26 @@ class MasterDataSeeder extends Seeder
             ['product_name' => 'Sample Product B', 'bulk_code' => 'BULK-0002', 'is_active' => true],
         );
 
-        MasterTestType::firstOrCreate(['name' => 'VACCUM'], ['category' => MasterTestType::CATEGORY_LEAKAGE, 'is_active' => true]);
-        MasterTestType::firstOrCreate(['name' => 'TORSI'], ['category' => MasterTestType::CATEGORY_FUNCTIONAL, 'is_active' => true]);
-        MasterTestType::firstOrCreate(['name' => 'SPRAY'], ['category' => MasterTestType::CATEGORY_FUNCTIONAL, 'is_active' => true]);
+        $testTypes = [
+            'VACCUM' => MasterTestType::CATEGORY_LEAKAGE,
+            'PRESS_TEST' => MasterTestType::CATEGORY_LEAKAGE,
+            'TORSI' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'DROP_TEST_P' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'DROP_TEST_S' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'SPRAY' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'FLIP_TOP' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'RUB_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'SWING_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'TAPE_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'HARDESS_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'SECURITY_SEAL' => MasterTestType::CATEGORY_ATTRIBUTE,
+            'SHADE_LABEL' => MasterTestType::CATEGORY_ATTRIBUTE,
+            'QR_CODE' => MasterTestType::CATEGORY_ATTRIBUTE,
+            'HOLOGRAM' => MasterTestType::CATEGORY_ATTRIBUTE,
+        ];
+
+        foreach ($testTypes as $name => $category) {
+            MasterTestType::firstOrCreate(['name' => $name], ['category' => $category, 'is_active' => true]);
+        }
     }
 }

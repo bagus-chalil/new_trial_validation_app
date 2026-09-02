@@ -23,6 +23,8 @@ class FillingCheck extends Model
         'user_id',
         'sample_bulk_odor_status',
         'sample_leakage_test_status',
+        'standard_weight_and_volume',
+        'average_weight',
         'color',
         'line_leader_name',
         'remarks',
@@ -33,6 +35,7 @@ class FillingCheck extends Model
     protected function casts(): array
     {
         return [
+            'average_weight' => 'decimal:4',
             'completed_at' => 'datetime',
         ];
     }

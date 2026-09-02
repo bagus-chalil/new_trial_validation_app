@@ -6,16 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class StartupInspectionTestResult extends Model
 {
-    public const RESULT_PASS = 'Pass';
-
-    public const RESULT_FAIL = 'Fail';
-
     protected $fillable = [
         'startup_inspection_id',
         'master_test_type_id',
-        'result',
+        'is_performed',
         'remark',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_performed' => 'boolean',
+        ];
+    }
 
     public function startupInspection()
     {

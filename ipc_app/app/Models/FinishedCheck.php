@@ -21,13 +21,18 @@ class FinishedCheck extends Model
     protected $fillable = [
         'ipc_batch_id',
         'user_id',
-        'wi_number',
-        'exp_date',
         'quantity_wi',
         'masterbox',
         'no_pallet_qty',
         'quantity_sampling_aql',
+        'quantity_sample_aql_cd',
+        'quantity_sample_aql_md',
+        'quantity_sample_aql_mnd',
         'quantity_special_inspection',
+        'quantity_special_inspection_cd',
+        'quantity_special_inspection_md',
+        'quantity_special_inspection_mnd',
+        'line_leader_name',
         'disposition',
         'remarks',
         'completed_at',
@@ -36,7 +41,6 @@ class FinishedCheck extends Model
     protected function casts(): array
     {
         return [
-            'exp_date' => 'date',
             'quantity_wi' => 'decimal:2',
             'masterbox' => 'decimal:2',
             'no_pallet_qty' => 'decimal:2',

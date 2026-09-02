@@ -12,7 +12,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('startup_inspection_id')->constrained('startup_inspections')->cascadeOnDelete();
             $table->foreignId('master_test_type_id')->constrained('master_test_types');
-            $table->string('result')->nullable();
+            // Real legacy control is a plain on/off toggle ("was this test performed"), not a
+            // pass/fail judgement — confirmed against the Power Apps export 2026-09-02.
+            $table->boolean('is_performed')->default(false);
             $table->text('remark')->nullable();
             $table->timestamps();
 

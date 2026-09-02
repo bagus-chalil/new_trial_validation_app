@@ -20,12 +20,7 @@ class StartupCheckController extends Controller
             'batch' => $batch,
             'startupCheck' => $batch->startupCheck,
             'isReadOnly' => (bool) $batch->startupCheck?->completed_at,
-            'availabilityFields' => StartupCheck::AVAILABILITY_FIELDS,
-            'conformFields' => StartupCheck::CONFORM_FIELDS,
-            'statusOptions' => [
-                'availability' => [StartupCheck::STATUS_AVAILABLE, StartupCheck::STATUS_NOT_AVAILABLE],
-                'conform' => [StartupCheck::STATUS_CONFORM, StartupCheck::STATUS_NOT_CONFORM],
-            ],
+            'checklistGroups' => StartupCheck::checklistGroups(),
         ]);
     }
 

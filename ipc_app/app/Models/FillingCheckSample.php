@@ -10,6 +10,7 @@ class FillingCheckSample extends Model
         'filling_check_id',
         'sample_no',
         'weight_value',
+        'weight_result',
     ];
 
     protected function casts(): array
