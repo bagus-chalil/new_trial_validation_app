@@ -6,7 +6,16 @@ Its predecessor is a Microsoft Power Apps/Dataverse app (a production quality-in
 
 ## Status
 
-**Foundation only** (as of 2026-09-02): scaffold, own database (`ipc_system`), stock `users` table, reachable via the portal chooser. The actual IPC workflow (Startup Check, Filling Check, Packing Check, Finished Check/AQL sampling, Approval, Print, Master Line, Recycle Bin) has not been built yet. **Domain schema design was decided 2026-09-02 (see below) but no migrations/models/controllers exist yet** — that's the next pass. Don't assume any domain tables (Start, Filling, BottleWeight, Packing, Finished, MasterLine, etc.) exist until that pass ships.
+**Schema + models done, no controllers/UI yet** (as of 2026-09-02): scaffold, own database (`ipc_system`), stock `users` table, reachable via the portal chooser, **plus the full domain schema below is now real migrations + Eloquent models**, applied to the local `ipc_system` DB and covered by one Pest-shaped-but-plain-PHPUnit smoke test (`tests/Feature/IpcSchemaSmokeTest.php`) exercising the whole relation chain end-to-end (all 27 tests in the suite pass). **No controllers, routes, or Inertia pages exist yet for any IPC workflow screen** — Startup Check, Filling Check, Packing Check, Finished Check/AQL sampling, Approval, Print, Master Line admin, and Recycle Bin are all still unbuilt as actual features. Don't assume any of those screens work; only the underlying tables/models are real.
+
+**Implementation notes from this pass (2026-09-02):**
+- `pdftoppm`/poppler isn't installed in this environment, so the source PDF's screenshots couldn't be re-rendered this session (only `pdftotext` worked, and the PDF is almost entirely images — it yielded just the workflow/table-name outline, no field-level detail). Every checklist-style status column below (`*_status` on `startup_checks`/`filling_checks`/`packing_checks`, `StartupInspectionItem::PARAMETER_KEYS`, `FinishedCheckSample::PARAMETER_KEYS`) is implemented as a **plain nullable string, not a DB enum**, specifically so exact wording can still be corrected later without a migration. Before building any stage's actual form UI, get poppler installed (or otherwise get eyes on the PDF screenshots) and verify these against the real screens — don't trust the current column/constant names as final.
+- Two deliberate refinements beyond the original design text (documented here since CLAUDE.md is the source of truth): (1) `startup_inspections`' checklist parameters (bulk color/texture, bulk odor, appearance after filling, leakage test, functional test, primer/sekunder/tersier, attribute, appearance) were normalized into a new `startup_inspection_items` child table (`parameter_key`/`status`/`remark` per row) rather than ~20 flat columns, for consistency with how `finished_check_samples` already normalizes its AQL groups — the original design text didn't specify flat-vs-child for this one. (2) `filling_checks`' 10 weight-sample readings got their own `filling_check_samples` child table (`sample_no`/`weight_value`) rather than 10 flat columns, same reasoning, mirroring `startup_bottle_weights`.
+- MySQL's 64-char identifier limit was hit on three auto-named composite unique indexes (`startup_inspection_samples`, `startup_inspection_items`, `startup_inspection_test_results` — their default `{table}_{col1}_{col2}_unique` names ran long); all three now pass an explicit short name as the migration's third `unique()` argument.
+- `ipc_batches` carries the recycle-bin `deleted_at`/`deleted_by` pair (reusing the pattern from `new_trial_validation_app/`, per the design decision below); `master_lines`/`master_products`/`master_test_types` also got it for admin soft-delete, matching that app's Products/Parameters/Masters pattern. Per-stage tables (`startup_checks` etc.) don't have their own `deleted_at` — Recycle Bin is expected to operate at the batch level, matching legacy, and stage completion is tracked via each stage table's own nullable `completed_at` (the "end_yn-equivalent" the design doc mentions for the stage-lock rule) rather than a delete.
+- `ipc_approvals` has a `unique(ipc_batch_id, stage)` — one approval row per batch per stage, no resubmission-round concept (unlike the trial-validation app's `review_round`). Revisit if the real workflow needs multiple approval rounds per stage.
+
+**Next step:** Startup Check as the first actual workflow feature (controller + Inertia page + tests for `startup_checks`/`startup_bottle_weights`, then `startup_inspections`/its children as a following sub-item) — mirroring how `new_trial_validation_app/`'s Fase 3 built one stage at a time. Verify the checklist/enum wording against the PDF (see poppler note above) before or during that pass, not after.
 
 ## Domain schema design (decided 2026-09-02, not yet implemented)
 
@@ -46,9 +55,9 @@ Cross-cutting (span all stages, not duplicated per stage table like legacy does)
 - `ipc_attachments` — polymorphic (batch_id, stage, field_label, file_path) for every camera/photo field scattered across the forms (IM number, color, coding, WI number, exp date, palletisasi, etc.) instead of a separate image column per field
 - Recycle Bin — no separate physical table; reuse the `deleted_at`/`deleted_by` soft-delete pattern already established in `new_trial_validation_app/` rather than a dedicated Dataverse-style recycle list
 
-**Open/deferred, not yet decided:** exact enum values for every dropdown (transcribe from the PDF's screenshots per field when building each stage's form/migration, don't guess), whether `master_lines`/`master_products` need admin CRUD screens before or alongside the first workflow stage, workflow-specific RBAC (who can do Startup Check vs. approve — still "all authenticated users equivalent" per the Non-goals section below until decided otherwise).
+**Open/deferred, not yet decided:** exact enum values for every dropdown (transcribe from the PDF's screenshots per field when building each stage's form/migration, don't guess — **still not done, see the "Implementation notes" caveat under Status above: poppler isn't installed in this environment so this hasn't been verified yet**), whether `master_lines`/`master_products` need admin CRUD screens before or alongside the first workflow stage, workflow-specific RBAC (who can do Startup Check vs. approve — still "all authenticated users equivalent" per the Non-goals section below until decided otherwise).
 
-**Next step when this pass resumes:** turn this into actual migrations + Eloquent models, starting with `master_lines`/`master_products` and `ipc_batches`, then Startup Check as the first workflow stage (mirroring how `new_trial_validation_app/`'s Fase 3 built Trial form → Validation → Weighing → Attachments → Review → Approval → Reports one stage at a time).
+**✅ Migrations + Eloquent models done, 2026-09-02** — see "Implementation notes" under Status above for what shipped and where it deviated from/refined this design text. **Next step:** Startup Check as the first actual workflow feature (controller + Inertia page + tests), mirroring how `new_trial_validation_app/`'s Fase 3 built Trial form → Validation → Weighing → Attachments → Review → Approval → Reports one stage at a time.
 
 ## Commands
 
@@ -95,9 +104,8 @@ Stock Fortify, stock `users` table (`id`, `name`, `email`, `email_verified_at`, 
 
 ## Non-goals right now
 
-Not yet built, not yet designed — do not assume any of this exists:
-- IPC workflow screens (Startup Check, Filling Check, Packing Check, Finished Check/AQL sampling, Approval list, Print list).
-- Domain tables (Start, Filling, BottleWeight, Packing, Finished, MasterLine) and their models/migrations.
-- Master Line management, Recycle Bin.
+Not yet built — do not assume any of this exists:
+- IPC workflow screens/controllers/routes (Startup Check, Filling Check, Packing Check, Finished Check/AQL sampling, Approval list, Print list). The underlying tables and Eloquent models **do** exist now (see "Domain schema design" above) — only the controller/UI layer is missing.
+- Master Line / Master Product / Master Test Type admin CRUD screens, Recycle Bin UI.
 - Workflow-specific RBAC (who can do Startup Check vs. approve) — for now, all authenticated users are equivalent.
 - Any data migration from Power Apps/Dataverse/SharePoint Lists — when the real port happens, it's very likely a manual export/import, not an automated script.
