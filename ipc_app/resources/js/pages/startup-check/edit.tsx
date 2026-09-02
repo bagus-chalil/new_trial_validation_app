@@ -1,14 +1,16 @@
 import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AccordionCard } from '@/components/ipc/accordion-card';
+import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
+import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
+import { TwoPane } from '@/components/ipc/two-pane';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { FormEventHandler, useState } from 'react';
+import { IpcShell } from '@/layouts/ipc-shell';
+import { type RecentBatch, type SharedData } from '@/types';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { FormEventHandler, useMemo, useState } from 'react';
 
 interface Batch {
     id: number;
@@ -45,6 +47,9 @@ const GROUP_TITLES: Record<string, string> = {
     identity_line_board: 'Identity Line Board',
 };
 
+const inputClass =
+    'h-[46px] rounded-xl border-[1.5px] border-border bg-background px-3.5 text-[14.5px] font-semibold text-foreground placeholder:text-muted-foreground/50';
+
 export default function StartupCheckEdit({
     batch,
     startupCheck,
@@ -56,11 +61,8 @@ export default function StartupCheckEdit({
     isReadOnly: boolean;
     checklistGroups: ChecklistGroup[];
 }) {
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Batches', href: '/batches' },
-        { title: batch.no_batch, href: `/batches/${batch.id}/startup-check` },
-        { title: 'Startup Check', href: `/batches/${batch.id}/startup-check` },
-    ];
+    const { props } = usePage<SharedData>();
+    const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
     const initialWeights = (): BottleWeight[] => {
         const bySample = new Map((startupCheck?.bottle_weights ?? []).map((row) => [row.sample_no, row.weight_value]));
@@ -92,6 +94,10 @@ export default function StartupCheckEdit({
         remarks: (startupCheck?.remarks as string) ?? '',
     });
 
+    const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
+    const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
+    const progressPct = allChecklistKeys.length > 0 ? Math.round((answeredCount / allChecklistKeys.length) * 100) : 0;
+
     const setWeight = (sampleNo: number, value: string) => {
         setWeights((prev) => prev.map((row) => (row.sample_no === sampleNo ? { ...row, weight_value: value === '' ? null : value } : row)));
     };
@@ -106,192 +112,209 @@ export default function StartupCheckEdit({
         put(`/batches/${batch.id}/startup-check`);
     };
 
-    const renderStatusField = (key: string, label: string, options: string[]) => (
-        <div key={key} className="grid gap-2">
-            <Label htmlFor={key}>{label}</Label>
-            <Select value={data[key] ?? ''} onValueChange={(value) => setData(key, value)} disabled={isReadOnly}>
-                <SelectTrigger id={key}>
-                    <SelectValue placeholder="Pilih status" />
-                </SelectTrigger>
-                <SelectContent>
-                    {options.map((option) => (
-                        <SelectItem key={option} value={option}>
-                            {option}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <InputError message={errors[key]} />
-        </div>
-    );
+    const listPane = <BatchNavList batches={recentBatches} activeId={batch.id} />;
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <IpcShell
+            title="Startup Check"
+            subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
+            backHref={`/batches/${batch.id}`}
+            progressPct={isReadOnly ? undefined : progressPct}
+            headerActions={
+                isReadOnly ? (
+                    <Link
+                        href={`/batches/${batch.id}/filling-check`}
+                        className="flex h-10 items-center gap-1.5 rounded-full bg-green-100 px-3.5 text-[12.5px] font-bold text-green-800"
+                    >
+                        Selesai · Lanjut ke Filling
+                    </Link>
+                ) : (
+                    <span className="bg-primary/[0.08] text-primary rounded-full px-3 py-1.5 text-[12.5px] font-bold whitespace-nowrap">
+                        {answeredCount}/{allChecklistKeys.length}
+                    </span>
+                )
+            }
+        >
             <Head title={`Startup Check — ${batch.no_batch}`} />
-            <form onSubmit={submit} className="flex flex-1 flex-col gap-4 p-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold">Startup Check</h1>
-                        <p className="text-muted-foreground text-sm">
-                            {batch.no_batch} — {batch.master_product.product_name} ({batch.master_line.name})
-                        </p>
-                    </div>
-                    {isReadOnly && (
-                        <div className="flex items-center gap-3">
-                            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
-                                Selesai — read only
-                            </span>
-                            <Button asChild size="sm" variant="outline">
-                                <Link href={`/batches/${batch.id}/filling-check`}>Lanjut ke Filling Check</Link>
-                            </Button>
-                        </div>
-                    )}
-                </div>
+            <TwoPane list={listPane}>
+                <form onSubmit={submit} className="flex flex-1 flex-col">
+                    <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
+                        {checklistGroups.map((group) => {
+                            const groupAnswered = Object.keys(group.fields).filter((key) => data[key]).length;
+                            return (
+                                <AccordionCard
+                                    key={group.key}
+                                    title={GROUP_TITLES[group.key] ?? group.key}
+                                    progress={`${groupAnswered}/${Object.keys(group.fields).length} terisi`}
+                                >
+                                    {Object.entries(group.fields).map(([key, label]) => (
+                                        <div key={key} className="flex flex-col gap-2">
+                                            <Label className="text-foreground text-[13px] font-semibold">{label}</Label>
+                                            <ChipToggleGroup
+                                                name={label}
+                                                options={group.options}
+                                                value={data[key] ?? ''}
+                                                onChange={(value) => setData(key, value)}
+                                                disabled={isReadOnly}
+                                            />
+                                            <InputError message={errors[key]} />
+                                        </div>
+                                    ))}
+                                </AccordionCard>
+                            );
+                        })}
 
-                {checklistGroups.map((group) => (
-                    <Card key={group.key}>
-                        <CardHeader>
-                            <CardTitle>{GROUP_TITLES[group.key] ?? group.key}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-4 sm:grid-cols-2">
-                            {Object.entries(group.fields).map(([key, label]) => renderStatusField(key, label, group.options))}
-                        </CardContent>
-                    </Card>
-                ))}
+                        <AccordionCard title="Parameter Filling" defaultOpen={false}>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="filling_range_min" className="text-muted-foreground text-xs font-semibold">
+                                    Filling Range Min
+                                </Label>
+                                <Input
+                                    id="filling_range_min"
+                                    type="number"
+                                    step="0.01"
+                                    className={inputClass}
+                                    value={data.filling_range_min ?? ''}
+                                    onChange={(e) => setData('filling_range_min', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.filling_range_min} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="filling_range_max" className="text-muted-foreground text-xs font-semibold">
+                                    Filling Range Max
+                                </Label>
+                                <Input
+                                    id="filling_range_max"
+                                    type="number"
+                                    step="0.01"
+                                    className={inputClass}
+                                    value={data.filling_range_max ?? ''}
+                                    onChange={(e) => setData('filling_range_max', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.filling_range_max} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="density" className="text-muted-foreground text-xs font-semibold">
+                                    Density
+                                </Label>
+                                <Input
+                                    id="density"
+                                    type="number"
+                                    step="0.0001"
+                                    className={inputClass}
+                                    value={data.density ?? ''}
+                                    onChange={(e) => setData('density', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.density} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="heating" className="text-muted-foreground text-xs font-semibold">
+                                    Heating
+                                </Label>
+                                <Input
+                                    id="heating"
+                                    className={inputClass}
+                                    value={data.heating ?? ''}
+                                    onChange={(e) => setData('heating', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.heating} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
+                                    Line Leader
+                                </Label>
+                                <Input
+                                    id="line_leader_name"
+                                    className={inputClass}
+                                    value={data.line_leader_name ?? ''}
+                                    onChange={(e) => setData('line_leader_name', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.line_leader_name} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="operator_name" className="text-muted-foreground text-xs font-semibold">
+                                    Operator
+                                </Label>
+                                <Input
+                                    id="operator_name"
+                                    className={inputClass}
+                                    value={data.operator_name ?? ''}
+                                    onChange={(e) => setData('operator_name', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.operator_name} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="validation_report_status" className="text-muted-foreground text-xs font-semibold">
+                                    Validation Report
+                                </Label>
+                                <Input
+                                    id="validation_report_status"
+                                    className={inputClass}
+                                    value={data.validation_report_status ?? ''}
+                                    onChange={(e) => setData('validation_report_status', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.validation_report_status} />
+                            </div>
+                            <div className="col-span-full flex flex-col gap-2">
+                                <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">
+                                    Catatan / Remarks
+                                </Label>
+                                <Textarea
+                                    id="remarks"
+                                    rows={2}
+                                    className="border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px]"
+                                    value={data.remarks ?? ''}
+                                    onChange={(e) => setData('remarks', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.remarks} />
+                            </div>
+                        </AccordionCard>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Parameter Filling</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="filling_range_min">Filling Range Min</Label>
-                            <Input
-                                id="filling_range_min"
-                                type="number"
-                                step="0.01"
-                                value={data.filling_range_min ?? ''}
-                                onChange={(e) => setData('filling_range_min', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.filling_range_min} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="filling_range_max">Filling Range Max</Label>
-                            <Input
-                                id="filling_range_max"
-                                type="number"
-                                step="0.01"
-                                value={data.filling_range_max ?? ''}
-                                onChange={(e) => setData('filling_range_max', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.filling_range_max} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="density">Density</Label>
-                            <Input
-                                id="density"
-                                type="number"
-                                step="0.0001"
-                                value={data.density ?? ''}
-                                onChange={(e) => setData('density', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.density} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="heating">Heating</Label>
-                            <Input
-                                id="heating"
-                                value={data.heating ?? ''}
-                                onChange={(e) => setData('heating', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.heating} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="line_leader_name">Line Leader</Label>
-                            <Input
-                                id="line_leader_name"
-                                value={data.line_leader_name ?? ''}
-                                onChange={(e) => setData('line_leader_name', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.line_leader_name} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="operator_name">Operator</Label>
-                            <Input
-                                id="operator_name"
-                                value={data.operator_name ?? ''}
-                                onChange={(e) => setData('operator_name', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.operator_name} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="validation_report_status">Validation Report</Label>
-                            <Input
-                                id="validation_report_status"
-                                value={data.validation_report_status ?? ''}
-                                onChange={(e) => setData('validation_report_status', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.validation_report_status} />
-                        </div>
-                        <div className="grid gap-2 sm:col-span-2 lg:col-span-4">
-                            <Label htmlFor="remarks">Remarks</Label>
-                            <Textarea
-                                id="remarks"
-                                value={data.remarks ?? ''}
-                                onChange={(e) => setData('remarks', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.remarks} />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Bottle Weight Samples</CardTitle>
-                        {!isReadOnly && (
-                            <Button type="button" size="sm" variant="outline" onClick={addSample}>
-                                Tambah Sample
-                            </Button>
-                        )}
-                    </CardHeader>
-                    <CardContent>
-                        <InputError message={(errors as Record<string, string>).bottle_weights} className="mb-2" />
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-                            {weights.map((row) => (
-                                <div key={row.sample_no} className="grid gap-1">
-                                    <Label htmlFor={`weight-${row.sample_no}`} className="text-muted-foreground text-xs">
-                                        #{row.sample_no}
-                                    </Label>
-                                    <Input
-                                        id={`weight-${row.sample_no}`}
-                                        type="number"
-                                        step="0.0001"
-                                        value={row.weight_value ?? ''}
-                                        onChange={(e) => setWeight(row.sample_no, e.target.value)}
-                                        disabled={isReadOnly}
-                                    />
+                        <AccordionCard title="Sample Berat Botol" progress={`${weights.length} sample`} defaultOpen={false}>
+                            <div className="col-span-full">
+                                <InputError message={(errors as Record<string, string>).bottle_weights} className="mb-2" />
+                                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-10">
+                                    {weights.map((row) => (
+                                        <div key={row.sample_no} className="flex flex-col gap-1">
+                                            <span className="text-muted-foreground/70 text-center text-[10.5px] font-semibold">#{row.sample_no}</span>
+                                            <Input
+                                                id={`weight-${row.sample_no}`}
+                                                type="number"
+                                                step="0.0001"
+                                                className="border-border h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold"
+                                                value={row.weight_value ?? ''}
+                                                onChange={(e) => setWeight(row.sample_no, e.target.value)}
+                                                disabled={isReadOnly}
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {!isReadOnly && (
-                    <div>
-                        <Button type="submit" disabled={processing}>
-                            Simpan & Selesaikan Startup Check
-                        </Button>
+                                {!isReadOnly && (
+                                    <button type="button" onClick={addSample} className="text-primary mt-3 text-[12.5px] font-bold">
+                                        + Tambah Sample
+                                    </button>
+                                )}
+                            </div>
+                        </AccordionCard>
                     </div>
-                )}
-            </form>
-        </AppLayout>
+
+                    {!isReadOnly && (
+                        <StickySaveBar
+                            label="Simpan & Lanjut"
+                            processing={processing}
+                            note={`${answeredCount} dari ${allChecklistKeys.length} item checklist terisi`}
+                        />
+                    )}
+                </form>
+            </TwoPane>
+        </IpcShell>
     );
 }

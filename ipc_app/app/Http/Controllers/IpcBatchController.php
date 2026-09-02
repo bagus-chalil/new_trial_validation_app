@@ -35,6 +35,50 @@ class IpcBatchController extends Controller
         ]);
     }
 
+    public function show(IpcBatch $batch): Response
+    {
+        $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck']);
+
+        $stageIndex = array_search($batch->current_stage, IpcBatch::STAGES, true);
+
+        $builtStages = [
+            IpcBatch::STAGE_STARTUP => route('startup-check.edit', $batch),
+            IpcBatch::STAGE_FILLING => route('filling-check.edit', $batch),
+        ];
+
+        $labels = [
+            IpcBatch::STAGE_STARTUP => 'Startup Check',
+            IpcBatch::STAGE_FILLING => 'Filling Check',
+            IpcBatch::STAGE_PACKING => 'Packing Check',
+            IpcBatch::STAGE_FINISHED => 'Finished Good',
+            IpcBatch::STAGE_APPROVAL => 'Approval',
+            IpcBatch::STAGE_PRINT => 'Print',
+        ];
+
+        $stages = collect($labels)->map(function ($label, $key) use ($stageIndex, $builtStages) {
+            $thisIndex = array_search($key, IpcBatch::STAGES, true);
+
+            $status = match (true) {
+                $thisIndex < $stageIndex => 'done',
+                $thisIndex === $stageIndex => 'active',
+                default => 'locked',
+            };
+
+            return [
+                'key' => $key,
+                'label' => $label,
+                'status' => $status,
+                'href' => $status !== 'locked' ? ($builtStages[$key] ?? null) : null,
+                'available' => array_key_exists($key, $builtStages),
+            ];
+        })->values();
+
+        return Inertia::render('batches/show', [
+            'batch' => $batch,
+            'stages' => $stages,
+        ]);
+    }
+
     public function create(): Response
     {
         return Inertia::render('batches/create', [

@@ -9,6 +9,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('batches', [IpcBatchController::class, 'index'])->name('batches.index');
     Route::get('batches/create', [IpcBatchController::class, 'create'])->name('batches.create');
     Route::post('batches', [IpcBatchController::class, 'store'])->name('batches.store');
+    Route::get('batches/{batch}', [IpcBatchController::class, 'show'])->name('batches.show');
 
     Route::get('batches/{batch}/startup-check', [StartupCheckController::class, 'edit'])->name('startup-check.edit');
     Route::put('batches/{batch}/startup-check', [StartupCheckController::class, 'update'])->name('startup-check.update');

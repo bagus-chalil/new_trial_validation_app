@@ -30,6 +30,6 @@ class StartupCheckController extends Controller
 
         $action->handle($batch, $request->user(), $request->validated());
 
-        return redirect()->route('batches.index')->with('success', 'Startup Check tersimpan.');
+        return redirect()->route('batches.show', $batch)->with('success', 'Startup Check tersimpan.');
     }
 }

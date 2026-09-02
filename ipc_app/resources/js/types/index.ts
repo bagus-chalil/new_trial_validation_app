@@ -21,10 +21,20 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface RecentBatch {
+    id: number;
+    no_batch: string;
+    current_stage: string;
+    master_product: { id: number; product_name: string; fg_code: string } | null;
+    master_line: { id: number; name: string } | null;
+}
+
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    recentBatches: RecentBatch[];
+    flash?: { success?: string };
     [key: string]: unknown;
 }
 

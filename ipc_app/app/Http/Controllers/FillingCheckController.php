@@ -33,6 +33,6 @@ class FillingCheckController extends Controller
 
         $action->handle($batch, $request->user(), $request->validated());
 
-        return redirect()->route('batches.index')->with('success', 'Filling Check tersimpan.');
+        return redirect()->route('batches.show', $batch)->with('success', 'Filling Check tersimpan.');
     }
 }

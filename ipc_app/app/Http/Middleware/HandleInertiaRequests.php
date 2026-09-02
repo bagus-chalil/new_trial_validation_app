@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\IpcBatch;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -48,6 +49,13 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
             ],
+            'recentBatches' => fn () => $request->user()
+                ? IpcBatch::query()
+                    ->with(['masterProduct:id,product_name,fg_code', 'masterLine:id,name'])
+                    ->latest('id')
+                    ->limit(20)
+                    ->get(['id', 'no_batch', 'current_stage', 'master_product_id', 'master_line_id'])
+                : [],
         ]);
     }
 }

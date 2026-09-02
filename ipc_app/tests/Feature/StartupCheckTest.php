@@ -82,7 +82,7 @@ class StartupCheckTest extends TestCase
         $batch = $this->makeBatch();
 
         $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())
-            ->assertRedirect('/batches');
+            ->assertRedirect("/batches/{$batch->id}");
 
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FILLING, $batch->current_stage);
@@ -124,7 +124,7 @@ class StartupCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())->assertRedirect('/batches');
+        $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}");
 
         $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())->assertForbidden();
     }

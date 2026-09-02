@@ -1,13 +1,15 @@
 import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AccordionCard } from '@/components/ipc/accordion-card';
+import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
+import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
+import { TwoPane } from '@/components/ipc/two-pane';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { IpcShell } from '@/layouts/ipc-shell';
+import { type RecentBatch, type SharedData } from '@/types';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 interface Batch {
@@ -39,6 +41,9 @@ interface FillingCheckData {
 const SAMPLE_COUNT = 10;
 const CONFORM_OPTIONS = ['Conform', 'Not Conform'];
 
+const inputClass =
+    'h-[46px] rounded-xl border-[1.5px] border-border bg-background px-3.5 text-[14.5px] font-semibold text-foreground placeholder:text-muted-foreground/50';
+
 export default function FillingCheckEdit({
     batch,
     fillingCheck,
@@ -50,11 +55,8 @@ export default function FillingCheckEdit({
     isReadOnly: boolean;
     decisions: string[];
 }) {
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Batches', href: '/batches' },
-        { title: batch.no_batch, href: `/batches/${batch.id}/filling-check` },
-        { title: 'Filling Check', href: `/batches/${batch.id}/filling-check` },
-    ];
+    const { props } = usePage<SharedData>();
+    const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
     const resultBySample = new Map((fillingCheck?.samples ?? []).map((row) => [row.sample_no, row.weight_result ?? null]));
 
@@ -96,144 +98,136 @@ export default function FillingCheckEdit({
         put(`/batches/${batch.id}/filling-check`);
     };
 
-    const renderStatusField = (key: 'sample_bulk_odor_status' | 'sample_leakage_test_status', label: string) => (
-        <div className="grid gap-2">
-            <Label htmlFor={key}>{label}</Label>
-            <Select value={data[key]} onValueChange={(value) => setData(key, value)} disabled={isReadOnly}>
-                <SelectTrigger id={key}>
-                    <SelectValue placeholder="Pilih status" />
-                </SelectTrigger>
-                <SelectContent>
-                    {CONFORM_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                            {option}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <InputError message={errors[key]} />
-        </div>
-    );
-
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <IpcShell
+            title="Filling Check"
+            subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
+            backHref={`/batches/${batch.id}`}
+            headerActions={
+                isReadOnly ? (
+                    <span className="rounded-full bg-green-100 px-3.5 py-1.5 text-[12.5px] font-bold whitespace-nowrap text-green-800">
+                        Selesai — read only
+                    </span>
+                ) : undefined
+            }
+        >
             <Head title={`Filling Check — ${batch.no_batch}`} />
-            <form onSubmit={submit} className="flex flex-1 flex-col gap-4 p-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold">Filling Check</h1>
-                        <p className="text-muted-foreground text-sm">
-                            {batch.no_batch} — {batch.master_product.product_name} ({batch.master_line.name})
-                        </p>
-                    </div>
-                    {isReadOnly && (
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
-                            Selesai — read only
-                        </span>
-                    )}
-                </div>
+            <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
+                <form onSubmit={submit} className="flex flex-1 flex-col">
+                    <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
+                        <AccordionCard title="Sample Check">
+                            <div className="flex flex-col gap-2">
+                                <Label className="text-foreground text-[13px] font-semibold">Sample Bulk & Odor (5 Sample)</Label>
+                                <ChipToggleGroup
+                                    name="sample_bulk_odor_status"
+                                    options={CONFORM_OPTIONS}
+                                    value={data.sample_bulk_odor_status}
+                                    onChange={(value) => setData('sample_bulk_odor_status', value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.sample_bulk_odor_status} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label className="text-foreground text-[13px] font-semibold">Sample Leakage Test (5 Sample)</Label>
+                                <ChipToggleGroup
+                                    name="sample_leakage_test_status"
+                                    options={CONFORM_OPTIONS}
+                                    value={data.sample_leakage_test_status}
+                                    onChange={(value) => setData('sample_leakage_test_status', value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.sample_leakage_test_status} />
+                            </div>
+                        </AccordionCard>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Sample Check</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2">
-                        {renderStatusField('sample_bulk_odor_status', 'Sample Bulk & Odor (5 Sample)')}
-                        {renderStatusField('sample_leakage_test_status', 'Sample Leakage Test (5 Sample)')}
-                    </CardContent>
-                </Card>
+                        <AccordionCard title="Parameter Filling">
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="standard_weight_and_volume" className="text-muted-foreground text-xs font-semibold">
+                                    Standard Weight & Volume
+                                </Label>
+                                <Input
+                                    id="standard_weight_and_volume"
+                                    className={inputClass}
+                                    value={data.standard_weight_and_volume}
+                                    onChange={(e) => setData('standard_weight_and_volume', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.standard_weight_and_volume} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
+                                    Line Leader
+                                </Label>
+                                <Input
+                                    id="line_leader_name"
+                                    className={inputClass}
+                                    value={data.line_leader_name}
+                                    onChange={(e) => setData('line_leader_name', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.line_leader_name} />
+                            </div>
+                            <div className="col-span-full flex flex-col gap-2">
+                                <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
+                                <ChipToggleGroup
+                                    name="decision"
+                                    options={decisions}
+                                    value={data.decision}
+                                    onChange={(value) => setData('decision', value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.decision} />
+                            </div>
+                            <div className="col-span-full flex flex-col gap-2">
+                                <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">
+                                    Remarks
+                                </Label>
+                                <Textarea
+                                    id="remarks"
+                                    className="border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px]"
+                                    value={data.remarks}
+                                    onChange={(e) => setData('remarks', e.target.value)}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.remarks} />
+                            </div>
+                        </AccordionCard>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Parameter Filling</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="standard_weight_and_volume">Standard Weight & Volume</Label>
-                            <Input
-                                id="standard_weight_and_volume"
-                                value={data.standard_weight_and_volume}
-                                onChange={(e) => setData('standard_weight_and_volume', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.standard_weight_and_volume} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="line_leader_name">Line Leader</Label>
-                            <Input
-                                id="line_leader_name"
-                                value={data.line_leader_name}
-                                onChange={(e) => setData('line_leader_name', e.target.value)}
-                                disabled={isReadOnly}
-                            />
-                            <InputError message={errors.line_leader_name} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="decision">Decision</Label>
-                            <Select value={data.decision} onValueChange={(value) => setData('decision', value)} disabled={isReadOnly}>
-                                <SelectTrigger id="decision">
-                                    <SelectValue placeholder="Pilih decision" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {decisions.map((option) => (
-                                        <SelectItem key={option} value={option}>
-                                            {option}
-                                        </SelectItem>
+                        <AccordionCard title="Weight Samples" progress="10 sample">
+                            <div className="col-span-full">
+                                <InputError message={(errors as Record<string, string>).samples} className="mb-2" />
+                                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                                    {data.samples.map((row) => (
+                                        <div key={row.sample_no} className="flex flex-col gap-1">
+                                            <span className="text-muted-foreground/70 text-center text-[10.5px] font-semibold">#{row.sample_no}</span>
+                                            <Input
+                                                id={`weight-${row.sample_no}`}
+                                                type="number"
+                                                step="0.0001"
+                                                className="border-border h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold"
+                                                value={row.weight_value ?? ''}
+                                                onChange={(e) => setWeight(row.sample_no, e.target.value)}
+                                                disabled={isReadOnly}
+                                            />
+                                            {resultBySample.get(row.sample_no) != null && (
+                                                <span className="text-muted-foreground text-center text-[10px]">
+                                                    {resultBySample.get(row.sample_no)}
+                                                </span>
+                                            )}
+                                        </div>
                                     ))}
-                                </SelectContent>
-                            </Select>
-                            <InputError message={errors.decision} />
-                        </div>
-                        <div className="grid gap-2 sm:col-span-2">
-                            <Label htmlFor="remarks">Remarks</Label>
-                            <Textarea id="remarks" value={data.remarks} onChange={(e) => setData('remarks', e.target.value)} disabled={isReadOnly} />
-                            <InputError message={errors.remarks} />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Weight Samples (10)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <InputError message={(errors as Record<string, string>).samples} className="mb-2" />
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                            {data.samples.map((row) => (
-                                <div key={row.sample_no} className="grid gap-1">
-                                    <Label htmlFor={`weight-${row.sample_no}`} className="text-muted-foreground text-xs">
-                                        #{row.sample_no}
-                                    </Label>
-                                    <Input
-                                        id={`weight-${row.sample_no}`}
-                                        type="number"
-                                        step="0.0001"
-                                        value={row.weight_value ?? ''}
-                                        onChange={(e) => setWeight(row.sample_no, e.target.value)}
-                                        disabled={isReadOnly}
-                                    />
-                                    {resultBySample.get(row.sample_no) != null && (
-                                        <span className="text-muted-foreground text-xs">Result: {resultBySample.get(row.sample_no)}</span>
-                                    )}
                                 </div>
-                            ))}
-                        </div>
-                        <p className="text-muted-foreground mt-3 text-xs">
-                            Weight result (weight − average empty bottle weight ÷ density) dan average weight dihitung otomatis di server saat
-                            disimpan.
-                            {fillingCheck?.average_weight != null && <> Average Weight tersimpan: {fillingCheck.average_weight}.</>}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                {!isReadOnly && (
-                    <div>
-                        <Button type="submit" disabled={processing}>
-                            Simpan & Selesaikan Filling Check
-                        </Button>
+                                <p className="text-muted-foreground mt-3 text-xs">
+                                    Weight result dan average weight dihitung otomatis di server saat disimpan.
+                                    {fillingCheck?.average_weight != null && <> Average Weight tersimpan: {fillingCheck.average_weight}.</>}
+                                </p>
+                            </div>
+                        </AccordionCard>
                     </div>
-                )}
-            </form>
-        </AppLayout>
+
+                    {!isReadOnly && <StickySaveBar label="Simpan & Selesaikan" processing={processing} />}
+                </form>
+            </TwoPane>
+        </IpcShell>
     );
 }

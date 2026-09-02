@@ -102,7 +102,7 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())
-            ->assertRedirect('/batches');
+            ->assertRedirect("/batches/{$batch->id}");
 
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_PACKING, $batch->current_stage);
@@ -152,7 +152,7 @@ class FillingCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
-        $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())->assertRedirect('/batches');
+        $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}");
 
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())->assertForbidden();
     }
