@@ -25,7 +25,6 @@ class FillingCheck extends Model
         'sample_leakage_test_status',
         'standard_weight_and_volume',
         'average_weight',
-        'color',
         'line_leader_name',
         'remarks',
         'decision',

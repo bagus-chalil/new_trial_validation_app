@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 interface Batch {
@@ -137,9 +137,14 @@ export default function StartupCheckEdit({
                         </p>
                     </div>
                     {isReadOnly && (
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
-                            Selesai — read only
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
+                                Selesai — read only
+                            </span>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={`/batches/${batch.id}/filling-check`}>Lanjut ke Filling Check</Link>
+                            </Button>
+                        </div>
                     )}
                 </div>
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\IpcBatchController;
 use App\Http\Controllers\StartupCheckController;
 use Illuminate\Support\Facades\Route;
@@ -11,4 +12,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('batches/{batch}/startup-check', [StartupCheckController::class, 'edit'])->name('startup-check.edit');
     Route::put('batches/{batch}/startup-check', [StartupCheckController::class, 'update'])->name('startup-check.update');
+
+    Route::get('batches/{batch}/filling-check', [FillingCheckController::class, 'edit'])->name('filling-check.edit');
+    Route::put('batches/{batch}/filling-check', [FillingCheckController::class, 'update'])->name('filling-check.update');
 });

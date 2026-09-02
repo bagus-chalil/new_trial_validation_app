@@ -116,6 +116,7 @@ class StartupCheck extends Model
         'filling_range_min',
         'filling_range_max',
         'density',
+        'average_of_empty_bottle_weight',
         'heating',
         'line_leader_name',
         'operator_name',
@@ -129,6 +130,7 @@ class StartupCheck extends Model
             'filling_range_min' => 'decimal:2',
             'filling_range_max' => 'decimal:2',
             'density' => 'decimal:4',
+            'average_of_empty_bottle_weight' => 'decimal:4',
             'completed_at' => 'datetime',
         ];
     }

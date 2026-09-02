@@ -16,7 +16,7 @@ class IpcBatchController extends Controller
     public function index(Request $request): Response
     {
         $batches = IpcBatch::query()
-            ->with(['masterProduct', 'masterLine', 'creator', 'startupCheck'])
+            ->with(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck'])
             ->when($request->string('q')->toString(), function ($query, $q) {
                 $query->where(function ($query) use ($q) {
                     $query->where('no_batch', 'like', "%{$q}%")

@@ -20,7 +20,7 @@ interface MasterLine {
     name: string;
 }
 
-interface StartupCheck {
+interface StageCheck {
     id: number;
     completed_at: string | null;
 }
@@ -33,7 +33,8 @@ interface Batch {
     master_product: MasterProduct;
     master_line: MasterLine;
     creator: { name: string };
-    startup_check: StartupCheck | null;
+    startup_check: StageCheck | null;
+    filling_check: StageCheck | null;
 }
 
 interface Paginated<T> {
@@ -121,14 +122,23 @@ export default function BatchesIndex({
                                     </td>
                                     <td className="px-4 py-2">{batch.creator.name}</td>
                                     <td className="px-4 py-2 text-right">
-                                        {batch.current_stage === 'startup' ? (
+                                        {batch.current_stage === 'startup' && (
                                             <Link
                                                 href={`/batches/${batch.id}/startup-check`}
                                                 className="text-primary underline-offset-4 hover:underline"
                                             >
                                                 {batch.startup_check?.completed_at ? 'Lihat Startup Check' : 'Isi Startup Check'}
                                             </Link>
-                                        ) : (
+                                        )}
+                                        {batch.current_stage === 'filling' && (
+                                            <Link
+                                                href={`/batches/${batch.id}/filling-check`}
+                                                className="text-primary underline-offset-4 hover:underline"
+                                            >
+                                                {batch.filling_check?.completed_at ? 'Lihat Filling Check' : 'Isi Filling Check'}
+                                            </Link>
+                                        )}
+                                        {batch.current_stage !== 'startup' && batch.current_stage !== 'filling' && (
                                             <span className="text-muted-foreground">Tahap berikutnya belum tersedia</span>
                                         )}
                                     </td>

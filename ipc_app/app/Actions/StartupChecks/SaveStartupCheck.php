@@ -15,15 +15,30 @@ class SaveStartupCheck
         return DB::transaction(function () use ($batch, $user, $data) {
             $fields = collect($data)->except('bottle_weights')->all();
 
+            $weights = collect($data['bottle_weights'] ?? [])
+                ->filter(fn ($row) => filled($row['weight_value'] ?? null));
+
+            // Legacy computes this as the mean of the 30 bottle-weight samples at BottleData
+            // save time (Controls/832.json's Label3 formula) and carries it via a session
+            // variable into Start_Check's own save — recomputed fresh here instead, since
+            // both saves happen in this one request.
+            $averageOfEmptyBottleWeight = $weights->isNotEmpty()
+                ? round((float) $weights->avg('weight_value'), 4)
+                : null;
+
             $startupCheck = StartupCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],
-                [...$fields, 'user_id' => $user->id, 'completed_at' => now()],
+                [
+                    ...$fields,
+                    'average_of_empty_bottle_weight' => $averageOfEmptyBottleWeight,
+                    'user_id' => $user->id,
+                    'completed_at' => now(),
+                ],
             );
 
             $startupCheck->bottleWeights()->delete();
 
-            $rows = collect($data['bottle_weights'] ?? [])
-                ->filter(fn ($row) => filled($row['weight_value'] ?? null))
+            $rows = $weights
                 ->map(fn ($row) => [
                     'startup_check_id' => $startupCheck->id,
                     'sample_no' => $row['sample_no'],
