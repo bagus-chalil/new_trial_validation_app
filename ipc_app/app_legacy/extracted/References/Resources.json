@@ -1,0 +1,64 @@
+{
+  "Resources": [
+    {
+      "Name": "SampleImage",
+      "Schema": "i",
+      "IsSampleData": true,
+      "IsWritable": false,
+      "Type": "ResourceInfo",
+      "FileName": "/ctrllib/image/images/SampleImage.svg",
+      "Path": "/ctrllib/image/images/SampleImage.svg",
+      "Content": "Image",
+      "ResourceKind": "Uri",
+      "RootPath": "ms-appx:///ctrllib/image/images/SampleImage.svg"
+    },
+    {
+      "Name": "COSMAX 로고",
+      "Schema": "i",
+      "IsSampleData": false,
+      "IsWritable": false,
+      "Type": "ResourceInfo",
+      "FileName": "998c09ac-0743-4f66-8755-5239099e4bc7.jpg",
+      "Path": "Assets\\Images\\998c09ac-0743-4f66-8755-5239099e4bc7.jpg",
+      "Content": "Image",
+      "ResourceKind": "LocalFile",
+      "RootPath": "https://docserverpwaprodseas.blob.core.windows.net/605ba0ea-ec6d-40f2-9f87-40616b7a2639-1/resource/Assets0Images0998c09ac-0743-4f66-8755-5239099e4bc7.jpg?skoid=58690ece-ec83-4ce2-9ce8-883d4d6a54ee&sktid=975f013f-7f24-47e8-a7d3-abc4752bf346&skt=2024-06-10T07%3A37%3A41Z&ske=2024-06-11T07%3A52%3A41Z&sks=b&skv=2023-01-03&sv=2023-01-03&spr=https&se=2024-06-11T07%3A52%3A41Z&sr=b&sp=r&sig=cYuleh3qaU65qnqbqA%2Fdr70oONE5483qWBTzGwtF8e8%3D"
+    },
+    {
+      "Name": "COSMAX",
+      "Schema": "i",
+      "IsSampleData": false,
+      "IsWritable": false,
+      "Type": "ResourceInfo",
+      "FileName": "5247165b-c7f0-4f1c-8e6c-b5c057362efb.jpg",
+      "Path": "Assets\\Images\\5247165b-c7f0-4f1c-8e6c-b5c057362efb.jpg",
+      "Content": "Image",
+      "ResourceKind": "LocalFile",
+      "RootPath": "https://docserverpwaprodseas.blob.core.windows.net/605ba0ea-ec6d-40f2-9f87-40616b7a2639-1/resource/Assets0Images05247165b-c7f0-4f1c-8e6c-b5c057362efb.jpg?skoid=58690ece-ec83-4ce2-9ce8-883d4d6a54ee&sktid=975f013f-7f24-47e8-a7d3-abc4752bf346&skt=2024-06-10T07%3A37%3A41Z&ske=2024-06-11T07%3A52%3A41Z&sks=b&skv=2023-01-03&sv=2023-01-03&spr=https&se=2024-06-11T07%3A52%3A41Z&sr=b&sp=r&sig=9zWn%2FSzoU9z%2BzkHJmJC0zhGLWBBUYk4P53ndktXEtKo%3D"
+    },
+    {
+      "Name": "report",
+      "Schema": "i",
+      "IsSampleData": false,
+      "IsWritable": false,
+      "Type": "ResourceInfo",
+      "FileName": "0d6f47aa-78b1-4f3b-8f23-df8f4321efe8.png",
+      "Path": "Assets\\Images\\0d6f47aa-78b1-4f3b-8f23-df8f4321efe8.png",
+      "Content": "Image",
+      "ResourceKind": "LocalFile",
+      "RootPath": "https://docserverpwaprodseas.blob.core.windows.net/605ba0ea-ec6d-40f2-9f87-40616b7a2639-1/resource/Assets0Images00d6f47aa-78b1-4f3b-8f23-df8f4321efe8.png?skoid=58690ece-ec83-4ce2-9ce8-883d4d6a54ee&sktid=975f013f-7f24-47e8-a7d3-abc4752bf346&skt=2024-06-10T07%3A37%3A41Z&ske=2024-06-11T07%3A52%3A41Z&sks=b&skv=2023-01-03&sv=2023-01-03&spr=https&se=2024-06-11T07%3A52%3A41Z&sr=b&sp=r&sig=ifvbJKKWD4mVB5mD06oai5K3wwAYUg9l0y60DQQe83I%3D"
+    },
+    {
+      "Name": "NewReport",
+      "Schema": "i",
+      "IsSampleData": false,
+      "IsWritable": false,
+      "Type": "ResourceInfo",
+      "FileName": "c2f023f8-e010-4b4c-9a6b-9ace41a100f6.png",
+      "Path": "Assets\\Images\\c2f023f8-e010-4b4c-9a6b-9ace41a100f6.png",
+      "Content": "Image",
+      "ResourceKind": "LocalFile",
+      "RootPath": "https://docserverpwaprodseas.blob.core.windows.net/605ba0ea-ec6d-40f2-9f87-40616b7a2639-1/resource/Assets0Images0c2f023f8-e010-4b4c-9a6b-9ace41a100f6.png?skoid=58690ece-ec83-4ce2-9ce8-883d4d6a54ee&sktid=975f013f-7f24-47e8-a7d3-abc4752bf346&skt=2024-06-10T07%3A37%3A41Z&ske=2024-06-11T07%3A52%3A41Z&sks=b&skv=2023-01-03&sv=2023-01-03&spr=https&se=2024-06-11T07%3A52%3A41Z&sr=b&sp=r&sig=KmAmjSO5XAUZK3ZmOJVRRNTAtxozZ1AJPQQSRvqCppE%3D"
+    }
+  ]
+}

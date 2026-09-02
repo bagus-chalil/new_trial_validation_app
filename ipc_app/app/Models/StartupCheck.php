@@ -14,6 +14,32 @@ class StartupCheck extends Model
 
     public const STATUS_NOT_CONFORM = 'Not Conform';
 
+    /**
+     * Best-guess grouping of which checklist items use the Available/Not Available vocabulary
+     * vs. Conform/Not Conform — not yet verified against the source PDF screenshots (poppler
+     * unavailable, see ipc_app/CLAUDE.md). Revisit once the real form layout is confirmed.
+     *
+     * @var array<string, string>
+     */
+    public const AVAILABILITY_FIELDS = [
+        'product_standard_status' => 'Product Standard',
+        'sample_challenge_test_status' => 'Sample Challenge Test',
+        'wi_im_match_status' => 'WI / IM Match',
+        'pm_bom_match_status' => 'PM / BOM Match',
+        'bulk_status_status' => 'Bulk Status',
+        'validation_report_status' => 'Validation Report',
+        'identity_line_board_status' => 'Identity Line Board',
+    ];
+
+    /** @var array<string, string> */
+    public const CONFORM_FIELDS = [
+        'machine_vision_status' => 'Machine Vision',
+        'machine_weigher_status' => 'Machine Weigher',
+        'machine_roller_status' => 'Machine Roller',
+        'machine_load_cell_status' => 'Machine Load Cell',
+        'machine_balance_status' => 'Machine Balance',
+    ];
+
     protected $fillable = [
         'ipc_batch_id',
         'user_id',
