@@ -3,6 +3,8 @@
 Status: **Fase 0 in progress**. Keputusan Inertia vs API-only sudah diambil (2026-08-24, lihat §2). SSO bridge (§4) sudah diimplementasikan **dan diverifikasi end-to-end secara lokal** kedua arah (2026-08-24) — lihat §6.
 Terakhir diperbarui: 2026-08-24
 
+**Scope note (2026-09-02):** dokumen ini khusus untuk migrasi legacy PHP → Laravel *trial-validation* (SSO bridge, strangler pattern, shared DB `trial_validation_system`). Ini **tidak mencakup** `ipc_app/` (aplikasi ke-3, IPC/In Process Control) — IPC tidak punya schema MySQL legacy untuk dikompatibelkan (pendahulunya Power Apps/Dataverse), tidak ada SSO bridge, dan tidak berbagi database dengan kedua app trial-validation. Lihat `CLAUDE.md` §Repository layout dan `ipc_app/CLAUDE.md`.
+
 ## 1. Latar belakang & tujuan
 
 Aplikasi saat ini adalah plain PHP (tanpa framework): satu `public/index.php` (~1500 baris) sebagai router + controller + business logic, ditambah `app/bootstrap.php` (helper functions global) dan 26 file view di `app/views/`. Auth pakai native PHP session, database MySQL diakses langsung via PDO. Total ~4700 baris kode, deployment on-prem via XAMPP/Apache di jaringan intranet.

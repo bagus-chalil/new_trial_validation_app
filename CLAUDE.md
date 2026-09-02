@@ -8,11 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository layout
 
-This repo currently contains **two applications**:
+This repo currently contains **three applications, plus a small portal chooser**:
 
 - **Repo root** (`app/`, `public/`, `config/`, `database/`) — the **legacy production app**: plain PHP, no framework. This is what currently runs in production and must keep working throughout the migration.
-- **`new_trial_validation_app/`** — the **new Laravel app** being built to replace it. It has its own `CLAUDE.md` with Laravel-specific commands and architecture notes — read that file when working inside that directory.
-- **`MIGRATION_PLAN.md`** (repo root) — the full migration plan: target architecture, SSO bridge design between the two apps, API structure, and phase-by-phase rationale. This CLAUDE.md only summarizes it for quick reference; treat `MIGRATION_PLAN.md` as the source of truth for *why*, and update both files together when decisions change.
+- **`new_trial_validation_app/`** — the **new Laravel app** being built to replace the legacy trial-validation app. It has its own `CLAUDE.md` with Laravel-specific commands and architecture notes — read that file when working inside that directory.
+- **`ipc_app/`** — a **third, unrelated Laravel + Inertia app**: IPC (In Process Control), a production quality-inspection app (Startup Check → Filling → Packing → Finished Good → Approval → Print). Scaffolded the same way as `new_trial_validation_app/` (`laravel/react-starter-kit`) for pattern consistency, but it is a **fully separate project**: its own `composer.json`/`package.json`, its own database (`ipc_system`, same MySQL instance as the other two DBs but a distinct schema), its own `users` table, and **no SSO bridge or shared auth** with the other two apps — a user who needs both logs into each separately. Unlike `new_trial_validation_app/`, it has **no legacy-MySQL-schema constraint to honor**: its predecessor is a Microsoft Power Apps/Dataverse app, not a MySQL app, so its migrations are stock Laravel with no `Schema::hasTable()` shared-DB-skip guards. See `ipc_app/CLAUDE.md` for commands and current status — currently foundation-only (scaffold, DB, users table, portal entry point); the actual IPC workflow screens are unbuilt, planned as a separate future pass.
+- **`portal/`** — a static HTML chooser (no backend, no DB) with two links, one to `new_trial_validation_app/` and one to `ipc_app/`. Only file worth editing per environment is `portal/config.js` (the two target URLs).
+- **`MIGRATION_PLAN.md`** (repo root) — the full migration plan: target architecture, SSO bridge design between the legacy app and `new_trial_validation_app/`, API structure, and phase-by-phase rationale. Scope is the trial-validation migration only — it does **not** cover `ipc_app/`, which has no legacy schema, no SSO bridge, and no shared DB with the trial-validation apps. This CLAUDE.md only summarizes it for quick reference; treat `MIGRATION_PLAN.md` as the source of truth for *why*, and update both files together when decisions change.
 
 ## Legacy app (repo root)
 
