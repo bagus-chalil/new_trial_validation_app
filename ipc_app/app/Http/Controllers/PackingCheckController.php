@@ -31,7 +31,13 @@ class PackingCheckController extends Controller
     {
         abort_unless($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini belum selesai.');
 
-        $batch->load(['masterProduct', 'masterLine', 'packingCheck.user']);
+        $batch->load([
+            'masterProduct',
+            'masterLine',
+            'packingCheck.user',
+            'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+            'packingCheck.revisions.user',
+        ]);
 
         $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
@@ -52,6 +58,7 @@ class PackingCheckController extends Controller
             'checklistGroups' => PackingCheck::checklistGroups(),
             'decisions' => PackingCheck::DECISIONS,
             'photoUrls' => $photoUrls,
+            'standardWeightMb' => SavePackingCheck::standardWeightMbFor($batch),
         ]);
     }
 
@@ -60,9 +67,14 @@ class PackingCheckController extends Controller
         abort_unless($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini belum selesai.');
         abort_if($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini sudah selesai dan bersifat read-only.');
 
-        $action->handle($batch, $request->user(), $request->validated());
+        $data = $request->validated();
+        $action->handle($batch, $request->user(), $data);
 
-        return redirect()->route('batches.show', $batch)->with('success', 'Packing Check tersimpan.');
+        if ($data['finalize']) {
+            return redirect()->route('batches.show', $batch)->with('success', 'Packing Check tersimpan.');
+        }
+
+        return redirect()->route('packing-check.edit', $batch)->with('success', 'Progress tersimpan.');
     }
 
     public function uploadPhoto(UploadPackingCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse

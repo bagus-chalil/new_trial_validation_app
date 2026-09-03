@@ -8,6 +8,7 @@ use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
+use App\Models\StartupInspection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -41,7 +42,7 @@ class PackingCheckTest extends TestCase
         return $batch->fresh();
     }
 
-    private function validPayload(): array
+    private function validPayload(array $overrides = []): array
     {
         $checklist = [];
         foreach (PackingCheck::checklistGroups() as $group) {
@@ -50,12 +51,13 @@ class PackingCheckTest extends TestCase
 
         return [
             ...$checklist,
-            'standard_weight_mb' => 10.5,
+            'finalize' => true,
             'sum_weight_mb' => 105.0,
             'line_leader_name' => 'Budi',
             'coding_machine' => 'CM-01',
             'remarks' => 'OK',
             'decision' => PackingCheck::DECISION_PASSED,
+            ...$overrides,
         ];
     }
 
@@ -114,6 +116,71 @@ class PackingCheckTest extends TestCase
         $this->assertNotNull($packingCheck->completed_at);
         $this->assertSame(PackingCheck::STATUS_CONFORM, $packingCheck->primary_bulk_status);
         $this->assertSame(PackingCheck::DECISION_PASSED, $packingCheck->decision);
+        $this->assertSame(1, $packingCheck->save_count);
+    }
+
+    public function test_draft_save_persists_partial_data_without_completing_or_advancing_stage(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'remarks' => null, 'decision' => null]))
+            ->assertRedirect("/batches/{$batch->id}/packing-check");
+
+        $batch->refresh();
+        $this->assertSame(IpcBatch::STAGE_PACKING, $batch->current_stage);
+
+        $packingCheck = $batch->packingCheck()->first();
+        $this->assertNull($packingCheck->completed_at);
+        $this->assertSame(1, $packingCheck->save_count);
+    }
+
+    public function test_save_count_increments_across_draft_and_final_saves(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => true]));
+
+        $packingCheck = $batch->fresh()->packingCheck;
+        $this->assertSame(3, $packingCheck->save_count);
+        $this->assertNotNull($packingCheck->completed_at);
+        $this->assertCount(3, $packingCheck->revisions()->get());
+    }
+
+    public function test_line_leader_and_coding_machine_are_locked_after_the_first_save(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+
+        // Round 2 sends neither field (the form stops asking once locked) — the round-1 values
+        // must survive untouched, not be overwritten with blanks.
+        $round2 = $this->validPayload(['finalize' => false]);
+        unset($round2['line_leader_name'], $round2['coding_machine']);
+        $this->put("/batches/{$batch->id}/packing-check", $round2);
+
+        $packingCheck = $batch->fresh()->packingCheck;
+        $this->assertSame('Budi', $packingCheck->line_leader_name);
+        $this->assertSame('CM-01', $packingCheck->coding_machine);
+    }
+
+    public function test_standard_weight_mb_is_taken_from_the_batchs_start_inspection_samples(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by]);
+        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.3456]);
+        $inspection->samples()->create(['sample_no' => 2, 'weight_master_box' => 12.7]);
+        $inspection->samples()->create(['sample_no' => 3, 'weight_master_box' => null]);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => true]));
+
+        $this->assertSame('12.7000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
     }
 
     public function test_missing_checklist_field_is_rejected(): void
@@ -154,6 +221,23 @@ class PackingCheckTest extends TestCase
             ->assertRedirect("/batches/{$batch->id}");
 
         $this->assertSame(PackingCheck::STATUS_NA, $batch->fresh()->packingCheck->secondary_coding_na_status);
+    }
+
+    public function test_every_checklist_item_accepts_na_not_just_secondary_coding(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $payload = $this->validPayload();
+        $payload['primary_bulk_status'] = PackingCheck::STATUS_NA;
+        $payload['tersier_identity_status'] = PackingCheck::STATUS_NA;
+
+        $this->put("/batches/{$batch->id}/packing-check", $payload)
+            ->assertRedirect("/batches/{$batch->id}");
+
+        $packingCheck = $batch->fresh()->packingCheck;
+        $this->assertSame(PackingCheck::STATUS_NA, $packingCheck->primary_bulk_status);
+        $this->assertSame(PackingCheck::STATUS_NA, $packingCheck->tersier_identity_status);
     }
 
     public function test_completed_packing_check_is_read_only(): void

@@ -31,10 +31,25 @@ interface Batch {
     master_line: { name: string; code: string };
 }
 
+interface PackingCheckRevision {
+    id: number;
+    revision_no: number;
+    finalize: boolean;
+    decision: string | null;
+    remarks: string | null;
+    sum_weight_mb: string | null;
+    created_at: string;
+    user?: { name: string } | null;
+}
+
 interface PackingCheckData {
     id: number;
     completed_at: string | null;
     created_at: string;
+    save_count: number;
+    line_leader_name: string | null;
+    coding_machine: string | null;
+    revisions?: PackingCheckRevision[];
     user?: { name: string } | null;
     [key: string]: unknown;
 }
@@ -52,7 +67,6 @@ interface ChecklistGroup {
 const GROUP_TITLES: Record<string, string> = {
     primary: 'Primary',
     secondary: 'Secondary',
-    secondary_coding_na: 'Secondary — Coding / NA',
     tersier: 'Tersier',
 };
 
@@ -67,6 +81,7 @@ export default function PackingCheckEdit({
     checklistGroups,
     decisions,
     photoUrls,
+    standardWeightMb,
 }: {
     batch: Batch;
     packingCheck: PackingCheckData | null;
@@ -74,6 +89,7 @@ export default function PackingCheckEdit({
     checklistGroups: ChecklistGroup[];
     decisions: string[];
     photoUrls: Record<string, string | null>;
+    standardWeightMb: string | null;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -86,6 +102,7 @@ export default function PackingCheckEdit({
     };
 
     const inspectorName = packingCheck?.user?.name ?? props.auth.user.name;
+    const revisions = [...(packingCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
 
     const initialChecklistValues = checklistGroups.reduce<Record<string, string>>((acc, group) => {
         Object.keys(group.fields).forEach((key) => {
@@ -94,15 +111,19 @@ export default function PackingCheckEdit({
         return acc;
     }, {});
 
-    const { data, setData, put, processing, errors } = useForm<Record<string, string | null>>({
+    const { data, setData, put, transform, processing, errors } = useForm<Record<string, string | null>>({
         ...initialChecklistValues,
-        standard_weight_mb: (packingCheck?.standard_weight_mb as string) ?? '',
         sum_weight_mb: (packingCheck?.sum_weight_mb as string) ?? '',
-        line_leader_name: (packingCheck?.line_leader_name as string) ?? '',
-        coding_machine: (packingCheck?.coding_machine as string) ?? '',
+        line_leader_name: packingCheck?.line_leader_name ?? '',
+        coding_machine: packingCheck?.coding_machine ?? '',
         remarks: (packingCheck?.remarks as string) ?? '',
         decision: (packingCheck?.decision as string) ?? '',
     });
+
+    // Captured once on the first round; from TH_PROGRESS 2 on the server carries them forward
+    // and the form stops asking, so QC only re-enters what actually changes between rounds.
+    const lineLeaderLocked = Boolean(packingCheck?.line_leader_name);
+    const codingMachineLocked = Boolean(packingCheck?.coding_machine);
 
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
@@ -117,11 +138,29 @@ export default function PackingCheckEdit({
         });
         if (empty.size) {
             setErrorFields(empty);
-            toast(`${empty.size} field wajib belum diisi`);
+            toast(`${empty.size} field wajib belum diisi untuk Selesaikan`);
             return;
         }
         setErrorFields(new Set());
+        transform((current) => ({ ...current, finalize: true }));
         put(`/batches/${batch.id}/packing-check`);
+    };
+
+    const blankRoundForm = () => ({
+        ...allChecklistKeys.reduce<Record<string, string>>((acc, key) => ({ ...acc, [key]: '' }), {}),
+        sum_weight_mb: '',
+        // Sticky once set — see lineLeaderLocked/codingMachineLocked above — so a locked value
+        // stays in the form instead of being blanked out with the rest of the round.
+        line_leader_name: lineLeaderLocked ? data.line_leader_name : '',
+        coding_machine: codingMachineLocked ? data.coding_machine : '',
+        remarks: '',
+        decision: '',
+    });
+
+    const saveDraft = () => {
+        setErrorFields(new Set());
+        transform((current) => ({ ...current, finalize: false }));
+        put(`/batches/${batch.id}/packing-check`, { preserveState: true, onSuccess: () => setData(blankRoundForm()) });
     };
 
     return (
@@ -155,6 +194,7 @@ export default function PackingCheckEdit({
                             <InfoField label="Bulk Code" value={batch.master_product.bulk_code} />
                             <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
+                            <InfoField label="TH Progress" value={String(packingCheck?.save_count ?? 0)} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
@@ -194,19 +234,10 @@ export default function PackingCheckEdit({
 
                         <AccordionCard title="Parameter Packing" defaultOpen={false}>
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="standard_weight_mb" className="text-muted-foreground text-xs font-semibold">
-                                    Standard Weight MB
-                                </Label>
-                                <Input
-                                    id="standard_weight_mb"
-                                    type="number"
-                                    step="0.0001"
-                                    className={inputClass}
-                                    value={data.standard_weight_mb ?? ''}
-                                    onChange={(e) => setData('standard_weight_mb', e.target.value)}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError message={errors.standard_weight_mb} />
+                                <Label className="text-muted-foreground text-xs font-semibold">Standard Weight MB</Label>
+                                {/* Read-only: taken from the batch's Start Inspection weight-master-box
+                                    readings on save, not typed here — see SavePackingCheck::standardWeightMbFor(). */}
+                                <div className={`${inputClass} bg-muted/40`}>{standardWeightMb ?? '—'}</div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="sum_weight_mb" className="text-muted-foreground text-xs font-semibold">
@@ -225,27 +256,27 @@ export default function PackingCheckEdit({
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
-                                    Line Leader
+                                    Line Leader{lineLeaderLocked && ' (terkunci sejak TH Progress 1)'}
                                 </Label>
                                 <Input
                                     id="line_leader_name"
                                     className={inputClass}
                                     value={data.line_leader_name ?? ''}
                                     onChange={(e) => setData('line_leader_name', e.target.value)}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || lineLeaderLocked}
                                 />
                                 <InputError message={errors.line_leader_name} />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="coding_machine" className="text-muted-foreground text-xs font-semibold">
-                                    Coding Machine
+                                    Coding Machine{codingMachineLocked && ' (terkunci sejak TH Progress 1)'}
                                 </Label>
                                 <Input
                                     id="coding_machine"
                                     className={inputClass}
                                     value={data.coding_machine ?? ''}
                                     onChange={(e) => setData('coding_machine', e.target.value)}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || codingMachineLocked}
                                 />
                                 <InputError message={errors.coding_machine} />
                             </div>
@@ -314,12 +345,38 @@ export default function PackingCheckEdit({
                                 <InputError message={errors.remarks} />
                             </div>
                         </AccordionCard>
+
+                        {revisions.length > 0 && (
+                            <AccordionCard title="Riwayat Simpan" progress={`${revisions.length}x disimpan`} defaultOpen={false}>
+                                <div className="col-span-full flex flex-col gap-2.5">
+                                    {revisions.map((rev) => (
+                                        <div key={rev.id} className="border-border-soft rounded-xl border p-3">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-[13px] font-bold">
+                                                    #{rev.revision_no} {rev.finalize && '· Selesai'}
+                                                </span>
+                                                <span className="text-muted-foreground text-[11.5px] font-medium">
+                                                    {formatDateTime(rev.created_at)} · {rev.user?.name ?? '—'}
+                                                </span>
+                                            </div>
+                                            <div className="text-muted-foreground mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]">
+                                                {rev.decision && <span>Decision: {rev.decision}</span>}
+                                                {rev.sum_weight_mb && <span>Sum Weight MB: {rev.sum_weight_mb}</span>}
+                                            </div>
+                                            {rev.remarks && <p className="text-muted-foreground mt-1 text-[12px]">Remarks: {rev.remarks}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </AccordionCard>
+                        )}
                     </div>
 
                     {!isReadOnly && (
                         <StickySaveBar
-                            label="Simpan & Lanjut"
+                            label="Simpan & Selesaikan"
                             processing={processing}
+                            secondaryLabel="Simpan"
+                            onSecondaryClick={saveDraft}
                             note={`${answeredCount} dari ${allChecklistKeys.length} item checklist terisi`}
                         />
                     )}
