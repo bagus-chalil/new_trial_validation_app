@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,11 +27,14 @@ interface MasterLine {
     name: string;
 }
 
+const errorBorder = 'border-destructive ring-1 ring-destructive';
+
 export default function BatchesCreate({ products, lines }: { products: MasterProduct[]; lines: MasterLine[] }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
+    const { message, toast } = useToast();
 
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         master_product_id: '',
         no_batch: '',
         master_line_id: '',
@@ -38,12 +42,21 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post('/batches');
+        const empty: string[] = [];
+        if (!data.master_product_id) empty.push('Produk');
+        if (!data.no_batch.trim()) empty.push('No Batch');
+        if (!data.master_line_id) empty.push('Line');
+        if (empty.length) {
+            toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
+            return;
+        }
+        post('/batches', { onSuccess: () => reset() });
     };
 
     return (
         <IpcShell title="Batch Baru" backHref="/batches">
             <Head title="Batch Baru" />
+            <Toast message={message} />
             <TwoPane list={<BatchNavList batches={recentBatches} />}>
                 <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
                     <Card className="max-w-xl">
@@ -55,7 +68,10 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
                                 <div className="grid gap-2">
                                     <Label htmlFor="master_product_id">Produk</Label>
                                     <Select value={data.master_product_id} onValueChange={(value) => setData('master_product_id', value)}>
-                                        <SelectTrigger id="master_product_id" className="min-h-11">
+                                        <SelectTrigger
+                                            id="master_product_id"
+                                            className={`min-h-11 ${!data.master_product_id && message ? errorBorder : ''}`}
+                                        >
                                             <SelectValue placeholder="Pilih produk" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -73,7 +89,7 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
                                     <Label htmlFor="no_batch">No Batch</Label>
                                     <Input
                                         id="no_batch"
-                                        className="min-h-11"
+                                        className={`min-h-11 ${!data.no_batch.trim() && message ? errorBorder : ''}`}
                                         value={data.no_batch}
                                         onChange={(e) => setData('no_batch', e.target.value)}
                                     />
@@ -83,7 +99,10 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
                                 <div className="grid gap-2">
                                     <Label htmlFor="master_line_id">Line</Label>
                                     <Select value={data.master_line_id} onValueChange={(value) => setData('master_line_id', value)}>
-                                        <SelectTrigger id="master_line_id" className="min-h-11">
+                                        <SelectTrigger
+                                            id="master_line_id"
+                                            className={`min-h-11 ${!data.master_line_id && message ? errorBorder : ''}`}
+                                        >
                                             <SelectValue placeholder="Pilih line" />
                                         </SelectTrigger>
                                         <SelectContent>

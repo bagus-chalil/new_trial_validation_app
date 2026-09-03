@@ -3,6 +3,7 @@ import { AccordionCard } from '@/components/ipc/accordion-card';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
+import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler, useMemo } from 'react';
+import { FormEventHandler, useMemo, useState } from 'react';
 
 interface Batch {
     id: number;
@@ -40,6 +41,7 @@ const GROUP_TITLES: Record<string, string> = {
 
 const inputClass =
     'h-[46px] rounded-xl border-[1.5px] border-border bg-background px-3.5 text-[14.5px] font-semibold text-foreground placeholder:text-muted-foreground/50';
+const errorBorder = 'border-destructive ring-1 ring-destructive';
 
 export default function PackingCheckEdit({
     batch,
@@ -56,6 +58,8 @@ export default function PackingCheckEdit({
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
+    const { message, toast } = useToast();
+    const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
 
     const initialChecklistValues = checklistGroups.reduce<Record<string, string>>((acc, group) => {
         Object.keys(group.fields).forEach((key) => {
@@ -79,6 +83,16 @@ export default function PackingCheckEdit({
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        const empty = new Set<string>();
+        if (!data.remarks?.trim()) empty.add('remarks');
+        if (!data.decision) empty.add('decision');
+        allChecklistKeys.forEach((key) => { if (!data[key]) empty.add(key); });
+        if (empty.size) {
+            setErrorFields(empty);
+            toast(`${empty.size} field wajib belum diisi`);
+            return;
+        }
+        setErrorFields(new Set());
         put(`/batches/${batch.id}/packing-check`);
     };
 
@@ -100,6 +114,7 @@ export default function PackingCheckEdit({
             }
         >
             <Head title={`Packing Check — ${batch.no_batch}`} />
+            <Toast message={message} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
                 <form onSubmit={submit} className="flex flex-1 flex-col">
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
@@ -114,13 +129,15 @@ export default function PackingCheckEdit({
                                     {Object.entries(group.fields).map(([key, label]) => (
                                         <div key={key} className="flex flex-col gap-2">
                                             <Label className="text-foreground text-[13px] font-semibold">{label}</Label>
-                                            <ChipToggleGroup
-                                                name={label}
-                                                options={group.options}
-                                                value={data[key] ?? ''}
-                                                onChange={(value) => setData(key, value)}
-                                                disabled={isReadOnly}
-                                            />
+                                            <div className={errorFields.has(key) ? 'rounded-xl outline outline-2 outline-destructive' : ''}>
+                                                <ChipToggleGroup
+                                                    name={label}
+                                                    options={group.options}
+                                                    value={data[key] ?? ''}
+                                                    onChange={(value) => { setData(key, value); setErrorFields((prev) => { const n = new Set(prev); n.delete(key); return n; }); }}
+                                                    disabled={isReadOnly}
+                                                />
+                                            </div>
                                             <InputError message={errors[key]} />
                                         </div>
                                     ))}
@@ -187,13 +204,15 @@ export default function PackingCheckEdit({
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
-                                <ChipToggleGroup
-                                    name="decision"
-                                    options={decisions}
-                                    value={data.decision ?? ''}
-                                    onChange={(value) => setData('decision', value)}
-                                    disabled={isReadOnly}
-                                />
+                                <div className={errorFields.has('decision') ? 'rounded-xl outline outline-2 outline-destructive' : ''}>
+                                    <ChipToggleGroup
+                                        name="decision"
+                                        options={decisions}
+                                        value={data.decision ?? ''}
+                                        onChange={(value) => { setData('decision', value); setErrorFields((prev) => { const n = new Set(prev); n.delete('decision'); return n; }); }}
+                                        disabled={isReadOnly}
+                                    />
+                                </div>
                                 <InputError message={errors.decision} />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
@@ -203,9 +222,9 @@ export default function PackingCheckEdit({
                                 <Textarea
                                     id="remarks"
                                     rows={2}
-                                    className="border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px]"
+                                    className={`border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px] ${errorFields.has('remarks') ? errorBorder : ''}`}
                                     value={data.remarks ?? ''}
-                                    onChange={(e) => setData('remarks', e.target.value)}
+                                    onChange={(e) => { setData('remarks', e.target.value); setErrorFields((prev) => { const n = new Set(prev); n.delete('remarks'); return n; }); }}
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.remarks} />
