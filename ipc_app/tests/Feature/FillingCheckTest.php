@@ -28,14 +28,13 @@ class FillingCheckTest extends TestCase
             'current_stage' => IpcBatch::STAGE_FILLING,
         ]);
 
-        $startupCheck = StartupCheck::create([
+        StartupCheck::create([
             'ipc_batch_id' => $batch->id,
             'user_id' => $batch->created_by,
             'density' => 1.0,
             'average_of_empty_bottle_weight' => 20.0,
             'completed_at' => now(),
         ]);
-        $startupCheck->bottleWeights()->create(['sample_no' => 1, 'weight_value' => 20.0]);
 
         return $batch->fresh();
     }

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useMemo } from 'react';
 
 interface Batch {
@@ -19,7 +19,7 @@ interface Batch {
     master_line: { name: string; code: string };
 }
 
-interface StartupCheckData {
+interface PackingCheckData {
     id: number;
     completed_at: string | null;
     [key: string]: unknown;
@@ -32,75 +32,66 @@ interface ChecklistGroup {
 }
 
 const GROUP_TITLES: Record<string, string> = {
-    availability: 'Ketersediaan',
-    conform: 'Conform / Not Conform',
-    pm_bom_match: 'PM / BOM Match',
-    bulk_status: 'Status Bulk',
-    identity_line_board: 'Identity Line Board',
+    primary: 'Primary',
+    secondary: 'Secondary',
+    secondary_coding_na: 'Secondary — Coding / NA',
+    tersier: 'Tersier',
 };
 
 const inputClass =
     'h-[46px] rounded-xl border-[1.5px] border-border bg-background px-3.5 text-[14.5px] font-semibold text-foreground placeholder:text-muted-foreground/50';
 
-export default function StartupCheckEdit({
+export default function PackingCheckEdit({
     batch,
-    startupCheck,
+    packingCheck,
     isReadOnly,
     checklistGroups,
+    decisions,
 }: {
     batch: Batch;
-    startupCheck: StartupCheckData | null;
+    packingCheck: PackingCheckData | null;
     isReadOnly: boolean;
     checklistGroups: ChecklistGroup[];
+    decisions: string[];
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
     const initialChecklistValues = checklistGroups.reduce<Record<string, string>>((acc, group) => {
         Object.keys(group.fields).forEach((key) => {
-            acc[key] = (startupCheck?.[key] as string) ?? '';
+            acc[key] = (packingCheck?.[key] as string) ?? '';
         });
         return acc;
     }, {});
 
     const { data, setData, put, processing, errors } = useForm<Record<string, string | null>>({
         ...initialChecklistValues,
-        validation_report_status: (startupCheck?.validation_report_status as string) ?? '',
-        filling_range_min: (startupCheck?.filling_range_min as string) ?? '',
-        filling_range_max: (startupCheck?.filling_range_max as string) ?? '',
-        density: (startupCheck?.density as string) ?? '',
-        average_of_empty_bottle_weight: (startupCheck?.average_of_empty_bottle_weight as string) ?? '',
-        heating: (startupCheck?.heating as string) ?? '',
-        line_leader_name: (startupCheck?.line_leader_name as string) ?? '',
-        operator_name: (startupCheck?.operator_name as string) ?? '',
-        remarks: (startupCheck?.remarks as string) ?? '',
+        standard_weight_mb: (packingCheck?.standard_weight_mb as string) ?? '',
+        sum_weight_mb: (packingCheck?.sum_weight_mb as string) ?? '',
+        line_leader_name: (packingCheck?.line_leader_name as string) ?? '',
+        coding_machine: (packingCheck?.coding_machine as string) ?? '',
+        remarks: (packingCheck?.remarks as string) ?? '',
+        decision: (packingCheck?.decision as string) ?? '',
     });
 
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
-    const progressPct = allChecklistKeys.length > 0 ? Math.round((answeredCount / allChecklistKeys.length) * 100) : 0;
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        put(`/batches/${batch.id}/startup-check`);
+        put(`/batches/${batch.id}/packing-check`);
     };
-
-    const listPane = <BatchNavList batches={recentBatches} activeId={batch.id} />;
 
     return (
         <IpcShell
-            title="Startup Check"
+            title="Packing Check"
             subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
             backHref={`/batches/${batch.id}`}
-            progressPct={isReadOnly ? undefined : progressPct}
             headerActions={
                 isReadOnly ? (
-                    <Link
-                        href={`/batches/${batch.id}/filling-check`}
-                        className="flex h-10 items-center gap-1.5 rounded-full bg-green-100 px-3.5 text-[12.5px] font-bold text-green-800"
-                    >
-                        Selesai · Lanjut ke Filling
-                    </Link>
+                    <span className="rounded-full bg-green-100 px-3.5 py-1.5 text-[12.5px] font-bold whitespace-nowrap text-green-800">
+                        Selesai — read only
+                    </span>
                 ) : (
                     <span className="bg-primary/[0.08] text-primary rounded-full px-3 py-1.5 text-[12.5px] font-bold whitespace-nowrap">
                         {answeredCount}/{allChecklistKeys.length}
@@ -108,8 +99,8 @@ export default function StartupCheckEdit({
                 )
             }
         >
-            <Head title={`Startup Check — ${batch.no_batch}`} />
-            <TwoPane list={listPane}>
+            <Head title={`Packing Check — ${batch.no_batch}`} />
+            <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
                 <form onSubmit={submit} className="flex flex-1 flex-col">
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
                         {checklistGroups.map((group) => {
@@ -137,79 +128,36 @@ export default function StartupCheckEdit({
                             );
                         })}
 
-                        <AccordionCard title="Parameter Filling" defaultOpen={false}>
+                        <AccordionCard title="Parameter Packing" defaultOpen={false}>
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="filling_range_min" className="text-muted-foreground text-xs font-semibold">
-                                    Filling Range Min
+                                <Label htmlFor="standard_weight_mb" className="text-muted-foreground text-xs font-semibold">
+                                    Standard Weight MB
                                 </Label>
                                 <Input
-                                    id="filling_range_min"
-                                    type="number"
-                                    step="0.01"
-                                    className={inputClass}
-                                    value={data.filling_range_min ?? ''}
-                                    onChange={(e) => setData('filling_range_min', e.target.value)}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError message={errors.filling_range_min} />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="filling_range_max" className="text-muted-foreground text-xs font-semibold">
-                                    Filling Range Max
-                                </Label>
-                                <Input
-                                    id="filling_range_max"
-                                    type="number"
-                                    step="0.01"
-                                    className={inputClass}
-                                    value={data.filling_range_max ?? ''}
-                                    onChange={(e) => setData('filling_range_max', e.target.value)}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError message={errors.filling_range_max} />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="density" className="text-muted-foreground text-xs font-semibold">
-                                    Density
-                                </Label>
-                                <Input
-                                    id="density"
+                                    id="standard_weight_mb"
                                     type="number"
                                     step="0.0001"
                                     className={inputClass}
-                                    value={data.density ?? ''}
-                                    onChange={(e) => setData('density', e.target.value)}
+                                    value={data.standard_weight_mb ?? ''}
+                                    onChange={(e) => setData('standard_weight_mb', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.density} />
+                                <InputError message={errors.standard_weight_mb} />
                             </div>
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="average_of_empty_bottle_weight" className="text-muted-foreground text-xs font-semibold">
-                                    Average of Empty Bottle Weight
+                                <Label htmlFor="sum_weight_mb" className="text-muted-foreground text-xs font-semibold">
+                                    Sum Weight MB
                                 </Label>
                                 <Input
-                                    id="average_of_empty_bottle_weight"
+                                    id="sum_weight_mb"
                                     type="number"
                                     step="0.0001"
                                     className={inputClass}
-                                    value={data.average_of_empty_bottle_weight ?? ''}
-                                    onChange={(e) => setData('average_of_empty_bottle_weight', e.target.value)}
+                                    value={data.sum_weight_mb ?? ''}
+                                    onChange={(e) => setData('sum_weight_mb', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.average_of_empty_bottle_weight} />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="heating" className="text-muted-foreground text-xs font-semibold">
-                                    Heating
-                                </Label>
-                                <Input
-                                    id="heating"
-                                    className={inputClass}
-                                    value={data.heating ?? ''}
-                                    onChange={(e) => setData('heating', e.target.value)}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError message={errors.heating} />
+                                <InputError message={errors.sum_weight_mb} />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
@@ -225,30 +173,28 @@ export default function StartupCheckEdit({
                                 <InputError message={errors.line_leader_name} />
                             </div>
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="operator_name" className="text-muted-foreground text-xs font-semibold">
-                                    Operator
+                                <Label htmlFor="coding_machine" className="text-muted-foreground text-xs font-semibold">
+                                    Coding Machine
                                 </Label>
                                 <Input
-                                    id="operator_name"
+                                    id="coding_machine"
                                     className={inputClass}
-                                    value={data.operator_name ?? ''}
-                                    onChange={(e) => setData('operator_name', e.target.value)}
+                                    value={data.coding_machine ?? ''}
+                                    onChange={(e) => setData('coding_machine', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.operator_name} />
+                                <InputError message={errors.coding_machine} />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="validation_report_status" className="text-muted-foreground text-xs font-semibold">
-                                    Validation Report
-                                </Label>
-                                <Input
-                                    id="validation_report_status"
-                                    className={inputClass}
-                                    value={data.validation_report_status ?? ''}
-                                    onChange={(e) => setData('validation_report_status', e.target.value)}
+                            <div className="col-span-full flex flex-col gap-2">
+                                <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
+                                <ChipToggleGroup
+                                    name="decision"
+                                    options={decisions}
+                                    value={data.decision ?? ''}
+                                    onChange={(value) => setData('decision', value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.validation_report_status} />
+                                <InputError message={errors.decision} />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">

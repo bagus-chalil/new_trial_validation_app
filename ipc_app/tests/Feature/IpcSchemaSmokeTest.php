@@ -14,7 +14,6 @@ use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\MasterTestType;
 use App\Models\PackingCheck;
-use App\Models\StartupBottleWeight;
 use App\Models\StartupCheck;
 use App\Models\StartupInspection;
 use App\Models\StartupInspectionItem;
@@ -44,15 +43,14 @@ class IpcSchemaSmokeTest extends TestCase
             'current_stage' => IpcBatch::STAGE_STARTUP,
         ]);
 
-        $startupCheck = StartupCheck::create([
+        StartupCheck::create([
             'ipc_batch_id' => $batch->id,
             'user_id' => $user->id,
             'product_standard_status' => StartupCheck::STATUS_AVAILABLE,
             'filling_range_min' => 10.5,
             'filling_range_max' => 12.5,
+            'average_of_empty_bottle_weight' => 21.5,
         ]);
-        StartupBottleWeight::create(['startup_check_id' => $startupCheck->id, 'sample_no' => 1, 'weight_value' => 21.5]);
-        StartupBottleWeight::create(['startup_check_id' => $startupCheck->id, 'sample_no' => 2, 'weight_value' => 21.8]);
 
         $startupInspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $user->id]);
         StartupInspectionItem::create(['startup_inspection_id' => $startupInspection->id, 'parameter_key' => 'bulk_odor', 'status' => StartupInspectionItem::STATUS_OK]);
@@ -73,7 +71,7 @@ class IpcSchemaSmokeTest extends TestCase
 
         $fresh = IpcBatch::with([
             'masterProduct', 'masterLine', 'creator',
-            'startupCheck.bottleWeights',
+            'startupCheck',
             'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults',
             'fillingCheck.samples', 'packingCheck', 'finishedCheck.samples',
             'approvals', 'printLogs', 'attachments',
@@ -82,7 +80,7 @@ class IpcSchemaSmokeTest extends TestCase
         $this->assertSame('Test Product', $fresh->masterProduct->product_name);
         $this->assertSame('Make Up 01', $fresh->masterLine->name);
         $this->assertSame($user->id, $fresh->creator->id);
-        $this->assertCount(2, $fresh->startupCheck->bottleWeights);
+        $this->assertEquals(21.5, (float) $fresh->startupCheck->average_of_empty_bottle_weight);
         $this->assertCount(1, $fresh->startupInspection->items);
         $this->assertCount(1, $fresh->startupInspection->samples);
         $this->assertCount(1, $fresh->startupInspection->testResults);

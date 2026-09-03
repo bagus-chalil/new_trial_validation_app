@@ -41,14 +41,11 @@ class StartupCheckTest extends TestCase
             'filling_range_min' => 10,
             'filling_range_max' => 12,
             'density' => 1.05,
+            'average_of_empty_bottle_weight' => 21.5,
             'heating' => 'Yes',
             'line_leader_name' => 'Budi',
             'operator_name' => 'Sari',
             'remarks' => 'OK',
-            'bottle_weights' => array_map(
-                fn (int $sampleNo) => ['sample_no' => $sampleNo, 'weight_value' => 21.5],
-                range(1, 30),
-            ),
         ];
     }
 
@@ -76,7 +73,7 @@ class StartupCheckTest extends TestCase
         $this->get("/batches/{$batch->id}/startup-check")->assertNotFound();
     }
 
-    public function test_valid_submission_persists_check_and_bottle_weights_and_advances_stage(): void
+    public function test_valid_submission_persists_check_and_advances_stage(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
@@ -87,10 +84,10 @@ class StartupCheckTest extends TestCase
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FILLING, $batch->current_stage);
 
-        $startupCheck = $batch->startupCheck()->with('bottleWeights')->first();
+        $startupCheck = $batch->startupCheck()->first();
         $this->assertNotNull($startupCheck->completed_at);
         $this->assertSame(StartupCheck::STATUS_AVAILABLE, $startupCheck->product_standard_status);
-        $this->assertCount(30, $startupCheck->bottleWeights);
+        $this->assertEquals(21.5, (float) $startupCheck->average_of_empty_bottle_weight);
     }
 
     public function test_missing_checklist_status_is_rejected(): void
@@ -107,16 +104,18 @@ class StartupCheckTest extends TestCase
         $this->assertNull($batch->fresh()->startupCheck);
     }
 
-    public function test_no_bottle_weight_entered_is_rejected(): void
+    public function test_missing_average_of_empty_bottle_weight_is_rejected(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
         $payload = $this->validPayload();
-        $payload['bottle_weights'] = [['sample_no' => 1, 'weight_value' => null]];
+        unset($payload['average_of_empty_bottle_weight']);
 
         $this->put("/batches/{$batch->id}/startup-check", $payload)
-            ->assertSessionHasErrors('bottle_weights');
+            ->assertSessionHasErrors('average_of_empty_bottle_weight');
+
+        $this->assertNull($batch->fresh()->startupCheck);
     }
 
     public function test_completed_startup_check_is_read_only(): void

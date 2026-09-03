@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use App\Models\StartupCheck;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 
 class SaveStartupCheckRequest extends FormRequest
 {
@@ -20,13 +19,14 @@ class SaveStartupCheckRequest extends FormRequest
             'filling_range_min' => ['nullable', 'numeric'],
             'filling_range_max' => ['nullable', 'numeric'],
             'density' => ['nullable', 'numeric', 'min:0'],
+            // Confirmed with real IPC users 2026-09-03: SOP no longer does the 30-sample
+            // BottleData weighing — this is entered once, directly, matching the legacy
+            // screen's own single input box for AVERAGE_OF_EMPTY_BOTTLE_WEIGHT.
+            'average_of_empty_bottle_weight' => ['required', 'numeric', 'min:0'],
             'heating' => ['nullable', 'string', 'max:255'],
             'line_leader_name' => ['nullable', 'string', 'max:255'],
             'operator_name' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],
-            'bottle_weights' => ['nullable', 'array'],
-            'bottle_weights.*.sample_no' => ['required', 'integer', 'min:1'],
-            'bottle_weights.*.weight_value' => ['nullable', 'numeric', 'min:0'],
         ];
 
         foreach (StartupCheck::checklistGroups() as $group) {
@@ -36,21 +36,5 @@ class SaveStartupCheckRequest extends FormRequest
         }
 
         return $rules;
-    }
-
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator) {
-            // Legacy's BottleData screen requires all 30 samples non-blank, not just one.
-            $rows = collect($this->input('bottle_weights', []))
-                ->keyBy(fn ($row) => (int) ($row['sample_no'] ?? 0));
-
-            for ($sampleNo = 1; $sampleNo <= 30; $sampleNo++) {
-                if (blank($rows->get($sampleNo)['weight_value'] ?? null)) {
-                    $validator->errors()->add('bottle_weights', 'Isi seluruh 30 sample berat bottle.');
-                    break;
-                }
-            }
-        });
     }
 }

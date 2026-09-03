@@ -14,7 +14,7 @@ class StartupCheckController extends Controller
 {
     public function edit(IpcBatch $batch): Response
     {
-        $batch->load(['masterProduct', 'masterLine', 'startupCheck.bottleWeights']);
+        $batch->load(['masterProduct', 'masterLine', 'startupCheck']);
 
         return Inertia::render('startup-check/edit', [
             'batch' => $batch,

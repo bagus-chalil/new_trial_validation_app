@@ -144,9 +144,4 @@ class StartupCheck extends Model
     {
         return $this->belongsTo(User::class);
     }
-
-    public function bottleWeights()
-    {
-        return $this->hasMany(StartupBottleWeight::class);
-    }
 }

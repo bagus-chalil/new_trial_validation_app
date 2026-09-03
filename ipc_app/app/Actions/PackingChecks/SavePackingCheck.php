@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Actions\StartupChecks;
+namespace App\Actions\PackingChecks;
 
 use App\Models\IpcBatch;
-use App\Models\StartupCheck;
+use App\Models\PackingCheck;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class SaveStartupCheck
+class SavePackingCheck
 {
-    public function handle(IpcBatch $batch, User $user, array $data): StartupCheck
+    public function handle(IpcBatch $batch, User $user, array $data): PackingCheck
     {
         return DB::transaction(function () use ($batch, $user, $data) {
-            $startupCheck = StartupCheck::updateOrCreate(
+            $packingCheck = PackingCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],
                 [
                     ...$data,
@@ -21,11 +21,11 @@ class SaveStartupCheck
                 ],
             );
 
-            if ($batch->current_stage === IpcBatch::STAGE_STARTUP) {
-                $batch->update(['current_stage' => IpcBatch::STAGE_FILLING]);
+            if ($batch->current_stage === IpcBatch::STAGE_PACKING) {
+                $batch->update(['current_stage' => IpcBatch::STAGE_FINISHED]);
             }
 
-            return $startupCheck;
+            return $packingCheck;
         });
     }
 }
