@@ -9,16 +9,14 @@ class StartupInspectionSample extends Model
     protected $fillable = [
         'startup_inspection_id',
         'sample_no',
-        'volume',
-        'weight',
+        'volume_weight',
         'weight_master_box',
     ];
 
     protected function casts(): array
     {
         return [
-            'volume' => 'decimal:4',
-            'weight' => 'decimal:4',
+            'volume_weight' => 'decimal:4',
             'weight_master_box' => 'decimal:4',
         ];
     }

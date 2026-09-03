@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\StartupCheck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StartupCheckTest extends TestCase
@@ -37,7 +40,7 @@ class StartupCheckTest extends TestCase
 
         return [
             ...$checklist,
-            'validation_report_status' => 'Approved',
+            'validation_report_status' => StartupCheck::VALIDATION_REPORT_READY,
             'filling_range_min' => 10,
             'filling_range_max' => 12,
             'density' => 1.05,
@@ -126,5 +129,61 @@ class StartupCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}");
 
         $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())->assertForbidden();
+    }
+
+    public function test_invalid_validation_report_status_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        $payload['validation_report_status'] = 'Approved';
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)
+            ->assertSessionHasErrors('validation_report_status');
+
+        $this->assertNull($batch->fresh()->startupCheck);
+    }
+
+    public function test_photo_can_be_uploaded_and_replaces_the_previous_one(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $first = UploadedFile::fake()->image('color1.jpg');
+        $this->post("/batches/{$batch->id}/startup-check/photo/color", ['photo' => $first])
+            ->assertRedirect("/batches/{$batch->id}/startup-check");
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
+        $firstPath = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->first()->file_path;
+        Storage::disk('public')->assertExists($firstPath);
+
+        $second = UploadedFile::fake()->image('color2.jpg');
+        $this->post("/batches/{$batch->id}/startup-check/photo/color", ['photo' => $second]);
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
+        Storage::disk('public')->assertMissing($firstPath);
+    }
+
+    public function test_photo_upload_rejects_unknown_field(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $photo = UploadedFile::fake()->image('color.jpg');
+        $this->post("/batches/{$batch->id}/startup-check/photo/unknown", ['photo' => $photo])->assertNotFound();
+    }
+
+    public function test_photo_upload_forbidden_once_startup_check_is_completed(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+        $this->put("/batches/{$batch->id}/startup-check", $this->validPayload());
+
+        $photo = UploadedFile::fake()->image('color.jpg');
+        $this->post("/batches/{$batch->id}/startup-check/photo/color", ['photo' => $photo])->assertForbidden();
     }
 }

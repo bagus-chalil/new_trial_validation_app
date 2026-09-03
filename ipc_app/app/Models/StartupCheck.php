@@ -27,6 +27,24 @@ class StartupCheck extends Model
     public const STATUS_NOT_YET_COMPLETE = 'Not Yet Complete';
 
     /**
+     * Real Choice values, confirmed 2026-09-03 against a live legacy Power Apps screenshot
+     * (previously unknown — the SharePoint export alone didn't expose them, see the comment on
+     * checklistGroups() below).
+     */
+    public const VALIDATION_REPORT_READY = 'Ready';
+
+    public const VALIDATION_REPORT_NO_REPORT_VALIDATION = 'No Report Validation';
+
+    public const VALIDATION_REPORT_EXISTING_PRODUCT = 'Existing Product';
+
+    /** @var array<int, string> */
+    public const VALIDATION_REPORT_OPTIONS = [
+        self::VALIDATION_REPORT_READY,
+        self::VALIDATION_REPORT_NO_REPORT_VALIDATION,
+        self::VALIDATION_REPORT_EXISTING_PRODUCT,
+    ];
+
+    /**
      * Available / Not Available checklist items — confirmed against the real Power Apps
      * export 2026-09-02 (ipc_app/app_legacy/, Controls/4.json): the 3 header items plus all
      * 5 machine checks (machine checks were previously mis-grouped as Conform/Not Conform).
@@ -74,11 +92,9 @@ class StartupCheck extends Model
     ];
 
     /**
-     * `validation_report_status` is deliberately excluded from every group above: the real
-     * legacy field is a genuine SharePoint Choice dropdown (not a two-value button group),
-     * and its allowed values aren't embedded anywhere in the Power Apps export — only a
-     * required free-text field can be built until the real choice list is obtained some
-     * other way (e.g. asking IPC/QA for the SharePoint list's Choices).
+     * `validation_report_status` is deliberately excluded from every group above: it's a
+     * standalone 3-option Choice field (see VALIDATION_REPORT_OPTIONS), not a two-value
+     * button group, and is rendered separately in the Parameter Filling section.
      *
      * @return list<array{key: string, fields: array<string, string>, options: array<int, string>}>
      */

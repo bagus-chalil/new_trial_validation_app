@@ -15,7 +15,7 @@ class SaveStartupCheckRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'validation_report_status' => ['required', 'string', 'max:255'],
+            'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],
             'filling_range_min' => ['nullable', 'numeric'],
             'filling_range_max' => ['nullable', 'numeric'],
             'density' => ['nullable', 'numeric', 'min:0'],

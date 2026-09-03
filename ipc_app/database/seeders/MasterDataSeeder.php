@@ -12,10 +12,15 @@ use Illuminate\Database\Seeder;
  * `master_lines`/`master_products` rows are still illustrative examples, not the real master
  * lists (those live in SharePoint, not in the Power Apps export) — replace with real rows, or
  * build the admin CRUD screens to manage these, before this app goes anywhere near production.
- * `master_test_types`, however, IS the real, complete set of 15 test-type flags wired to
- * Start_Inspection buttons in the Power Apps export 2026-09-02 (ipc_app/app_legacy/,
- * Controls/1544.json) — category groupings (Leakage/Functional/Attribute) are still a
- * reasonable guess, not confirmed by the export. See ipc_app/CLAUDE.md.
+ * `master_test_types` IS the real, complete set of 15 test-type flags wired to Start_Inspection
+ * buttons in the Power Apps export 2026-09-02 (ipc_app/app_legacy/, Controls/1544.json).
+ * Category groupings (Leakage/Functional/Attribute) were a guess at that point — **confirmed
+ * 2026-09-03 against a real Start_Inspection screenshot from the user**: Leakage = VACCUM,
+ * TORSI, PRESS_TEST, DROP_TEST_P, DROP_TEST_S (5); Functional = SPRAY, FLIP_TOP, RUB_TEST,
+ * SWING_TEST, TAPE_TEST, HARDESS_TEST (6); Attribute unchanged (4). TORSI/DROP_TEST_P/
+ * DROP_TEST_S moved from Functional to Leakage accordingly. Uses updateOrCreate (not
+ * firstOrCreate) specifically so re-running this seeder corrects any row already seeded with
+ * the old, wrong category.
  */
 class MasterDataSeeder extends Seeder
 {
@@ -45,10 +50,10 @@ class MasterDataSeeder extends Seeder
 
         $testTypes = [
             'VACCUM' => MasterTestType::CATEGORY_LEAKAGE,
+            'TORSI' => MasterTestType::CATEGORY_LEAKAGE,
             'PRESS_TEST' => MasterTestType::CATEGORY_LEAKAGE,
-            'TORSI' => MasterTestType::CATEGORY_FUNCTIONAL,
-            'DROP_TEST_P' => MasterTestType::CATEGORY_FUNCTIONAL,
-            'DROP_TEST_S' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'DROP_TEST_P' => MasterTestType::CATEGORY_LEAKAGE,
+            'DROP_TEST_S' => MasterTestType::CATEGORY_LEAKAGE,
             'SPRAY' => MasterTestType::CATEGORY_FUNCTIONAL,
             'FLIP_TOP' => MasterTestType::CATEGORY_FUNCTIONAL,
             'RUB_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
@@ -62,7 +67,7 @@ class MasterDataSeeder extends Seeder
         ];
 
         foreach ($testTypes as $name => $category) {
-            MasterTestType::firstOrCreate(['name' => $name], ['category' => $category, 'is_active' => true]);
+            MasterTestType::updateOrCreate(['name' => $name], ['category' => $category, 'is_active' => true]);
         }
     }
 }
