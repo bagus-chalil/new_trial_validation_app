@@ -32,10 +32,19 @@ class PackingCheck extends Model
      *
      * @var array<string, string>
      */
+    /**
+     * Labels corrected 2026-09-03 against the real Power Apps export
+     * (ipc_app/app_legacy/extracted/Controls/933.json): the SharePoint column names
+     * PRIMARY_PACKAGING and PRIMARY_CAPPING_BATCH_EXP were kept as-is (matching the real
+     * schema), but their on-screen Text labels were overridden in the legacy app to
+     * "PRIMARY APPEARANCE" and "PRIMART CODING / EMBOSS" respectively — the column names
+     * never got renamed to match. Use these display labels, not the column names, or the
+     * screen won't match what IPC users actually see in legacy.
+     */
     public const PRIMARY_FIELDS = [
         'primary_bulk_status' => 'Primary Bulk',
-        'primary_packaging_status' => 'Primary Packaging',
-        'primary_capping_batch_exp_status' => 'Primary Capping / Batch-Exp',
+        'primary_packaging_status' => 'Primary Appearance',
+        'primary_capping_batch_exp_status' => 'Primary Coding / Emboss',
         'primary_na_number_status' => 'Primary NA Number',
         'primary_attribute_status' => 'Primary Attribute',
         'primary_functional_test_status' => 'Primary Functional Test',

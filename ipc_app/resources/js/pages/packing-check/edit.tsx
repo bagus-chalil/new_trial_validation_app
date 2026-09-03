@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { AccordionCard } from '@/components/ipc/accordion-card';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
@@ -10,20 +11,36 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Camera } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
+
+const PHOTO_FIELDS: { key: string; label: string }[] = [
+    { key: 'palletisasi', label: 'Palletisasi' },
+    { key: 'color', label: 'Color' },
+    { key: 'primary_coding_batch_exp', label: 'Primary Coding Batch/Exp' },
+    { key: 'secondary_coding_batch_exp', label: 'Secondary Coding' },
+    { key: 'tersier_coding_batch', label: 'Tersier Coding / Shipper' },
+];
 
 interface Batch {
     id: number;
     no_batch: string;
-    master_product: { product_name: string; fg_code: string };
+    created_at: string;
+    master_product: { product_name: string; fg_code: string; bulk_code: string };
     master_line: { name: string; code: string };
 }
 
 interface PackingCheckData {
     id: number;
     completed_at: string | null;
+    created_at: string;
+    user?: { name: string } | null;
     [key: string]: unknown;
+}
+
+function formatDateTime(value: string): string {
+    return new Date(value).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 interface ChecklistGroup {
@@ -49,17 +66,26 @@ export default function PackingCheckEdit({
     isReadOnly,
     checklistGroups,
     decisions,
+    photoUrls,
 }: {
     batch: Batch;
     packingCheck: PackingCheckData | null;
     isReadOnly: boolean;
     checklistGroups: ChecklistGroup[];
     decisions: string[];
+    photoUrls: Record<string, string | null>;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const { message, toast } = useToast();
     const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
+    const [cameraField, setCameraField] = useState<string | null>(null);
+
+    const uploadPhoto = (field: string, file: File) => {
+        router.post(`/batches/${batch.id}/packing-check/photo/${field}`, { photo: file }, { forceFormData: true, preserveScroll: true });
+    };
+
+    const inspectorName = packingCheck?.user?.name ?? props.auth.user.name;
 
     const initialChecklistValues = checklistGroups.reduce<Record<string, string>>((acc, group) => {
         Object.keys(group.fields).forEach((key) => {
@@ -86,7 +112,9 @@ export default function PackingCheckEdit({
         const empty = new Set<string>();
         if (!data.remarks?.trim()) empty.add('remarks');
         if (!data.decision) empty.add('decision');
-        allChecklistKeys.forEach((key) => { if (!data[key]) empty.add(key); });
+        allChecklistKeys.forEach((key) => {
+            if (!data[key]) empty.add(key);
+        });
         if (empty.size) {
             setErrorFields(empty);
             toast(`${empty.size} field wajib belum diisi`);
@@ -118,6 +146,18 @@ export default function PackingCheckEdit({
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
                 <form onSubmit={submit} className="flex flex-1 flex-col">
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
+                        {/* Info header — mirrors the legacy screen's top info block and Filling Check's
+                            own info header, so QC has full context without navigating away. */}
+                        <div className="border-border-soft bg-card grid grid-cols-2 gap-3 rounded-[20px] border p-[18px] md:grid-cols-4 md:gap-4">
+                            <InfoField label="Tanggal" value={formatDateTime(packingCheck?.created_at ?? batch.created_at)} />
+                            <InfoField label="FG Code" value={batch.master_product.fg_code} />
+                            <InfoField label="No. Batch" value={batch.no_batch} />
+                            <InfoField label="Bulk Code" value={batch.master_product.bulk_code} />
+                            <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
+                            <InfoField label="IPC ID" value={inspectorName} />
+                            <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
+                        </div>
+
                         {checklistGroups.map((group) => {
                             const groupAnswered = Object.keys(group.fields).filter((key) => data[key]).length;
                             return (
@@ -129,12 +169,19 @@ export default function PackingCheckEdit({
                                     {Object.entries(group.fields).map(([key, label]) => (
                                         <div key={key} className="flex flex-col gap-2">
                                             <Label className="text-foreground text-[13px] font-semibold">{label}</Label>
-                                            <div className={errorFields.has(key) ? 'rounded-xl outline outline-2 outline-destructive' : ''}>
+                                            <div className={errorFields.has(key) ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                                 <ChipToggleGroup
                                                     name={label}
                                                     options={group.options}
                                                     value={data[key] ?? ''}
-                                                    onChange={(value) => { setData(key, value); setErrorFields((prev) => { const n = new Set(prev); n.delete(key); return n; }); }}
+                                                    onChange={(value) => {
+                                                        setData(key, value);
+                                                        setErrorFields((prev) => {
+                                                            const n = new Set(prev);
+                                                            n.delete(key);
+                                                            return n;
+                                                        });
+                                                    }}
                                                     disabled={isReadOnly}
                                                 />
                                             </div>
@@ -202,14 +249,44 @@ export default function PackingCheckEdit({
                                 />
                                 <InputError message={errors.coding_machine} />
                             </div>
+                            <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                {PHOTO_FIELDS.map(({ key, label }) => (
+                                    <div key={key} className="flex flex-col gap-2">
+                                        <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
+                                        <button
+                                            type="button"
+                                            disabled={isReadOnly}
+                                            onClick={() => setCameraField(key)}
+                                            className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <Camera className="size-4" strokeWidth={2.2} />
+                                            {photoUrls[key] ? 'Ganti Foto' : 'Ambil Foto'}
+                                        </button>
+                                        {photoUrls[key] && (
+                                            <img
+                                                src={photoUrls[key]!}
+                                                alt={`Foto ${label}`}
+                                                className="border-border h-24 w-24 rounded-xl border object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
-                                <div className={errorFields.has('decision') ? 'rounded-xl outline outline-2 outline-destructive' : ''}>
+                                <div className={errorFields.has('decision') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                     <ChipToggleGroup
                                         name="decision"
                                         options={decisions}
                                         value={data.decision ?? ''}
-                                        onChange={(value) => { setData('decision', value); setErrorFields((prev) => { const n = new Set(prev); n.delete('decision'); return n; }); }}
+                                        onChange={(value) => {
+                                            setData('decision', value);
+                                            setErrorFields((prev) => {
+                                                const n = new Set(prev);
+                                                n.delete('decision');
+                                                return n;
+                                            });
+                                        }}
                                         disabled={isReadOnly}
                                     />
                                 </div>
@@ -224,7 +301,14 @@ export default function PackingCheckEdit({
                                     rows={2}
                                     className={`border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px] ${errorFields.has('remarks') ? errorBorder : ''}`}
                                     value={data.remarks ?? ''}
-                                    onChange={(e) => { setData('remarks', e.target.value); setErrorFields((prev) => { const n = new Set(prev); n.delete('remarks'); return n; }); }}
+                                    onChange={(e) => {
+                                        setData('remarks', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('remarks');
+                                            return n;
+                                        });
+                                    }}
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.remarks} />
@@ -241,6 +325,26 @@ export default function PackingCheckEdit({
                     )}
                 </form>
             </TwoPane>
+
+            <CameraCaptureDialog
+                open={cameraField !== null}
+                onOpenChange={(open) => {
+                    if (!open) setCameraField(null);
+                }}
+                onCapture={(file) => {
+                    if (cameraField) uploadPhoto(cameraField, file);
+                }}
+                title={`Ambil Foto ${PHOTO_FIELDS.find((f) => f.key === cameraField)?.label ?? ''}`}
+            />
         </IpcShell>
+    );
+}
+
+function InfoField({ label, value, full }: { label: string; value: string; full?: boolean }) {
+    return (
+        <div className={full ? 'col-span-2 md:col-span-4' : undefined}>
+            <p className="text-muted-foreground/70 text-[10.5px] font-semibold tracking-wide uppercase">{label}</p>
+            <p className="mt-0.5 truncate text-[13.5px] font-bold">{value}</p>
+        </div>
     );
 }

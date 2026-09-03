@@ -28,4 +28,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('batches/{batch}/packing-check', [PackingCheckController::class, 'edit'])->name('packing-check.edit');
     Route::put('batches/{batch}/packing-check', [PackingCheckController::class, 'update'])->name('packing-check.update');
+    Route::post('batches/{batch}/packing-check/photo/{field}', [PackingCheckController::class, 'uploadPhoto'])
+        ->whereIn('field', PackingCheckController::PHOTO_FIELDS)
+        ->name('packing-check.photo');
 });

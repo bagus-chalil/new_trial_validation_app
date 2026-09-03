@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\FillingCheck;
+use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PackingCheckTest extends TestCase
@@ -161,5 +164,47 @@ class PackingCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}");
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())->assertForbidden();
+    }
+
+    public function test_photo_can_be_uploaded_and_replaces_the_previous_one(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $first = UploadedFile::fake()->image('color1.jpg');
+        $this->post("/batches/{$batch->id}/packing-check/photo/color", ['photo' => $first])
+            ->assertRedirect("/batches/{$batch->id}/packing-check");
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
+        $firstPath = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->first()->file_path;
+        Storage::disk('public')->assertExists($firstPath);
+
+        $second = UploadedFile::fake()->image('color2.jpg');
+        $this->post("/batches/{$batch->id}/packing-check/photo/color", ['photo' => $second]);
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
+        Storage::disk('public')->assertMissing($firstPath);
+    }
+
+    public function test_photo_upload_rejects_unknown_field(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $photo = UploadedFile::fake()->image('color.jpg');
+        $this->post("/batches/{$batch->id}/packing-check/photo/unknown", ['photo' => $photo])->assertNotFound();
+    }
+
+    public function test_photo_upload_forbidden_once_packing_check_is_completed(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload());
+
+        $photo = UploadedFile::fake()->image('color.jpg');
+        $this->post("/batches/{$batch->id}/packing-check/photo/color", ['photo' => $photo])->assertForbidden();
     }
 }

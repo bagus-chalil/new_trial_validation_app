@@ -47,4 +47,45 @@ class FinishedCheckSample extends Model
     {
         return $this->belongsTo(FinishedCheck::class);
     }
+
+    /**
+     * The 19 parameter keys grouped by tier, for a group-driven accordion UI mirroring
+     * StartupCheck::checklistGroups()/PackingCheck::checklistGroups().
+     *
+     * @return list<array{key: string, label: string, parameters: array<string, string>}>
+     */
+    public static function sampleGroups(): array
+    {
+        return [
+            ['key' => 'tersier', 'label' => 'Tersier', 'parameters' => [
+                'tersier_identity' => 'Identity',
+                'tersier_appearance' => 'Appearance',
+                'tersier_coding_batch' => 'Coding Batch',
+                'tersier_coding_na' => 'Coding NA',
+                'tersier_shipper_label' => 'Shipper Label',
+            ]],
+            ['key' => 'secondary', 'label' => 'Secondary', 'parameters' => [
+                'secondary_identity' => 'Identity',
+                'secondary_appearance' => 'Appearance',
+                'secondary_coding_batch' => 'Coding Batch',
+                'secondary_coding_na' => 'Coding NA',
+                'secondary_attribute' => 'Attribute',
+            ]],
+            ['key' => 'primary', 'label' => 'Primary', 'parameters' => [
+                'primary_packaging' => 'Packaging',
+                'primary_capping_sealing' => 'Capping / Sealing',
+                'primary_coding' => 'Coding',
+                'primary_coding_na' => 'Coding NA',
+                'primary_attribute' => 'Attribute',
+            ]],
+            ['key' => 'functional', 'label' => 'Functional Test', 'parameters' => [
+                'functional_test' => 'Functional Test',
+            ]],
+            ['key' => 'special', 'label' => 'Special Test', 'parameters' => [
+                'special_test_bulk' => 'Bulk',
+                'special_test_color' => 'Color',
+                'special_test_odor' => 'Odor',
+            ]],
+        ];
+    }
 }
