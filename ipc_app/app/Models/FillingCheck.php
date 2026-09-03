@@ -23,11 +23,10 @@ class FillingCheck extends Model
         'user_id',
         'sample_bulk_odor_status',
         'sample_leakage_test_status',
-        'standard_weight_and_volume',
         'average_weight',
-        'line_leader_name',
         'remarks',
         'decision',
+        'save_count',
         'completed_at',
     ];
 
@@ -52,5 +51,10 @@ class FillingCheck extends Model
     public function samples()
     {
         return $this->hasMany(FillingCheckSample::class);
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(FillingCheckRevision::class);
     }
 }

@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\FillingCheck;
+use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\StartupCheck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class FillingCheckTest extends TestCase
@@ -39,13 +42,12 @@ class FillingCheckTest extends TestCase
         return $batch->fresh();
     }
 
-    private function validPayload(): array
+    private function validPayload(bool $finalize = true): array
     {
         return [
+            'finalize' => $finalize,
             'sample_bulk_odor_status' => 'Conform',
             'sample_leakage_test_status' => 'Conform',
-            'standard_weight_and_volume' => '100ml',
-            'line_leader_name' => 'Budi',
             'remarks' => 'OK',
             'decision' => FillingCheck::DECISION_PASSED,
             'samples' => array_map(
@@ -154,5 +156,114 @@ class FillingCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}");
 
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())->assertForbidden();
+    }
+
+    public function test_draft_save_allows_partial_data_without_completing_or_advancing_stage(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'samples' => [['sample_no' => 1, 'weight_value' => 21]],
+        ])->assertRedirect("/batches/{$batch->id}/filling-check");
+
+        $batch->refresh();
+        $this->assertSame(IpcBatch::STAGE_FILLING, $batch->current_stage);
+
+        $fillingCheck = $batch->fillingCheck()->with('samples')->first();
+        $this->assertNull($fillingCheck->completed_at);
+        $this->assertSame(1, $fillingCheck->save_count);
+        $this->assertCount(1, $fillingCheck->samples);
+    }
+
+    public function test_th_progress_increments_across_repeated_draft_saves_and_the_final_save(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'samples' => []]);
+        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'samples' => []]);
+        $this->put("/batches/{$batch->id}/filling-check", $this->validPayload(finalize: true));
+
+        $fillingCheck = $batch->fresh()->fillingCheck;
+        $this->assertSame(3, $fillingCheck->save_count);
+        $this->assertNotNull($fillingCheck->completed_at);
+    }
+
+    public function test_each_save_writes_its_own_revision_preserving_earlier_remarks(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'remarks' => 'Hour 1 check, slightly under target',
+            'samples' => [['sample_no' => 1, 'weight_value' => 21]],
+        ]);
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'remarks' => 'Hour 2 check, back within range',
+            'samples' => [['sample_no' => 1, 'weight_value' => 22]],
+        ]);
+
+        $fillingCheck = $batch->fresh()->fillingCheck()->with('revisions.samples')->first();
+        $this->assertCount(2, $fillingCheck->revisions);
+
+        $revision1 = $fillingCheck->revisions->firstWhere('revision_no', 1);
+        $revision2 = $fillingCheck->revisions->firstWhere('revision_no', 2);
+
+        $this->assertSame('Hour 1 check, slightly under target', $revision1->remarks);
+        $this->assertSame('Hour 2 check, back within range', $revision2->remarks);
+        $this->assertEquals(21.0, (float) $revision1->samples->firstWhere('sample_no', 1)->weight_value);
+        $this->assertEquals(22.0, (float) $revision2->samples->firstWhere('sample_no', 1)->weight_value);
+
+        // The "current" filling_checks row only reflects the latest save — the point of the
+        // revisions table is that the earlier remarks/samples above are NOT lost, even though
+        // this row itself has moved on.
+        $this->assertSame('Hour 2 check, back within range', $fillingCheck->remarks);
+    }
+
+    public function test_draft_save_ignores_the_all_ten_samples_requirement(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'samples' => [['sample_no' => 1, 'weight_value' => 21]],
+        ])->assertSessionDoesntHaveErrors();
+    }
+
+    public function test_color_photo_can_be_uploaded_and_replaces_the_previous_one(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $first = UploadedFile::fake()->image('color1.jpg');
+        $this->post("/batches/{$batch->id}/filling-check/color-photo", ['photo' => $first])
+            ->assertRedirect("/batches/{$batch->id}/filling-check");
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
+        $firstPath = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->first()->file_path;
+        Storage::disk('public')->assertExists($firstPath);
+
+        $second = UploadedFile::fake()->image('color2.jpg');
+        $this->post("/batches/{$batch->id}/filling-check/color-photo", ['photo' => $second]);
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
+        Storage::disk('public')->assertMissing($firstPath);
+    }
+
+    public function test_color_photo_upload_forbidden_once_filling_check_is_completed(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+        $this->put("/batches/{$batch->id}/filling-check", $this->validPayload());
+
+        $photo = UploadedFile::fake()->image('color.jpg');
+        $this->post("/batches/{$batch->id}/filling-check/color-photo", ['photo' => $photo])->assertForbidden();
     }
 }

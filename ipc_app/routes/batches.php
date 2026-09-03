@@ -17,6 +17,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('batches/{batch}/filling-check', [FillingCheckController::class, 'edit'])->name('filling-check.edit');
     Route::put('batches/{batch}/filling-check', [FillingCheckController::class, 'update'])->name('filling-check.update');
+    Route::post('batches/{batch}/filling-check/color-photo', [FillingCheckController::class, 'uploadColorPhoto'])->name('filling-check.color-photo');
 
     Route::get('batches/{batch}/packing-check', [PackingCheckController::class, 'edit'])->name('packing-check.edit');
     Route::put('batches/{batch}/packing-check', [PackingCheckController::class, 'update'])->name('packing-check.update');

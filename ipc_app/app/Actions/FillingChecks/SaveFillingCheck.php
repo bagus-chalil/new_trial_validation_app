@@ -3,6 +3,8 @@
 namespace App\Actions\FillingChecks;
 
 use App\Models\FillingCheck;
+use App\Models\FillingCheckRevision;
+use App\Models\FillingCheckRevisionSample;
 use App\Models\FillingCheckSample;
 use App\Models\IpcBatch;
 use App\Models\User;
@@ -13,7 +15,8 @@ class SaveFillingCheck
     public function handle(IpcBatch $batch, User $user, array $data): FillingCheck
     {
         return DB::transaction(function () use ($batch, $user, $data) {
-            $fields = collect($data)->except('samples')->all();
+            $finalize = (bool) ($data['finalize'] ?? false);
+            $fields = collect($data)->except(['samples', 'finalize'])->all();
 
             // Real per-sample formula from the export (Controls/625.json):
             // WEIGHT_SAMPLE_N_RESULT = (WEIGHT_SAMPLE_N - Start.AVERAGE_OF_EMPTY_BOTTLE_WEIGHT) / Start.DENSITY.
@@ -37,10 +40,13 @@ class SaveFillingCheck
                 });
 
             // Legacy's own Label3_1 formula averages the 10 per-sample RESULT values, not the
-            // raw weights (Controls/625.json).
+            // raw weights (Controls/625.json). Recomputed on every save (draft or final) so QC
+            // sees it update live while re-checking samples over a shift, not only at the end.
             $averageWeight = $samples->isNotEmpty()
                 ? round((float) $samples->avg('weight_result'), 4)
                 : null;
+
+            $saveCount = ($batch->fillingCheck?->save_count ?? 0) + 1;
 
             $fillingCheck = FillingCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],
@@ -48,7 +54,10 @@ class SaveFillingCheck
                     ...$fields,
                     'average_weight' => $averageWeight,
                     'user_id' => $user->id,
-                    'completed_at' => now(),
+                    // TH_PROGESS: counts every Save/Save & End click (real legacy field), not
+                    // just the final one — QC monitors the same batch repeatedly over a shift.
+                    'save_count' => $saveCount,
+                    'completed_at' => $finalize ? now() : null,
                 ],
             );
 
@@ -70,11 +79,43 @@ class SaveFillingCheck
                 FillingCheckSample::insert($rows);
             }
 
-            if ($batch->current_stage === IpcBatch::STAGE_FILLING) {
+            // Immutable snapshot of this exact save — the `filling_checks` row above only ever
+            // holds the *current* state, so without this, an earlier save's remarks/decision/
+            // samples would be silently overwritten (or blanked) by the next save. Kept for
+            // reporting on how QC's assessment evolved across TH_PROGESS revisions.
+            $revision = FillingCheckRevision::create([
+                'filling_check_id' => $fillingCheck->id,
+                'revision_no' => $saveCount,
+                'finalize' => $finalize,
+                'sample_bulk_odor_status' => $fields['sample_bulk_odor_status'] ?? null,
+                'sample_leakage_test_status' => $fields['sample_leakage_test_status'] ?? null,
+                'remarks' => $fields['remarks'] ?? null,
+                'decision' => $fields['decision'] ?? null,
+                'average_weight' => $averageWeight,
+                'user_id' => $user->id,
+            ]);
+
+            $revisionRows = $samples
+                ->map(fn ($row) => [
+                    'filling_check_revision_id' => $revision->id,
+                    'sample_no' => $row['sample_no'],
+                    'weight_value' => $row['weight_value'],
+                    'weight_result' => $row['weight_result'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+                ->values()
+                ->all();
+
+            if ($revisionRows !== []) {
+                FillingCheckRevisionSample::insert($revisionRows);
+            }
+
+            if ($finalize && $batch->current_stage === IpcBatch::STAGE_FILLING) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_PACKING]);
             }
 
-            return $fillingCheck->fresh('samples');
+            return $fillingCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);
         });
     }
 }
