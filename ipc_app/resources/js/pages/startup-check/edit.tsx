@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Camera, ClipboardList } from 'lucide-react';
+import { Camera, CheckCircle2, ClipboardList } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
 interface Batch {
@@ -66,6 +66,7 @@ export default function StartupCheckEdit({
     checklistGroups,
     validationReportOptions,
     photoUrls,
+    startupInspectionComplete,
 }: {
     batch: Batch;
     startupCheck: StartupCheckData | null;
@@ -73,6 +74,7 @@ export default function StartupCheckEdit({
     checklistGroups: ChecklistGroup[];
     validationReportOptions: string[];
     photoUrls: Record<string, string | null>;
+    startupInspectionComplete: boolean;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -109,6 +111,10 @@ export default function StartupCheckEdit({
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
     const progressPct = allChecklistKeys.length > 0 ? Math.round((answeredCount / allChecklistKeys.length) * 100) : 0;
+
+    // Only the two fields SaveStartupCheckRequest actually requires — used to decide whether
+    // this card can safely default to collapsed without hiding an unfilled required field.
+    const parameterFillingComplete = Boolean(data.average_of_empty_bottle_weight?.toString().trim()) && Boolean(data.validation_report_status?.trim());
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -171,22 +177,33 @@ export default function StartupCheckEdit({
                             real legacy flow (saves independently, doesn't require this form to be saved first). */}
                         <Link
                             href={`/batches/${batch.id}/startup-inspection`}
-                            className="border-border-soft bg-card flex items-center justify-between rounded-[20px] border px-[18px] py-4"
+                            className={`flex items-center justify-between rounded-[20px] border px-[18px] py-4 ${
+                                startupInspectionComplete ? 'border-green-200 bg-green-50' : 'border-border-soft bg-card'
+                            }`}
                         >
                             <span className="flex items-center gap-2.5">
-                                <ClipboardList className="text-primary size-[18px]" strokeWidth={2.2} />
+                                <ClipboardList className={startupInspectionComplete ? 'size-[18px] text-green-700' : 'text-primary size-[18px]'} strokeWidth={2.2} />
                                 <span className="text-[14.5px] font-bold">Start Inspection</span>
                             </span>
-                            <span className="text-muted-foreground/70 text-xs font-medium">Checklist OK / Partial OK / Not OK →</span>
+                            {startupInspectionComplete ? (
+                                <span className="flex items-center gap-1 text-xs font-semibold text-green-700">
+                                    <CheckCircle2 className="size-3.5" strokeWidth={2.2} />
+                                    Selesai
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground/70 text-xs font-medium">Checklist OK / Partial OK / Not OK →</span>
+                            )}
                         </Link>
 
                         {checklistGroups.map((group) => {
+                            const groupTotal = Object.keys(group.fields).length;
                             const groupAnswered = Object.keys(group.fields).filter((key) => data[key]).length;
                             return (
                                 <AccordionCard
                                     key={group.key}
                                     title={GROUP_TITLES[group.key] ?? group.key}
-                                    progress={`${groupAnswered}/${Object.keys(group.fields).length} terisi`}
+                                    progress={`${groupAnswered}/${groupTotal} terisi`}
+                                    complete={groupAnswered === groupTotal}
                                 >
                                     {Object.entries(group.fields).map(([key, label]) => (
                                         <div key={key} className="flex flex-col gap-2">
@@ -214,7 +231,11 @@ export default function StartupCheckEdit({
                             );
                         })}
 
-                        <AccordionCard title="Parameter Filling" defaultOpen={false}>
+                        <AccordionCard
+                            title="Parameter Filling"
+                            complete={parameterFillingComplete}
+                            defaultOpen={!parameterFillingComplete}
+                        >
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="filling_range_min" className="text-muted-foreground text-xs font-semibold">
                                     Filling Range Min

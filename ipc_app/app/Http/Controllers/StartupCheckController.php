@@ -20,7 +20,7 @@ class StartupCheckController extends Controller
 
     public function edit(IpcBatch $batch): Response
     {
-        $batch->load(['masterProduct', 'masterLine', 'startupCheck.user']);
+        $batch->load(['masterProduct', 'masterLine', 'startupCheck.user', 'startupInspection']);
 
         $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
@@ -38,6 +38,7 @@ class StartupCheckController extends Controller
             'batch' => $batch,
             'startupCheck' => $batch->startupCheck,
             'isReadOnly' => (bool) $batch->startupCheck?->completed_at,
+            'startupInspectionComplete' => (bool) $batch->startupInspection?->completed_at,
             'checklistGroups' => StartupCheck::checklistGroups(),
             'validationReportOptions' => StartupCheck::VALIDATION_REPORT_OPTIONS,
             'photoUrls' => $photoUrls,

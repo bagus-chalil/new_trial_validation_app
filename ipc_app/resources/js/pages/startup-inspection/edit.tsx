@@ -11,7 +11,7 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { cn } from '@/lib/utils';
 import { type RecentBatch, type SharedData } from '@/types';
 import { type FormDataConvertible } from '@inertiajs/core';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
 interface Batch {
@@ -245,9 +245,12 @@ export default function StartupInspectionEdit({
             backHref={`/batches/${batch.id}/startup-check`}
             headerActions={
                 isReadOnly ? (
-                    <span className="rounded-full bg-green-100 px-3.5 py-1.5 text-[12.5px] font-bold whitespace-nowrap text-green-800">
-                        Selesai — read only
-                    </span>
+                    <Link
+                        href={`/batches/${batch.id}/startup-check`}
+                        className="flex h-9 items-center gap-1.5 rounded-full bg-green-100 px-3.5 text-[12.5px] font-bold whitespace-nowrap text-green-800"
+                    >
+                        Selesai · Kembali ke Startup Check
+                    </Link>
                 ) : (
                     <span className="bg-primary/[0.08] text-primary rounded-full px-3 py-1.5 text-[12.5px] font-bold whitespace-nowrap">
                         {answeredCount}/{parameterKeys.length}
@@ -260,7 +263,11 @@ export default function StartupInspectionEdit({
             <TwoPane list={listPane}>
                 <form onSubmit={submit} className="flex flex-1 flex-col">
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
-                        <AccordionCard title="Checklist Inspeksi" progress={`${answeredCount}/${parameterKeys.length} terisi`}>
+                        <AccordionCard
+                            title="Checklist Inspeksi"
+                            progress={`${answeredCount}/${parameterKeys.length} terisi`}
+                            complete={answeredCount === parameterKeys.length}
+                        >
                             {parameterKeys.map((key) => (
                                 <div key={key} className="flex flex-col gap-2">
                                     <Label className="text-foreground text-[13px] font-semibold">{PARAMETER_LABELS[key] ?? key}</Label>

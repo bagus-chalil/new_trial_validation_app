@@ -1,8 +1,17 @@
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
+import { motion } from 'framer-motion';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
+
+/**
+ * Tap-scale feedback adapted from 21st.dev's "Animated Shadcn Button"
+ * (https://21st.dev/bundui/button) — merged into our existing cva
+ * variant/size API rather than swapped in wholesale, since dozens of
+ * pages already depend on that API.
+ */
+const MotionSlot = motion(Slot);
 
 const buttonVariants = cva(
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
@@ -35,8 +44,12 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'button';
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+    if (asChild) {
+        return <MotionSlot whileTap={{ scale: 0.96 }} className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...(props as object)} />;
+    }
+    return (
+        <motion.button whileTap={{ scale: 0.96 }} className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...(props as object)} />
+    );
 });
 Button.displayName = 'Button';
 
