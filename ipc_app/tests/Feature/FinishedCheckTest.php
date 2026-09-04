@@ -56,6 +56,18 @@ class FinishedCheckTest extends TestCase
         }
     }
 
+    /**
+     * Every one of the 19 AQL parameter rows needs at least one of AC/CD/MD/mD filled on
+     * finalize (see SaveFinishedCheckRequest::validateFinalizeSampleRows()) — so a "valid"
+     * payload for finalize tests must give each row a value, not just a couple of them.
+     */
+    private function validSamples(): array
+    {
+        return collect(FinishedCheckSample::PARAMETER_KEYS)
+            ->mapWithKeys(fn (string $key) => [$key => ['ac' => 1, 'cd' => 0, 'md' => 0, 'mnd' => 0]])
+            ->all();
+    }
+
     private function validPayload(array $overrides = []): array
     {
         return [
@@ -74,10 +86,7 @@ class FinishedCheckTest extends TestCase
             'line_leader_name' => 'Budi',
             'disposition' => 'Accepted',
             'remarks' => 'OK',
-            'samples' => [
-                'tersier_identity' => ['ac' => 13, 'cd' => 0, 'md' => 0, 'mnd' => 0],
-                'functional_test' => ['ac' => 5, 'cd' => 0, 'md' => 1, 'mnd' => 0],
-            ],
+            'samples' => $this->validSamples(),
             ...$overrides,
         ];
     }
@@ -167,6 +176,7 @@ class FinishedCheckTest extends TestCase
                 'quantity_special_inspection', 'quantity_special_inspection_cd', 'quantity_special_inspection_md', 'quantity_special_inspection_mnd',
                 'line_leader_name', 'disposition', 'remarks',
                 'photo_wi_number', 'photo_exp_date', 'photo_color',
+                'samples.tersier_identity', 'samples.functional_test',
             ]);
 
         $this->assertNull($batch->fresh()->finishedCheck);
@@ -183,13 +193,37 @@ class FinishedCheckTest extends TestCase
         $this->assertNull($batch->fresh()->finishedCheck);
     }
 
+    /**
+     * Direct user feedback 2026-09-04: the header quantity fields turned red on a failed
+     * Selesaikan while the 19-row AQL sample grid stayed collapsed and unvalidated — an
+     * inconsistent "required" story. Each row now needs at least one of AC/CD/MD/mD filled.
+     */
+    public function test_finalize_rejects_a_completely_blank_sample_row(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $this->seedFinishedCheckPhotos($batch);
+
+        $samples = $this->validSamples();
+        $samples['tersier_appearance'] = ['ac' => null, 'cd' => null, 'md' => null, 'mnd' => null];
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['samples' => $samples]))
+            ->assertSessionHasErrors(['samples.tersier_appearance']);
+
+        $this->assertNull($batch->fresh()->finishedCheck);
+    }
+
     public function test_finalize_persists_header_and_samples_and_advances_stage(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedPackingCheck();
         $this->seedFinishedCheckPhotos($batch);
 
-        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload())
+        $samples = $this->validSamples();
+        $samples['tersier_identity'] = ['ac' => 13, 'cd' => 0, 'md' => 0, 'mnd' => 0];
+        $samples['functional_test'] = ['ac' => 5, 'cd' => 0, 'md' => 1, 'mnd' => 0];
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['samples' => $samples]))
             ->assertRedirect("/batches/{$batch->id}");
 
         $batch->refresh();
@@ -206,7 +240,7 @@ class FinishedCheckTest extends TestCase
         $functionalTest = $finishedCheck->samples()->where('parameter_key', 'functional_test')->first();
         $this->assertSame(1, $functionalTest->md);
 
-        // Every one of the 19 groups gets a row, even ones the payload never mentioned.
+        // Every one of the 19 groups gets a row.
         $this->assertCount(count(FinishedCheckSample::PARAMETER_KEYS), $finishedCheck->samples);
     }
 

@@ -188,6 +188,13 @@ export default function FillingCheckEdit({
         Boolean(data.decision) ||
         data.samples.some((row) => Boolean(row.weight_value));
 
+    // A Decision or Sample Check call recorded with zero weight samples behind it isn't real
+    // progress — it's an assessment with nothing measured. Same intent as hasAnyDraftValue()
+    // above, one level stricter, mirroring SaveFillingCheckRequest::validateDraft().
+    const hasAssessmentWithoutSamples = () =>
+        (Boolean(data.decision) || Boolean(data.sample_bulk_odor_status) || Boolean(data.sample_leakage_test_status)) &&
+        !data.samples.some((row) => Boolean(row.weight_value));
+
     const saveDraft = () => {
         if (!hasAnyDraftValue()) {
             // Nothing at all is filled — computeEmptyFields() here is the same "everything" set
@@ -195,6 +202,11 @@ export default function FillingCheckEdit({
             const empty = computeEmptyFields();
             setErrorFields(empty);
             toast(`${empty.size} bagian masih kosong — isi minimal satu untuk menyimpan progress.`);
+            return;
+        }
+        if (hasAssessmentWithoutSamples()) {
+            setErrorFields(new Set(['samples']));
+            toast('Isi minimal satu sample berat sebelum mencatat Decision/Sample Check.');
             return;
         }
         setErrorFields(new Set());
@@ -209,15 +221,34 @@ export default function FillingCheckEdit({
     const inspectorName = fillingCheck?.user?.name ?? props.auth.user.name;
 
     // Live per-sample result, mirroring the real legacy formula (Controls/625.json, Label5.Text):
-    // (WEIGHT_SAMPLE_N - Start.AVERAGE_OF_EMPTY_BOTTLE_WEIGHT) / Start.DENSITY — recalculated as
-    // the operator types, same as legacy's own reactive label, instead of only after a save.
+    // (Value(WEIGHT_SAMPLE_N.Text) - Start.AVERAGE_OF_EMPTY_BOTTLE_WEIGHT) / Start.DENSITY —
+    // recalculated as the operator types, same as legacy's own reactive label, instead of only
+    // after a save. Power Apps' Value() coerces a blank text input to 0 rather than blank, so an
+    // empty sample shows a real (if nonsensical) negative number instead of a dash — direct user
+    // feedback 2026-09-04 confirmed this is legacy behavior they want mirrored exactly, not a
+    // bug to fix, so an unfilled weight is treated as 0 here too. This is purely a live on-screen
+    // preview: SaveFillingCheck's persisted weight_result/average_weight still only ever consider
+    // samples that actually have a value (see that action's `->filter(fn ($row) => filled(...))`)
+    // — replicating legacy's blank-reads-as-0 quirk in stored data would corrupt the average.
     const density = toNumber(batch.startup_check?.density);
     const avgBottleWeight = toNumber(batch.startup_check?.average_of_empty_bottle_weight);
 
     const liveResult = (weightValue: string | null): string | null => {
-        const value = toNumber(weightValue);
-        if (value === null || density === null || density === 0 || avgBottleWeight === null) return null;
+        if (density === null || density === 0 || avgBottleWeight === null) return null;
+        const value = toNumber(weightValue) ?? 0;
         return ((value - avgBottleWeight) / density).toFixed(4);
+    };
+
+    // Live Average Weight, mirroring the exact legacy formula (Controls/625.json, Label3_1.Text):
+    // Text((Label5.Text + Label5_1.Text + ... + Label5_9.Text) / 10, "#,##0.00") — sum of all 10
+    // per-sample result labels above (blank ones included, via liveResult's same 0-coercion) then
+    // always divided by 10, recalculated on every keystroke exactly like the reactive legacy
+    // label. Direct user feedback 2026-09-04: don't invent a different (e.g. filled-only) average
+    // for the live view, and don't wait for a save round-trip — mirror legacy's own live formula.
+    const liveAverageWeight = (): string | null => {
+        if (density === null || density === 0 || avgBottleWeight === null) return null;
+        const sum = data.samples.reduce((total, row) => total + parseFloat(liveResult(row.weight_value) ?? '0'), 0);
+        return (sum / SAMPLE_COUNT).toFixed(2);
     };
 
     const revisions = [...(fillingCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
@@ -375,10 +406,7 @@ export default function FillingCheckEdit({
                                 <InputError message={(errors as Record<string, string>).samples} className="mb-2" />
                                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                                     {data.samples.map((row) => {
-                                        const result =
-                                            row.weight_value !== null
-                                                ? (liveResult(row.weight_value) ?? resultBySample.get(row.sample_no) ?? null)
-                                                : null;
+                                        const result = liveResult(row.weight_value) ?? resultBySample.get(row.sample_no) ?? null;
                                         return (
                                             <div key={row.sample_no} className="flex flex-col gap-1">
                                                 <span className="text-muted-foreground/70 text-center text-[10.5px] font-semibold">
@@ -400,11 +428,11 @@ export default function FillingCheckEdit({
                                 </div>
                                 <div className="border-border-soft bg-muted/30 mt-3.5 flex items-center justify-between rounded-xl border px-3.5 py-2.5">
                                     <span className="text-muted-foreground text-xs font-semibold">Average Weight</span>
-                                    <span className="text-[15px] font-bold">{fillingCheck?.average_weight ?? '—'}</span>
+                                    <span className="text-[15px] font-bold">{liveAverageWeight() ?? fillingCheck?.average_weight ?? '—'}</span>
                                 </div>
                                 <p className="text-muted-foreground mt-2 text-xs">
-                                    Result per sample dihitung langsung dari Density & Average of Empty Bottle Weight milik Startup Check. Average
-                                    Weight final dihitung ulang di server setiap kali disimpan.
+                                    Result per sample dan Average Weight dihitung langsung real-time dari Density & Average of Empty Bottle Weight
+                                    milik Startup Check, sama seperti kalkulasi live di aplikasi lama — tidak perlu disimpan dulu.
                                 </p>
                             </div>
                         </AccordionCard>

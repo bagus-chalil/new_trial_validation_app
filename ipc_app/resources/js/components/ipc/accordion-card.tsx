@@ -1,22 +1,29 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, ChevronDown } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 export function AccordionCard({
     title,
     progress,
     complete = false,
     defaultOpen = true,
+    forceOpen = false,
     children,
 }: {
     title: string;
     progress?: string;
     complete?: boolean;
     defaultOpen?: boolean;
+    /** Flips the accordion open (without fighting a later manual close) when it starts/turns true — e.g. once it contains a field a failed validation flagged, so "required" never hides behind a collapsed section. */
+    forceOpen?: boolean;
     children: ReactNode;
 }) {
-    const [open, setOpen] = useState(defaultOpen);
+    const [open, setOpen] = useState(defaultOpen || forceOpen);
+
+    useEffect(() => {
+        if (forceOpen) setOpen(true);
+    }, [forceOpen]);
 
     return (
         <Collapsible open={open} onOpenChange={setOpen} className="border-border-soft bg-card overflow-hidden rounded-[20px] border">

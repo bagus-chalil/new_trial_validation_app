@@ -35,23 +35,7 @@ class SaveFillingCheckRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         if (! $this->boolean('finalize')) {
-            $validator->after(function (Validator $validator) {
-                // A draft save is meant to let QC record whatever it has so far — but a save with
-                // literally nothing filled in is not "progress," it's an empty row. Block that,
-                // same intent as the finalize-required checks below, just a much lower bar.
-                $hasSampleValue = collect($this->input('samples', []))
-                    ->contains(fn ($row) => filled($row['weight_value'] ?? null));
-
-                $hasAnyValue = filled($this->input('sample_bulk_odor_status'))
-                    || filled($this->input('sample_leakage_test_status'))
-                    || filled($this->input('remarks'))
-                    || filled($this->input('decision'))
-                    || $hasSampleValue;
-
-                if (! $hasAnyValue) {
-                    $validator->errors()->add('progress', 'Isi minimal satu data sebelum menyimpan progress.');
-                }
-            });
+            $validator->after(fn (Validator $validator) => $this->validateDraft($validator));
 
             return;
         }
@@ -69,5 +53,42 @@ class SaveFillingCheckRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * A draft save is meant to let QC record whatever it has so far — but two things are not
+     * "progress": a save with literally nothing filled in (an empty row), and a save that
+     * records an assessment (Decision, or a Sample Bulk&Odor/Leakage Conform/Not Conform call)
+     * with zero actual weight measurements behind it. Revised 2026-09-04 after direct feedback:
+     * a real batch had 3 draft rounds saved with Decision=Passed and 0/10 samples ever filled —
+     * technically blocked from finalizing, but a misleading TH_PROGESS history along the way,
+     * and downstream Packing Check has nothing real to show for "average weight" if that pattern
+     * is ever allowed to continue. Both checks share the same "add one error, bail" shape rather
+     * than one combined condition, so the two failure messages stay distinct.
+     */
+    private function validateDraft(Validator $validator): void
+    {
+        $hasSampleValue = collect($this->input('samples', []))
+            ->contains(fn ($row) => filled($row['weight_value'] ?? null));
+
+        $hasAnyValue = filled($this->input('sample_bulk_odor_status'))
+            || filled($this->input('sample_leakage_test_status'))
+            || filled($this->input('remarks'))
+            || filled($this->input('decision'))
+            || $hasSampleValue;
+
+        if (! $hasAnyValue) {
+            $validator->errors()->add('progress', 'Isi minimal satu data sebelum menyimpan progress.');
+
+            return;
+        }
+
+        $hasAssessment = filled($this->input('decision'))
+            || filled($this->input('sample_bulk_odor_status'))
+            || filled($this->input('sample_leakage_test_status'));
+
+        if ($hasAssessment && ! $hasSampleValue) {
+            $validator->errors()->add('samples', 'Isi minimal satu sample berat sebelum mencatat Decision/Sample Check.');
+        }
     }
 }

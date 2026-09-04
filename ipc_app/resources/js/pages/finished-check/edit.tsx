@@ -60,8 +60,9 @@ const inputClass =
     'h-[46px] rounded-xl border-[1.5px] border-border bg-background px-3.5 text-[14.5px] font-semibold text-foreground placeholder:text-muted-foreground/50';
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
-// The header-level fields SaveFinishedCheckRequest actually requires on finalize — the 19-group
-// AQL sample grid is deliberately excluded (see the request's doc comment).
+// The header-level fields SaveFinishedCheckRequest requires on finalize. The 19-row AQL sample
+// grid is required too (at least one of AC/CD/MD/mD per row) but is checked separately below,
+// against allParameterKeys/samplesData — see computeEmptyRequiredFields().
 const REQUIRED_FIELDS = [
     'quantity_wi',
     'masterbox',
@@ -150,6 +151,14 @@ export default function FinishedCheckEdit({
             ...samplesData,
             [key]: { ...samplesData[key], [field]: value },
         });
+        if (value.trim()) {
+            setErrorFields((prev) => {
+                if (!prev.has(key)) return prev;
+                const next = new Set(prev);
+                next.delete(key);
+                return next;
+            });
+        }
     };
 
     const setField = (key: string, value: string) => {
@@ -167,12 +176,17 @@ export default function FinishedCheckEdit({
         return headerHasValue || filledSampleCount > 0;
     };
 
-    // Reused for the Simpan/empty-progress highlight below — the AQL sample grid isn't included
-    // since no individual cell there is ever "required" and the page has no per-cell error state.
+    // Reused for the Simpan/empty-progress highlight below. Each AQL sample row counts as empty
+    // only when all four of its AC/CD/MD/mD cells are blank — matching the backend's per-row
+    // (not per-cell) requirement — so a single filled cell clears that row's error.
     const computeEmptyRequiredFields = () => {
         const empty = new Set<string>();
         REQUIRED_FIELDS.forEach((key) => {
             if (!(data[key] as string)?.toString().trim()) empty.add(key);
+        });
+        allParameterKeys.forEach((key) => {
+            const row = samplesData[key];
+            if (!(row && (row.ac || row.cd || row.md || row.mnd))) empty.add(key);
         });
         return empty;
     };
@@ -400,6 +414,7 @@ export default function FinishedCheckEdit({
                                 const row = samplesData[key];
                                 return row && (row.ac || row.cd || row.md || row.mnd);
                             }).length;
+                            const hasGroupError = keys.some((key) => errorFields.has(key));
                             return (
                                 <AccordionCard
                                     key={group.key}
@@ -407,9 +422,13 @@ export default function FinishedCheckEdit({
                                     progress={`${filled}/${keys.length} terisi`}
                                     complete={filled === keys.length}
                                     defaultOpen={false}
+                                    forceOpen={hasGroupError}
                                 >
                                     {Object.entries(group.parameters).map(([key, label]) => (
-                                        <div key={key} className="border-border-soft col-span-full rounded-xl border p-3">
+                                        <div
+                                            key={key}
+                                            className={`col-span-full rounded-xl border p-3 ${errorFields.has(key) ? errorBorder : 'border-border-soft'}`}
+                                        >
                                             <p className="mb-2.5 text-[13px] font-bold">{label}</p>
                                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                                 {(['ac', 'cd', 'md', 'mnd'] as const).map((field) => (

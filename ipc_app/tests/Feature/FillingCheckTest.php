@@ -169,6 +169,54 @@ class FillingCheckTest extends TestCase
         $this->assertNull($batch->fresh()->fillingCheck);
     }
 
+    /**
+     * Direct user feedback 2026-09-04: a real batch had 3 draft rounds saved with
+     * Decision=Passed but 0/10 weight samples ever filled — technically blocked from
+     * finalizing (see test_incomplete_weight_samples_are_rejected), but a misleading
+     * TH_PROGESS history, and nothing real for Packing Check to build on if that were ever
+     * allowed through. A recorded assessment (Decision or either Sample Check status) now needs
+     * at least one weight sample behind it, even as a draft.
+     */
+    public function test_draft_save_rejects_a_decision_with_zero_weight_samples(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'decision' => FillingCheck::DECISION_PASSED,
+            'samples' => [],
+        ])->assertSessionHasErrors('samples');
+
+        $this->assertNull($batch->fresh()->fillingCheck);
+    }
+
+    public function test_draft_save_allows_a_decision_when_at_least_one_sample_is_filled(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'decision' => FillingCheck::DECISION_PASSED,
+            'samples' => [['sample_no' => 1, 'weight_value' => 21]],
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(FillingCheck::DECISION_PASSED, $batch->fresh()->fillingCheck->decision);
+    }
+
+    public function test_draft_save_allows_remarks_only_without_any_assessment(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'remarks' => 'Menunggu sample dari line',
+            'samples' => [],
+        ])->assertSessionDoesntHaveErrors();
+    }
+
     public function test_draft_save_allows_partial_data_without_completing_or_advancing_stage(): void
     {
         $this->actingAs(User::factory()->create());

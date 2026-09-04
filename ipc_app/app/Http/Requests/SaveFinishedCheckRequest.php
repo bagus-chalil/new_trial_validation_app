@@ -18,9 +18,16 @@ use Illuminate\Foundation\Http\FormRequest;
  * 2026-09-04 after direct live-testing feedback showed a blank form could be finalized straight
  * through, which isn't acceptable even though the raw legacy export itself has zero server-side
  * validation here (see ipc_app/CLAUDE.md's "Finished Check" note).
- * The 19-group/76-field AQL sample grid is deliberately left nullable even on finalize — the
- * count of individually-required numeric cells would be unrealistic to enforce and isn't what
- * broke for the user; only the header-level fields need to actually block finalize.
+ * The 19-group/76-field AQL sample grid is NOT required cell-by-cell (mandating all 4 of
+ * AC/CD/MD/mD on every row would be unrealistic to enforce) — but revised again same day after
+ * further feedback: leaving the whole grid optional while the header fields turn red on
+ * Selesaikan was an inconsistent "required" story, and the frontend's Quantity Sample accordions
+ * were staying collapsed by default regardless, hiding whichever rows were still blank. Each of
+ * the 19 rows must now have at least one of AC/CD/MD/mD filled on finalize (see the second
+ * withValidator() loop below) — a fully-blank row isn't real QC data either. The frontend mirrors
+ * this: FinishedCheckEdit's REQUIRED_FIELDS/computeEmptyRequiredFields() now also check every
+ * sample row, and AccordionCard's new forceOpen prop expands a Quantity Sample group as soon as
+ * one of its rows is flagged, instead of leaving it collapsed.
  */
 class SaveFinishedCheckRequest extends FormRequest
 {
@@ -66,49 +73,76 @@ class SaveFinishedCheckRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         if (! $this->boolean('finalize')) {
-            $validator->after(function (Validator $validator) {
-                // A draft save is meant to let QC record whatever it has so far — but a save with
-                // literally nothing filled in is not "progress," it's an empty row. Block that,
-                // same intent as the finalize-required checks below, just a much lower bar.
-                $headerFields = [
-                    'quantity_wi', 'masterbox', 'no_pallet_qty',
-                    'quantity_sampling_aql', 'quantity_sample_aql_cd', 'quantity_sample_aql_md', 'quantity_sample_aql_mnd',
-                    'quantity_special_inspection', 'quantity_special_inspection_cd', 'quantity_special_inspection_md', 'quantity_special_inspection_mnd',
-                    'line_leader_name', 'disposition', 'remarks',
-                ];
-
-                $hasHeaderValue = collect($headerFields)->contains(fn ($field) => filled($this->input($field)));
-
-                $hasSampleValue = collect($this->input('samples', []))
-                    ->contains(fn ($row) => filled($row['ac'] ?? null)
-                        || filled($row['cd'] ?? null)
-                        || filled($row['md'] ?? null)
-                        || filled($row['mnd'] ?? null)
-                        || filled($row['remark'] ?? null));
-
-                if (! $hasHeaderValue && ! $hasSampleValue) {
-                    $validator->errors()->add('progress', 'Isi minimal satu data sebelum menyimpan progress.');
-                }
-            });
+            $validator->after(fn (Validator $validator) => $this->validateDraftIsNotCompletelyEmpty($validator));
 
             return;
         }
 
         $validator->after(function (Validator $validator) {
-            /** @var IpcBatch $batch */
-            $batch = $this->route('batch');
-
-            $uploadedPhotoFields = IpcAttachment::query()
-                ->where('ipc_batch_id', $batch->id)
-                ->where('stage', 'finished')
-                ->whereIn('field_label', FinishedCheckController::PHOTO_FIELDS)
-                ->pluck('field_label');
-
-            foreach (FinishedCheckController::PHOTO_FIELDS as $field) {
-                if (! $uploadedPhotoFields->contains($field)) {
-                    $validator->errors()->add("photo_{$field}", 'Foto wajib diunggah.');
-                }
-            }
+            $this->validateFinalizePhotos($validator);
+            $this->validateFinalizeSampleRows($validator);
         });
+    }
+
+    /**
+     * A draft save is meant to let QC record whatever it has so far — but a save with literally
+     * nothing filled in is not "progress," it's an empty row. Block that, same intent as the
+     * finalize-required checks below, just a much lower bar.
+     */
+    private function validateDraftIsNotCompletelyEmpty(Validator $validator): void
+    {
+        $headerFields = [
+            'quantity_wi', 'masterbox', 'no_pallet_qty',
+            'quantity_sampling_aql', 'quantity_sample_aql_cd', 'quantity_sample_aql_md', 'quantity_sample_aql_mnd',
+            'quantity_special_inspection', 'quantity_special_inspection_cd', 'quantity_special_inspection_md', 'quantity_special_inspection_mnd',
+            'line_leader_name', 'disposition', 'remarks',
+        ];
+
+        $hasHeaderValue = collect($headerFields)->contains(fn ($field) => filled($this->input($field)));
+
+        $hasSampleValue = collect($this->input('samples', []))
+            ->contains(fn ($row) => filled($row['ac'] ?? null)
+                || filled($row['cd'] ?? null)
+                || filled($row['md'] ?? null)
+                || filled($row['mnd'] ?? null)
+                || filled($row['remark'] ?? null));
+
+        if (! $hasHeaderValue && ! $hasSampleValue) {
+            $validator->errors()->add('progress', 'Isi minimal satu data sebelum menyimpan progress.');
+        }
+    }
+
+    private function validateFinalizePhotos(Validator $validator): void
+    {
+        /** @var IpcBatch $batch */
+        $batch = $this->route('batch');
+
+        $uploadedPhotoFields = IpcAttachment::query()
+            ->where('ipc_batch_id', $batch->id)
+            ->where('stage', 'finished')
+            ->whereIn('field_label', FinishedCheckController::PHOTO_FIELDS)
+            ->pluck('field_label');
+
+        foreach (FinishedCheckController::PHOTO_FIELDS as $field) {
+            if (! $uploadedPhotoFields->contains($field)) {
+                $validator->errors()->add("photo_{$field}", 'Foto wajib diunggah.');
+            }
+        }
+    }
+
+    /**
+     * Each of the 19 AQL sample rows needs at least one of AC/CD/MD/mD filled on finalize — not
+     * all four columns (unrealistic to enforce cell-by-cell), just not a fully-blank row.
+     */
+    private function validateFinalizeSampleRows(Validator $validator): void
+    {
+        foreach (FinishedCheckSample::PARAMETER_KEYS as $key) {
+            $row = $this->input("samples.{$key}", []);
+            $hasValue = collect(['ac', 'cd', 'md', 'mnd'])->contains(fn ($field) => filled($row[$field] ?? null));
+
+            if (! $hasValue) {
+                $validator->errors()->add("samples.{$key}", 'Minimal satu kolom (AC/CD/MD/mD) wajib diisi.');
+            }
+        }
     }
 }
