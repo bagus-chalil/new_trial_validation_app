@@ -5,6 +5,7 @@ use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
 use App\Http\Controllers\PackingCheckController;
+use App\Http\Controllers\PrintController;
 use App\Http\Controllers\StartupCheckController;
 use App\Http\Controllers\StartupInspectionController;
 use App\Models\IpcApproval;
@@ -51,4 +52,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('batches/{batch}/approval/{stage}/print', [ApprovalController::class, 'print'])
         ->whereIn('stage', IpcApproval::STAGES)
         ->name('approval.print');
+
+    Route::get('batches/{batch}/print', [PrintController::class, 'edit'])->name('print.edit');
+    Route::get('batches/{batch}/print/startup', [PrintController::class, 'startup'])->name('print.startup');
+    Route::get('batches/{batch}/print/filling-packing', [PrintController::class, 'fillingPacking'])->name('print.filling-packing');
+    Route::get('batches/{batch}/print/finished', [PrintController::class, 'finished'])->name('print.finished');
+    Route::get('batches/{batch}/print/{stage}/pdf', [PrintController::class, 'pdf'])
+        ->whereIn('stage', IpcApproval::STAGES)
+        ->name('print.pdf');
 });

@@ -47,6 +47,7 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_PACKING => route('packing-check.edit', $batch),
             IpcBatch::STAGE_FINISHED => route('finished-check.edit', $batch),
             IpcBatch::STAGE_APPROVAL => route('approval.edit', $batch),
+            IpcBatch::STAGE_PRINT => route('print.edit', $batch),
         ];
 
         $labels = [
@@ -56,6 +57,7 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_FINISHED => 'Finished Good',
             IpcBatch::STAGE_APPROVAL => 'Approval',
             IpcBatch::STAGE_PRINT => 'Print',
+            IpcBatch::STAGE_COMPLETED => 'Selesai',
         ];
 
         $stages = collect($labels)->map(function ($label, $key) use ($stageIndex, $builtStages) {
@@ -63,6 +65,9 @@ class IpcBatchController extends Controller
 
             $status = match (true) {
                 $thisIndex < $stageIndex => 'done',
+                // 'completed' has no page of its own — reaching it (batch.current_stage ===
+                // 'completed') means every prior stage, print included, is genuinely finished.
+                $thisIndex === $stageIndex && $key === IpcBatch::STAGE_COMPLETED => 'done',
                 $thisIndex === $stageIndex => 'active',
                 default => 'locked',
             };

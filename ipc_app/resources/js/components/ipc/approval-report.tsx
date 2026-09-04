@@ -147,8 +147,13 @@ export function RevisionHistoryCard<T extends RevisionRow>({
     );
 }
 
-/** Header "Preview Cetak" button — opens the Browsershot-rendered PDF twin of the page in a new tab. */
-export function PrintPreviewButton({ href }: { href: string }) {
+/**
+ * Header print button — opens the Browsershot-rendered PDF twin of the page in a new tab. On
+ * Approval pages this is a non-recorded preview; on Print pages the same href/component is
+ * reused but points at PrintController::pdf(), where opening it also logs an IpcPrintLog row —
+ * `label` lets each caller describe which of those two it is ("Preview Cetak" vs "Cetak").
+ */
+export function PrintPreviewButton({ href, label = 'Preview Cetak' }: { href: string; label?: string }) {
     return (
         <a
             href={href}
@@ -157,8 +162,52 @@ export function PrintPreviewButton({ href }: { href: string }) {
             className="border-border-soft bg-card text-foreground flex h-11 items-center gap-2 rounded-2xl border px-4 text-[13px] font-bold"
         >
             <Printer className="size-4" strokeWidth={2.2} />
-            <span className="hidden sm:inline">Preview Cetak</span>
+            <span className="hidden sm:inline">{label}</span>
         </a>
+    );
+}
+
+export interface PrintInfo {
+    stage: string;
+    label: string;
+    printCount: number;
+    lastPrintedAt: string | null;
+    lastPrintedBy: string | null;
+}
+
+/**
+ * Bottom-of-page print action on each Print detail page — mirrors ApprovalActionCard's spot on
+ * the Approval detail pages, but there's no decision to make here (legacy's *_View screens are
+ * pure read+print). Shows how many times this stage has been printed and by whom, and the same
+ * "opening the PDF logs a print" button as the header's PrintPreviewButton, just full-width and
+ * labeled for the primary action.
+ */
+export function PrintActionCard({ batchId, info }: { batchId: number; info: PrintInfo }) {
+    return (
+        <div className="border-border-soft bg-card flex flex-col gap-3 rounded-[20px] border p-[18px]">
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-[14.5px] font-bold">Cetak — {info.label}</p>
+                {info.printCount > 0 && (
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-[12px] font-bold text-green-800">
+                        Sudah dicetak {info.printCount}x
+                    </span>
+                )}
+            </div>
+            {info.lastPrintedAt && (
+                <p className="text-muted-foreground/70 -mt-1 text-[12px] font-medium">
+                    Terakhir oleh {info.lastPrintedBy ?? '—'} · {formatDateTime(info.lastPrintedAt)}
+                </p>
+            )}
+            <a
+                href={`/batches/${batchId}/print/${info.stage}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-primary flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white sm:w-auto sm:self-end sm:px-6"
+            >
+                <Printer className="size-4" strokeWidth={2.2} />
+                Cetak {info.label}
+            </a>
+        </div>
     );
 }
 
