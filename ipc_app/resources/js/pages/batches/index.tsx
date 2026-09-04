@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useInitials } from '@/hooks/use-initials';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
 import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ChevronRight, ClipboardList, Search } from 'lucide-react';
+import { ChevronRight, ClipboardList, Search, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface MasterProduct {
@@ -114,6 +114,7 @@ function BatchListPane({
     q,
     setQ,
     onSubmitSearch,
+    onClearSearch,
     onSetStage,
 }: {
     batches: Paginated<Batch>;
@@ -122,18 +123,25 @@ function BatchListPane({
     q: string;
     setQ: (value: string) => void;
     onSubmitSearch: FormEventHandler;
+    onClearSearch: () => void;
     onSetStage: (stage?: string) => void;
 }) {
     return (
         <div className="flex flex-1 flex-col gap-4 p-5 md:p-5">
-            <form onSubmit={onSubmitSearch} className="relative">
-                <Search className="text-muted-foreground/70 absolute top-1/2 left-4 size-[18px] -translate-y-1/2" strokeWidth={2} />
-                <Input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Cari no batch / produk..."
-                    className="border-border-soft bg-card h-12 rounded-2xl pl-11 text-sm"
-                />
+            <form onSubmit={onSubmitSearch}>
+                <InputGroup className="border-border-soft bg-card h-12 rounded-2xl">
+                    <InputGroupAddon>
+                        <Search className="text-muted-foreground/70 size-[18px]" strokeWidth={2} />
+                    </InputGroupAddon>
+                    <InputGroupInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari no batch / produk..." className="text-sm" />
+                    {q && (
+                        <InputGroupAddon align="inline-end">
+                            <InputGroupButton type="button" size="icon-xs" aria-label="Bersihkan pencarian" onClick={onClearSearch}>
+                                <X className="size-3.5" />
+                            </InputGroupButton>
+                        </InputGroupAddon>
+                    )}
+                </InputGroup>
             </form>
 
             <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0">
@@ -213,12 +221,26 @@ export default function BatchesIndex({
         router.get('/batches', { q, stage: filters.stage }, { preserveState: true, replace: true });
     };
 
+    const clearSearch = () => {
+        setQ('');
+        router.get('/batches', { stage: filters.stage }, { preserveState: true, replace: true });
+    };
+
     const setStage = (stage?: string) => {
         router.get('/batches', { q, stage }, { preserveState: true, replace: true });
     };
 
     const listPane = (
-        <BatchListPane batches={batches} filters={filters} stages={stages} q={q} setQ={setQ} onSubmitSearch={submitSearch} onSetStage={setStage} />
+        <BatchListPane
+            batches={batches}
+            filters={filters}
+            stages={stages}
+            q={q}
+            setQ={setQ}
+            onSubmitSearch={submitSearch}
+            onClearSearch={clearSearch}
+            onSetStage={setStage}
+        />
     );
 
     return (
