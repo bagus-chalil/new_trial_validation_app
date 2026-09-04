@@ -4,23 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class FinishedCheck extends Model
+class FinishedCheckRevision extends Model
 {
-    public const DISPOSITION_ACCEPTED = 'Accepted';
-
-    public const DISPOSITION_ACCEPTED_WITH_REMARKS = 'Accepted With Remarks';
-
-    public const DISPOSITION_REJECTED = 'Rejected';
-
-    public const DISPOSITIONS = [
-        self::DISPOSITION_ACCEPTED,
-        self::DISPOSITION_ACCEPTED_WITH_REMARKS,
-        self::DISPOSITION_REJECTED,
-    ];
-
     protected $fillable = [
-        'ipc_batch_id',
-        'user_id',
+        'finished_check_id',
+        'revision_no',
+        'finalize',
         'quantity_wi',
         'masterbox',
         'no_pallet_qty',
@@ -35,23 +24,22 @@ class FinishedCheck extends Model
         'line_leader_name',
         'disposition',
         'remarks',
-        'save_count',
-        'completed_at',
+        'user_id',
     ];
 
     protected function casts(): array
     {
         return [
+            'finalize' => 'boolean',
             'quantity_wi' => 'decimal:2',
             'masterbox' => 'decimal:2',
             'no_pallet_qty' => 'decimal:2',
-            'completed_at' => 'datetime',
         ];
     }
 
-    public function batch()
+    public function finishedCheck()
     {
-        return $this->belongsTo(IpcBatch::class, 'ipc_batch_id');
+        return $this->belongsTo(FinishedCheck::class);
     }
 
     public function user()
@@ -61,11 +49,6 @@ class FinishedCheck extends Model
 
     public function samples()
     {
-        return $this->hasMany(FinishedCheckSample::class);
-    }
-
-    public function revisions()
-    {
-        return $this->hasMany(FinishedCheckRevision::class);
+        return $this->hasMany(FinishedCheckRevisionSample::class);
     }
 }

@@ -29,11 +29,32 @@ interface Batch {
     master_line: { name: string; code: string };
 }
 
+interface FinishedCheckRevisionSample {
+    parameter_key: string;
+    ac: number | string | null;
+    cd: number | string | null;
+    md: number | string | null;
+    mnd: number | string | null;
+}
+
+interface FinishedCheckRevision {
+    id: number;
+    revision_no: number;
+    finalize: boolean;
+    created_at: string;
+    user?: { name: string } | null;
+    disposition: string | null;
+    remarks: string | null;
+    samples?: FinishedCheckRevisionSample[];
+}
+
 interface FinishedCheckData {
     id: number;
     completed_at: string | null;
     created_at: string;
+    save_count?: number;
     user?: { name: string } | null;
+    revisions?: FinishedCheckRevision[];
     [key: string]: unknown;
 }
 
@@ -191,6 +212,45 @@ export default function FinishedCheckEdit({
         return empty;
     };
 
+    // The form is long — quantity fields sit at the top, AQL samples and Keputusan lower down.
+    // A validation failure while scrolled down otherwise only shows a toast that's easy to miss
+    // and red borders on fields that are off-screen, which reads as "the save button does
+    // nothing." Scroll the first empty/errored field into view so the failure is impossible to
+    // miss regardless of where on the page the user was. The Quantity Sample groups default
+    // collapsed and only force open via forceOpen once errorFields includes one of their keys —
+    // that DOM update lands on the next render/paint, so the scroll is deferred a tick past it.
+    const scrollToFirstError = (empty: Set<string>) => {
+        const firstKey = empty.values().next().value;
+        if (!firstKey) return;
+        setTimeout(() => {
+            document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+    };
+
+    // Safety net for whatever the client-side checks above don't predict (e.g. a value that
+    // passes client validation but fails a server-only rule) — without this, a save that gets
+    // rejected by the server for a reason the client didn't anticipate showed literally no
+    // feedback at all: no toast, no highlighted field, just the same page sitting there looking
+    // like the button did nothing. Every `put()` call below wires this in as `onError` so a
+    // failed save is never silent, regardless of why it failed.
+    const handleServerErrors = (serverErrors: Record<string, string>) => {
+        const keys = Object.keys(serverErrors);
+        if (keys.length === 0) {
+            toast('Gagal menyimpan. Periksa koneksi lalu coba lagi.');
+            return;
+        }
+        const fields = new Set(
+            keys.map((key) => {
+                if (key.startsWith('samples.')) return key.replace('samples.', '');
+                if (key.startsWith('photo_')) return key.replace('photo_', '');
+                return key;
+            }),
+        );
+        setErrorFields(fields);
+        toast(`${fields.size} bagian gagal disimpan — periksa isian yang ditandai merah.`);
+        scrollToFirstError(fields);
+    };
+
     const saveDraft = () => {
         if (!hasAnyDraftValue()) {
             // Nothing at all is filled — computeEmptyRequiredFields() here is the same
@@ -199,11 +259,12 @@ export default function FinishedCheckEdit({
             const empty = computeEmptyRequiredFields();
             setErrorFields(empty);
             toast(`${empty.size} bagian masih kosong — isi minimal satu untuk menyimpan progress.`);
+            scrollToFirstError(empty);
             return;
         }
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: false }));
-        put(`/batches/${batch.id}/finished-check`, { preserveState: true });
+        put(`/batches/${batch.id}/finished-check`, { preserveState: true, onError: handleServerErrors });
     };
 
     const submit: FormEventHandler = (e) => {
@@ -215,12 +276,15 @@ export default function FinishedCheckEdit({
         if (empty.size) {
             setErrorFields(empty);
             toast(`${empty.size} field wajib belum diisi untuk Selesaikan`);
+            scrollToFirstError(empty);
             return;
         }
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: true }));
-        put(`/batches/${batch.id}/finished-check`);
+        put(`/batches/${batch.id}/finished-check`, { onError: handleServerErrors });
     };
+
+    const revisions = [...(finishedCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
 
     return (
         <IpcShell
@@ -251,13 +315,14 @@ export default function FinishedCheckEdit({
                             <InfoField label="No. Batch" value={batch.no_batch} />
                             <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
+                            <InfoField label="TH Progress" value={String(finishedCheck?.save_count ?? 0)} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
                         {/* WI_NUMBER/EXP_DATE/COLOR are camera-only in legacy — no text/date value. */}
                         <div className="border-border-soft bg-card grid grid-cols-1 gap-4 rounded-[20px] border p-[18px] sm:grid-cols-3">
                             {PHOTO_FIELDS.map(({ key, label }) => (
-                                <div key={key} className="flex flex-col gap-2">
+                                <div key={key} id={key} className="flex flex-col gap-2">
                                     <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
                                     <button
                                         type="button"
@@ -427,6 +492,7 @@ export default function FinishedCheckEdit({
                                     {Object.entries(group.parameters).map(([key, label]) => (
                                         <div
                                             key={key}
+                                            id={key}
                                             className={`col-span-full rounded-xl border p-3 ${errorFields.has(key) ? errorBorder : 'border-border-soft'}`}
                                         >
                                             <p className="mb-2.5 text-[13px] font-bold">{label}</p>
@@ -448,6 +514,7 @@ export default function FinishedCheckEdit({
                                                     </div>
                                                 ))}
                                             </div>
+                                            <InputError message={errors[`samples.${key}`]} />
                                         </div>
                                     ))}
                                 </AccordionCard>
@@ -468,7 +535,7 @@ export default function FinishedCheckEdit({
                                 />
                                 <InputError message={errors.line_leader_name} />
                             </div>
-                            <div className="col-span-full flex flex-col gap-2">
+                            <div id="disposition" className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Disposition</Label>
                                 <div className={errorFields.has('disposition') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                     <ChipToggleGroup
@@ -496,6 +563,35 @@ export default function FinishedCheckEdit({
                                 <InputError message={errors.remarks} />
                             </div>
                         </AccordionCard>
+
+                        {revisions.length > 0 && (
+                            <AccordionCard title="Riwayat Simpan" progress={`${revisions.length}x disimpan`} defaultOpen={false}>
+                                <div className="col-span-full flex flex-col gap-2.5">
+                                    {revisions.map((rev) => {
+                                        const revFilled = (rev.samples ?? []).filter((s) => s.ac || s.cd || s.md || s.mnd).length;
+                                        return (
+                                            <div key={rev.id} className="border-border-soft rounded-xl border p-3">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[13px] font-bold">
+                                                        #{rev.revision_no} {rev.finalize && '· Selesai'}
+                                                    </span>
+                                                    <span className="text-muted-foreground text-[11.5px] font-medium">
+                                                        {formatDateTime(rev.created_at)} · {rev.user?.name ?? '—'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-muted-foreground mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]">
+                                                    {rev.disposition && <span>Disposition: {rev.disposition}</span>}
+                                                    <span>
+                                                        Sample: {revFilled}/{allParameterKeys.length}
+                                                    </span>
+                                                </div>
+                                                {rev.remarks && <p className="text-muted-foreground mt-1 text-[12px]">Remarks: {rev.remarks}</p>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </AccordionCard>
+                        )}
                     </div>
 
                     {!isReadOnly && (

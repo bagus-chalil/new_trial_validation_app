@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
 use App\Http\Controllers\PackingCheckController;
 use App\Http\Controllers\StartupCheckController;
 use App\Http\Controllers\StartupInspectionController;
+use App\Models\IpcApproval;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
@@ -38,4 +40,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('batches/{batch}/finished-check/photo/{field}', [FinishedCheckController::class, 'uploadPhoto'])
         ->whereIn('field', FinishedCheckController::PHOTO_FIELDS)
         ->name('finished-check.photo');
+
+    Route::get('batches/{batch}/approval', [ApprovalController::class, 'edit'])->name('approval.edit');
+    Route::get('batches/{batch}/approval/startup', [ApprovalController::class, 'startup'])->name('approval.startup');
+    Route::get('batches/{batch}/approval/filling-packing', [ApprovalController::class, 'fillingPacking'])->name('approval.filling-packing');
+    Route::get('batches/{batch}/approval/finished', [ApprovalController::class, 'finished'])->name('approval.finished');
+    Route::put('batches/{batch}/approval/{stage}', [ApprovalController::class, 'update'])
+        ->whereIn('stage', IpcApproval::STAGES)
+        ->name('approval.update');
+    Route::get('batches/{batch}/approval/{stage}/print', [ApprovalController::class, 'print'])
+        ->whereIn('stage', IpcApproval::STAGES)
+        ->name('approval.print');
 });

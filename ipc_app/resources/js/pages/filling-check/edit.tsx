@@ -160,12 +160,21 @@ export default function FillingCheckEdit({
         return empty;
     };
 
+    // A validation failure otherwise only shows a toast + red borders, easy to miss if the
+    // errored field is scrolled out of view — reads as "the save button does nothing."
+    const scrollToFirstError = (empty: Set<string>) => {
+        const firstKey = empty.values().next().value;
+        if (!firstKey) return;
+        document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty = computeEmptyFields();
         if (empty.size) {
             setErrorFields(empty);
             toast(`${empty.size} field wajib belum diisi untuk Selesaikan`);
+            scrollToFirstError(empty);
             return;
         }
         setErrorFields(new Set());
@@ -202,11 +211,13 @@ export default function FillingCheckEdit({
             const empty = computeEmptyFields();
             setErrorFields(empty);
             toast(`${empty.size} bagian masih kosong — isi minimal satu untuk menyimpan progress.`);
+            scrollToFirstError(empty);
             return;
         }
         if (hasAssessmentWithoutSamples()) {
             setErrorFields(new Set(['samples']));
             toast('Isi minimal satu sample berat sebelum mencatat Decision/Sample Check.');
+            scrollToFirstError(new Set(['samples']));
             return;
         }
         setErrorFields(new Set());
@@ -285,7 +296,7 @@ export default function FillingCheckEdit({
                         </div>
 
                         <AccordionCard title="Sample Check">
-                            <div className="flex flex-col gap-2">
+                            <div id="sample_bulk_odor_status" className="flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Sample Bulk & Odor (5 Sample)</Label>
                                 <div className={errorFields.has('sample_bulk_odor_status') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                     <ChipToggleGroup
@@ -305,7 +316,7 @@ export default function FillingCheckEdit({
                                 </div>
                                 <InputError message={errors.sample_bulk_odor_status} />
                             </div>
-                            <div className="flex flex-col gap-2">
+                            <div id="sample_leakage_test_status" className="flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Sample Leakage Test (5 Sample)</Label>
                                 <div
                                     className={
@@ -359,7 +370,7 @@ export default function FillingCheckEdit({
                                     <img src={colorPhotoUrl} alt="Foto warna" className="border-border h-24 w-24 rounded-xl border object-cover" />
                                 )}
                             </div>
-                            <div className="col-span-full flex flex-col gap-2">
+                            <div id="decision" className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
                                 <div className={errorFields.has('decision') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                     <ChipToggleGroup
@@ -402,7 +413,7 @@ export default function FillingCheckEdit({
                         </AccordionCard>
 
                         <AccordionCard title="Weight Samples" progress="10 sample">
-                            <div className="col-span-full">
+                            <div id="samples" className="col-span-full">
                                 <InputError message={(errors as Record<string, string>).samples} className="mb-2" />
                                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                                     {data.samples.map((row) => {

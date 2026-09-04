@@ -10,6 +10,29 @@ import { cn } from '@/lib/utils';
 const NEGATIVE_OPTION_PATTERN = /\bnot\b/i;
 const NOT_APPLICABLE_PATTERN = /^n\/?a$/i;
 
+/** Read-only badge for a single already-decided value, sharing the same red/orange/blue semantic as ChipToggleGroup — used in report/approval views where the value can't be changed inline. */
+export function StatusChip({ value }: { value: string | null | undefined }) {
+    if (!value) {
+        return <span className="text-muted-foreground/60 text-[13px] font-medium italic">Belum diisi</span>;
+    }
+
+    const isNotApplicable = NOT_APPLICABLE_PATTERN.test(value.trim());
+    const isNegative = !isNotApplicable && NEGATIVE_OPTION_PATTERN.test(value);
+
+    return (
+        <span
+            className={cn(
+                'inline-flex rounded-lg border-[1.5px] px-2.5 py-1 text-[12.5px] font-bold',
+                !isNegative && !isNotApplicable && 'border-primary/30 bg-primary/[0.08] text-primary',
+                isNegative && 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400',
+                isNotApplicable && 'border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400',
+            )}
+        >
+            {value}
+        </span>
+    );
+}
+
 export function ChipToggleGroup({
     options,
     value,

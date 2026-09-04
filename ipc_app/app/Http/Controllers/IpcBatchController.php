@@ -46,6 +46,7 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_FILLING => route('filling-check.edit', $batch),
             IpcBatch::STAGE_PACKING => route('packing-check.edit', $batch),
             IpcBatch::STAGE_FINISHED => route('finished-check.edit', $batch),
+            IpcBatch::STAGE_APPROVAL => route('approval.edit', $batch),
         ];
 
         $labels = [

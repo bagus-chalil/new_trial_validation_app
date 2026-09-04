@@ -244,6 +244,35 @@ class FinishedCheckTest extends TestCase
         $this->assertCount(count(FinishedCheckSample::PARAMETER_KEYS), $finishedCheck->samples);
     }
 
+    /**
+     * Every Save/Save & End writes an immutable finished_check_revisions row, same shape as
+     * Filling/Packing Check's own "Riwayat Simpan" — added after the user pointed out Finished
+     * Check was the only save-capable stage missing this history.
+     */
+    public function test_each_save_writes_a_revision_and_increments_save_count(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $this->seedFinishedCheckPhotos($batch);
+
+        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'quantity_wi' => 100]);
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload());
+
+        $finishedCheck = $batch->fresh()->finishedCheck;
+        $this->assertSame(2, $finishedCheck->save_count);
+        $this->assertCount(2, $finishedCheck->revisions);
+
+        $firstRevision = $finishedCheck->revisions()->where('revision_no', 1)->first();
+        $this->assertFalse($firstRevision->finalize);
+        $this->assertSame('100.00', $firstRevision->quantity_wi);
+        $this->assertNull($firstRevision->disposition);
+
+        $secondRevision = $finishedCheck->revisions()->where('revision_no', 2)->first();
+        $this->assertTrue($secondRevision->finalize);
+        $this->assertSame('Accepted', $secondRevision->disposition);
+        $this->assertCount(count(FinishedCheckSample::PARAMETER_KEYS), $secondRevision->samples);
+    }
+
     public function test_completed_finished_check_is_read_only(): void
     {
         $this->actingAs(User::factory()->create());

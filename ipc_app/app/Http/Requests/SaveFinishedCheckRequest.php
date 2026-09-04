@@ -42,9 +42,13 @@ class SaveFinishedCheckRequest extends FormRequest
 
         $rules = [
             'finalize' => ['nullable', 'boolean'],
-            'quantity_wi' => [$required, 'numeric', 'min:0'],
-            'masterbox' => [$required, 'numeric', 'min:0'],
-            'no_pallet_qty' => [$required, 'numeric', 'min:0'],
+            // max:9999999999.99 matches the finished_checks.{quantity_wi,masterbox,no_pallet_qty}
+            // decimal(12,2) column precision — without this, a value with more than 10 integer
+            // digits passes validation but then crashes with a raw SQL "out of range" error
+            // instead of a clean, visible validation message.
+            'quantity_wi' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
+            'masterbox' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
+            'no_pallet_qty' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
             'quantity_sampling_aql' => [$required, 'integer', 'min:0'],
             'quantity_sample_aql_cd' => [$required, 'integer', 'min:0'],
             'quantity_sample_aql_md' => [$required, 'integer', 'min:0'],

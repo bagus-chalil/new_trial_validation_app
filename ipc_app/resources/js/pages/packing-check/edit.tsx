@@ -156,6 +156,17 @@ export default function PackingCheckEdit({
         return empty;
     };
 
+    // Long form, quantity/decision fields well below the checklist — a validation failure while
+    // scrolled down otherwise only shows a toast + off-screen red borders, which reads as "the
+    // save button does nothing." Scroll the first empty/errored field into view. "Parameter
+    // Packing" defaults open while incomplete (see its defaultOpen prop above) so no extra delay
+    // is needed here, unlike Finished Check's collapsed-by-default Quantity Sample groups.
+    const scrollToFirstError = (empty: Set<string>) => {
+        const firstKey = empty.values().next().value;
+        if (!firstKey) return;
+        document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty = computeEmptyRequiredFields();
@@ -165,6 +176,7 @@ export default function PackingCheckEdit({
         if (empty.size) {
             setErrorFields(empty);
             toast(`${empty.size} field wajib belum diisi untuk Selesaikan`);
+            scrollToFirstError(empty);
             return;
         }
         setErrorFields(new Set());
@@ -203,6 +215,7 @@ export default function PackingCheckEdit({
             const empty = computeEmptyRequiredFields();
             setErrorFields(empty);
             toast(`${empty.size} bagian masih kosong — isi minimal satu untuk menyimpan progress.`);
+            scrollToFirstError(empty);
             return;
         }
         setErrorFields(new Set());
@@ -256,7 +269,7 @@ export default function PackingCheckEdit({
                                     complete={groupAnswered === groupTotal}
                                 >
                                     {Object.entries(group.fields).map(([key, label]) => (
-                                        <div key={key} className="flex flex-col gap-2">
+                                        <div key={key} id={key} className="flex flex-col gap-2">
                                             <Label className="text-foreground text-[13px] font-semibold">{label}</Label>
                                             <div className={errorFields.has(key) ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                                 <ChipToggleGroup
@@ -354,7 +367,7 @@ export default function PackingCheckEdit({
                             </div>
                             <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
                                 {PHOTO_FIELDS.map(({ key, label }) => (
-                                    <div key={key} className="flex flex-col gap-2">
+                                    <div key={key} id={key} className="flex flex-col gap-2">
                                         <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
                                         <button
                                             type="button"
@@ -378,7 +391,7 @@ export default function PackingCheckEdit({
                                     </div>
                                 ))}
                             </div>
-                            <div className="col-span-full flex flex-col gap-2">
+                            <div id="decision" className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
                                 <div className={errorFields.has('decision') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                     <ChipToggleGroup

@@ -27,7 +27,14 @@ class FinishedCheckController extends Controller
     {
         abort_unless($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini belum selesai.');
 
-        $batch->load(['masterProduct', 'masterLine', 'finishedCheck.user', 'finishedCheck.samples']);
+        $batch->load([
+            'masterProduct',
+            'masterLine',
+            'finishedCheck.user',
+            'finishedCheck.samples',
+            'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+            'finishedCheck.revisions.user',
+        ]);
 
         $samples = $batch->finishedCheck
             ? $batch->finishedCheck->samples->keyBy('parameter_key')
