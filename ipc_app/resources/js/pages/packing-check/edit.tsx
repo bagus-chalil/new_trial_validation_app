@@ -128,11 +128,33 @@ export default function PackingCheckEdit({
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
 
+    // Used both to decide the "Parameter Packing" card's default open/collapsed state and to
+    // show its "Selesai" badge — every field this screen actually requires to finalize.
+    const parameterPackingComplete =
+        Boolean(standardWeightMb) &&
+        Boolean(data.sum_weight_mb?.toString().trim()) &&
+        Boolean(data.line_leader_name?.trim()) &&
+        Boolean(data.coding_machine?.trim()) &&
+        PHOTO_FIELDS.every(({ key }) => Boolean(photoUrls[key])) &&
+        Boolean(data.decision) &&
+        Boolean(data.remarks?.trim());
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty = new Set<string>();
         if (!data.remarks?.trim()) empty.add('remarks');
         if (!data.decision) empty.add('decision');
+        // Only wajib on the round that actually sets them — once locked they're carried forward
+        // by the server and don't need re-entry, matching SavePackingCheckRequest's server-side rule.
+        if (!lineLeaderLocked && !data.line_leader_name?.trim()) empty.add('line_leader_name');
+        if (!codingMachineLocked && !data.coding_machine?.trim()) empty.add('coding_machine');
+        if (!data.sum_weight_mb?.toString().trim()) empty.add('sum_weight_mb');
+        // Derived server-side from Start Inspection, not a form field — flagged the same way so
+        // the operator notices it's missing instead of only finding out after a failed save.
+        if (!standardWeightMb) empty.add('standard_weight_mb');
+        PHOTO_FIELDS.forEach(({ key }) => {
+            if (!photoUrls[key]) empty.add(key);
+        });
         allChecklistKeys.forEach((key) => {
             if (!data[key]) empty.add(key);
         });
@@ -149,10 +171,14 @@ export default function PackingCheckEdit({
     const blankRoundForm = () => ({
         ...allChecklistKeys.reduce<Record<string, string>>((acc, key) => ({ ...acc, [key]: '' }), {}),
         sum_weight_mb: '',
-        // Sticky once set — see lineLeaderLocked/codingMachineLocked above — so a locked value
-        // stays in the form instead of being blanked out with the rest of the round.
-        line_leader_name: lineLeaderLocked ? data.line_leader_name : '',
-        coding_machine: codingMachineLocked ? data.coding_machine : '',
+        // Always carried forward, never blanked: whatever was just typed either becomes the
+        // locked value server-side (first non-blank round) or is still freely editable next
+        // round either way, so there's no case where wiping it here is correct. Using the
+        // lock flags here was the bug — they reflect props from *before* this save resolved,
+        // so a round-1 save that just set the value would wipe it back to blank on screen even
+        // though the server now has it locked in.
+        line_leader_name: data.line_leader_name,
+        coding_machine: data.coding_machine,
         remarks: '',
         decision: '',
     });
@@ -199,12 +225,14 @@ export default function PackingCheckEdit({
                         </div>
 
                         {checklistGroups.map((group) => {
+                            const groupTotal = Object.keys(group.fields).length;
                             const groupAnswered = Object.keys(group.fields).filter((key) => data[key]).length;
                             return (
                                 <AccordionCard
                                     key={group.key}
                                     title={GROUP_TITLES[group.key] ?? group.key}
-                                    progress={`${groupAnswered}/${Object.keys(group.fields).length} terisi`}
+                                    progress={`${groupAnswered}/${groupTotal} terisi`}
+                                    complete={groupAnswered === groupTotal}
                                 >
                                     {Object.entries(group.fields).map(([key, label]) => (
                                         <div key={key} className="flex flex-col gap-2">
@@ -232,12 +260,17 @@ export default function PackingCheckEdit({
                             );
                         })}
 
-                        <AccordionCard title="Parameter Packing" defaultOpen={false}>
+                        <AccordionCard title="Parameter Packing" complete={parameterPackingComplete} defaultOpen={!parameterPackingComplete}>
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Standard Weight MB</Label>
                                 {/* Read-only: taken from the batch's Start Inspection weight-master-box
-                                    readings on save, not typed here — see SavePackingCheck::standardWeightMbFor(). */}
-                                <div className={`${inputClass} bg-muted/40`}>{standardWeightMb ?? '—'}</div>
+                                    readings on save, not typed here — see SavePackingCheck::standardWeightMbFor().
+                                    Nothing to type here if it's missing/red — go fill Weight Master Box
+                                    samples on Start Inspection first, then come back. */}
+                                <div className={`${inputClass} bg-muted/40 ${errorFields.has('standard_weight_mb') ? errorBorder : ''}`}>
+                                    {standardWeightMb ?? '—'}
+                                </div>
+                                <InputError message={errors.standard_weight_mb} />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="sum_weight_mb" className="text-muted-foreground text-xs font-semibold">
@@ -247,9 +280,16 @@ export default function PackingCheckEdit({
                                     id="sum_weight_mb"
                                     type="number"
                                     step="0.0001"
-                                    className={inputClass}
+                                    className={`${inputClass} ${errorFields.has('sum_weight_mb') ? errorBorder : ''}`}
                                     value={data.sum_weight_mb ?? ''}
-                                    onChange={(e) => setData('sum_weight_mb', e.target.value)}
+                                    onChange={(e) => {
+                                        setData('sum_weight_mb', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('sum_weight_mb');
+                                            return n;
+                                        });
+                                    }}
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.sum_weight_mb} />
@@ -260,9 +300,16 @@ export default function PackingCheckEdit({
                                 </Label>
                                 <Input
                                     id="line_leader_name"
-                                    className={inputClass}
+                                    className={`${inputClass} ${errorFields.has('line_leader_name') ? errorBorder : ''}`}
                                     value={data.line_leader_name ?? ''}
-                                    onChange={(e) => setData('line_leader_name', e.target.value)}
+                                    onChange={(e) => {
+                                        setData('line_leader_name', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('line_leader_name');
+                                            return n;
+                                        });
+                                    }}
                                     disabled={isReadOnly || lineLeaderLocked}
                                 />
                                 <InputError message={errors.line_leader_name} />
@@ -273,9 +320,16 @@ export default function PackingCheckEdit({
                                 </Label>
                                 <Input
                                     id="coding_machine"
-                                    className={inputClass}
+                                    className={`${inputClass} ${errorFields.has('coding_machine') ? errorBorder : ''}`}
                                     value={data.coding_machine ?? ''}
-                                    onChange={(e) => setData('coding_machine', e.target.value)}
+                                    onChange={(e) => {
+                                        setData('coding_machine', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('coding_machine');
+                                            return n;
+                                        });
+                                    }}
                                     disabled={isReadOnly || codingMachineLocked}
                                 />
                                 <InputError message={errors.coding_machine} />
@@ -288,7 +342,9 @@ export default function PackingCheckEdit({
                                             type="button"
                                             disabled={isReadOnly}
                                             onClick={() => setCameraField(key)}
-                                            className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                            className={`bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60 ${
+                                                errorFields.has(key) ? errorBorder : 'border-border'
+                                            }`}
                                         >
                                             <Camera className="size-4" strokeWidth={2.2} />
                                             {photoUrls[key] ? 'Ganti Foto' : 'Ambil Foto'}
@@ -300,6 +356,7 @@ export default function PackingCheckEdit({
                                                 className="border-border h-24 w-24 rounded-xl border object-cover"
                                             />
                                         )}
+                                        <InputError message={errors[`photo_${key}`]} />
                                     </div>
                                 ))}
                             </div>

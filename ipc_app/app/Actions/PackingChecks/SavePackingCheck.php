@@ -59,6 +59,22 @@ class SavePackingCheck
                 $batch->update(['current_stage' => IpcBatch::STAGE_FINISHED]);
             }
 
+            // Each draft save closes out one inspection round — its answers now live forever in
+            // the revision snapshot above, so the live row is cleared back to blank immediately
+            // after, ready for whoever records the next round (whether that's this same session
+            // or a fresh page load later). Only the fields that are asked once and carried
+            // forward (line leader/coding machine) or re-derived fresh every time regardless of
+            // round (standard_weight_mb) survive; a finalized row is left untouched since that's
+            // the permanent record shown on the now-read-only page.
+            if (! $finalize) {
+                $packingCheck->forceFill([
+                    ...array_fill_keys(self::checklistFieldKeys(), null),
+                    'sum_weight_mb' => null,
+                    'remarks' => null,
+                    'decision' => null,
+                ])->save();
+            }
+
             return $packingCheck->fresh(['revisions.user']);
         });
     }
@@ -78,5 +94,15 @@ class SavePackingCheck
             ->whereNotNull('weight_master_box')
             ->orderByDesc('sample_no')
             ->value('weight_master_box');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function checklistFieldKeys(): array
+    {
+        return collect(PackingCheck::checklistGroups())
+            ->flatMap(fn (array $group) => array_keys($group['fields']))
+            ->all();
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\PackingCheckController;
 use App\Models\FillingCheck;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
@@ -40,6 +41,33 @@ class PackingCheckTest extends TestCase
         ]);
 
         return $batch->fresh();
+    }
+
+    /**
+     * Finalize (Simpan & Selesaikan) now also requires a derived Standard Weight MB (from Start
+     * Inspection's weight-master-box samples) and all 5 packing photo fields — neither travels
+     * through the packing-check payload itself, so tests that finalize successfully must seed
+     * both directly rather than via validPayload().
+     */
+    private function seedPackingFinalizePrereqs(IpcBatch $batch): void
+    {
+        $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by]);
+        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.5]);
+
+        $this->seedPackingPhotos($batch);
+    }
+
+    private function seedPackingPhotos(IpcBatch $batch): void
+    {
+        foreach (PackingCheckController::PHOTO_FIELDS as $field) {
+            IpcAttachment::create([
+                'ipc_batch_id' => $batch->id,
+                'stage' => 'packing',
+                'field_label' => $field,
+                'file_path' => "ipc-attachments/{$batch->id}/packing/{$field}.jpg",
+                'uploaded_by' => $batch->created_by,
+            ]);
+        }
     }
 
     private function validPayload(array $overrides = []): array
@@ -105,6 +133,7 @@ class PackingCheckTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
             ->assertRedirect("/batches/{$batch->id}");
@@ -135,10 +164,56 @@ class PackingCheckTest extends TestCase
         $this->assertSame(1, $packingCheck->save_count);
     }
 
+    public function test_draft_save_resets_checklist_sum_weight_remarks_and_decision_for_the_next_round(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+
+        // The live row must come back blank for round 2 — otherwise reloading the page (not just
+        // the in-session React state) would look like editing round 1's answers instead of
+        // starting a fresh round.
+        $packingCheck = $batch->fresh()->packingCheck;
+        $this->assertNull($packingCheck->primary_bulk_status);
+        $this->assertNull($packingCheck->secondary_coding_na_status);
+        $this->assertNull($packingCheck->tersier_coding_na_status);
+        $this->assertNull($packingCheck->sum_weight_mb);
+        $this->assertNull($packingCheck->remarks);
+        $this->assertNull($packingCheck->decision);
+
+        // ...but line leader/coding machine (asked once, locked) must survive.
+        $this->assertSame('Budi', $packingCheck->line_leader_name);
+        $this->assertSame('CM-01', $packingCheck->coding_machine);
+
+        // And round 1's real answers must still be fully intact in its revision snapshot.
+        $revision = $packingCheck->revisions()->where('revision_no', 1)->firstOrFail();
+        $this->assertSame(PackingCheck::STATUS_CONFORM, $revision->primary_bulk_status);
+        $this->assertSame('105.0000', (string) $revision->sum_weight_mb);
+        $this->assertSame('OK', $revision->remarks);
+        $this->assertSame(PackingCheck::DECISION_PASSED, $revision->decision);
+    }
+
+    public function test_finalize_save_does_not_reset_the_final_round(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload());
+
+        $packingCheck = $batch->fresh()->packingCheck;
+        $this->assertSame(PackingCheck::STATUS_CONFORM, $packingCheck->primary_bulk_status);
+        $this->assertSame('105.0000', (string) $packingCheck->sum_weight_mb);
+        $this->assertSame('OK', $packingCheck->remarks);
+        $this->assertSame(PackingCheck::DECISION_PASSED, $packingCheck->decision);
+    }
+
     public function test_save_count_increments_across_draft_and_final_saves(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
@@ -177,6 +252,7 @@ class PackingCheckTest extends TestCase
         $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.3456]);
         $inspection->samples()->create(['sample_no' => 2, 'weight_master_box' => 12.7]);
         $inspection->samples()->create(['sample_no' => 3, 'weight_master_box' => null]);
+        $this->seedPackingPhotos($batch);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => true]));
 
@@ -209,10 +285,95 @@ class PackingCheckTest extends TestCase
             ->assertSessionHasErrors('remarks');
     }
 
+    public function test_missing_line_leader_name_is_rejected_on_first_finalize(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $payload = $this->validPayload();
+        unset($payload['line_leader_name']);
+
+        $this->put("/batches/{$batch->id}/packing-check", $payload)
+            ->assertSessionHasErrors('line_leader_name');
+
+        $this->assertNull($batch->fresh()->packingCheck);
+    }
+
+    public function test_missing_coding_machine_is_rejected_on_first_finalize(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $payload = $this->validPayload();
+        unset($payload['coding_machine']);
+
+        $this->put("/batches/{$batch->id}/packing-check", $payload)
+            ->assertSessionHasErrors('coding_machine');
+
+        $this->assertNull($batch->fresh()->packingCheck);
+    }
+
+    public function test_missing_photo_is_rejected_on_finalize(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
+        IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->delete();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
+            ->assertSessionHasErrors('photo_color');
+
+        $this->assertNull($batch->fresh()->packingCheck);
+    }
+
+    public function test_missing_standard_weight_mb_is_rejected_on_finalize(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        // No StartupInspection weight-master-box samples seeded for this batch at all.
+        $this->seedPackingPhotos($batch);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
+            ->assertSessionHasErrors('standard_weight_mb');
+
+        $this->assertNull($batch->fresh()->packingCheck);
+    }
+
+    public function test_draft_save_does_not_require_photos_or_standard_weight_mb(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'remarks' => null, 'decision' => null]))
+            ->assertSessionDoesntHaveErrors(['standard_weight_mb', 'photo_palletisasi', 'photo_color']);
+    }
+
+    public function test_line_leader_and_coding_machine_not_required_once_already_locked(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+
+        // Round 2 omits both fields entirely, same as the "form stops asking once locked" test
+        // above, but this time finalizing — must not be rejected as missing.
+        $round2 = $this->validPayload(['finalize' => true]);
+        unset($round2['line_leader_name'], $round2['coding_machine']);
+        $this->put("/batches/{$batch->id}/packing-check", $round2)
+            ->assertSessionDoesntHaveErrors(['line_leader_name', 'coding_machine']);
+
+        $packingCheck = $batch->fresh()->packingCheck;
+        $this->assertNotNull($packingCheck->completed_at);
+        $this->assertSame('Budi', $packingCheck->line_leader_name);
+        $this->assertSame('CM-01', $packingCheck->coding_machine);
+    }
+
     public function test_secondary_coding_na_accepts_the_tri_state_value(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
 
         $payload = $this->validPayload();
         $payload['secondary_coding_na_status'] = PackingCheck::STATUS_NA;
@@ -227,6 +388,7 @@ class PackingCheckTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
 
         $payload = $this->validPayload();
         $payload['primary_bulk_status'] = PackingCheck::STATUS_NA;
@@ -244,6 +406,7 @@ class PackingCheckTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}");
 
@@ -286,6 +449,7 @@ class PackingCheckTest extends TestCase
         Storage::fake('public');
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload());
 
         $photo = UploadedFile::fake()->image('color.jpg');
