@@ -16,7 +16,7 @@ class IpcBatchController extends Controller
     public function index(Request $request): Response
     {
         $batches = IpcBatch::query()
-            ->with(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck'])
+            ->with(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck'])
             ->when($request->string('q')->toString(), function ($query, $q) {
                 $query->where(function ($query) use ($q) {
                     $query->where('no_batch', 'like', "%{$q}%")
@@ -37,7 +37,7 @@ class IpcBatchController extends Controller
 
     public function show(IpcBatch $batch): Response
     {
-        $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck']);
+        $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck']);
 
         $stageIndex = array_search($batch->current_stage, IpcBatch::STAGES, true);
 
@@ -45,6 +45,7 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_STARTUP => route('startup-check.edit', $batch),
             IpcBatch::STAGE_FILLING => route('filling-check.edit', $batch),
             IpcBatch::STAGE_PACKING => route('packing-check.edit', $batch),
+            IpcBatch::STAGE_FINISHED => route('finished-check.edit', $batch),
         ];
 
         $labels = [

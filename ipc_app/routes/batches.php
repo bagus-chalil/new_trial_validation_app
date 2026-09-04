@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\FillingCheckController;
+use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
 use App\Http\Controllers\PackingCheckController;
 use App\Http\Controllers\StartupCheckController;
@@ -31,4 +32,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('batches/{batch}/packing-check/photo/{field}', [PackingCheckController::class, 'uploadPhoto'])
         ->whereIn('field', PackingCheckController::PHOTO_FIELDS)
         ->name('packing-check.photo');
+
+    Route::get('batches/{batch}/finished-check', [FinishedCheckController::class, 'edit'])->name('finished-check.edit');
+    Route::put('batches/{batch}/finished-check', [FinishedCheckController::class, 'update'])->name('finished-check.update');
+    Route::post('batches/{batch}/finished-check/photo/{field}', [FinishedCheckController::class, 'uploadPhoto'])
+        ->whereIn('field', FinishedCheckController::PHOTO_FIELDS)
+        ->name('finished-check.photo');
 });

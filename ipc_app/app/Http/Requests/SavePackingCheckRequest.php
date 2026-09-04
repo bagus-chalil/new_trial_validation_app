@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Actions\PackingChecks\SavePackingCheck;
 use App\Http\Controllers\PackingCheckController;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
@@ -46,9 +45,8 @@ class SavePackingCheckRequest extends FormRequest
         ];
 
         // standard_weight_mb is deliberately absent from the request payload: it's derived
-        // server-side from the batch's Start Inspection weight-master-box readings, never
-        // submitted by the client. Whether it's actually present is checked in withValidator()
-        // below instead, since a plain field rule can't reach outside the request body.
+        // server-side from the batch's Start Inspection weight-master-box readings (defaulting
+        // to '0' when none exist yet), never submitted by the client and never blocking finalize.
 
         foreach (PackingCheck::checklistGroups() as $group) {
             foreach (array_keys($group['fields']) as $field) {
@@ -62,19 +60,31 @@ class SavePackingCheckRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         if (! $this->boolean('finalize')) {
+            $validator->after(function (Validator $validator) {
+                // A draft save is meant to let QC record whatever it has so far — but a save with
+                // literally nothing filled in is not "progress," it's an empty row. Block that,
+                // same intent as the finalize-required checks below, just a much lower bar.
+                $checklistFields = collect(PackingCheck::checklistGroups())
+                    ->flatMap(fn ($group) => array_keys($group['fields']));
+
+                $hasAnyValue = filled($this->input('sum_weight_mb'))
+                    || filled($this->input('line_leader_name'))
+                    || filled($this->input('coding_machine'))
+                    || filled($this->input('remarks'))
+                    || filled($this->input('decision'))
+                    || $checklistFields->contains(fn ($field) => filled($this->input($field)));
+
+                if (! $hasAnyValue) {
+                    $validator->errors()->add('progress', 'Isi minimal satu data sebelum menyimpan progress.');
+                }
+            });
+
             return;
         }
 
         $validator->after(function (Validator $validator) {
             /** @var IpcBatch $batch */
             $batch = $this->route('batch');
-
-            if (SavePackingCheck::standardWeightMbFor($batch) === null) {
-                $validator->errors()->add(
-                    'standard_weight_mb',
-                    'Standard Weight MB belum tersedia — lengkapi data Weight Master Box di Start Inspection terlebih dahulu.',
-                );
-            }
 
             $uploadedPhotoFields = IpcAttachment::query()
                 ->where('ipc_batch_id', $batch->id)

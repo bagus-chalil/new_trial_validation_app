@@ -13,6 +13,8 @@ class SaveFinishedCheck
     public function handle(IpcBatch $batch, User $user, array $data): FinishedCheck
     {
         return DB::transaction(function () use ($batch, $user, $data) {
+            $finalize = (bool) ($data['finalize'] ?? false);
+
             $finishedCheck = FinishedCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],
                 [
@@ -31,7 +33,7 @@ class SaveFinishedCheck
                     'disposition' => $data['disposition'] ?? null,
                     'remarks' => $data['remarks'] ?? null,
                     'user_id' => $user->id,
-                    'completed_at' => now(),
+                    'completed_at' => $finalize ? now() : null,
                 ],
             );
 
@@ -52,7 +54,7 @@ class SaveFinishedCheck
                 );
             }
 
-            if ($batch->current_stage === IpcBatch::STAGE_FINISHED) {
+            if ($finalize && $batch->current_stage === IpcBatch::STAGE_FINISHED) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_APPROVAL]);
             }
 

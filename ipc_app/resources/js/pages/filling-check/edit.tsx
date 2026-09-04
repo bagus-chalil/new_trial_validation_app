@@ -147,15 +147,22 @@ export default function FillingCheckEdit({
         );
     };
 
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
+    // Shared by both submit paths so the "what's empty" highlighting always matches the message:
+    // Selesaikan needs every one of these non-blank; Simpan only needs the resulting set to not
+    // be literally everything (see hasAnyDraftValue below).
+    const computeEmptyFields = () => {
         const empty = new Set<string>();
         if (!data.sample_bulk_odor_status) empty.add('sample_bulk_odor_status');
         if (!data.sample_leakage_test_status) empty.add('sample_leakage_test_status');
         if (!data.remarks.trim()) empty.add('remarks');
         if (!data.decision) empty.add('decision');
-        const missingSamples = data.samples.filter((row) => !row.weight_value).length;
-        if (missingSamples > 0) empty.add('samples');
+        if (data.samples.some((row) => !row.weight_value)) empty.add('samples');
+        return empty;
+    };
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        const empty = computeEmptyFields();
         if (empty.size) {
             setErrorFields(empty);
             toast(`${empty.size} field wajib belum diisi untuk Selesaikan`);
@@ -174,7 +181,23 @@ export default function FillingCheckEdit({
         samples: Array.from({ length: SAMPLE_COUNT }, (_, i) => ({ sample_no: i + 1, weight_value: null })),
     });
 
+    const hasAnyDraftValue = () =>
+        Boolean(data.sample_bulk_odor_status) ||
+        Boolean(data.sample_leakage_test_status) ||
+        Boolean(data.remarks.trim()) ||
+        Boolean(data.decision) ||
+        data.samples.some((row) => Boolean(row.weight_value));
+
     const saveDraft = () => {
+        if (!hasAnyDraftValue()) {
+            // Nothing at all is filled — computeEmptyFields() here is the same "everything" set
+            // Selesaikan would show, so Simpan gets the same clear count + red-border highlighting.
+            const empty = computeEmptyFields();
+            setErrorFields(empty);
+            toast(`${empty.size} bagian masih kosong — isi minimal satu untuk menyimpan progress.`);
+            return;
+        }
+        setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: false }));
         put(`/batches/${batch.id}/filling-check`, { preserveState: true, onSuccess: () => setData(blankForm()) });
     };
@@ -233,12 +256,19 @@ export default function FillingCheckEdit({
                         <AccordionCard title="Sample Check">
                             <div className="flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Sample Bulk & Odor (5 Sample)</Label>
-                                <div className={errorFields.has('sample_bulk_odor_status') ? 'rounded-xl outline outline-2 outline-destructive' : ''}>
+                                <div className={errorFields.has('sample_bulk_odor_status') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                     <ChipToggleGroup
                                         name="sample_bulk_odor_status"
                                         options={CONFORM_OPTIONS}
                                         value={data.sample_bulk_odor_status}
-                                        onChange={(value) => { setData('sample_bulk_odor_status', value); setErrorFields((prev) => { const n = new Set(prev); n.delete('sample_bulk_odor_status'); return n; }); }}
+                                        onChange={(value) => {
+                                            setData('sample_bulk_odor_status', value);
+                                            setErrorFields((prev) => {
+                                                const n = new Set(prev);
+                                                n.delete('sample_bulk_odor_status');
+                                                return n;
+                                            });
+                                        }}
                                         disabled={isReadOnly}
                                     />
                                 </div>
@@ -246,12 +276,23 @@ export default function FillingCheckEdit({
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Sample Leakage Test (5 Sample)</Label>
-                                <div className={errorFields.has('sample_leakage_test_status') ? 'rounded-xl outline outline-2 outline-destructive' : ''}>
+                                <div
+                                    className={
+                                        errorFields.has('sample_leakage_test_status') ? 'outline-destructive rounded-xl outline outline-2' : ''
+                                    }
+                                >
                                     <ChipToggleGroup
                                         name="sample_leakage_test_status"
                                         options={CONFORM_OPTIONS}
                                         value={data.sample_leakage_test_status}
-                                        onChange={(value) => { setData('sample_leakage_test_status', value); setErrorFields((prev) => { const n = new Set(prev); n.delete('sample_leakage_test_status'); return n; }); }}
+                                        onChange={(value) => {
+                                            setData('sample_leakage_test_status', value);
+                                            setErrorFields((prev) => {
+                                                const n = new Set(prev);
+                                                n.delete('sample_leakage_test_status');
+                                                return n;
+                                            });
+                                        }}
                                         disabled={isReadOnly}
                                     />
                                 </div>
@@ -289,12 +330,19 @@ export default function FillingCheckEdit({
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
-                                <div className={errorFields.has('decision') ? 'rounded-xl outline outline-2 outline-destructive' : ''}>
+                                <div className={errorFields.has('decision') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                     <ChipToggleGroup
                                         name="decision"
                                         options={decisions}
                                         value={data.decision}
-                                        onChange={(value) => { setData('decision', value); setErrorFields((prev) => { const n = new Set(prev); n.delete('decision'); return n; }); }}
+                                        onChange={(value) => {
+                                            setData('decision', value);
+                                            setErrorFields((prev) => {
+                                                const n = new Set(prev);
+                                                n.delete('decision');
+                                                return n;
+                                            });
+                                        }}
                                         disabled={isReadOnly}
                                     />
                                 </div>
@@ -308,7 +356,14 @@ export default function FillingCheckEdit({
                                     id="remarks"
                                     className={`border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px] ${errorFields.has('remarks') ? errorBorder : ''}`}
                                     value={data.remarks}
-                                    onChange={(e) => { setData('remarks', e.target.value); setErrorFields((prev) => { const n = new Set(prev); n.delete('remarks'); return n; }); }}
+                                    onChange={(e) => {
+                                        setData('remarks', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('remarks');
+                                            return n;
+                                        });
+                                    }}
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.remarks} />
@@ -321,7 +376,9 @@ export default function FillingCheckEdit({
                                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                                     {data.samples.map((row) => {
                                         const result =
-                                            row.weight_value !== null ? (liveResult(row.weight_value) ?? resultBySample.get(row.sample_no) ?? null) : null;
+                                            row.weight_value !== null
+                                                ? (liveResult(row.weight_value) ?? resultBySample.get(row.sample_no) ?? null)
+                                                : null;
                                         return (
                                             <div key={row.sample_no} className="flex flex-col gap-1">
                                                 <span className="text-muted-foreground/70 text-center text-[10.5px] font-semibold">
@@ -331,7 +388,7 @@ export default function FillingCheckEdit({
                                                     id={`weight-${row.sample_no}`}
                                                     type="number"
                                                     step="0.0001"
-                                                    className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-1 ring-destructive' : 'border-border'}`}
+                                                    className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-destructive ring-1' : 'border-border'}`}
                                                     value={row.weight_value ?? ''}
                                                     onChange={(e) => setWeight(row.sample_no, e.target.value)}
                                                     disabled={isReadOnly}

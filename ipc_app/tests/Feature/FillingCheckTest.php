@@ -158,6 +158,17 @@ class FillingCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())->assertForbidden();
     }
 
+    public function test_completely_blank_draft_save_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false])
+            ->assertSessionHasErrors('progress');
+
+        $this->assertNull($batch->fresh()->fillingCheck);
+    }
+
     public function test_draft_save_allows_partial_data_without_completing_or_advancing_stage(): void
     {
         $this->actingAs(User::factory()->create());
@@ -182,8 +193,8 @@ class FillingCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
-        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'samples' => []]);
-        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'samples' => []]);
+        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'remarks' => 'Round 1', 'samples' => []]);
+        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'remarks' => 'Round 2', 'samples' => []]);
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload(finalize: true));
 
         $fillingCheck = $batch->fresh()->fillingCheck;

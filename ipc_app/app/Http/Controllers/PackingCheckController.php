@@ -71,7 +71,7 @@ class PackingCheckController extends Controller
         $action->handle($batch, $request->user(), $data);
 
         if ($data['finalize']) {
-            return redirect()->route('batches.show', $batch)->with('success', 'Packing Check tersimpan.');
+            return redirect()->route('finished-check.edit', $batch)->with('success', 'Packing Check tersimpan.');
         }
 
         return redirect()->route('packing-check.edit', $batch)->with('success', 'Progress tersimpan.');

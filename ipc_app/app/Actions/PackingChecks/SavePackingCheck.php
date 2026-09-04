@@ -84,16 +84,18 @@ class SavePackingCheck
      * reading captured anywhere earlier in the workflow is Start Inspection's BERAT_M.BOX sample
      * set (startup_inspection_samples.weight_master_box). Legacy re-typed this by hand on the
      * Packing form; this port reads the last filled sample instead so QC can't transcribe it
-     * wrong. Null when Start Inspection recorded no weights — those samples are optional.
+     * wrong. Defaults to '0' when Start Inspection recorded no weights — those samples are
+     * optional (IPC can't do this weighing yet at this stage of rollout), so Packing Check must
+     * still be finalizable without it rather than being permanently blocked.
      *
      * Public/static so the controller can show the same value on the form before any save.
      */
-    public static function standardWeightMbFor(IpcBatch $batch): ?string
+    public static function standardWeightMbFor(IpcBatch $batch): string
     {
         return $batch->startupInspection?->samples()
             ->whereNotNull('weight_master_box')
             ->orderByDesc('sample_no')
-            ->value('weight_master_box');
+            ->value('weight_master_box') ?? '0';
     }
 
     /**

@@ -35,6 +35,24 @@ class SaveFillingCheckRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         if (! $this->boolean('finalize')) {
+            $validator->after(function (Validator $validator) {
+                // A draft save is meant to let QC record whatever it has so far — but a save with
+                // literally nothing filled in is not "progress," it's an empty row. Block that,
+                // same intent as the finalize-required checks below, just a much lower bar.
+                $hasSampleValue = collect($this->input('samples', []))
+                    ->contains(fn ($row) => filled($row['weight_value'] ?? null));
+
+                $hasAnyValue = filled($this->input('sample_bulk_odor_status'))
+                    || filled($this->input('sample_leakage_test_status'))
+                    || filled($this->input('remarks'))
+                    || filled($this->input('decision'))
+                    || $hasSampleValue;
+
+                if (! $hasAnyValue) {
+                    $validator->errors()->add('progress', 'Isi minimal satu data sebelum menyimpan progress.');
+                }
+            });
+
             return;
         }
 

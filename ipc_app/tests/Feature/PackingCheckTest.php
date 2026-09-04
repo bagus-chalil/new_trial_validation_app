@@ -44,10 +44,11 @@ class PackingCheckTest extends TestCase
     }
 
     /**
-     * Finalize (Simpan & Selesaikan) now also requires a derived Standard Weight MB (from Start
-     * Inspection's weight-master-box samples) and all 5 packing photo fields — neither travels
+     * Finalize (Simpan & Selesaikan) requires all 5 packing photo fields, which don't travel
      * through the packing-check payload itself, so tests that finalize successfully must seed
-     * both directly rather than via validPayload().
+     * them directly rather than via validPayload(). Standard Weight MB is also derived
+     * server-side (from Start Inspection's weight-master-box samples) but defaults to 0 and
+     * never blocks finalize, so it's seeded here only to exercise the non-default case.
      */
     private function seedPackingFinalizePrereqs(IpcBatch $batch): void
     {
@@ -136,7 +137,7 @@ class PackingCheckTest extends TestCase
         $this->seedPackingFinalizePrereqs($batch);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
-            ->assertRedirect("/batches/{$batch->id}");
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
 
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->current_stage);
@@ -146,6 +147,17 @@ class PackingCheckTest extends TestCase
         $this->assertSame(PackingCheck::STATUS_CONFORM, $packingCheck->primary_bulk_status);
         $this->assertSame(PackingCheck::DECISION_PASSED, $packingCheck->decision);
         $this->assertSame(1, $packingCheck->save_count);
+    }
+
+    public function test_completely_blank_draft_save_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", ['finalize' => false])
+            ->assertSessionHasErrors('progress');
+
+        $this->assertNull($batch->fresh()->packingCheck);
     }
 
     public function test_draft_save_persists_partial_data_without_completing_or_advancing_stage(): void
@@ -326,17 +338,18 @@ class PackingCheckTest extends TestCase
         $this->assertNull($batch->fresh()->packingCheck);
     }
 
-    public function test_missing_standard_weight_mb_is_rejected_on_finalize(): void
+    public function test_standard_weight_mb_defaults_to_zero_and_still_allows_finalize(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
-        // No StartupInspection weight-master-box samples seeded for this batch at all.
+        // No StartupInspection weight-master-box samples seeded for this batch at all — Start
+        // Inspection's samples are optional, so Packing Check must still be finalizable.
         $this->seedPackingPhotos($batch);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
-            ->assertSessionHasErrors('standard_weight_mb');
+            ->assertSessionDoesntHaveErrors('standard_weight_mb');
 
-        $this->assertNull($batch->fresh()->packingCheck);
+        $this->assertSame('0.0000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
     }
 
     public function test_draft_save_does_not_require_photos_or_standard_weight_mb(): void
@@ -379,7 +392,7 @@ class PackingCheckTest extends TestCase
         $payload['secondary_coding_na_status'] = PackingCheck::STATUS_NA;
 
         $this->put("/batches/{$batch->id}/packing-check", $payload)
-            ->assertRedirect("/batches/{$batch->id}");
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
 
         $this->assertSame(PackingCheck::STATUS_NA, $batch->fresh()->packingCheck->secondary_coding_na_status);
     }
@@ -395,7 +408,7 @@ class PackingCheckTest extends TestCase
         $payload['tersier_identity_status'] = PackingCheck::STATUS_NA;
 
         $this->put("/batches/{$batch->id}/packing-check", $payload)
-            ->assertRedirect("/batches/{$batch->id}");
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
 
         $packingCheck = $batch->fresh()->packingCheck;
         $this->assertSame(PackingCheck::STATUS_NA, $packingCheck->primary_bulk_status);
@@ -408,7 +421,7 @@ class PackingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedFillingCheck();
         $this->seedPackingFinalizePrereqs($batch);
 
-        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}");
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())->assertRedirect("/batches/{$batch->id}/finished-check");
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())->assertForbidden();
     }

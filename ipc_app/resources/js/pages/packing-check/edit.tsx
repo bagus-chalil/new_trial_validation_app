@@ -89,7 +89,7 @@ export default function PackingCheckEdit({
     checklistGroups: ChecklistGroup[];
     decisions: string[];
     photoUrls: Record<string, string | null>;
-    standardWeightMb: string | null;
+    standardWeightMb: string;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -131,7 +131,6 @@ export default function PackingCheckEdit({
     // Used both to decide the "Parameter Packing" card's default open/collapsed state and to
     // show its "Selesai" badge — every field this screen actually requires to finalize.
     const parameterPackingComplete =
-        Boolean(standardWeightMb) &&
         Boolean(data.sum_weight_mb?.toString().trim()) &&
         Boolean(data.line_leader_name?.trim()) &&
         Boolean(data.coding_machine?.trim()) &&
@@ -139,8 +138,10 @@ export default function PackingCheckEdit({
         Boolean(data.decision) &&
         Boolean(data.remarks?.trim());
 
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
+    // Everything Selesaikan actually requires, minus the photos (those upload through their own
+    // endpoint and aren't part of this form's data — see computeEmptyDraftFields below, which
+    // reuses this same field list without the photo half for the Simpan/empty-progress check).
+    const computeEmptyRequiredFields = () => {
         const empty = new Set<string>();
         if (!data.remarks?.trim()) empty.add('remarks');
         if (!data.decision) empty.add('decision');
@@ -149,14 +150,17 @@ export default function PackingCheckEdit({
         if (!lineLeaderLocked && !data.line_leader_name?.trim()) empty.add('line_leader_name');
         if (!codingMachineLocked && !data.coding_machine?.trim()) empty.add('coding_machine');
         if (!data.sum_weight_mb?.toString().trim()) empty.add('sum_weight_mb');
-        // Derived server-side from Start Inspection, not a form field — flagged the same way so
-        // the operator notices it's missing instead of only finding out after a failed save.
-        if (!standardWeightMb) empty.add('standard_weight_mb');
-        PHOTO_FIELDS.forEach(({ key }) => {
-            if (!photoUrls[key]) empty.add(key);
-        });
         allChecklistKeys.forEach((key) => {
             if (!data[key]) empty.add(key);
+        });
+        return empty;
+    };
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        const empty = computeEmptyRequiredFields();
+        PHOTO_FIELDS.forEach(({ key }) => {
+            if (!photoUrls[key]) empty.add(key);
         });
         if (empty.size) {
             setErrorFields(empty);
@@ -183,7 +187,24 @@ export default function PackingCheckEdit({
         decision: '',
     });
 
+    const hasAnyDraftValue = () =>
+        Boolean(data.sum_weight_mb?.toString().trim()) ||
+        Boolean(data.line_leader_name?.trim()) ||
+        Boolean(data.coding_machine?.trim()) ||
+        Boolean(data.remarks?.trim()) ||
+        Boolean(data.decision) ||
+        allChecklistKeys.some((key) => Boolean(data[key]));
+
     const saveDraft = () => {
+        if (!hasAnyDraftValue()) {
+            // Nothing at all is filled — computeEmptyRequiredFields() here is the same
+            // "everything" set Selesaikan would show (minus photos, which aren't part of this
+            // check), so Simpan gets the same clear count + red-border highlighting.
+            const empty = computeEmptyRequiredFields();
+            setErrorFields(empty);
+            toast(`${empty.size} bagian masih kosong — isi minimal satu untuk menyimpan progress.`);
+            return;
+        }
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: false }));
         put(`/batches/${batch.id}/packing-check`, { preserveState: true, onSuccess: () => setData(blankRoundForm()) });
@@ -265,12 +286,9 @@ export default function PackingCheckEdit({
                                 <Label className="text-muted-foreground text-xs font-semibold">Standard Weight MB</Label>
                                 {/* Read-only: taken from the batch's Start Inspection weight-master-box
                                     readings on save, not typed here — see SavePackingCheck::standardWeightMbFor().
-                                    Nothing to type here if it's missing/red — go fill Weight Master Box
-                                    samples on Start Inspection first, then come back. */}
-                                <div className={`${inputClass} bg-muted/40 ${errorFields.has('standard_weight_mb') ? errorBorder : ''}`}>
-                                    {standardWeightMb ?? '—'}
-                                </div>
-                                <InputError message={errors.standard_weight_mb} />
+                                    Defaults to 0 when Start Inspection recorded no weights yet, so this never
+                                    blocks Selesaikan. */}
+                                <div className={`${inputClass} bg-muted/40`}>{standardWeightMb}</div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="sum_weight_mb" className="text-muted-foreground text-xs font-semibold">

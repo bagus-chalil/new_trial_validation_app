@@ -18,6 +18,7 @@ interface Batch {
     startup_check: { completed_at: string | null } | null;
     filling_check: { completed_at: string | null } | null;
     packing_check: { completed_at: string | null } | null;
+    finished_check: { completed_at: string | null } | null;
 }
 
 function formatDate(value: string): string {
@@ -34,6 +35,7 @@ export default function BatchesShow({ batch, stages }: { batch: Batch; stages: S
         startup: batch.startup_check?.completed_at ?? null,
         filling: batch.filling_check?.completed_at ?? null,
         packing: batch.packing_check?.completed_at ?? null,
+        finished: batch.finished_check?.completed_at ?? null,
     };
 
     return (
