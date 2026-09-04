@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { AccordionCard } from '@/components/ipc/accordion-card';
 import { ChipToggleGroup, StatusChip } from '@/components/ipc/chip-toggle-group';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -92,6 +93,57 @@ export function PhotoRow({ photos }: { photos: { key: string; label: string; url
                 </div>
             ))}
         </div>
+    );
+}
+
+export interface RevisionRow {
+    id: number;
+    revision_no: number;
+    finalize: boolean;
+    created_at: string;
+    user?: { name: string } | null;
+}
+
+/**
+ * TH_PROGRESS save history — same shape/behavior as the "Riwayat Simpan" AccordionCard already
+ * shipped on the Filling/Packing/Finished Check edit pages, surfaced here too per direct user
+ * request so the full save history (with timestamps) is visible from the Approval report, not
+ * only from the edit form.
+ */
+export function RevisionHistoryCard<T extends RevisionRow>({
+    title,
+    revisions,
+    renderSummary,
+    renderRemarks,
+}: {
+    title: string;
+    revisions: T[];
+    renderSummary: (rev: T) => ReactNode;
+    renderRemarks?: (rev: T) => string | null | undefined;
+}) {
+    if (revisions.length === 0) return null;
+
+    const sorted = [...revisions].sort((a, b) => b.revision_no - a.revision_no);
+
+    return (
+        <AccordionCard title={title} progress={`${sorted.length}x disimpan`} defaultOpen={false}>
+            <div className="col-span-full flex flex-col gap-2.5">
+                {sorted.map((rev) => (
+                    <div key={rev.id} className="border-border-soft rounded-xl border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-[13px] font-bold">
+                                #{rev.revision_no} {rev.finalize && '· Selesai'}
+                            </span>
+                            <span className="text-muted-foreground text-[11.5px] font-medium">
+                                {formatDateTime(rev.created_at)} · {rev.user?.name ?? '—'}
+                            </span>
+                        </div>
+                        <div className="text-muted-foreground mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]">{renderSummary(rev)}</div>
+                        {renderRemarks?.(rev) && <p className="text-muted-foreground mt-1 text-[12px]">Remarks: {renderRemarks(rev)}</p>}
+                    </div>
+                ))}
+            </div>
+        </AccordionCard>
     );
 }
 

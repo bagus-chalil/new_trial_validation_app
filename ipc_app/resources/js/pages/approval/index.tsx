@@ -54,7 +54,7 @@ function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
     return (
         <Link
             href={meta.href(batchId)}
-            className="border-border-soft bg-card group flex flex-col gap-3.5 rounded-[22px] border p-5 transition-colors hover:border-primary/40"
+            className="border-border-soft bg-card group hover:border-primary/40 flex flex-col gap-3.5 rounded-[22px] border p-5 transition-colors"
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="bg-primary/[0.08] text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">

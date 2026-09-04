@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\FillingCheck;
+use App\Models\FillingCheckRevision;
 use App\Models\FinishedCheck;
+use App\Models\FinishedCheckRevision;
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
+use App\Models\PackingCheckRevision;
 use App\Models\StartupCheck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -246,6 +249,84 @@ class ApprovalTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->put("/batches/{$batch->id}/approval/filling_packing", ['decision' => 'Approved'])
             ->assertForbidden();
+    }
+
+    public function test_filling_packing_detail_page_shows_save_history_with_timestamps(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->create();
+
+        FillingCheckRevision::create([
+            'filling_check_id' => $batch->fillingCheck->id,
+            'revision_no' => 1,
+            'finalize' => false,
+            'remarks' => 'Progress pertama',
+            'decision' => null,
+            'average_weight' => null,
+            'user_id' => $user->id,
+        ]);
+        FillingCheckRevision::create([
+            'filling_check_id' => $batch->fillingCheck->id,
+            'revision_no' => 2,
+            'finalize' => true,
+            'remarks' => 'Selesai',
+            'decision' => 'Passed',
+            'average_weight' => '30.15',
+            'user_id' => $user->id,
+        ]);
+        PackingCheckRevision::create([
+            'packing_check_id' => $batch->packingCheck->id,
+            'revision_no' => 1,
+            'finalize' => true,
+            'remarks' => 'Packing OK',
+            'decision' => 'Passed',
+            'sum_weight_mb' => '10250.00',
+            'user_id' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling-packing");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('approval/filling-packing')
+            ->has('fillingCheck.revisions', 2)
+            ->has('packingCheck.revisions', 1)
+            ->where('fillingCheck.revisions.0.user.name', $user->name)
+        );
+
+        $pdfResponse = $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling_packing/print");
+        $pdfResponse->assertOk();
+        $pdfHtml = $pdfResponse->getContent();
+        $this->assertStringContainsString('Progress pertama', $pdfHtml);
+        $this->assertStringContainsString('Packing OK', $pdfHtml);
+    }
+
+    public function test_finished_detail_page_shows_save_history_with_timestamps(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->create();
+
+        FinishedCheckRevision::create([
+            'finished_check_id' => $batch->finishedCheck->id,
+            'revision_no' => 1,
+            'finalize' => true,
+            'disposition' => 'Accepted',
+            'remarks' => 'Semua sesuai spesifikasi',
+            'user_id' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/finished");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('approval/finished')
+            ->has('finishedCheck.revisions', 1)
+            ->where('finishedCheck.revisions.0.disposition', 'Accepted')
+        );
+
+        $pdfResponse = $this->actingAs($user)->get("/batches/{$batch->id}/approval/finished/print");
+        $pdfResponse->assertOk();
+        $this->assertStringContainsString('Semua sesuai spesifikasi', $pdfResponse->getContent());
     }
 
     public function test_unknown_stage_404s(): void

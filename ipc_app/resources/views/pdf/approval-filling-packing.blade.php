@@ -65,6 +65,30 @@
         <p class="muted">Filling Check belum diisi.</p>
     @endif
 
+    @if ($fillingCheck && $fillingCheck->revisions->count() > 0)
+        <div class="section-title" style="margin-top: 4px;">Riwayat Simpan — Filling Check (TH Progress)</div>
+        <table>
+            <thead>
+                <tr><th style="width: 6%;">#</th><th style="width: 20%;">Waktu</th><th style="width: 16%;">User</th><th style="width: 10%;">Status</th><th>Ringkasan</th></tr>
+            </thead>
+            <tbody>
+                @foreach ($fillingCheck->revisions->sortByDesc('revision_no') as $rev)
+                    <tr>
+                        <td class="center">{{ $rev->revision_no }}</td>
+                        <td>{{ optional($rev->created_at)->translatedFormat('d M Y H:i') ?? '—' }}</td>
+                        <td>{{ $rev->user->name ?? '—' }}</td>
+                        <td>{{ $rev->finalize ? 'Selesai' : 'Draft' }}</td>
+                        <td>
+                            {{ $rev->decision ? 'Decision: '.$rev->decision.'. ' : '' }}
+                            {{ $rev->average_weight ? 'Avg Weight: '.$rev->average_weight.'. ' : '' }}
+                            {{ $rev->remarks ? 'Remarks: '.$rev->remarks : '' }}
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
     <div class="page-break"></div>
     <div class="section-title">B. Packing Inspection</div>
 
@@ -131,6 +155,30 @@
         </div>
     @else
         <p class="muted">Packing Check belum diisi.</p>
+    @endif
+
+    @if ($packingCheck && $packingCheck->revisions->count() > 0)
+        <div class="section-title" style="margin-top: 4px;">Riwayat Simpan — Packing Check (TH Progress)</div>
+        <table>
+            <thead>
+                <tr><th style="width: 6%;">#</th><th style="width: 20%;">Waktu</th><th style="width: 16%;">User</th><th style="width: 10%;">Status</th><th>Ringkasan</th></tr>
+            </thead>
+            <tbody>
+                @foreach ($packingCheck->revisions->sortByDesc('revision_no') as $rev)
+                    <tr>
+                        <td class="center">{{ $rev->revision_no }}</td>
+                        <td>{{ optional($rev->created_at)->translatedFormat('d M Y H:i') ?? '—' }}</td>
+                        <td>{{ $rev->user->name ?? '—' }}</td>
+                        <td>{{ $rev->finalize ? 'Selesai' : 'Draft' }}</td>
+                        <td>
+                            {{ $rev->decision ? 'Decision: '.$rev->decision.'. ' : '' }}
+                            {{ $rev->sum_weight_mb ? 'Sum Weight MB: '.$rev->sum_weight_mb.'. ' : '' }}
+                            {{ $rev->remarks ? 'Remarks: '.$rev->remarks : '' }}
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
     @endif
 
     <div class="sign-grid">

@@ -86,7 +86,11 @@ class ApprovalController extends Controller
             'startupCheck',
             'fillingCheck.user',
             'fillingCheck.samples',
+            'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+            'fillingCheck.revisions.user',
             'packingCheck.user',
+            'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+            'packingCheck.revisions.user',
             'approvals',
         ]);
 
@@ -107,6 +111,9 @@ class ApprovalController extends Controller
             'masterLine',
             'finishedCheck.user',
             'finishedCheck.samples',
+            'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+            'finishedCheck.revisions.user',
+            'finishedCheck.revisions.samples',
             'approvals',
         ]);
 
@@ -158,7 +165,16 @@ class ApprovalController extends Controller
             IpcApproval::STAGE_FILLING_PACKING => [
                 'pdf.approval-filling-packing',
                 (function () use ($batch) {
-                    $batch->load(['startupCheck', 'fillingCheck.user', 'fillingCheck.samples', 'packingCheck.user']);
+                    $batch->load([
+                        'startupCheck',
+                        'fillingCheck.user',
+                        'fillingCheck.samples',
+                        'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                        'fillingCheck.revisions.user',
+                        'packingCheck.user',
+                        'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                        'packingCheck.revisions.user',
+                    ]);
 
                     return $this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing']));
                 })(),
@@ -167,7 +183,13 @@ class ApprovalController extends Controller
             IpcApproval::STAGE_FINISHED => [
                 'pdf.approval-finished',
                 (function () use ($batch) {
-                    $batch->load(['finishedCheck.user', 'finishedCheck.samples']);
+                    $batch->load([
+                        'finishedCheck.user',
+                        'finishedCheck.samples',
+                        'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                        'finishedCheck.revisions.user',
+                        'finishedCheck.revisions.samples',
+                    ]);
 
                     return $this->finishedPayload($batch, $this->photoDataUris($batch, ['finished']));
                 })(),

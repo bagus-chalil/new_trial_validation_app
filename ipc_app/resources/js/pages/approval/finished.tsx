@@ -6,6 +6,8 @@ import {
     InfoField,
     PhotoRow,
     PrintPreviewButton,
+    RevisionHistoryCard,
+    type RevisionRow,
     type SampleGroup,
     type StageInfo,
 } from '@/components/ipc/approval-report';
@@ -30,6 +32,12 @@ interface FinishedSampleRow {
     mnd: number | null;
 }
 
+interface FinishedCheckRevision extends RevisionRow {
+    disposition: string | null;
+    remarks: string | null;
+    samples?: (FinishedSampleRow & { parameter_key: string })[];
+}
+
 interface FinishedCheckData {
     quantity_wi: string | null;
     masterbox: string | null;
@@ -46,6 +54,7 @@ interface FinishedCheckData {
     disposition: string | null;
     remarks: string | null;
     samples: (FinishedSampleRow & { parameter_key: string })[];
+    revisions?: FinishedCheckRevision[];
     user?: { name: string } | null;
 }
 
@@ -67,6 +76,7 @@ export default function ApprovalFinished({
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const finishedSamplesByKey = Object.fromEntries((finishedCheck?.samples ?? []).map((s) => [s.parameter_key, s]));
+    const allParameterKeys = finishedSampleGroups.flatMap((group) => Object.keys(group.parameters));
 
     return (
         <IpcShell
@@ -152,6 +162,23 @@ export default function ApprovalFinished({
                     ) : (
                         <EmptyNote>Finished Check belum diisi.</EmptyNote>
                     )}
+
+                    <RevisionHistoryCard
+                        title="Riwayat Simpan — Finished Check"
+                        revisions={finishedCheck?.revisions ?? []}
+                        renderSummary={(rev) => {
+                            const filled = (rev.samples ?? []).filter((s) => s.ac || s.cd || s.md || s.mnd).length;
+                            return (
+                                <>
+                                    {rev.disposition && <span>Disposition: {rev.disposition}</span>}
+                                    <span>
+                                        Sample: {filled}/{allParameterKeys.length}
+                                    </span>
+                                </>
+                            );
+                        }}
+                        renderRemarks={(rev) => rev.remarks}
+                    />
 
                     <ApprovalActionCard batchId={batch.id} decisions={decisions} stage={stage} />
                 </div>

@@ -92,6 +92,31 @@
             </tbody>
         </table>
 
+        @if ($finishedCheck->revisions->count() > 0)
+            <div class="section-title" style="margin-top: 4px;">Riwayat Simpan — Finished Check (TH Progress)</div>
+            <table>
+                <thead>
+                    <tr><th style="width: 6%;">#</th><th style="width: 20%;">Waktu</th><th style="width: 16%;">User</th><th style="width: 10%;">Status</th><th>Ringkasan</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($finishedCheck->revisions->sortByDesc('revision_no') as $rev)
+                        @php $filled = $rev->samples->filter(fn ($s) => $s->ac || $s->cd || $s->md || $s->mnd)->count(); @endphp
+                        <tr>
+                            <td class="center">{{ $rev->revision_no }}</td>
+                            <td>{{ optional($rev->created_at)->translatedFormat('d M Y H:i') ?? '—' }}</td>
+                            <td>{{ $rev->user->name ?? '—' }}</td>
+                            <td>{{ $rev->finalize ? 'Selesai' : 'Draft' }}</td>
+                            <td>
+                                {{ $rev->disposition ? 'Disposition: '.$rev->disposition.'. ' : '' }}
+                                Sample: {{ $filled }}/{{ count(\App\Models\FinishedCheckSample::PARAMETER_KEYS) }}.
+                                {{ $rev->remarks ? ' Remarks: '.$rev->remarks : '' }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
         <div class="sign-grid">
             <div><span>QC FG Inspector</span></div>
             <div><span>QC Staff</span></div>

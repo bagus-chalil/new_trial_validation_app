@@ -7,7 +7,9 @@ import {
     InfoField,
     PhotoRow,
     PrintPreviewButton,
+    RevisionHistoryCard,
     type ChecklistGroup,
+    type RevisionRow,
     type StageInfo,
 } from '@/components/ipc/approval-report';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
@@ -30,6 +32,14 @@ interface FillingSampleRow {
     weight_result: string | null;
 }
 
+interface FillingCheckRevision extends RevisionRow {
+    sample_bulk_odor_status: string | null;
+    sample_leakage_test_status: string | null;
+    remarks: string | null;
+    decision: string | null;
+    average_weight: string | null;
+}
+
 interface FillingCheckData {
     sample_bulk_odor_status: string | null;
     sample_leakage_test_status: string | null;
@@ -37,7 +47,14 @@ interface FillingCheckData {
     remarks: string | null;
     decision: string | null;
     samples: FillingSampleRow[];
+    revisions?: FillingCheckRevision[];
     user?: { name: string } | null;
+}
+
+interface PackingCheckRevision extends RevisionRow {
+    decision: string | null;
+    remarks: string | null;
+    sum_weight_mb: string | null;
 }
 
 interface PackingCheckData {
@@ -48,6 +65,7 @@ interface PackingCheckData {
     coding_machine: string | null;
     remarks: string | null;
     decision: string | null;
+    revisions?: PackingCheckRevision[];
     user?: { name: string } | null;
 }
 
@@ -132,6 +150,18 @@ export default function ApprovalFillingPacking({
                         <EmptyNote>Filling Check belum diisi.</EmptyNote>
                     )}
 
+                    <RevisionHistoryCard
+                        title="Riwayat Simpan — Filling Check"
+                        revisions={fillingCheck?.revisions ?? []}
+                        renderSummary={(rev) => (
+                            <>
+                                {rev.decision && <span>Decision: {rev.decision}</span>}
+                                {rev.average_weight && <span>Avg Weight: {rev.average_weight}</span>}
+                            </>
+                        )}
+                        renderRemarks={(rev) => rev.remarks}
+                    />
+
                     {packingCheck ? (
                         <AccordionCard title="B. Packing Inspection" defaultOpen={false}>
                             <InfoField label="QC" value={packingCheck.user?.name ?? '—'} />
@@ -179,6 +209,18 @@ export default function ApprovalFillingPacking({
                     ) : (
                         <EmptyNote>Packing Check belum diisi.</EmptyNote>
                     )}
+
+                    <RevisionHistoryCard
+                        title="Riwayat Simpan — Packing Check"
+                        revisions={packingCheck?.revisions ?? []}
+                        renderSummary={(rev) => (
+                            <>
+                                {rev.decision && <span>Decision: {rev.decision}</span>}
+                                {rev.sum_weight_mb && <span>Sum Weight MB: {rev.sum_weight_mb}</span>}
+                            </>
+                        )}
+                        renderRemarks={(rev) => rev.remarks}
+                    />
 
                     <ApprovalActionCard batchId={batch.id} decisions={decisions} stage={stage} />
                 </div>
