@@ -86,6 +86,50 @@ class PackingCheck extends Model
         ];
     }
 
+    /**
+     * Defect-severity labels (ZD = Zero Defect, C = Critical, M = Major, m = Minor) shown next
+     * to each checklist row on the printed report, matching the legacy Excel-style "In Process
+     * Control Inspection Report — Filling & Packing" form the user shared as a reference. These
+     * are purely informational labels printed alongside the real Conform/Not Conform/N/A answer
+     * (confirmed with the user 2026-09-07 — "istilah C/M/m/ZD cmn label aja, isinya tetap
+     * conform") — they never affect validation or the stored decision. Best-effort mapped from
+     * the reference photo onto this app's own (deliberately normalized, not 1:1 with legacy's
+     * per-tier item count) field list — e.g. primary_capping_batch_exp_status merges legacy's
+     * separate "Capping/Sealing" (C) and "Coding Batch & EXP" (ZD) items into one field, so ZD
+     * was picked as the closer match ("Coding / Emboss" reads closer to a coding/marking check).
+     *
+     * @var array<string, string>
+     */
+    public const SEVERITY_LABELS = [
+        'primary_bulk_status' => 'C',
+        'primary_packaging_status' => 'M',
+        'primary_capping_batch_exp_status' => 'ZD',
+        'primary_na_number_status' => 'ZD',
+        'primary_attribute_status' => 'ZD',
+        'primary_functional_test_status' => 'C',
+        'secondary_identity_status' => 'C',
+        'secondary_appearance_status' => 'M',
+        'secondary_coding_na_status' => 'ZD',
+        'secondary_attribute_status' => 'ZD',
+        'tersier_identity_status' => 'C',
+        'tersier_appearance_status' => 'm',
+        'tersier_coding_na_status' => 'ZD',
+    ];
+
+    /**
+     * Photo fields (see BuildsIpcReportPayloads::PHOTOS_BY_STAGE['packing']) that belong next to
+     * a specific checklist row rather than in the general stage-level photo gallery — matched by
+     * field-name correlation with this app's own photo field keys (not a legacy-numbering guess).
+     * 'palletisasi' and 'color' have no matching checklist row and stay in the general gallery.
+     *
+     * @var array<string, string>
+     */
+    public const PHOTO_FIELD_BY_CHECKLIST_FIELD = [
+        'primary_capping_batch_exp_status' => 'primary_coding_batch_exp',
+        'secondary_coding_na_status' => 'secondary_coding_batch_exp',
+        'tersier_coding_na_status' => 'tersier_coding_batch',
+    ];
+
     protected $fillable = [
         'ipc_batch_id',
         'user_id',

@@ -102,7 +102,7 @@ export default function ApprovalFillingPacking({
             title="Filling & Packing Report"
             subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
             backHref={`/batches/${batch.id}/approval`}
-            headerActions={<PrintPreviewButton href={`/batches/${batch.id}/approval/filling-packing/print`} />}
+            headerActions={<PrintPreviewButton href={`/batches/${batch.id}/approval/filling_packing/print`} />}
         >
             <Head title={`Filling & Packing Report — ${batch.no_batch}`} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>

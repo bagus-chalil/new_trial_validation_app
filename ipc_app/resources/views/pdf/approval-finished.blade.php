@@ -28,30 +28,34 @@
                     <td><strong>Line Leader</strong></td><td>{{ $finishedCheck->line_leader_name ?? '—' }}</td>
                 </tr>
                 <tr>
-                    <td><strong>Qty Sampling AQL</strong></td>
-                    <td colspan="3">
-                        {{ $finishedCheck->quantity_sampling_aql ?? '—' }}
-                        (CD {{ $finishedCheck->quantity_sample_aql_cd ?? '—' }} /
-                        MD {{ $finishedCheck->quantity_sample_aql_md ?? '—' }} /
-                        mD {{ $finishedCheck->quantity_sample_aql_mnd ?? '—' }})
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>Qty Special Inspection</strong></td>
-                    <td colspan="3">
-                        {{ $finishedCheck->quantity_special_inspection ?? '—' }}
-                        (CD {{ $finishedCheck->quantity_special_inspection_cd ?? '—' }} /
-                        MD {{ $finishedCheck->quantity_special_inspection_md ?? '—' }} /
-                        mD {{ $finishedCheck->quantity_special_inspection_mnd ?? '—' }})
-                    </td>
+                    <td><strong>TH Progress</strong></td><td>{{ $finishedCheck->save_count ?? 0 }}</td>
+                    <td><strong>QC FG Inspector</strong></td><td>{{ $finishedCheck->user->name ?? '—' }}</td>
                 </tr>
             </tbody>
         </table>
 
-        @php $samplesByKey = $finishedCheck->samples->keyBy('parameter_key'); @endphp
+        <div class="two-col">
+            <table>
+                <thead><tr><th colspan="2">General Inspection</th></tr></thead>
+                <tbody>
+                    <tr><td style="width: 45%;">Qty of Sampling</td><td>{{ $finishedCheck->quantity_sampling_aql ?? '—' }}</td></tr>
+                    <tr><td>CD / MD / mD</td><td>{{ $finishedCheck->quantity_sample_aql_cd ?? '—' }} / {{ $finishedCheck->quantity_sample_aql_md ?? '—' }} / {{ $finishedCheck->quantity_sample_aql_mnd ?? '—' }}</td></tr>
+                </tbody>
+            </table>
+            <table>
+                <thead><tr><th colspan="2">Special Inspection</th></tr></thead>
+                <tbody>
+                    <tr><td style="width: 45%;">Qty of Sampling</td><td>{{ $finishedCheck->quantity_special_inspection ?? '—' }}</td></tr>
+                    <tr><td>CD / MD / mD</td><td>{{ $finishedCheck->quantity_special_inspection_cd ?? '—' }} / {{ $finishedCheck->quantity_special_inspection_md ?? '—' }} / {{ $finishedCheck->quantity_special_inspection_mnd ?? '—' }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        @php $samplesByKey = $finishedCheck->samples->keyBy('parameter_key'); $itemNo = 0; @endphp
         <table>
             <thead>
                 <tr>
+                    <th style="width: 6%;">No</th>
                     <th>Parameter</th>
                     <th class="center" style="width: 10%;">AC</th>
                     <th class="center" style="width: 10%;">CD</th>
@@ -61,10 +65,11 @@
             </thead>
             <tbody>
                 @foreach ($finishedSampleGroups as $group)
-                    <tr><td colspan="5" style="background:#f9fafb;"><strong>{{ $group['label'] }}</strong></td></tr>
+                    <tr><td colspan="6" style="background:#f9fafb;"><strong>{{ $group['label'] }} Packaging</strong></td></tr>
                     @foreach ($group['parameters'] as $key => $label)
-                        @php $row = $samplesByKey[$key] ?? null; @endphp
+                        @php $itemNo++; $row = $samplesByKey[$key] ?? null; @endphp
                         <tr>
+                            <td class="center">{{ $itemNo }}</td>
                             <td style="padding-left: 14px;">{{ $label }}</td>
                             <td class="center">{{ $row->ac ?? '—' }}</td>
                             <td class="center">{{ $row->cd ?? '—' }}</td>
@@ -75,15 +80,15 @@
                 @endforeach
             </tbody>
         </table>
-        <p class="muted">AC = Accepted Sample, CD = Critical Defect, MD = Major Defect, mD = Minor Defect.</p>
+        <p class="muted">ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect &nbsp; (AC = Accepted Sample count per parameter)</p>
 
         <table>
             <tbody>
                 <tr>
                     <td style="width: 15%;"><strong>Disposition</strong></td>
                     <td style="width: 25%;">@include('pdf._status-pill', ['value' => $finishedCheck->disposition])</td>
-                    <td style="width: 15%;"><strong>QC FG Inspector</strong></td>
-                    <td>{{ $finishedCheck->user->name ?? '—' }}</td>
+                    <td style="width: 15%;"><strong>Color Test</strong></td>
+                    <td>Lihat foto Color di atas</td>
                 </tr>
                 <tr>
                     <td><strong>Remarks</strong></td>

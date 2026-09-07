@@ -100,7 +100,7 @@ export default function PrintFillingPacking({
             title="Filling & Packing Report"
             subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
             backHref={`/batches/${batch.id}/print`}
-            headerActions={<PrintPreviewButton href={`/batches/${batch.id}/print/filling-packing/pdf`} label="Cetak" />}
+            headerActions={<PrintPreviewButton href={`/batches/${batch.id}/print/filling_packing/pdf`} label="Cetak" />}
         >
             <Head title={`Print — Filling & Packing Report — ${batch.no_batch}`} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
