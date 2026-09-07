@@ -26,6 +26,8 @@ class StartupCheck extends Model
 
     public const STATUS_NOT_YET_COMPLETE = 'Not Yet Complete';
 
+    public const STATUS_NA = 'N/A';
+
     /**
      * Real Choice values, confirmed 2026-09-03 against a live legacy Power Apps screenshot
      * (previously unknown — the SharePoint export alone didn't expose them, see the comment on
@@ -70,10 +72,19 @@ class StartupCheck extends Model
      */
     public const CONFORM_FIELDS = [
         'scan_bpom_status' => 'Scan Number NA with BPOM Mobile',
-        'sample_30pcs_appearance_status' => '30 PCS Start Up Sample — Appearance, Coding, Attribute',
         'sample_30pcs_vacuum_status' => '30 PCS Start Up Sample — Vacuum Test',
-        'functional_test_status' => 'Functional Test (5 PCS Sample)',
         'standard_weight_masterbox_status' => 'Standard Weight Masterbox',
+    ];
+
+    /**
+     * Conform / Not Conform / N/A fields — 30 PCS appearance and Functional Test
+     * can be N/A (e.g. when not applicable for the product type).
+     *
+     * @var array<string, string>
+     */
+    public const CONFORM_NA_FIELDS = [
+        'sample_30pcs_appearance_status' => '30 PCS Start Up Sample — Appearance, Coding, Attribute',
+        'functional_test_status' => 'Functional Test (5 PCS Sample)',
     ];
 
     /** @var array<string, string> */
@@ -103,6 +114,7 @@ class StartupCheck extends Model
         return [
             ['key' => 'availability', 'fields' => self::AVAILABILITY_FIELDS, 'options' => [self::STATUS_AVAILABLE, self::STATUS_NOT_AVAILABLE]],
             ['key' => 'conform', 'fields' => self::CONFORM_FIELDS, 'options' => [self::STATUS_CONFORM, self::STATUS_NOT_CONFORM]],
+            ['key' => 'conform_na', 'fields' => self::CONFORM_NA_FIELDS, 'options' => [self::STATUS_CONFORM, self::STATUS_NOT_CONFORM, self::STATUS_NA]],
             ['key' => 'pm_bom_match', 'fields' => self::PM_BOM_MATCH_FIELDS, 'options' => [self::STATUS_MATCH_WITH_BOM, self::STATUS_NOT_MATCH_WITH_BOM]],
             ['key' => 'bulk_status', 'fields' => self::BULK_STATUS_FIELDS, 'options' => [self::STATUS_BULK_RELEASE, self::STATUS_BULK_NOT_YET_RELEASE]],
             ['key' => 'identity_line_board', 'fields' => self::IDENTITY_LINE_BOARD_FIELDS, 'options' => [self::STATUS_COMPLETE, self::STATUS_NOT_YET_COMPLETE]],

@@ -31,32 +31,39 @@ trait BuildsIpcReportPayloads
         'finished' => ['wi_number', 'exp_date', 'color'],
     ];
 
+    /** temperature_setting accumulates multiple rows; all others are single-photo. */
+    private const MULTI_PHOTO_FIELDS = ['temperature_setting'];
+
     /**
      * @param  list<string>  $stages
-     * @return array<string, array<string, string|null>>
+     * @return array<string, array<string, string|null|array>>
      */
     private function photoUrls(IpcBatch $batch, array $stages): array
     {
         $fields = collect(self::PHOTOS_BY_STAGE)->only($stages)->all();
 
-        // Ordered ascending so keyBy() keeps the *latest* row per field — only packing actually
-        // accumulates more than one row per field (see PackingCheckController::uploadPhoto()),
-        // but ordering explicitly here costs nothing for the other stages, which only ever have
-        // one row per field anyway.
+        // Group by stage then field_label; multi-photo fields keep all rows, others keep last.
         $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->whereIn('stage', array_keys($fields))
             ->orderBy('id')
             ->get()
             ->groupBy('stage')
-            ->map(fn ($rows) => $rows->keyBy('field_label'));
+            ->map(fn ($rows) => $rows->groupBy('field_label'));
 
-        return collect($fields)->mapWithKeys(function (array $fieldList, string $stage) use ($photos) {
+        $disk = Storage::disk('public');
+
+        return collect($fields)->mapWithKeys(function (array $fieldList, string $stage) use ($photos, $disk) {
             $stagePhotos = $photos->get($stage, collect());
 
-            return [$stage => collect($fieldList)->mapWithKeys(fn (string $field) => [
-                $field => $stagePhotos->has($field) ? Storage::disk('public')->url($stagePhotos[$field]->file_path) : null,
-            ])->all()];
+            return [$stage => collect($fieldList)->mapWithKeys(function (string $field) use ($stagePhotos, $disk) {
+                $rows = $stagePhotos->get($field, collect());
+                if (in_array($field, self::MULTI_PHOTO_FIELDS, true)) {
+                    return [$field => $rows->map(fn ($a) => $disk->url($a->file_path))->values()->all()];
+                }
+
+                return [$field => $rows->isNotEmpty() ? $disk->url($rows->last()->file_path) : null];
+            })->all()];
         })->all();
     }
 
@@ -66,20 +73,19 @@ trait BuildsIpcReportPayloads
      * instead, same approach as TrialReportController::attachmentDataUri() in the sibling app.
      *
      * @param  list<string>  $stages
-     * @return array<string, array<string, string|null>>
+     * @return array<string, array<string, string|null|array>>
      */
     private function photoDataUris(IpcBatch $batch, array $stages): array
     {
         $fields = collect(self::PHOTOS_BY_STAGE)->only($stages)->all();
 
-        // See photoUrls() above for why this is ordered ascending before keyBy().
         $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->whereIn('stage', array_keys($fields))
             ->orderBy('id')
             ->get()
             ->groupBy('stage')
-            ->map(fn ($rows) => $rows->keyBy('field_label'));
+            ->map(fn ($rows) => $rows->groupBy('field_label'));
 
         $disk = Storage::disk('public');
 
@@ -87,14 +93,25 @@ trait BuildsIpcReportPayloads
             $stagePhotos = $photos->get($stage, collect());
 
             return [$stage => collect($fieldList)->mapWithKeys(function (string $field) use ($stagePhotos, $disk) {
-                if (! $stagePhotos->has($field) || ! $disk->exists($stagePhotos[$field]->file_path)) {
-                    return [$field => null];
+                $rows = $stagePhotos->get($field, collect());
+                if (in_array($field, self::MULTI_PHOTO_FIELDS, true)) {
+                    return [$field => $rows->map(function ($a) use ($disk) {
+                        if (! $disk->exists($a->file_path)) {
+                            return null;
+                        }
+                        $mime = $disk->mimeType($a->file_path) ?: 'image/jpeg';
+
+                        return 'data:'.$mime.';base64,'.base64_encode($disk->get($a->file_path));
+                    })->values()->all()];
                 }
 
-                $path = $stagePhotos[$field]->file_path;
-                $mime = $disk->mimeType($path) ?: 'image/jpeg';
+                $row = $rows->last();
+                if (! $row || ! $disk->exists($row->file_path)) {
+                    return [$field => null];
+                }
+                $mime = $disk->mimeType($row->file_path) ?: 'image/jpeg';
 
-                return [$field => 'data:'.$mime.';base64,'.base64_encode($disk->get($path))];
+                return [$field => 'data:'.$mime.';base64,'.base64_encode($disk->get($row->file_path))];
             })->all()];
         })->all();
     }

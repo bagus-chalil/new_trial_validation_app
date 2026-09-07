@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Camera, CheckCircle2, ClipboardList } from 'lucide-react';
+import { Camera, CheckCircle2, ClipboardList, Trash2 } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
 interface Batch {
@@ -30,10 +30,10 @@ interface StartupCheckData {
     [key: string]: unknown;
 }
 
-const PHOTO_FIELDS: { key: string; label: string }[] = [
+const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
     { key: 'im_number', label: 'IM Number' },
     { key: 'color', label: 'Color' },
-    { key: 'temperature_setting', label: 'Temperature Setting' },
+    { key: 'temperature_setting', label: 'Temperature Setting', multi: true },
 ];
 
 function formatDateTime(value: string): string {
@@ -49,6 +49,7 @@ interface ChecklistGroup {
 const GROUP_TITLES: Record<string, string> = {
     availability: 'Ketersediaan',
     conform: 'Conform / Not Conform',
+    conform_na: 'Conform / Not Conform',
     pm_bom_match: 'PM / BOM Match',
     bulk_status: 'Status Bulk',
     identity_line_board: 'Identity Line Board',
@@ -73,7 +74,7 @@ export default function StartupCheckEdit({
     isReadOnly: boolean;
     checklistGroups: ChecklistGroup[];
     validationReportOptions: string[];
-    photoUrls: Record<string, string | null>;
+    photoUrls: Record<string, string | null | { id: number; url: string }[]>;
     startupInspectionComplete: boolean;
 }) {
     const { props } = usePage<SharedData>();
@@ -84,6 +85,10 @@ export default function StartupCheckEdit({
 
     const uploadPhoto = (field: string, file: File) => {
         router.post(`/batches/${batch.id}/startup-check/photo/${field}`, { photo: file }, { forceFormData: true, preserveScroll: true });
+    };
+
+    const deletePhoto = (attachmentId: number) => {
+        router.delete(`/batches/${batch.id}/startup-check/photo/${attachmentId}`, { preserveScroll: true });
     };
 
     const inspectorName = startupCheck?.user?.name ?? props.auth.user.name;
@@ -365,27 +370,59 @@ export default function StartupCheckEdit({
                                 <InputError message={errors.validation_report_status} />
                             </div>
                             <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
-                                {PHOTO_FIELDS.map(({ key, label }) => (
-                                    <div key={key} className="flex flex-col gap-2">
-                                        <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
-                                        <button
-                                            type="button"
-                                            disabled={isReadOnly}
-                                            onClick={() => setCameraField(key)}
-                                            className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                            <Camera className="size-4" strokeWidth={2.2} />
-                                            {photoUrls[key] ? 'Ganti Foto' : 'Ambil Foto'}
-                                        </button>
-                                        {photoUrls[key] && (
-                                            <img
-                                                src={photoUrls[key]!}
-                                                alt={`Foto ${label}`}
-                                                className="border-border h-24 w-24 rounded-xl border object-cover"
-                                            />
-                                        )}
-                                    </div>
-                                ))}
+                                {PHOTO_FIELDS.map(({ key, label, multi }) => {
+                                    const raw = photoUrls[key];
+                                    const multiPhotos = multi ? (Array.isArray(raw) ? (raw as { id: number; url: string }[]) : []) : null;
+                                    const singleUrl = !multi ? (raw as string | null) : null;
+
+                                    return (
+                                        <div key={key} className="flex flex-col gap-2">
+                                            <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
+                                            <button
+                                                type="button"
+                                                disabled={isReadOnly}
+                                                onClick={() => setCameraField(key)}
+                                                className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <Camera className="size-4" strokeWidth={2.2} />
+                                                {multi ? 'Tambah Foto' : singleUrl ? 'Ganti Foto' : 'Ambil Foto'}
+                                            </button>
+                                            {multi ? (
+                                                multiPhotos!.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {multiPhotos!.map((p) => (
+                                                            <div key={p.id} className="relative">
+                                                                <img
+                                                                    src={p.url}
+                                                                    alt={`Foto ${label}`}
+                                                                    className="border-border h-24 w-24 rounded-xl border object-cover"
+                                                                />
+                                                                {!isReadOnly && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => deletePhoto(p.id)}
+                                                                        className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow"
+                                                                        title="Hapus foto"
+                                                                    >
+                                                                        <Trash2 className="size-3" strokeWidth={2.5} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )
+                                            ) : (
+                                                singleUrl && (
+                                                    <img
+                                                        src={singleUrl}
+                                                        alt={`Foto ${label}`}
+                                                        className="border-border h-24 w-24 rounded-xl border object-cover"
+                                                    />
+                                                )
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">

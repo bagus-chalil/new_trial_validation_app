@@ -75,7 +75,7 @@ export default function PrintStartup({
     batch: Batch;
     startupCheck: StartupCheckData | null;
     startupInspection: StartupInspectionData | null;
-    photoUrls: Record<string, Record<string, string | null>>;
+    photoUrls: Record<string, Record<string, string | null | string[]>>;
     printInfo: PrintInfo;
     startupChecklistGroups: ChecklistGroup[];
     startupInspectionParameterKeys: string[];

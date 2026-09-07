@@ -4,7 +4,7 @@
     <div class="section-title">Start Up Inspection Form</div>
 
     <div class="attachment-grid">
-        @foreach ([['im_number', 'IM Number'], ['color', 'Color'], ['temperature_setting', 'Temperature Setting']] as [$field, $label])
+        @foreach ([['im_number', 'IM Number'], ['color', 'Color']] as [$field, $label])
             <figure class="attachment-tile">
                 @if ($photoUrls['startup'][$field] ?? null)
                     <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
@@ -14,6 +14,25 @@
                 <figcaption><strong>{{ $label }}</strong></figcaption>
             </figure>
         @endforeach
+        {{-- temperature_setting: multi-photo, render one tile per photo --}}
+        @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
+        @if (count($tempPhotos) === 0)
+            <figure class="attachment-tile">
+                <div class="placeholder">Belum ada foto</div>
+                <figcaption><strong>Temperature Setting</strong></figcaption>
+            </figure>
+        @else
+            @foreach ($tempPhotos as $i => $tempUrl)
+                <figure class="attachment-tile">
+                    @if ($tempUrl)
+                        <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
+                    @else
+                        <div class="placeholder">Belum ada foto</div>
+                    @endif
+                    <figcaption><strong>Temperature Setting {{ count($tempPhotos) > 1 ? ($i + 1) : '' }}</strong></figcaption>
+                </figure>
+            @endforeach
+        @endif
     </div>
 
     @if ($startupCheck)

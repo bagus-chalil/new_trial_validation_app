@@ -18,6 +18,9 @@ class StartupCheckController extends Controller
     /** Field labels for the three camera-only fields on this stage — see StartupCheck migration note. */
     public const PHOTO_FIELDS = ['im_number', 'color', 'temperature_setting'];
 
+    /** Fields that support multiple photos (accumulate instead of replace). */
+    private const MULTI_PHOTO_FIELDS = ['temperature_setting'];
+
     public function edit(IpcBatch $batch): Response
     {
         $batch->load(['masterProduct', 'masterLine', 'startupCheck.user', 'startupInspection']);
@@ -26,13 +29,21 @@ class StartupCheckController extends Controller
             ->where('ipc_batch_id', $batch->id)
             ->where('stage', 'startup')
             ->whereIn('field_label', self::PHOTO_FIELDS)
+            ->orderBy('id')
             ->get()
-            ->keyBy('field_label');
+            ->groupBy('field_label');
 
-        $photoUrls = collect(self::PHOTO_FIELDS)
-            ->mapWithKeys(fn (string $field) => [
-                $field => $photos->has($field) ? Storage::disk('public')->url($photos[$field]->file_path) : null,
-            ]);
+        $disk = Storage::disk('public');
+
+        // Single-photo fields → string|null, multi-photo fields → array of {id, url}
+        $photoUrls = collect(self::PHOTO_FIELDS)->mapWithKeys(function (string $field) use ($photos, $disk) {
+            $rows = $photos->get($field, collect());
+            if (in_array($field, self::MULTI_PHOTO_FIELDS, true)) {
+                return [$field => $rows->map(fn ($a) => ['id' => $a->id, 'url' => $disk->url($a->file_path)])->values()];
+            }
+
+            return [$field => $rows->isNotEmpty() ? $disk->url($rows->last()->file_path) : null];
+        });
 
         return Inertia::render('startup-check/edit', [
             'batch' => $batch,
@@ -59,12 +70,6 @@ class StartupCheckController extends Controller
         abort_unless(in_array($field, self::PHOTO_FIELDS, true), 404);
         abort_if($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini sudah selesai dan bersifat read-only.');
 
-        $existing = IpcAttachment::query()
-            ->where('ipc_batch_id', $batch->id)
-            ->where('stage', 'startup')
-            ->where('field_label', $field)
-            ->get();
-
         $path = $request->file('photo')->store("ipc-attachments/{$batch->id}/startup", 'public');
 
         IpcAttachment::create([
@@ -75,11 +80,34 @@ class StartupCheckController extends Controller
             'uploaded_by' => $request->user()->id,
         ]);
 
-        foreach ($existing as $old) {
-            Storage::disk('public')->delete($old->file_path);
-            $old->delete();
+        // Single-photo fields: delete previous after storing the new one
+        if (! in_array($field, self::MULTI_PHOTO_FIELDS, true)) {
+            IpcAttachment::query()
+                ->where('ipc_batch_id', $batch->id)
+                ->where('stage', 'startup')
+                ->where('field_label', $field)
+                ->where('file_path', '!=', $path)
+                ->get()
+                ->each(function ($old) {
+                    Storage::disk('public')->delete($old->file_path);
+                    $old->delete();
+                });
         }
 
         return redirect()->route('startup-check.edit', $batch)->with('success', 'Foto tersimpan.');
+    }
+
+    public function deletePhoto(IpcBatch $batch, IpcAttachment $attachment): RedirectResponse
+    {
+        abort_if($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini sudah selesai dan bersifat read-only.');
+        abort_unless(
+            $attachment->ipc_batch_id === $batch->id && $attachment->stage === 'startup' && in_array($attachment->field_label, self::MULTI_PHOTO_FIELDS, true),
+            404,
+        );
+
+        Storage::disk('public')->delete($attachment->file_path);
+        $attachment->delete();
+
+        return redirect()->route('startup-check.edit', $batch)->with('success', 'Foto dihapus.');
     }
 }

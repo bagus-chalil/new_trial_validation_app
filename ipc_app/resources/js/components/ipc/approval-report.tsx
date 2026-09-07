@@ -77,21 +77,28 @@ export function ChecklistRow({ label, value }: { label: string; value: string | 
     );
 }
 
-export function PhotoRow({ photos }: { photos: { key: string; label: string; url: string | null }[] }) {
+export function PhotoRow({ photos }: { photos: { key: string; label: string; url: string | null | string[] }[] }) {
     return (
         <div className="border-border-soft bg-card grid grid-cols-2 gap-4 rounded-[20px] border p-[18px] sm:grid-cols-3 md:grid-cols-5">
-            {photos.map(({ key, label, url }) => (
-                <div key={key} className="flex flex-col gap-2">
-                    <p className="text-muted-foreground text-xs font-semibold">{label}</p>
-                    {url ? (
-                        <img src={url} alt={label} className="border-border h-24 w-full rounded-xl border object-cover" />
-                    ) : (
-                        <div className="border-border-soft bg-background text-muted-foreground/50 flex h-24 w-full items-center justify-center rounded-xl border border-dashed text-[11.5px] font-medium italic">
-                            Belum ada foto
-                        </div>
-                    )}
-                </div>
-            ))}
+            {photos.map(({ key, label, url }) => {
+                const urls = Array.isArray(url) ? url : url ? [url] : [];
+                return (
+                    <div key={key} className="flex flex-col gap-2">
+                        <p className="text-muted-foreground text-xs font-semibold">{label}</p>
+                        {urls.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                                {urls.map((u, i) => (
+                                    <img key={i} src={u} alt={label} className="border-border h-24 w-full rounded-xl border object-cover" style={urls.length > 1 ? { width: '5.5rem' } : undefined} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="border-border-soft bg-background text-muted-foreground/50 flex h-24 w-full items-center justify-center rounded-xl border border-dashed text-[11.5px] font-medium italic">
+                                Belum ada foto
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
     );
 }

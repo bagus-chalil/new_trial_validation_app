@@ -76,7 +76,7 @@ export default function ApprovalStartup({
     batch: Batch;
     startupCheck: StartupCheckData | null;
     startupInspection: StartupInspectionData | null;
-    photoUrls: Record<string, Record<string, string | null>>;
+    photoUrls: Record<string, Record<string, string | null | string[]>>;
     stage: StageInfo;
     decisions: string[];
     startupChecklistGroups: ChecklistGroup[];

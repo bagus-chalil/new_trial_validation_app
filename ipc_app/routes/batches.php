@@ -22,6 +22,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('batches/{batch}/startup-check/photo/{field}', [StartupCheckController::class, 'uploadPhoto'])
         ->whereIn('field', StartupCheckController::PHOTO_FIELDS)
         ->name('startup-check.photo');
+    Route::delete('batches/{batch}/startup-check/photo/{attachment}', [StartupCheckController::class, 'deletePhoto'])
+        ->name('startup-check.photo.delete');
 
     Route::get('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'edit'])->name('startup-inspection.edit');
     Route::put('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'update'])->name('startup-inspection.update');
