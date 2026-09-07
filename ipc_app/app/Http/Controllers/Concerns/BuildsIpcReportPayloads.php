@@ -39,9 +39,14 @@ trait BuildsIpcReportPayloads
     {
         $fields = collect(self::PHOTOS_BY_STAGE)->only($stages)->all();
 
+        // Ordered ascending so keyBy() keeps the *latest* row per field — only packing actually
+        // accumulates more than one row per field (see PackingCheckController::uploadPhoto()),
+        // but ordering explicitly here costs nothing for the other stages, which only ever have
+        // one row per field anyway.
         $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->whereIn('stage', array_keys($fields))
+            ->orderBy('id')
             ->get()
             ->groupBy('stage')
             ->map(fn ($rows) => $rows->keyBy('field_label'));
@@ -67,9 +72,11 @@ trait BuildsIpcReportPayloads
     {
         $fields = collect(self::PHOTOS_BY_STAGE)->only($stages)->all();
 
+        // See photoUrls() above for why this is ordered ascending before keyBy().
         $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->whereIn('stage', array_keys($fields))
+            ->orderBy('id')
             ->get()
             ->groupBy('stage')
             ->map(fn ($rows) => $rows->keyBy('field_label'));
@@ -90,6 +97,37 @@ trait BuildsIpcReportPayloads
                 return [$field => 'data:'.$mime.';base64,'.base64_encode($disk->get($path))];
             })->all()];
         })->all();
+    }
+
+    /**
+     * Per-TH_PROGRESS-round photo state for Packing Check's checklist-linked photo fields
+     * (PackingCheck::PHOTO_FIELD_BY_CHECKLIST_FIELD), keyed by PackingCheckRevision id — unlike
+     * photoDataUris() above, which only ever returns the single *current* photo per field.
+     * Packing is the only stage whose printed report needs this: its checklist rows repeat one
+     * column per round, and each round should show the photo that was actually current at the
+     * moment that round was saved (see SavePackingCheck::handle(), which writes one
+     * PackingCheckRevisionPhoto per field per save), not whatever the latest upload happens to
+     * be by the time the report is printed. Expects 'packingCheck.revisions.photos' to already
+     * be eager-loaded by the caller — this method issues no query of its own.
+     *
+     * @return array<int, array<string, string|null>>
+     */
+    private function packingRevisionPhotoUris(IpcBatch $batch): array
+    {
+        $disk = Storage::disk('public');
+
+        return ($batch->packingCheck?->revisions ?? collect())
+            ->mapWithKeys(fn ($revision) => [
+                $revision->id => $revision->photos->mapWithKeys(function ($photo) use ($disk) {
+                    if (! $disk->exists($photo->file_path)) {
+                        return [$photo->field_label => null];
+                    }
+
+                    $mime = $disk->mimeType($photo->file_path) ?: 'image/jpeg';
+
+                    return [$photo->field_label => 'data:'.$mime.';base64,'.base64_encode($disk->get($photo->file_path))];
+                })->all(),
+            ])->all();
     }
 
     /**

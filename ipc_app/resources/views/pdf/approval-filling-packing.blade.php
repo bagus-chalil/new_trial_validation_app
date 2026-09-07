@@ -14,36 +14,59 @@
         </div>
 
         @php
-            $samplesByNo = $fillingCheck->samples->keyBy('sample_no');
-            $results = $samplesByNo->pluck('weight_result')->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+            // One column per TH_PROGRESS round (every draft/finalize save creates a
+            // FillingCheckRevision snapshot — see SaveFillingCheck::handle()), matching the
+            // legacy "In Process Control Inspection Report" form's repeating Time columns
+            // instead of collapsing to only the latest save. A check saved before revision
+            // tracking existed (or a stray direct DB write) falls back to one column built
+            // from the live row so the table never renders empty.
+            $fillingRounds = $fillingCheck->revisions->sortBy('revision_no')->values();
+            if ($fillingRounds->isEmpty()) {
+                $fillingRounds = collect([$fillingCheck]);
+            }
+            $results = $fillingCheck->samples->pluck('weight_result')->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+            $parameterWidth = 14;
+            $fillingTimeColWidth = (100 - $parameterWidth) / max($fillingRounds->count(), 1);
         @endphp
 
-        <table>
+        <table class="record-table">
+            <colgroup>
+                <col style="width: {{ $parameterWidth }}%;">
+                @foreach ($fillingRounds as $round)
+                    <col style="width: {{ $fillingTimeColWidth }}%;">
+                @endforeach
+            </colgroup>
             <thead>
                 <tr>
-                    <th rowspan="2" style="width: 14%;">Parameter</th>
-                    <th colspan="2">Time: {{ optional($fillingCheck->completed_at ?? $fillingCheck->updated_at)->translatedFormat('H:i') ?? '—' }}</th>
+                    <th rowspan="2">Parameter</th>
+                    <th colspan="{{ $fillingRounds->count() }}">Time</th>
                 </tr>
                 <tr>
-                    <th class="center" style="width: 20%;">Weight Value</th>
-                    <th class="center" style="width: 20%;">Weight Result</th>
+                    @foreach ($fillingRounds as $round)
+                        <th class="center">{{ optional($round->created_at)->format('H:i') ?? '—' }}</th>
+                    @endforeach
                 </tr>
             </thead>
             <tbody>
                 @foreach (range(1, 10) as $no)
                     <tr>
                         <td>Sample {{ $no }}</td>
-                        <td class="center">{{ $samplesByNo[$no]->weight_value ?? '—' }}</td>
-                        <td class="center">{{ $samplesByNo[$no]->weight_result ?? '—' }}</td>
+                        @foreach ($fillingRounds as $round)
+                            <td class="center">{{ $round->samples->firstWhere('sample_no', $no)->weight_value ?? '—' }}</td>
+                        @endforeach
                     </tr>
                 @endforeach
                 <tr>
                     <td>Cleaness Bulk & Odor</td>
-                    <td colspan="2">@include('pdf._status-pill', ['value' => $fillingCheck->sample_bulk_odor_status])</td>
+                    @foreach ($fillingRounds as $round)
+                        <td class="center">@include('pdf._status-pill', ['value' => $round->sample_bulk_odor_status, 'abbreviate' => true])</td>
+                    @endforeach
                 </tr>
                 <tr>
                     <td>Leakage Test (Vaccum / Press)</td>
-                    <td colspan="2">@include('pdf._status-pill', ['value' => $fillingCheck->sample_leakage_test_status])</td>
+                    @foreach ($fillingRounds as $round)
+                        <td class="center">@include('pdf._status-pill', ['value' => $round->sample_leakage_test_status, 'abbreviate' => true])</td>
+                    @endforeach
                 </tr>
             </tbody>
         </table>
@@ -120,46 +143,110 @@
             <div><span>Sum Weight MB</span><strong>{{ $packingCheck->sum_weight_mb ?? '—' }}</strong></div>
         </div>
 
-        @php $itemNo = 0; @endphp
-        @foreach ($packingChecklistGroups as $group)
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 8%;">No</th>
-                        <th style="width: 8%;">Kode</th>
-                        <th>{{ ucfirst($group['key']) }} Packing</th>
-                        <th style="width: 18%;">Hasil</th>
-                        <th style="width: 18%;">Foto</th>
+        @php
+            // One column per TH_PROGRESS round, same rationale as Filling above — every draft
+            // save snapshots the full checklist into a PackingCheckRevision and then blanks the
+            // live row for the next round (see SavePackingCheck::handle()), so $packingCheck
+            // itself only ever holds the *last* round's answers. Photos are NOT versioned per
+            // round (IpcAttachment overwrites the previous file on re-upload — see
+            // PackingCheckController::uploadPhoto()), so only the current photo is shown, once,
+            // rather than fabricating a different image per column the way the legacy paper form
+            // does.
+            $packingRounds = $packingCheck->revisions->sortBy('revision_no')->values();
+            if ($packingRounds->isEmpty()) {
+                $packingRounds = collect([$packingCheck]);
+            }
+        @endphp
+        @php
+            // One continuous table for all three tiers (was one <table> per tier) so the column
+            // grid lines run straight top-to-bottom instead of restarting — and each column's
+            // width is fixed via colgroup + table-layout: fixed (see .record-table in
+            // pdf/layout.blade.php) rather than left to the browser to re-guess per row.
+            $noWidth = 6;
+            $kodeWidth = 6;
+            $itemWidth = 24;
+            $photoWidth = 16;
+            $roundCount = max($packingRounds->count(), 1);
+            $timeColWidth = (100 - $noWidth - $kodeWidth - $itemWidth - $photoWidth) / $roundCount;
+            $photoColWidth = $photoWidth / $roundCount;
+            $itemNo = 0;
+        @endphp
+        <table class="record-table">
+            <colgroup>
+                <col style="width: {{ $noWidth }}%;">
+                <col style="width: {{ $kodeWidth }}%;">
+                <col style="width: {{ $itemWidth }}%;">
+                @foreach ($packingRounds as $round)
+                    <col style="width: {{ $timeColWidth }}%;">
+                @endforeach
+                @foreach ($packingRounds as $round)
+                    <col style="width: {{ $photoColWidth }}%;">
+                @endforeach
+            </colgroup>
+            <thead>
+                <tr>
+                    <th rowspan="2">No</th>
+                    <th rowspan="2">Kode</th>
+                    <th rowspan="2">Item</th>
+                    <th colspan="{{ $packingRounds->count() }}">Time</th>
+                    <th colspan="{{ $packingRounds->count() }}">Foto</th>
+                </tr>
+                <tr>
+                    @foreach ($packingRounds as $round)
+                        <th class="center">{{ optional($round->created_at)->format('H:i') ?? '—' }}</th>
+                    @endforeach
+                    @foreach ($packingRounds as $round)
+                        <th>&nbsp;</th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($packingChecklistGroups as $group)
+                    <tr class="group-row">
+                        <td colspan="{{ 3 + ($packingRounds->count() * 2) }}">{{ ucfirst($group['key']) }} Packing</td>
                     </tr>
-                </thead>
-                <tbody>
                     @foreach ($group['fields'] as $field => $label)
                         @php
                             $itemNo++;
                             $photoField = \App\Models\PackingCheck::PHOTO_FIELD_BY_CHECKLIST_FIELD[$field] ?? null;
-                            $photoUrl = $photoField ? ($photoUrls['packing'][$photoField] ?? null) : null;
                         @endphp
                         <tr>
                             <td class="center">{{ $itemNo }}</td>
                             <td class="center">{{ \App\Models\PackingCheck::SEVERITY_LABELS[$field] ?? '—' }}</td>
                             <td>{{ $label }}</td>
-                            <td>@include('pdf._status-pill', ['value' => $packingCheck[$field] ?? null])</td>
-                            <td class="center">
-                                @if ($photoField)
-                                    @if ($photoUrl)
-                                        <img src="{{ $photoUrl }}" alt="{{ $label }}" style="width: 100%; max-height: 20mm; object-fit: contain;">
+                            @foreach ($packingRounds as $round)
+                                <td class="center">@include('pdf._status-pill', ['value' => $round[$field] ?? null, 'abbreviate' => true])</td>
+                            @endforeach
+                            @foreach ($packingRounds as $round)
+                                @php
+                                    // Each round shows the photo that was actually current when
+                                    // *that* round was saved (PackingCheckRevisionPhoto), not
+                                    // whichever upload happens to be latest by print time — a
+                                    // fallback (no-revisions) row has no per-round photo history,
+                                    // so it uses the single current photoUrls value instead.
+                                    $roundPhotoUrl = $photoField
+                                        ? ($round instanceof \App\Models\PackingCheckRevision
+                                            ? ($packingRevisionPhotoUris[$round->id][$photoField] ?? null)
+                                            : ($photoUrls['packing'][$photoField] ?? null))
+                                        : null;
+                                @endphp
+                                <td class="center photo-cell">
+                                    @if ($photoField)
+                                        @if ($roundPhotoUrl)
+                                            <img src="{{ $roundPhotoUrl }}" alt="{{ $label }}" style="width: 100%; max-height: 18mm; object-fit: contain;">
+                                        @else
+                                            <span class="muted">Belum ada foto</span>
+                                        @endif
                                     @else
-                                        <span class="muted">Belum ada foto</span>
+                                        <span class="muted">—</span>
                                     @endif
-                                @else
-                                    <span class="muted">—</span>
-                                @endif
-                            </td>
+                                </td>
+                            @endforeach
                         </tr>
                     @endforeach
-                </tbody>
-            </table>
-        @endforeach
+                @endforeach
+            </tbody>
+        </table>
 
         <table>
             <tbody>
@@ -215,7 +302,7 @@
         </table>
     @endif
 
-    <p class="muted" style="margin-top: 6px;">ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
+    <p class="muted" style="margin-top: 6px;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
 
     <div class="sign-grid">
         <div><span>Issued By (QC Filling / Packing)</span></div>

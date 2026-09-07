@@ -237,6 +237,34 @@ class PackingCheckTest extends TestCase
         $this->assertCount(3, $packingCheck->revisions()->get());
     }
 
+    public function test_each_save_snapshots_the_photo_current_at_that_moment(): void
+    {
+        // Confirms the fix for the "packing kok gk sesuai TH Progress" report — each round's
+        // PackingCheckRevisionPhoto should freeze whichever photo was current when that round
+        // was saved, and a later re-upload must not retroactively change an earlier round's
+        // already-saved snapshot.
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
+
+        $round1Photo = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->first();
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+
+        $secondUpload = UploadedFile::fake()->image('color-round2.jpg');
+        $this->post("/batches/{$batch->id}/packing-check/photo/color", ['photo' => $secondUpload]);
+        $round2Photo = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->latest('id')->first();
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => true]));
+
+        $packingCheck = $batch->fresh()->packingCheck;
+        $revision1 = $packingCheck->revisions()->where('revision_no', 1)->firstOrFail();
+        $revision2 = $packingCheck->revisions()->where('revision_no', 2)->firstOrFail();
+
+        $this->assertSame($round1Photo->file_path, $revision1->photos()->where('field_label', 'color')->first()->file_path);
+        $this->assertSame($round2Photo->file_path, $revision2->photos()->where('field_label', 'color')->first()->file_path);
+        $this->assertNotSame($revision1->photos()->where('field_label', 'color')->first()->file_path, $revision2->photos()->where('field_label', 'color')->first()->file_path);
+    }
+
     public function test_line_leader_and_coding_machine_are_locked_after_the_first_save(): void
     {
         $this->actingAs(User::factory()->create());
@@ -426,8 +454,12 @@ class PackingCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())->assertForbidden();
     }
 
-    public function test_photo_can_be_uploaded_and_replaces_the_previous_one(): void
+    public function test_photo_can_be_uploaded_multiple_times_and_accumulates_history(): void
     {
+        // Unlike every other stage's photo upload, packing deliberately does NOT delete/replace
+        // the previous row — it goes through repeatable TH_PROGRESS rounds, and the printed
+        // report needs each round's own photo (see SavePackingCheck's revision-photo snapshot).
+        // So a re-upload appends a new row and keeps the old file on disk instead of overwriting.
         Storage::fake('public');
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
@@ -443,8 +475,10 @@ class PackingCheckTest extends TestCase
         $second = UploadedFile::fake()->image('color2.jpg');
         $this->post("/batches/{$batch->id}/packing-check/photo/color", ['photo' => $second]);
 
-        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
-        Storage::disk('public')->assertMissing($firstPath);
+        $this->assertSame(2, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
+        Storage::disk('public')->assertExists($firstPath);
+        $secondPath = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->latest('id')->first()->file_path;
+        Storage::disk('public')->assertExists($secondPath);
     }
 
     public function test_photo_upload_rejects_unknown_field(): void

@@ -2,14 +2,25 @@
 
 namespace App\Actions\PackingChecks;
 
+use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\PackingCheck;
 use App\Models\PackingCheckRevision;
+use App\Models\PackingCheckRevisionPhoto;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class SavePackingCheck
 {
+    /**
+     * Duplicated from PackingCheckController::PHOTO_FIELDS (not imported) — same precedent as
+     * BuildsIpcReportPayloads::PHOTOS_BY_STAGE, to avoid an action-layer dependency on a
+     * controller class.
+     *
+     * @var list<string>
+     */
+    private const PHOTO_FIELDS = ['palletisasi', 'color', 'primary_coding_batch_exp', 'tersier_coding_batch', 'secondary_coding_batch_exp'];
+
     public function handle(IpcBatch $batch, User $user, array $data): PackingCheck
     {
         return DB::transaction(function () use ($batch, $user, $data) {
@@ -45,7 +56,7 @@ class SavePackingCheck
             // would be lost to the next save. The two models share column names for everything
             // being snapshotted, so the copy is a straight fillable-keyed lift off the row we
             // just wrote — the four keys below are the only ones unique to a revision.
-            PackingCheckRevision::create([
+            $revision = PackingCheckRevision::create([
                 ...collect($packingCheck->getAttributes())
                     ->only((new PackingCheckRevision)->getFillable())
                     ->all(),
@@ -54,6 +65,30 @@ class SavePackingCheck
                 'finalize' => $finalize,
                 'user_id' => $user->id,
             ]);
+
+            // Snapshot whichever photo is current for each field right now — ipc_attachments
+            // accumulates one row per upload for this stage (see
+            // PackingCheckController::uploadPhoto()), so "current" is simply the latest row per
+            // field. This is what lets the printed report show a distinct photo per TH_PROGRESS
+            // round instead of always showing whatever the latest upload happens to be.
+            $currentPhotos = IpcAttachment::query()
+                ->where('ipc_batch_id', $batch->id)
+                ->where('stage', 'packing')
+                ->whereIn('field_label', self::PHOTO_FIELDS)
+                ->orderBy('id')
+                ->get()
+                ->keyBy('field_label');
+
+            foreach (self::PHOTO_FIELDS as $field) {
+                if ($currentPhotos->has($field)) {
+                    PackingCheckRevisionPhoto::create([
+                        'packing_check_revision_id' => $revision->id,
+                        'field_label' => $field,
+                        'ipc_attachment_id' => $currentPhotos[$field]->id,
+                        'file_path' => $currentPhotos[$field]->file_path,
+                    ]);
+                }
+            }
 
             if ($finalize && $batch->current_stage === IpcBatch::STAGE_PACKING) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_FINISHED]);

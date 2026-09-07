@@ -81,6 +81,24 @@
     tr.not-conform td, tr.reject td { background: #ffe8e8; }
     td.center, th.center { text-align: center; }
 
+    /* Round-column grids (Filling sample table, Packing checklist tables): table-layout: fixed
+       + an explicit colgroup keeps every column the exact same width top-to-bottom, and
+       vertical-align: middle keeps a short status pill centered even in a row whose neighbour
+       column got tall from an embedded photo — without this, those cells looked pinned to the
+       top with a big gap underneath, "berantakan" per direct user feedback on the rendered PDF. */
+    .record-table { table-layout: fixed; }
+    .record-table td, .record-table th { vertical-align: middle; word-wrap: break-word; }
+    .record-table .group-row td {
+        background: #eef2ff;
+        color: #1f2937;
+        font-size: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        padding: 4px 6px;
+    }
+    .record-table td.photo-cell { padding: 3px; }
+    .record-table td.photo-cell img { display: block; margin: 0 auto; }
+
     .status-pill {
         display: inline-block;
         padding: 1px 7px;

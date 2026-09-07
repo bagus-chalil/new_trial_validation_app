@@ -136,12 +136,17 @@ class PrintController extends Controller
                         'fillingCheck.samples',
                         'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'fillingCheck.revisions.user',
+                        'fillingCheck.revisions.samples',
                         'packingCheck.user',
                         'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'packingCheck.revisions.user',
+                        'packingCheck.revisions.photos',
                     ]);
 
-                    return $this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing']));
+                    return [
+                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing'])),
+                        'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
+                    ];
                 })(),
                 "Filling-Packing-Report-{$batch->no_batch}.pdf",
             ],

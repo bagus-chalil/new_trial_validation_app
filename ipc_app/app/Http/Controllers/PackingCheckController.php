@@ -39,10 +39,15 @@ class PackingCheckController extends Controller
             'packingCheck.revisions.user',
         ]);
 
+        // Ordered ascending so keyBy() below keeps the *latest* row per field — packing photos
+        // now accumulate one row per TH_PROGRESS round (see uploadPhoto()) rather than
+        // overwriting, so the "current" photo shown on this edit page is the most recent upload,
+        // not necessarily the only one.
         $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->where('stage', 'packing')
             ->whereIn('field_label', self::PHOTO_FIELDS)
+            ->orderBy('id')
             ->get()
             ->keyBy('field_label');
 
@@ -83,12 +88,13 @@ class PackingCheckController extends Controller
         abort_unless($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini belum selesai.');
         abort_if($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini sudah selesai dan bersifat read-only.');
 
-        $existing = IpcAttachment::query()
-            ->where('ipc_batch_id', $batch->id)
-            ->where('stage', 'packing')
-            ->where('field_label', $field)
-            ->get();
-
+        // Deliberately does NOT delete/replace the previous row for this field, unlike every
+        // other stage's photo upload — packing goes through repeatable TH_PROGRESS rounds
+        // (see SavePackingCheck), and the printed report needs to show which photo belonged to
+        // which round. So every upload just appends a new row; "current" (for this edit page
+        // and for the finalize-requires-a-photo check) is simply the latest one per field.
+        // SavePackingCheck::handle() snapshots whichever row is latest at save time into
+        // PackingCheckRevisionPhoto, which is what the report actually reads per round.
         $path = $request->file('photo')->store("ipc-attachments/{$batch->id}/packing", 'public');
 
         IpcAttachment::create([
@@ -98,11 +104,6 @@ class PackingCheckController extends Controller
             'file_path' => $path,
             'uploaded_by' => $request->user()->id,
         ]);
-
-        foreach ($existing as $old) {
-            Storage::disk('public')->delete($old->file_path);
-            $old->delete();
-        }
 
         return redirect()->route('packing-check.edit', $batch)->with('success', 'Foto tersimpan.');
     }
