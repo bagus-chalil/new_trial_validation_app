@@ -9,8 +9,9 @@ import { CheckCircle2, ChevronRight, Clock3, Droplets, Package, Printer } from '
 interface Batch {
     id: number;
     no_batch: string;
+    bulk_code: string;
     created_at: string;
-    master_product: { product_name: string; fg_code: string; bulk_code: string };
+    master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string };
 }
 
@@ -107,7 +108,7 @@ export default function PrintOverview({ batch, stages }: { batch: Batch; stages:
                         </div>
                         <div>
                             <p className="text-muted-foreground/70 text-[10.5px] font-semibold tracking-wide uppercase">Bulk Code</p>
-                            <p className="mt-0.5 text-[13.5px] font-bold">{batch.master_product.bulk_code}</p>
+                            <p className="mt-0.5 text-[13.5px] font-bold">{batch.bulk_code}</p>
                         </div>
                         <div>
                             <p className="text-muted-foreground/70 text-[10.5px] font-semibold tracking-wide uppercase">Line</p>

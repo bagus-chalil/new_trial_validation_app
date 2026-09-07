@@ -12,7 +12,6 @@ interface MasterProduct {
     id: number;
     fg_code: string;
     product_name: string;
-    bulk_code: string;
 }
 
 interface MasterLine {

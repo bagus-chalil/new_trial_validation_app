@@ -22,7 +22,7 @@ class PackingCheckTest extends TestCase
 
     private function makeBatchWithCompletedFillingCheck(): IpcBatch
     {
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         $batch = IpcBatch::create([
@@ -108,7 +108,7 @@ class PackingCheckTest extends TestCase
     public function test_form_is_forbidden_when_filling_check_is_not_completed(): void
     {
         $this->actingAs(User::factory()->create());
-        $product = MasterProduct::create(['fg_code' => 'FG-2', 'product_name' => 'Product 2', 'bulk_code' => 'BULK-2', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-2', 'product_name' => 'Product 2', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 02', 'name' => 'Make Up 02', 'is_active' => true]);
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,

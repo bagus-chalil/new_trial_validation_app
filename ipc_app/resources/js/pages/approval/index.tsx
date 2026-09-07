@@ -9,8 +9,9 @@ import { CheckCircle2, ChevronRight, Clock3, Droplets, Package, XCircle } from '
 interface Batch {
     id: number;
     no_batch: string;
+    bulk_code: string;
     created_at: string;
-    master_product: { product_name: string; fg_code: string; bulk_code: string };
+    master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string };
 }
 
@@ -106,7 +107,7 @@ export default function ApprovalOverview({ batch, stages }: { batch: Batch; stag
                     <div className="border-border-soft bg-card grid grid-cols-2 gap-3 rounded-[20px] border p-[18px] md:grid-cols-4 md:gap-4">
                         <InfoField label="No. Batch" value={batch.no_batch} />
                         <InfoField label="FG Code" value={batch.master_product.fg_code} />
-                        <InfoField label="Bulk Code" value={batch.master_product.bulk_code} />
+                        <InfoField label="Bulk Code" value={batch.bulk_code} />
                         <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                         <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                     </div>

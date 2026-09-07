@@ -24,8 +24,9 @@ const PHOTO_FIELDS: { key: string; label: string }[] = [
 interface Batch {
     id: number;
     no_batch: string;
+    bulk_code: string;
     created_at: string;
-    master_product: { product_name: string; fg_code: string; bulk_code: string };
+    master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string };
 }
 

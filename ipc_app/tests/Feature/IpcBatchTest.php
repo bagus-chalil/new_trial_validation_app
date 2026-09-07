@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
+use App\Models\MasterProductBulkCode;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -29,12 +30,18 @@ class IpcBatchTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
 
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create([
+            'master_product_id' => $product->id,
+            'bulk_code' => 'BULK-1',
+            'no_batch' => 'BATCH-001',
+            'is_active' => true,
+        ]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         $response = $this->post('/batches', [
             'master_product_id' => $product->id,
-            'no_batch' => 'BATCH-001',
+            'master_product_bulk_code_id' => $bulkCode->id,
             'master_line_id' => $line->id,
         ]);
 
@@ -42,14 +49,37 @@ class IpcBatchTest extends TestCase
         $response->assertRedirect("/batches/{$batch->id}/startup-check");
 
         $this->assertSame('BATCH-001', $batch->no_batch);
+        $this->assertSame('BULK-1', $batch->bulk_code);
+        $this->assertSame($bulkCode->id, $batch->master_product_bulk_code_id);
         $this->assertSame(IpcBatch::STAGE_STARTUP, $batch->current_stage);
+    }
+
+    public function test_bulk_code_from_a_different_product_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $otherProduct = MasterProduct::create(['fg_code' => 'FG-2', 'product_name' => 'Product 2', 'is_active' => true]);
+        $otherBulkCode = MasterProductBulkCode::create([
+            'master_product_id' => $otherProduct->id,
+            'bulk_code' => 'BULK-2',
+            'no_batch' => 'BATCH-002',
+            'is_active' => true,
+        ]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_id' => $otherBulkCode->id,
+            'master_line_id' => $line->id,
+        ])->assertSessionHasErrors('master_product_bulk_code_id');
     }
 
     public function test_authenticated_user_can_view_batch_show_page(): void
     {
         $this->actingAs(User::factory()->create());
 
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
@@ -76,12 +106,18 @@ class IpcBatchTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
 
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => false]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => false]);
+        $bulkCode = MasterProductBulkCode::create([
+            'master_product_id' => $product->id,
+            'bulk_code' => 'BULK-1',
+            'no_batch' => 'BATCH-001',
+            'is_active' => true,
+        ]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         $this->post('/batches', [
             'master_product_id' => $product->id,
-            'no_batch' => 'BATCH-001',
+            'master_product_bulk_code_id' => $bulkCode->id,
             'master_line_id' => $line->id,
         ])->assertSessionHasErrors('master_product_id');
     }

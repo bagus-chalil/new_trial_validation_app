@@ -23,7 +23,7 @@ class ApprovalTest extends TestCase
 
     private function makeBatchAtApprovalStage(): IpcBatch
     {
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $user = User::factory()->create();
 
@@ -46,7 +46,7 @@ class ApprovalTest extends TestCase
     public function test_edit_is_forbidden_before_finished_check_is_completed(): void
     {
         $user = User::factory()->create();
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
@@ -98,7 +98,7 @@ class ApprovalTest extends TestCase
     public function test_detail_pages_are_forbidden_before_finished_check_is_completed(): void
     {
         $user = User::factory()->create();
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
@@ -146,7 +146,7 @@ class ApprovalTest extends TestCase
     public function test_print_route_is_forbidden_before_finished_check_is_completed(): void
     {
         $user = User::factory()->create();
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,

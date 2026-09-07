@@ -6,6 +6,7 @@ use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
+use App\Models\MasterProductBulkCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -90,15 +91,25 @@ class IpcBatchController extends Controller
     public function create(): Response
     {
         return Inertia::render('batches/create', [
-            'products' => MasterProduct::query()->where('is_active', true)->orderBy('product_name')->get(['id', 'fg_code', 'product_name', 'bulk_code']),
+            'products' => MasterProduct::query()
+                ->where('is_active', true)
+                ->with(['bulkCodes' => fn ($query) => $query->where('is_active', true)->orderBy('bulk_code')])
+                ->orderBy('product_name')
+                ->get(['id', 'fg_code', 'product_name']),
             'lines' => MasterLine::query()->where('is_active', true)->orderBy('name')->get(['id', 'category', 'area', 'code', 'name']),
         ]);
     }
 
     public function store(StoreIpcBatchRequest $request): RedirectResponse
     {
+        $bulkCode = MasterProductBulkCode::findOrFail($request->validated('master_product_bulk_code_id'));
+
         $batch = IpcBatch::create([
-            ...$request->validated(),
+            'master_product_id' => $request->validated('master_product_id'),
+            'master_product_bulk_code_id' => $bulkCode->id,
+            'no_batch' => $bulkCode->no_batch,
+            'bulk_code' => $bulkCode->bulk_code,
+            'master_line_id' => $request->validated('master_line_id'),
             'created_by' => $request->user()->id,
             'current_stage' => IpcBatch::STAGE_STARTUP,
         ]);

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
+use App\Models\MasterProductBulkCode;
 use App\Models\MasterTestType;
 use Illuminate\Database\Seeder;
 
@@ -39,13 +40,22 @@ class MasterDataSeeder extends Seeder
             ['name' => 'Filling 01', 'is_active' => true],
         );
 
-        MasterProduct::firstOrCreate(
+        $productA = MasterProduct::firstOrCreate(
             ['fg_code' => 'FG-0001'],
-            ['product_name' => 'Sample Product A', 'bulk_code' => 'BULK-0001', 'is_active' => true],
+            ['product_name' => 'Sample Product A', 'is_active' => true],
         );
-        MasterProduct::firstOrCreate(
+        $productB = MasterProduct::firstOrCreate(
             ['fg_code' => 'FG-0002'],
-            ['product_name' => 'Sample Product B', 'bulk_code' => 'BULK-0002', 'is_active' => true],
+            ['product_name' => 'Sample Product B', 'is_active' => true],
+        );
+
+        MasterProductBulkCode::firstOrCreate(
+            ['master_product_id' => $productA->id, 'bulk_code' => 'BULK-0001'],
+            ['no_batch' => 'BATCH-0001', 'is_active' => true],
+        );
+        MasterProductBulkCode::firstOrCreate(
+            ['master_product_id' => $productB->id, 'bulk_code' => 'BULK-0002'],
+            ['no_batch' => 'BATCH-0002', 'is_active' => true],
         );
 
         $testTypes = [

@@ -10,13 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useMemo } from 'react';
+
+interface BulkCodeOption {
+    id: number;
+    bulk_code: string;
+    no_batch: string;
+}
 
 interface MasterProduct {
     id: number;
     fg_code: string;
     product_name: string;
-    bulk_code: string;
+    bulk_codes: BulkCodeOption[];
 }
 
 interface MasterLine {
@@ -36,15 +42,27 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
 
     const { data, setData, post, processing, errors, reset } = useForm({
         master_product_id: '',
-        no_batch: '',
+        master_product_bulk_code_id: '',
         master_line_id: '',
     });
+
+    const selectedProduct = useMemo(
+        () => products.find((product) => String(product.id) === data.master_product_id),
+        [products, data.master_product_id],
+    );
+
+    const bulkCodeOptions = selectedProduct?.bulk_codes ?? [];
+
+    const selectedBulkCode = useMemo(
+        () => bulkCodeOptions.find((bulkCode) => String(bulkCode.id) === data.master_product_bulk_code_id),
+        [bulkCodeOptions, data.master_product_bulk_code_id],
+    );
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty: string[] = [];
-        if (!data.master_product_id) empty.push('Produk');
-        if (!data.no_batch.trim()) empty.push('No Batch');
+        if (!data.master_product_id) empty.push('FG Code / Produk');
+        if (!data.master_product_bulk_code_id) empty.push('Bulk Code');
         if (!data.master_line_id) empty.push('Line');
         if (empty.length) {
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
@@ -66,13 +84,18 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
                         <CardContent>
                             <form onSubmit={submit} className="space-y-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="master_product_id">Produk</Label>
-                                    <Select value={data.master_product_id} onValueChange={(value) => setData('master_product_id', value)}>
+                                    <Label htmlFor="master_product_id">FG Code</Label>
+                                    <Select
+                                        value={data.master_product_id}
+                                        onValueChange={(value) => {
+                                            setData((prev) => ({ ...prev, master_product_id: value, master_product_bulk_code_id: '' }));
+                                        }}
+                                    >
                                         <SelectTrigger
                                             id="master_product_id"
                                             className={`min-h-11 ${!data.master_product_id && message ? errorBorder : ''}`}
                                         >
-                                            <SelectValue placeholder="Pilih produk" />
+                                            <SelectValue placeholder="Pilih FG Code" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {products.map((product) => (
@@ -86,14 +109,40 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
                                 </div>
 
                                 <div className="grid gap-2">
+                                    <Label htmlFor="product_name">Nama Produk</Label>
+                                    <Input id="product_name" className="min-h-11" value={selectedProduct?.product_name ?? ''} disabled readOnly />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="master_product_bulk_code_id">Bulk Code</Label>
+                                    <Select
+                                        value={data.master_product_bulk_code_id}
+                                        onValueChange={(value) => setData('master_product_bulk_code_id', value)}
+                                        disabled={!selectedProduct}
+                                    >
+                                        <SelectTrigger
+                                            id="master_product_bulk_code_id"
+                                            className={`min-h-11 ${!data.master_product_bulk_code_id && message ? errorBorder : ''}`}
+                                        >
+                                            <SelectValue placeholder={selectedProduct ? 'Pilih bulk code' : 'Pilih FG Code dahulu'} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {bulkCodeOptions.map((bulkCode) => (
+                                                <SelectItem key={bulkCode.id} value={String(bulkCode.id)}>
+                                                    {bulkCode.bulk_code}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {selectedProduct && bulkCodeOptions.length === 0 && (
+                                        <p className="text-muted-foreground text-xs">Belum ada bulk code aktif untuk produk ini.</p>
+                                    )}
+                                    <InputError message={errors.master_product_bulk_code_id} />
+                                </div>
+
+                                <div className="grid gap-2">
                                     <Label htmlFor="no_batch">No Batch</Label>
-                                    <Input
-                                        id="no_batch"
-                                        className={`min-h-11 ${!data.no_batch.trim() && message ? errorBorder : ''}`}
-                                        value={data.no_batch}
-                                        onChange={(e) => setData('no_batch', e.target.value)}
-                                    />
-                                    <InputError message={errors.no_batch} />
+                                    <Input id="no_batch" className="min-h-11" value={selectedBulkCode?.no_batch ?? ''} disabled readOnly />
                                 </div>
 
                                 <div className="grid gap-2">

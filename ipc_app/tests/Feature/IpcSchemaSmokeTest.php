@@ -32,7 +32,7 @@ class IpcSchemaSmokeTest extends TestCase
         $user = User::factory()->create();
 
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01']);
-        $product = MasterProduct::create(['fg_code' => 'FG-001', 'product_name' => 'Test Product', 'bulk_code' => 'BULK-001']);
+        $product = MasterProduct::create(['fg_code' => 'FG-001', 'product_name' => 'Test Product']);
         $testType = MasterTestType::create(['name' => 'VACCUM', 'category' => MasterTestType::CATEGORY_LEAKAGE]);
 
         $batch = IpcBatch::create([

@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class MasterProduct extends Model
+class MasterProductBulkCode extends Model
 {
     use SoftDeletes;
 
     protected $fillable = [
-        'fg_code',
-        'product_name',
+        'master_product_id',
+        'bulk_code',
+        'no_batch',
         'is_active',
     ];
 
@@ -22,13 +23,13 @@ class MasterProduct extends Model
         ];
     }
 
+    public function masterProduct()
+    {
+        return $this->belongsTo(MasterProduct::class);
+    }
+
     public function deletedByUser()
     {
         return $this->belongsTo(User::class, 'deleted_by');
-    }
-
-    public function bulkCodes()
-    {
-        return $this->hasMany(MasterProductBulkCode::class);
     }
 }

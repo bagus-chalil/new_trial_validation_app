@@ -35,7 +35,9 @@ class IpcBatch extends Model
 
     protected $fillable = [
         'master_product_id',
+        'master_product_bulk_code_id',
         'no_batch',
+        'bulk_code',
         'master_line_id',
         'created_by',
         'current_stage',
@@ -44,6 +46,11 @@ class IpcBatch extends Model
     public function masterProduct()
     {
         return $this->belongsTo(MasterProduct::class);
+    }
+
+    public function bulkCode()
+    {
+        return $this->belongsTo(MasterProductBulkCode::class, 'master_product_bulk_code_id');
     }
 
     public function masterLine()

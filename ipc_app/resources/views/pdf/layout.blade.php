@@ -275,7 +275,7 @@
     <div class="info-grid">
         <div><span>No. Batch</span><strong>{{ $batch->no_batch }}</strong></div>
         <div><span>FG Code</span><strong>{{ $batch->masterProduct->fg_code ?? '—' }}</strong></div>
-        <div><span>Bulk Code</span><strong>{{ $batch->masterProduct->bulk_code ?? '—' }}</strong></div>
+        <div><span>Bulk Code</span><strong>{{ $batch->bulk_code ?? '—' }}</strong></div>
         <div><span>Line</span><strong>{{ $batch->masterLine->name ?? '—' }} ({{ $batch->masterLine->code ?? '—' }})</strong></div>
         <div style="grid-column: span 4;"><span>Nama Produk</span><strong>{{ $batch->masterProduct->product_name ?? '—' }}</strong></div>
     </div>

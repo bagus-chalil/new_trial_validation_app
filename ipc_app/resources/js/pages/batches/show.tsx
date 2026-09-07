@@ -10,9 +10,10 @@ import { ChevronRight, ClipboardList } from 'lucide-react';
 interface Batch {
     id: number;
     no_batch: string;
+    bulk_code: string;
     current_stage: string;
     created_at: string;
-    master_product: { product_name: string; fg_code: string; bulk_code: string };
+    master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string };
     creator: { name: string };
     startup_check: { completed_at: string | null } | null;
@@ -77,7 +78,7 @@ export default function BatchesShow({ batch, stages }: { batch: Batch; stages: S
                             </div>
                             <div className="md:hidden">
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Bulk code</p>
-                                <p className="mt-0.5 text-[13.5px] font-semibold">{batch.master_product.bulk_code}</p>
+                                <p className="mt-0.5 text-[13.5px] font-semibold">{batch.bulk_code}</p>
                             </div>
                         </div>
                     </div>

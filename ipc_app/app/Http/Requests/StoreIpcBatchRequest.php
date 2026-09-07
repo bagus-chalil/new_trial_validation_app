@@ -16,7 +16,13 @@ class StoreIpcBatchRequest extends FormRequest
     {
         return [
             'master_product_id' => ['required', Rule::exists('master_products', 'id')->where('is_active', true)->whereNull('deleted_at')],
-            'no_batch' => ['required', 'string', 'max:100'],
+            'master_product_bulk_code_id' => [
+                'required',
+                Rule::exists('master_product_bulk_codes', 'id')
+                    ->where('master_product_id', $this->input('master_product_id'))
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at'),
+            ],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
         ];
     }

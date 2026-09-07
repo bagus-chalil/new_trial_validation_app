@@ -26,8 +26,9 @@ const PHOTO_FIELDS: { key: string; label: string }[] = [
 interface Batch {
     id: number;
     no_batch: string;
+    bulk_code: string;
     created_at: string;
-    master_product: { product_name: string; fg_code: string; bulk_code: string };
+    master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string };
 }
 
@@ -251,7 +252,7 @@ export default function PackingCheckEdit({
                             <InfoField label="Tanggal" value={formatDateTime(packingCheck?.created_at ?? batch.created_at)} />
                             <InfoField label="FG Code" value={batch.master_product.fg_code} />
                             <InfoField label="No. Batch" value={batch.no_batch} />
-                            <InfoField label="Bulk Code" value={batch.master_product.bulk_code} />
+                            <InfoField label="Bulk Code" value={batch.bulk_code} />
                             <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
                             <InfoField label="TH Progress" value={String(packingCheck?.save_count ?? 0)} />
