@@ -29,6 +29,10 @@ class SaveFillingCheckRequest extends FormRequest
             'samples' => ['nullable', 'array'],
             'samples.*.sample_no' => ['required', 'integer', 'min:1'],
             'samples.*.weight_value' => ['nullable', 'numeric', 'min:0'],
+            'startup_inspection_samples' => ['nullable', 'array'],
+            'startup_inspection_samples.*.sample_no' => ['required', 'integer', 'min:1', 'max:30'],
+            'startup_inspection_samples.*.volume_weight' => ['nullable', 'numeric', 'min:0'],
+            'startup_inspection_samples.*.weight_master_box' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

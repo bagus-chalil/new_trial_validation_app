@@ -191,6 +191,7 @@
         margin: 14px 0 6px;
     }
     .sign-grid div {
+        position: relative;
         border: 1px solid #9ca3af;
         border-radius: 4px;
         padding: 6px 8px 26px;
@@ -202,10 +203,42 @@
         text-transform: uppercase;
         color: #374151;
     }
+    /* Optional role caption (e.g. "Operator", "QC IPC") pinned under the signature space —
+       used by forms whose sign-off boxes also name who signs each column (Startup Check's two
+       sign-grids). Left out of every sign-grid that doesn't opt in via a <small class="role">. */
+    .sign-grid .role {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        bottom: 6px;
+        display: block;
+        font-size: 7px;
+        font-weight: 700;
+        color: #6b7280;
+        text-align: center;
+        text-transform: none;
+        border-top: 1px solid #d1d5db;
+        padding-top: 2px;
+    }
 
     .page-break { break-before: page; page-break-before: always; }
     .muted { color: #6b7280; }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* Startup Check's legacy layout puts the checklist table beside the sign-off boxes — photos
+       stay full-width above (not squeezed into this column) so they stay legible. See
+       approval-startup.blade.php. */
+    .startup-layout { display: grid; grid-template-columns: 74% 24%; gap: 10px; align-items: start; }
+    .startup-side { display: flex; flex-direction: column; gap: 8px; }
+    .sign-grid--stack { grid-template-columns: 1fr; gap: 6px; margin: 0; }
+
+    /* Nested sub-table for a checklist row that groups several sub-items (e.g. "Check Detection
+       Machine" bundling 5 individual machine checks) — sits inside a single <td>, no outer border
+       of its own since the parent cell already has one. */
+    .nested-cell { padding: 2px 4px; }
+    .nested-table { width: 100%; border-collapse: collapse; margin: 0; }
+    .nested-table td { border: none; border-bottom: 1px solid #e5e7eb; padding: 2px 4px; font-size: 8.5px; }
+    .nested-table tr:last-child td { border-bottom: none; }
 </style>
 </head>
 <body>

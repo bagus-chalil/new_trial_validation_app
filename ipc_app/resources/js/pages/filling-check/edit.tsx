@@ -78,6 +78,13 @@ interface FillingCheckData {
     user?: { name: string } | null;
 }
 
+interface StartupInspectionSampleInput {
+    sample_no: number;
+    volume_weight: string;
+    weight_master_box: string;
+    [key: string]: FormDataConvertible;
+}
+
 const SAMPLE_COUNT = 10;
 const CONFORM_OPTIONS = ['Conform', 'Not Conform'];
 const errorBorder = 'border-destructive ring-1 ring-destructive';
@@ -93,7 +100,7 @@ function formatDateTime(value: string): string {
 
 function toNumber(value: string | null | undefined): number | null {
     if (value === null || value === undefined || value === '') return null;
-    const parsed = parseFloat(value);
+    const parsed = Number.parseFloat(value);
     return Number.isNaN(parsed) ? null : parsed;
 }
 
@@ -103,12 +110,14 @@ export default function FillingCheckEdit({
     isReadOnly,
     decisions,
     colorPhotoUrl,
+    startupInspectionSamples,
 }: {
-    batch: Batch;
-    fillingCheck: FillingCheckData | null;
-    isReadOnly: boolean;
-    decisions: string[];
-    colorPhotoUrl: string | null;
+    readonly batch: Batch;
+    readonly fillingCheck: FillingCheckData | null;
+    readonly isReadOnly: boolean;
+     readonly decisions: string[];
+    readonly colorPhotoUrl: string | null;
+    readonly startupInspectionSamples: readonly { readonly sample_no: number; readonly volume_weight: string | null; readonly weight_master_box: string | null }[];
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -126,19 +135,61 @@ export default function FillingCheckEdit({
         }));
     };
 
+    const initialStartupSamples = (): StartupInspectionSampleInput[] => {
+        const bySample = new Map(startupInspectionSamples.map((row) => [row.sample_no, row]));
+        return Array.from({ length: 30 }, (_, i) => ({
+            sample_no: i + 1,
+            volume_weight: bySample.get(i + 1)?.volume_weight ?? '',
+            weight_master_box: bySample.get(i + 1)?.weight_master_box ?? '',
+        }));
+    };
+
     const { data, setData, put, transform, processing, errors } = useForm<{
         sample_bulk_odor_status: string;
         sample_leakage_test_status: string;
         remarks: string;
         decision: string;
         samples: FillingCheckSampleInput[];
+        startup_inspection_samples: StartupInspectionSampleInput[];
     }>({
         sample_bulk_odor_status: fillingCheck?.sample_bulk_odor_status ?? '',
         sample_leakage_test_status: fillingCheck?.sample_leakage_test_status ?? '',
         remarks: fillingCheck?.remarks ?? '',
         decision: fillingCheck?.decision ?? '',
         samples: initialSamples(),
+        startup_inspection_samples: initialStartupSamples(),
     });
+
+    const [liveMinVolume, setLiveMinVolume] = useState<string | null>(batch.startup_check?.filling_range_min ?? null);
+    const [liveMaxWeight, setLiveMaxWeight] = useState<string | null>(batch.startup_check?.filling_range_max ?? null);
+
+    // When Volume/Weight or Weight Master Box is dynamically updated, let's recalibrate Min & Max if needed
+    const updateDynamicMinMax = (updatedSamples: StartupInspectionSampleInput[]) => {
+        const validVols = updatedSamples.map(s => toNumber(s.volume_weight)).filter((v): v is number => v !== null);
+        const validWeights = updatedSamples.map(s => toNumber(s.weight_master_box)).filter((v): v is number => v !== null);
+
+        if (validVols.length > 0) {
+            const minVol = Math.min(...validVols).toString();
+            setLiveMinVolume(minVol);
+        } else {
+            setLiveMinVolume(batch.startup_check?.filling_range_min ?? null);
+        }
+
+        if (validWeights.length > 0) {
+            const maxW = Math.max(...validWeights).toString();
+            setLiveMaxWeight(maxW);
+        } else {
+            setLiveMaxWeight(batch.startup_check?.filling_range_max ?? null);
+        }
+    };
+
+    const setStartupSampleField = (sampleNo: number, field: 'volume_weight' | 'weight_master_box', value: string) => {
+        const updated = data.startup_inspection_samples.map((row) =>
+            row.sample_no === sampleNo ? { ...row, [field]: value === '' ? null : value } : row
+        );
+        setData('startup_inspection_samples', updated as unknown as StartupInspectionSampleInput[]);
+        updateDynamicMinMax(updated as unknown as StartupInspectionSampleInput[]);
+    };
 
     const setWeight = (sampleNo: number, value: string) => {
         setData(
@@ -188,6 +239,7 @@ export default function FillingCheckEdit({
         remarks: '',
         decision: '',
         samples: Array.from({ length: SAMPLE_COUNT }, (_, i) => ({ sample_no: i + 1, weight_value: null })),
+        startup_inspection_samples: initialStartupSamples(),
     });
 
     const hasAnyDraftValue = () =>
@@ -258,7 +310,7 @@ export default function FillingCheckEdit({
     // for the live view, and don't wait for a save round-trip — mirror legacy's own live formula.
     const liveAverageWeight = (): string | null => {
         if (density === null || density === 0 || avgBottleWeight === null) return null;
-        const sum = data.samples.reduce((total, row) => total + parseFloat(liveResult(row.weight_value) ?? '0'), 0);
+        const sum = data.samples.reduce((total, row) => total + Number.parseFloat(liveResult(row.weight_value) ?? '0'), 0);
         return (sum / SAMPLE_COUNT).toFixed(2);
     };
 
@@ -294,6 +346,67 @@ export default function FillingCheckEdit({
                             <InfoField label="TH Progress" value={String(fillingCheck?.save_count ?? 0)} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
+
+                        <AccordionCard title="Volume/Weight & Weight Master Box" defaultOpen={true}>
+                            <div className="col-span-full">
+                                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                    {/* Volume / Weight Card */}
+                                    <div className="border border-border bg-background flex flex-col gap-3 rounded-2xl p-4">
+                                        <div className="flex items-center justify-between border-b pb-2">
+                                            <span className="text-[13.5px] font-bold text-foreground">Volume / Weight (30 Sample)</span>
+                                            <span className="text-muted-foreground text-xs font-semibold">Opsional — belum bisa ditimbang</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5">
+                                            {data.startup_inspection_samples.map((row) => (
+                                                <div key={`vol-${row.sample_no}`} className="flex flex-col gap-1">
+                                                    <span className="text-muted-foreground/70 text-center text-[10px] font-semibold">
+                                                        #{row.sample_no}
+                                                    </span>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.0001"
+                                                        className="h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold border-border"
+                                                        value={row.volume_weight ?? ''}
+                                                        onChange={(e) => setStartupSampleField(row.sample_no, 'volume_weight', e.target.value)}
+                                                        disabled={isReadOnly}
+                                                        placeholder="—"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Weight Master Box Card */}
+                                    <div className="border border-border bg-background flex flex-col gap-3 rounded-2xl p-4">
+                                        <div className="flex items-center justify-between border-b pb-2">
+                                            <span className="text-[13.5px] font-bold text-foreground">Weight Master Box (30 Sample)</span>
+                                            <span className="text-muted-foreground text-xs font-semibold">Opsional — belum bisa ditimbang</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5">
+                                            {data.startup_inspection_samples.map((row) => (
+                                                <div key={`wmb-${row.sample_no}`} className="flex flex-col gap-1">
+                                                    <span className="text-muted-foreground/70 text-center text-[10px] font-semibold">
+                                                        #{row.sample_no}
+                                                    </span>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.0001"
+                                                        className="h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold border-border"
+                                                        value={row.weight_master_box ?? ''}
+                                                        onChange={(e) => setStartupSampleField(row.sample_no, 'weight_master_box', e.target.value)}
+                                                        disabled={isReadOnly}
+                                                        placeholder="—"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-muted-foreground mt-3 text-xs">
+                                    Data ini tersimpan ke Start Inspection — bisa dilengkapi dari sini jika belum diisi saat startup. Min Volume dan Max Weight di bawah akan mengadaptasi isi form ini secara interaktif!
+                                </p>
+                            </div>
+                        </AccordionCard>
 
                         <AccordionCard title="Sample Check">
                             <div id="sample_bulk_odor_status" className="flex flex-col gap-2">
@@ -345,11 +458,11 @@ export default function FillingCheckEdit({
                         <AccordionCard title="Parameter Filling">
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Min Volume (dari Startup Check)</Label>
-                                <div className={readOnlyFieldClass}>{batch.startup_check?.filling_range_min ?? '—'}</div>
+                                <div className={readOnlyFieldClass}>{liveMinVolume ?? '—'}</div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Max Weight (dari Startup Check)</Label>
-                                <div className={readOnlyFieldClass}>{batch.startup_check?.filling_range_max ?? '—'}</div>
+                                <div className={readOnlyFieldClass}>{liveMaxWeight ?? '—'}</div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Line Leader (dari Startup Check)</Label>
@@ -370,6 +483,7 @@ export default function FillingCheckEdit({
                                     <img src={colorPhotoUrl} alt="Foto warna" className="border-border h-24 w-24 rounded-xl border object-cover" />
                                 )}
                             </div>
+
                             <div id="decision" className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Decision</Label>
                                 <div className={errorFields.has('decision') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
@@ -463,7 +577,7 @@ export default function FillingCheckEdit({
                                             </div>
                                             <div className="text-muted-foreground mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]">
                                                 {rev.decision && <span>Decision: {rev.decision}</span>}
-                                                {rev.average_weight && <span>Avg Weight: {rev.average_weight}</span>}
+                                                {rev.average_weight != null && <span>Avg Weight: {rev.average_weight}</span>}
                                             </div>
                                             {rev.remarks && <p className="text-muted-foreground mt-1 text-[12px]">Remarks: {rev.remarks}</p>}
                                         </div>
@@ -474,17 +588,28 @@ export default function FillingCheckEdit({
                     </div>
 
                     {!isReadOnly && (
-                        <StickySaveBar label="Simpan & Selesaikan" processing={processing} secondaryLabel="Simpan" onSecondaryClick={saveDraft} />
+                        <StickySaveBar
+                                label="Selesaikan"
+                                secondaryLabel="Simpan Progress"
+                                onSecondaryClick={saveDraft}
+                            processing={processing}
+                            note={hasAnyDraftValue() ? 'Ada perubahan belum disimpan' : 'Semua perubahan tersimpan'}
+                        />
                     )}
                 </form>
             </TwoPane>
 
-            <CameraCaptureDialog open={cameraOpen} onOpenChange={setCameraOpen} onCapture={uploadColorPhoto} title="Ambil Foto Warna" />
+            <CameraCaptureDialog
+                open={cameraOpen}
+                onOpenChange={setCameraOpen}
+                onCapture={uploadColorPhoto}
+                title="Ambil Foto Warna"
+            />
         </IpcShell>
     );
 }
 
-function InfoField({ label, value, full }: { label: string; value: string; full?: boolean }) {
+function InfoField({ label, value, full }: { readonly label: string; readonly value: string; readonly full?: boolean }) {
     return (
         <div className={full ? 'col-span-2 md:col-span-4' : undefined}>
             <p className="text-muted-foreground/70 text-[10.5px] font-semibold tracking-wide uppercase">{label}</p>

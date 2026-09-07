@@ -25,7 +25,7 @@ trait BuildsIpcReportPayloads
      * here (not imported) since this report spans all four check controllers.
      */
     private const PHOTOS_BY_STAGE = [
-        'startup' => ['im_number', 'color', 'temperature_setting'],
+        'startup' => ['im_number', 'color', 'temperature_setting', 'coding'],
         'filling' => ['color'],
         'packing' => ['palletisasi', 'color', 'primary_coding_batch_exp', 'tersier_coding_batch', 'secondary_coding_batch_exp'],
         'finished' => ['wi_number', 'exp_date', 'color'],

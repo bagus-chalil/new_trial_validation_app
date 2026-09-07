@@ -33,6 +33,7 @@ interface StartupCheckData {
 const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
     { key: 'im_number', label: 'IM Number' },
     { key: 'color', label: 'Color' },
+    { key: 'coding', label: 'Coding (Primer, Sekunder, Tersier)' },
     { key: 'temperature_setting', label: 'Temperature Setting', multi: true },
 ];
 
@@ -119,7 +120,8 @@ export default function StartupCheckEdit({
 
     // Only the two fields SaveStartupCheckRequest actually requires — used to decide whether
     // this card can safely default to collapsed without hiding an unfilled required field.
-    const parameterFillingComplete = Boolean(data.average_of_empty_bottle_weight?.toString().trim()) && Boolean(data.validation_report_status?.trim());
+    const parameterFillingComplete =
+        Boolean(data.average_of_empty_bottle_weight?.toString().trim()) && Boolean(data.validation_report_status?.trim());
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -187,7 +189,10 @@ export default function StartupCheckEdit({
                             }`}
                         >
                             <span className="flex items-center gap-2.5">
-                                <ClipboardList className={startupInspectionComplete ? 'size-[18px] text-green-700' : 'text-primary size-[18px]'} strokeWidth={2.2} />
+                                <ClipboardList
+                                    className={startupInspectionComplete ? 'size-[18px] text-green-700' : 'text-primary size-[18px]'}
+                                    strokeWidth={2.2}
+                                />
                                 <span className="text-[14.5px] font-bold">Start Inspection</span>
                             </span>
                             {startupInspectionComplete ? (
@@ -236,11 +241,7 @@ export default function StartupCheckEdit({
                             );
                         })}
 
-                        <AccordionCard
-                            title="Parameter Filling"
-                            complete={parameterFillingComplete}
-                            defaultOpen={!parameterFillingComplete}
-                        >
+                        <AccordionCard title="Parameter Filling" complete={parameterFillingComplete} defaultOpen={!parameterFillingComplete}>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="filling_range_min" className="text-muted-foreground text-xs font-semibold">
                                     Filling Range Min
@@ -369,7 +370,7 @@ export default function StartupCheckEdit({
                                 </div>
                                 <InputError message={errors.validation_report_status} />
                             </div>
-                            <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                 {PHOTO_FIELDS.map(({ key, label, multi }) => {
                                     const raw = photoUrls[key];
                                     const multiPhotos = multi ? (Array.isArray(raw) ? (raw as { id: number; url: string }[]) : []) : null;
@@ -387,39 +388,37 @@ export default function StartupCheckEdit({
                                                 <Camera className="size-4" strokeWidth={2.2} />
                                                 {multi ? 'Tambah Foto' : singleUrl ? 'Ganti Foto' : 'Ambil Foto'}
                                             </button>
-                                            {multi ? (
-                                                multiPhotos!.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {multiPhotos!.map((p) => (
-                                                            <div key={p.id} className="relative">
-                                                                <img
-                                                                    src={p.url}
-                                                                    alt={`Foto ${label}`}
-                                                                    className="border-border h-24 w-24 rounded-xl border object-cover"
-                                                                />
-                                                                {!isReadOnly && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => deletePhoto(p.id)}
-                                                                        className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow"
-                                                                        title="Hapus foto"
-                                                                    >
-                                                                        <Trash2 className="size-3" strokeWidth={2.5} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )
-                                            ) : (
-                                                singleUrl && (
-                                                    <img
-                                                        src={singleUrl}
-                                                        alt={`Foto ${label}`}
-                                                        className="border-border h-24 w-24 rounded-xl border object-cover"
-                                                    />
-                                                )
-                                            )}
+                                            {multi
+                                                ? multiPhotos!.length > 0 && (
+                                                      <div className="flex flex-wrap gap-2">
+                                                          {multiPhotos!.map((p) => (
+                                                              <div key={p.id} className="relative">
+                                                                  <img
+                                                                      src={p.url}
+                                                                      alt={`Foto ${label}`}
+                                                                      className="border-border h-24 w-24 rounded-xl border object-cover"
+                                                                  />
+                                                                  {!isReadOnly && (
+                                                                      <button
+                                                                          type="button"
+                                                                          onClick={() => deletePhoto(p.id)}
+                                                                          className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow"
+                                                                          title="Hapus foto"
+                                                                      >
+                                                                          <Trash2 className="size-3" strokeWidth={2.5} />
+                                                                      </button>
+                                                                  )}
+                                                              </div>
+                                                          ))}
+                                                      </div>
+                                                  )
+                                                : singleUrl && (
+                                                      <img
+                                                          src={singleUrl}
+                                                          alt={`Foto ${label}`}
+                                                          className="border-border h-24 w-24 rounded-xl border object-cover"
+                                                      />
+                                                  )}
                                         </div>
                                     );
                                 })}

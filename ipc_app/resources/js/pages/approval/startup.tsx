@@ -110,6 +110,7 @@ export default function ApprovalStartup({
                         photos={[
                             { key: 'im_number', label: 'IM Number', url: photoUrls.startup?.im_number ?? null },
                             { key: 'color', label: 'Color', url: photoUrls.startup?.color ?? null },
+                            { key: 'coding', label: 'Coding (Primer, Sekunder, Tersier)', url: photoUrls.startup?.coding ?? null },
                             { key: 'temperature_setting', label: 'Temperature Setting', url: photoUrls.startup?.temperature_setting ?? null },
                         ]}
                     />

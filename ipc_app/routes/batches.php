@@ -23,6 +23,7 @@ Route::middleware(['auth'])->group(function () {
         ->whereIn('field', StartupCheckController::PHOTO_FIELDS)
         ->name('startup-check.photo');
     Route::delete('batches/{batch}/startup-check/photo/{attachment}', [StartupCheckController::class, 'deletePhoto'])
+        ->whereNumber('attachment')
         ->name('startup-check.photo.delete');
 
     Route::get('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'edit'])->name('startup-inspection.edit');

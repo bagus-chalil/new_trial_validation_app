@@ -3,156 +3,246 @@
 @section('content')
     <div class="section-title">Start Up Inspection Form</div>
 
-    <div class="attachment-grid">
-        @foreach ([['im_number', 'IM Number'], ['color', 'Color']] as [$field, $label])
-            <figure class="attachment-tile">
-                @if ($photoUrls['startup'][$field] ?? null)
-                    <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
-                @else
-                    <div class="placeholder">Belum ada foto</div>
-                @endif
-                <figcaption><strong>{{ $label }}</strong></figcaption>
-            </figure>
-        @endforeach
-        {{-- temperature_setting: multi-photo, render one tile per photo --}}
-        @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
-        @if (count($tempPhotos) === 0)
-            <figure class="attachment-tile">
-                <div class="placeholder">Belum ada foto</div>
-                <figcaption><strong>Temperature Setting</strong></figcaption>
-            </figure>
-        @else
-            @foreach ($tempPhotos as $i => $tempUrl)
+    <p style="margin: 0 0 8px; font-size: 9.5px;">
+        <strong>Date:</strong> {{ optional($startupCheck?->completed_at ?? $startupCheck?->created_at)->translatedFormat('d/m/Y') ?? '—' }}
+    </p>
+
+    @if ($startupCheck)
+        {{-- Photos stay full-width (not squeezed into a narrow side column) so they're actually
+             legible — temperature_setting alone can carry several photos, and a cramped 34%-wide
+             column shrinks every tile too small to read on a real inspection form. --}}
+        <div class="attachment-grid">
+            @foreach ([['im_number', 'IM Number'], ['color', 'Color'], ['coding', 'Coding (Primer, Sekunder, Tersier)']] as [$field, $label])
                 <figure class="attachment-tile">
-                    @if ($tempUrl)
-                        <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
+                    @if ($photoUrls['startup'][$field] ?? null)
+                        <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
                     @else
                         <div class="placeholder">Belum ada foto</div>
                     @endif
-                    <figcaption><strong>Temperature Setting {{ count($tempPhotos) > 1 ? ($i + 1) : '' }}</strong></figcaption>
+                    <figcaption><strong>{{ $label }}</strong></figcaption>
                 </figure>
             @endforeach
-        @endif
-    </div>
-
-    @if ($startupCheck)
-        <table>
-            <thead>
-                <tr><th style="width: 4%;">No</th><th>Parameter Pemeriksaan</th><th style="width: 22%;">Hasil</th></tr>
-            </thead>
-            <tbody>
-                @php $no = 1; @endphp
-                @foreach ($startupChecklistGroups as $group)
-                    @foreach ($group['fields'] as $field => $label)
-                        <tr>
-                            <td class="center">{{ $no++ }}</td>
-                            <td>{{ $label }}</td>
-                            <td>@include('pdf._status-pill', ['value' => $startupCheck[$field] ?? null])</td>
-                        </tr>
-                    @endforeach
+            {{-- temperature_setting: multi-photo, render one tile per photo --}}
+            @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
+            @if (count($tempPhotos) === 0)
+                <figure class="attachment-tile">
+                    <div class="placeholder">Belum ada foto</div>
+                    <figcaption><strong>Temperature Setting</strong></figcaption>
+                </figure>
+            @else
+                @foreach ($tempPhotos as $i => $tempUrl)
+                    <figure class="attachment-tile">
+                        @if ($tempUrl)
+                            <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
+                        @else
+                            <div class="placeholder">Belum ada foto</div>
+                        @endif
+                        <figcaption><strong>Temperature Setting {{ count($tempPhotos) > 1 ? ($i + 1) : '' }}</strong></figcaption>
+                    </figure>
                 @endforeach
-                <tr>
-                    <td class="center">{{ $no++ }}</td>
-                    <td>Validation Report (NPD Product)</td>
-                    <td>@include('pdf._status-pill', ['value' => $startupCheck->validation_report_status ?? null])</td>
-                </tr>
-                <tr>
-                    <td class="center">{{ $no++ }}</td>
-                    <td>Identity Board Line</td>
-                    <td>@include('pdf._status-pill', ['value' => $startupCheck->identity_line_board_status ?? null])</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="two-col">
-            <table>
-                <tbody>
-                    <tr><td><strong>Filling Range Min</strong></td><td>{{ $startupCheck->filling_range_min ?? '—' }}</td></tr>
-                    <tr><td><strong>Filling Range Max</strong></td><td>{{ $startupCheck->filling_range_max ?? '—' }}</td></tr>
-                    <tr><td><strong>Density</strong></td><td>{{ $startupCheck->density ?? '—' }}</td></tr>
-                    <tr><td><strong>Avg. Empty Bottle Weight</strong></td><td>{{ $startupCheck->average_of_empty_bottle_weight ?? '—' }}</td></tr>
-                </tbody>
-            </table>
-            <table>
-                <tbody>
-                    <tr><td><strong>Heating</strong></td><td>{{ $startupCheck->heating ?? '—' }}</td></tr>
-                    <tr><td><strong>Line Leader</strong></td><td>{{ $startupCheck->line_leader_name ?? '—' }}</td></tr>
-                    <tr><td><strong>Operator</strong></td><td>{{ $startupCheck->operator_name ?? '—' }}</td></tr>
-                    <tr><td><strong>Prepared By</strong></td><td>{{ $startupCheck->user->name ?? '—' }}</td></tr>
-                </tbody>
-            </table>
+            @endif
         </div>
 
-        <table>
-            <tbody>
-                <tr><td style="width: 12%;"><strong>Remarks</strong></td><td>{{ $startupCheck->remarks ?? '—' }}</td></tr>
-            </tbody>
-        </table>
+        {{-- The checklist table still sits beside the sign-off boxes (matching legacy's row 7-9
+             arrangement), just without the photos crammed into that same narrow column. --}}
+        <div class="startup-layout">
+            <div class="startup-main">
+                <table>
+                    <thead>
+                        <tr><th style="width: 5%;">No</th><th>Parameter Pemeriksaan</th><th style="width: 24%;">Hasil</th></tr>
+                    </thead>
+                    <tbody>
+                        @php $no = 1; @endphp
+                        @foreach ($startupChecklistGroups as $group)
+                            @php
+                                $machineFields = collect($group['fields'])->filter(fn ($label, $field) => str_starts_with($field, 'machine_'));
+                                $otherFields = collect($group['fields'])->reject(fn ($label, $field) => str_starts_with($field, 'machine_'));
+                            @endphp
+                            @foreach ($otherFields as $field => $label)
+                                <tr>
+                                    <td class="center">{{ $no++ }}</td>
+                                    <td>{{ $label }}</td>
+                                    <td>@include('pdf._status-pill', ['value' => $startupCheck[$field] ?? null])</td>
+                                </tr>
+                            @endforeach
+                            {{-- Legacy nests all 5 machine checks under one "Check detection machine" row
+                                 as a sub-table, rather than 5 flat top-level rows. --}}
+                            @if ($machineFields->count() > 0)
+                                <tr>
+                                    <td class="center">{{ $no++ }}</td>
+                                    <td>Check Detection Machine</td>
+                                    <td class="nested-cell">
+                                        <table class="nested-table">
+                                            <tbody>
+                                                @foreach ($machineFields as $field => $label)
+                                                    <tr>
+                                                        <td>{{ str_replace('Machine ', '', $label) }}</td>
+                                                        <td>@include('pdf._status-pill', ['value' => $startupCheck[$field] ?? null])</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            @endif
+                        @endforeach
+                        <tr>
+                            <td class="center">{{ $no++ }}</td>
+                            <td>Validation Report (NPD Product)</td>
+                            <td>@include('pdf._status-pill', ['value' => $startupCheck->validation_report_status ?? null])</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-        <div class="sign-grid">
-            <div><span>Prepared By</span></div>
-            <div><span>Review By</span></div>
-            <div><span>Verification By</span></div>
+                <div class="two-col">
+                    <table>
+                        <tbody>
+                            <tr><td><strong>Filling Range Min</strong></td><td>{{ $startupCheck->filling_range_min ?? '—' }}</td></tr>
+                            <tr><td><strong>Filling Range Max</strong></td><td>{{ $startupCheck->filling_range_max ?? '—' }}</td></tr>
+                            <tr><td><strong>Density</strong></td><td>{{ $startupCheck->density ?? '—' }}</td></tr>
+                            <tr><td><strong>Avg. Empty Bottle Weight</strong></td><td>{{ $startupCheck->average_of_empty_bottle_weight ?? '—' }}</td></tr>
+                        </tbody>
+                    </table>
+                    <table>
+                        <tbody>
+                            <tr><td><strong>Heating</strong></td><td>{{ $startupCheck->heating ?? '—' }}</td></tr>
+                            <tr><td><strong>Line Leader</strong></td><td>{{ $startupCheck->line_leader_name ?? '—' }}</td></tr>
+                            <tr><td><strong>Operator</strong></td><td>{{ $startupCheck->operator_name ?? '—' }}</td></tr>
+                            <tr><td><strong>Prepared By</strong></td><td>{{ $startupCheck->user->name ?? '—' }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <table>
+                    <tbody>
+                        <tr><td style="width: 12%;"><strong>Remarks</strong></td><td>{{ $startupCheck->remarks ?? '—' }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="startup-side">
+                <div class="sign-grid sign-grid--stack">
+                    <div><span>Prepared By</span><small class="role">Operator</small></div>
+                    <div><span>Review By</span><small class="role">LL Produksi</small></div>
+                    <div><span>Verification By</span><small class="role">IPC</small></div>
+                </div>
+            </div>
         </div>
     @else
         <p class="muted">Startup Check belum diisi.</p>
     @endif
 
-    @if ($startupInspection && ($startupInspection->items->count() > 0 || $startupInspection->samples->count() > 0))
-        <div class="page-break"></div>
-        <div class="section-title">Verifikasi Sebelum Produksi</div>
+    <div class="page-break"></div>
+    <div class="section-title">Verifikasi Sebelum Produksi</div>
 
+    @if ($startupInspection && ($startupInspection->items->count() > 0 || $startupInspection->samples->count() > 0))
         @php
             $itemsByKey = $startupInspection->items->keyBy('parameter_key');
             $samplesByNo = $startupInspection->samples->keyBy('sample_no');
+            $inspectionTime = optional($startupInspection->completed_at ?? $startupInspection->created_at)->translatedFormat('d/m/Y H:i') ?? '—';
+            $statusOf = fn (string $key) => $itemsByKey[$key]->status ?? null;
         @endphp
 
-        <table>
+        <table class="record-table">
+            <colgroup>
+                <col style="width: 4%;">
+                <col style="width: 7%;">
+                <col style="width: 8%;"><col style="width: 8%;"><col style="width: 9%;"><col style="width: 7%;"><col style="width: 8%;"><col style="width: 8%;">
+                <col style="width: 6%;"><col style="width: 6%;"><col style="width: 6%;"><col style="width: 7%;"><col style="width: 7%;"><col style="width: 8%;">
+            </colgroup>
             <thead>
-                <tr><th>Parameter</th><th style="width: 18%;">Status</th><th>Remark</th></tr>
+                <tr>
+                    <th rowspan="2">Sample</th>
+                    <th rowspan="2">Time</th>
+                    <th colspan="6">Filling</th>
+                    <th colspan="6">Packing</th>
+                </tr>
+                <tr>
+                    <th>Warna Bulk / Tekstur</th>
+                    <th>Aroma Bulk</th>
+                    <th>Tampilan Setelah Filling</th>
+                    <th>Volume / Berat</th>
+                    <th>Uji Kebocoran</th>
+                    <th>Uji Kegunaan</th>
+                    <th>Primer</th>
+                    <th>Sekunder</th>
+                    <th>Tersier</th>
+                    <th>Attribute</th>
+                    <th>Tampilan</th>
+                    <th>Berat M.Box</th>
+                </tr>
             </thead>
             <tbody>
-                @foreach ($startupInspectionParameterKeys as $key)
-                    <tr>
-                        <td style="text-transform: capitalize;">{{ str_replace('_', ' ', $key) }}</td>
-                        <td>@include('pdf._status-pill', ['value' => $itemsByKey[$key]->status ?? null])</td>
-                        <td>{{ $itemsByKey[$key]->remark ?? '—' }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-
-        <table>
-            <thead>
-                <tr><th style="width: 8%;">Sample</th><th>Volume / Weight</th><th>Weight M.Box</th></tr>
-            </thead>
-            <tbody>
-                @forelse (range(1, 30) as $no)
-                    @continue(! $samplesByNo->has($no))
+                @for ($no = 1; $no <= 30; $no++)
                     <tr>
                         <td class="center">{{ $no }}</td>
-                        <td>{{ $samplesByNo[$no]->volume_weight ?? '—' }}</td>
-                        <td>{{ $samplesByNo[$no]->weight_master_box ?? '—' }}</td>
+                        @if ($no === 1)
+                            <td class="center" rowspan="30">{{ $inspectionTime }}</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('bulk_color_texture')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('bulk_odor')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('appearance_after_filling')])</td>
+                        @endif
+                        <td class="center">{{ $samplesByNo[$no]->volume_weight ?? '—' }}</td>
+                        @if ($no === 1)
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('leakage_test')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('functional_test')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('primer')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('sekunder')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('tersier')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('attribute')])</td>
+                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('appearance')])</td>
+                        @endif
+                        <td class="center">{{ $samplesByNo[$no]->weight_master_box ?? '—' }}</td>
                     </tr>
-                @empty
-                    <tr><td colspan="3" class="muted">Belum ada sample diisi.</td></tr>
-                @endforelse
+                @endfor
             </tbody>
         </table>
 
+        @php $itemRemarks = $startupInspection->items->filter(fn ($i) => filled($i->remark)); @endphp
+        @if ($itemRemarks->count() > 0)
+            <table>
+                <thead>
+                    <tr><th style="width: 22%;">Parameter</th><th>Remark</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($itemRemarks as $item)
+                        <tr>
+                            <td style="text-transform: capitalize;">{{ str_replace('_', ' ', $item->parameter_key) }}</td>
+                            <td>{{ $item->remark }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
         <div class="section-title" style="margin-top: 4px;">Test Type</div>
-        @foreach ($testTypesByCategory as $category => $types)
-            <p><strong>{{ $category }}:</strong>
-                @foreach ($types as $t)
-                    <span class="status-pill {{ $t['is_performed'] ? 'ok' : 'muted' }}">{{ $t['name'] }}</span>
+        <table>
+            <tbody>
+                @foreach ($testTypesByCategory as $category => $types)
+                    <tr>
+                        <td style="width: 16%;"><strong>{{ $category }}</strong></td>
+                        <td>
+                            @foreach ($types as $t)
+                                <span class="status-pill {{ $t['is_performed'] ? 'ok' : 'muted' }}">{{ $t['name'] }}</span>
+                            @endforeach
+                        </td>
+                    </tr>
                 @endforeach
-            </p>
-        @endforeach
+            </tbody>
+        </table>
+        <p class="muted" style="font-size: 8px;">
+            <strong>NOTE:</strong>
+            @foreach ($testTypesByCategory as $category => $types)
+                {{ strtoupper($category) }} = {{ collect($types)->pluck('name')->implode(', ') }}{{ ! $loop->last ? ' | ' : '' }}
+            @endforeach
+        </p>
 
         <div class="sign-grid">
-            <div><span>Line Leader Production</span></div>
-            <div><span>QC IPC</span></div>
-            <div><span>QC Coordinator</span></div>
+            <div><span>Prepared By</span><small class="role">Line Leader Production</small></div>
+            <div><span>Review By</span><small class="role">QC IPC</small></div>
+            <div><span>Verification By</span><small class="role">QC Coordinator</small></div>
         </div>
+    @else
+        <p class="muted">Start Inspection belum diisi (opsional).</p>
     @endif
 @endsection
