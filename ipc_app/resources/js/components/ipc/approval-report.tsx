@@ -188,9 +188,7 @@ export function PrintActionCard({ batchId, info }: { batchId: number; info: Prin
             <div className="flex items-center justify-between gap-3">
                 <p className="text-[14.5px] font-bold">Cetak — {info.label}</p>
                 {info.printCount > 0 && (
-                    <span className="rounded-full bg-green-100 px-3 py-1 text-[12px] font-bold text-green-800">
-                        Sudah dicetak {info.printCount}x
-                    </span>
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-[12px] font-bold text-green-800">Sudah dicetak {info.printCount}x</span>
                 )}
             </div>
             {info.lastPrintedAt && (
