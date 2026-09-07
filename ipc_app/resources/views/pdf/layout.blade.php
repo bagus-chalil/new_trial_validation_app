@@ -183,6 +183,24 @@
         color: #9ca3af;
         font-style: italic;
     }
+    .attachment-grid--cols-1 { grid-template-columns: 1fr; }
+    .attachment-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+    /* Labeled photo groups (e.g. "IM Number" vs. "Attach Label and Color check actual in this
+       area" vs. "Temperature Setting") — legacy keeps these visually separate rather than one
+       flat tile grid, so each group gets its own heading and its own attachment-grid. */
+    .photo-groups { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin: 4px 0 10px; }
+    .photo-group { margin: 0 0 10px; }
+    .photo-group-title {
+        font-size: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #374151;
+        margin-bottom: 4px;
+        padding-bottom: 2px;
+        border-bottom: 1px solid #d1d5db;
+    }
+    .photo-group .attachment-grid { margin: 0; }
 
     .sign-grid {
         display: grid;

@@ -8,39 +8,66 @@
     </p>
 
     @if ($startupCheck)
-        {{-- Photos stay full-width (not squeezed into a narrow side column) so they're actually
-             legible — temperature_setting alone can carry several photos, and a cramped 34%-wide
-             column shrinks every tile too small to read on a real inspection form. --}}
-        <div class="attachment-grid">
-            @foreach ([['im_number', 'IM Number'], ['color', 'Color'], ['coding', 'Coding (Primer, Sekunder, Tersier)']] as [$field, $label])
-                <figure class="attachment-tile">
-                    @if ($photoUrls['startup'][$field] ?? null)
-                        <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
-                    @else
-                        <div class="placeholder">Belum ada foto</div>
-                    @endif
-                    <figcaption><strong>{{ $label }}</strong></figcaption>
-                </figure>
-            @endforeach
-            {{-- temperature_setting: multi-photo, render one tile per photo --}}
-            @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
-            @if (count($tempPhotos) === 0)
-                <figure class="attachment-tile">
-                    <div class="placeholder">Belum ada foto</div>
-                    <figcaption><strong>Temperature Setting</strong></figcaption>
-                </figure>
-            @else
-                @foreach ($tempPhotos as $i => $tempUrl)
+        {{-- Legacy groups its photos into 3 distinct labeled areas rather than one flat grid:
+             IM Number sits alone near the header text, Color + Coding sit together under an
+             "Attach Label and Color check actual in this area" heading, and Temperature Setting
+             is its own separate section — mirrored here as 3 headed groups (still full-width, not
+             squeezed into a narrow column, so every tile stays legible per the prior feedback). --}}
+        <div class="photo-groups">
+            <div class="photo-group">
+                <div class="photo-group-title">IM Number</div>
+                <div class="attachment-grid attachment-grid--cols-1">
                     <figure class="attachment-tile">
-                        @if ($tempUrl)
-                            <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
+                        @if ($photoUrls['startup']['im_number'] ?? null)
+                            <img src="{{ $photoUrls['startup']['im_number'] }}" alt="IM Number">
                         @else
                             <div class="placeholder">Belum ada foto</div>
                         @endif
-                        <figcaption><strong>Temperature Setting {{ count($tempPhotos) > 1 ? ($i + 1) : '' }}</strong></figcaption>
                     </figure>
-                @endforeach
-            @endif
+                </div>
+            </div>
+
+            <div class="photo-group">
+                <div class="photo-group-title">Attach Label and Color Check Actual in This Area</div>
+                <div class="attachment-grid attachment-grid--cols-2">
+                    @foreach ([['color', 'Color'], ['coding', 'Coding Actual (Primer, Sekunder, Tersier)']] as [$field, $label])
+                        <figure class="attachment-tile">
+                            @if ($photoUrls['startup'][$field] ?? null)
+                                <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
+                            @else
+                                <div class="placeholder">Belum ada foto</div>
+                            @endif
+                            <figcaption><strong>{{ $label }}</strong></figcaption>
+                        </figure>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        <div class="photo-group">
+            <div class="photo-group-title">Temperature Setting</div>
+            {{-- temperature_setting: multi-photo, render one tile per photo --}}
+            @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
+            <div class="attachment-grid">
+                @if (count($tempPhotos) === 0)
+                    <figure class="attachment-tile">
+                        <div class="placeholder">Belum ada foto</div>
+                    </figure>
+                @else
+                    @foreach ($tempPhotos as $i => $tempUrl)
+                        <figure class="attachment-tile">
+                            @if ($tempUrl)
+                                <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
+                            @else
+                                <div class="placeholder">Belum ada foto</div>
+                            @endif
+                            @if (count($tempPhotos) > 1)
+                                <figcaption><strong>Foto {{ $i + 1 }}</strong></figcaption>
+                            @endif
+                        </figure>
+                    @endforeach
+                @endif
+            </div>
         </div>
 
         {{-- The checklist table still sits beside the sign-off boxes (matching legacy's row 7-9
