@@ -41,6 +41,7 @@ type TrialData = {
     progress_status: string;
     final_decision: string | null;
     current_step: string | null;
+    estimate_qty: string | null;
     batch_number: string | null;
     bulk_code: string | null;
     support_team: string | null;
@@ -292,6 +293,7 @@ export default function TrialReport({
                                     (trial.machine_used ?? []).join(', '),
                                 ],
                                 ['Created By', trial.created_by ?? '-'],
+                                ['Estimate Qty', trial.estimate_qty ?? '-'],
                                 ['Approval Status', displayDecision],
                                 ['Approval Authority', approvalAuthority],
                             ].map(([label, value]) => (
@@ -327,6 +329,14 @@ export default function TrialReport({
                                         </TableCell>
                                         <TableCell>
                                             {trial.bulk_code ?? '-'}
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell className="font-medium">
+                                            Estimate Qty
+                                        </TableCell>
+                                        <TableCell colSpan={3}>
+                                            {trial.estimate_qty ?? '-'}
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>

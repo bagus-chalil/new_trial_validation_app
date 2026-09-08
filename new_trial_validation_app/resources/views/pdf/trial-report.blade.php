@@ -27,6 +27,7 @@
         'Risk Level' => $trial->risk_level,
         'Machine Used' => implode(', ', $trial->machine_used ?? []),
         'Created By' => $trial->created_by ?? '-',
+        'Estimate Qty' => $trial->estimate_qty ?? '-',
         'Approval Status' => $displayDecision,
         'Approval Authority' => $approvalAuthority,
     ];
@@ -50,6 +51,10 @@
                 <td>{{ $trial->batch_number ?? '-' }}</td>
                 <td><strong>Bulk Code</strong></td>
                 <td>{{ $trial->bulk_code ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td><strong>Estimate Qty</strong></td>
+                <td colspan="3">{{ $trial->estimate_qty ?? '-' }}</td>
             </tr>
             <tr>
                 <td><strong>Support Team</strong></td>
