@@ -3,7 +3,7 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronRight, ClipboardList } from 'lucide-react';
+import { ChevronRight, ClipboardList, Trash2 } from 'lucide-react';
 
 function greeting(): string {
     const hour = new Date().getHours();
@@ -48,6 +48,17 @@ export default function Dashboard() {
                         <span className="text-muted-foreground text-[12.5px] font-medium">Perlu tindakan Anda</span>
                     </div>
                 </div>
+
+                <Link
+                    href="/masters/recycle-bin"
+                    className="border-border-soft bg-card flex items-center gap-3 rounded-[18px] border px-4 py-3"
+                >
+                    <div className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500">
+                        <Trash2 className="size-[18px]" strokeWidth={2} />
+                    </div>
+                    <span className="flex-1 text-[14px] font-semibold">Tempat Sampah</span>
+                    <ChevronRight className="text-muted-foreground/60 size-[18px] shrink-0" strokeWidth={2} />
+                </Link>
 
                 <div className="flex flex-col gap-2.5">
                     <div className="flex items-center justify-between">

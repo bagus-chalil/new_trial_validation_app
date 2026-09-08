@@ -1,30 +1,20 @@
-import { Head } from '@inertiajs/react';
-
 import AppearanceTabs from '@/components/appearance-tabs';
-import HeadingSmall from '@/components/heading-small';
-import { type BreadcrumbItem } from '@/types';
-
-import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Appearance settings',
-        href: '/settings/appearance',
-    },
-];
+import { IpcShell } from '@/layouts/ipc-shell';
+import { SettingsTabNav } from '@/layouts/settings/tab-nav';
+import { Head } from '@inertiajs/react';
 
 export default function Appearance() {
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <IpcShell title="Settings">
             <Head title="Appearance settings" />
+            <SettingsTabNav active="appearance" />
 
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall title="Appearance settings" description="Update your account's appearance settings" />
+            <div className="flex-1 overflow-y-auto px-5 pb-8 pt-2 md:px-6">
+                <div className="mx-auto max-w-lg space-y-8">
+                    <p className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">Tampilan</p>
                     <AppearanceTabs />
                 </div>
-            </SettingsLayout>
-        </AppLayout>
+            </div>
+        </IpcShell>
     );
 }
