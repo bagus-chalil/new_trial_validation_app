@@ -30,7 +30,8 @@ class SaveFinishedCheck
                 'quantity_special_inspection_cd' => $data['quantity_special_inspection_cd'] ?? null,
                 'quantity_special_inspection_md' => $data['quantity_special_inspection_md'] ?? null,
                 'quantity_special_inspection_mnd' => $data['quantity_special_inspection_mnd'] ?? null,
-                'line_leader_name' => $data['line_leader_name'] ?? null,
+                // Pulled from the parent Packing Check — not re-entered by the user here.
+                'line_leader_name' => $batch->packingCheck?->line_leader_name,
                 'disposition' => $data['disposition'] ?? null,
                 'remarks' => $data['remarks'] ?? null,
             ];

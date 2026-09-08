@@ -30,6 +30,7 @@ class FinishedCheckController extends Controller
         $batch->load([
             'masterProduct',
             'masterLine',
+            'packingCheck',
             'finishedCheck.user',
             'finishedCheck.samples',
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
@@ -60,6 +61,7 @@ class FinishedCheckController extends Controller
             'sampleGroups' => FinishedCheckSample::sampleGroups(),
             'dispositions' => FinishedCheck::DISPOSITIONS,
             'photoUrls' => $photoUrls,
+            'lineleaderName' => $batch->packingCheck?->line_leader_name,
         ]);
     }
 

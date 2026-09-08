@@ -57,7 +57,6 @@ class SaveFinishedCheckRequest extends FormRequest
             'quantity_special_inspection_cd' => [$required, 'integer', 'min:0'],
             'quantity_special_inspection_md' => [$required, 'integer', 'min:0'],
             'quantity_special_inspection_mnd' => [$required, 'integer', 'min:0'],
-            'line_leader_name' => [$required, 'string', 'max:255'],
             'disposition' => [$required, 'in:'.implode(',', FinishedCheck::DISPOSITIONS)],
             'remarks' => [$required, 'string'],
             'samples' => ['nullable', 'array'],
@@ -99,7 +98,7 @@ class SaveFinishedCheckRequest extends FormRequest
             'quantity_wi', 'masterbox', 'no_pallet_qty',
             'quantity_sampling_aql', 'quantity_sample_aql_cd', 'quantity_sample_aql_md', 'quantity_sample_aql_mnd',
             'quantity_special_inspection', 'quantity_special_inspection_cd', 'quantity_special_inspection_md', 'quantity_special_inspection_mnd',
-            'line_leader_name', 'disposition', 'remarks',
+            'disposition', 'remarks',
         ];
 
         $hasHeaderValue = collect($headerFields)->contains(fn ($field) => filled($this->input($field)));

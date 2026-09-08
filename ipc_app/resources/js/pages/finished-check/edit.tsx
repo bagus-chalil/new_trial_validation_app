@@ -97,7 +97,6 @@ const REQUIRED_FIELDS = [
     'quantity_special_inspection_cd',
     'quantity_special_inspection_md',
     'quantity_special_inspection_mnd',
-    'line_leader_name',
     'disposition',
     'remarks',
 ];
@@ -110,6 +109,7 @@ export default function FinishedCheckEdit({
     sampleGroups,
     dispositions,
     photoUrls,
+    lineleaderName,
 }: {
     batch: Batch;
     finishedCheck: FinishedCheckData | null;
@@ -118,6 +118,7 @@ export default function FinishedCheckEdit({
     sampleGroups: SampleGroup[];
     dispositions: string[];
     photoUrls: Record<string, string | null>;
+    lineleaderName: string | null;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -156,7 +157,6 @@ export default function FinishedCheckEdit({
         quantity_special_inspection_cd: (finishedCheck?.quantity_special_inspection_cd as string) ?? '',
         quantity_special_inspection_md: (finishedCheck?.quantity_special_inspection_md as string) ?? '',
         quantity_special_inspection_mnd: (finishedCheck?.quantity_special_inspection_mnd as string) ?? '',
-        line_leader_name: (finishedCheck?.line_leader_name as string) ?? '',
         remarks: (finishedCheck?.remarks as string) ?? '',
         disposition: (finishedCheck?.disposition as string) ?? '',
         samples: initialSamples,
@@ -524,17 +524,10 @@ export default function FinishedCheckEdit({
 
                         <AccordionCard title="Keputusan">
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
-                                    Line Leader
+                                <Label className="text-muted-foreground text-xs font-semibold">
+                                    Line Leader (dari Packing Check)
                                 </Label>
-                                <Input
-                                    id="line_leader_name"
-                                    className={`${inputClass} ${errorFields.has('line_leader_name') ? errorBorder : ''}`}
-                                    value={(data.line_leader_name as string) ?? ''}
-                                    onChange={(e) => setField('line_leader_name', e.target.value)}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError message={errors.line_leader_name} />
+                                <div className={`${inputClass} flex items-center bg-muted/40`}>{lineleaderName ?? '—'}</div>
                             </div>
                             <div id="disposition" className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Disposition</Label>
