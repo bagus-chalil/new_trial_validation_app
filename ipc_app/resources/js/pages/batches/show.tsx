@@ -3,9 +3,10 @@ import { StageStepper, type StepperStage } from '@/components/ipc/stage-stepper'
 import { TwoPane } from '@/components/ipc/two-pane';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
+import { cn } from '@/lib/utils';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronRight, ClipboardList } from 'lucide-react';
+import { ChevronRight, ClipboardList, Printer } from 'lucide-react';
 
 interface Batch {
     id: number;
@@ -111,24 +112,50 @@ export default function BatchesShow({ batch, stages }: { batch: Batch; stages: S
                     {doneStages.length > 0 && (
                         <div className="flex flex-col gap-2.5">
                             <p className="text-muted-foreground text-[14.5px] font-bold">Sudah selesai</p>
-                            {doneStages.map((stage) => (
-                                <div
-                                    key={stage.key}
-                                    className="border-border-soft bg-card flex items-center gap-4 rounded-[18px] border px-[18px] py-4"
-                                >
-                                    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-green-100">
-                                        <ClipboardList className="size-4 text-green-700" strokeWidth={2.4} />
+                            {doneStages.map((stage) => {
+                                const isPrint = stage.key === 'print';
+                                const body = (
+                                    <>
+                                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-green-100">
+                                            {isPrint ? (
+                                                <Printer className="size-4 text-green-700" strokeWidth={2.4} />
+                                            ) : (
+                                                <ClipboardList className="size-4 text-green-700" strokeWidth={2.4} />
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-bold">{stage.label}</p>
+                                            <p className="text-muted-foreground/70 mt-0.5 text-[12.5px] font-medium">
+                                                {completedAtByKey[stage.key]
+                                                    ? `Diselesaikan · ${formatDate(completedAtByKey[stage.key] as string)}`
+                                                    : 'Selesai'}
+                                            </p>
+                                        </div>
+                                        {stage.href && (
+                                            <span className={cn('shrink-0 text-xs font-bold', isPrint ? 'text-primary' : 'text-muted-foreground')}>
+                                                {isPrint ? 'Cetak' : 'Lihat'}
+                                            </span>
+                                        )}
+                                        {stage.href && <ChevronRight className="text-muted-foreground/60 size-4 shrink-0" strokeWidth={2.4} />}
+                                    </>
+                                );
+
+                                const className = 'border-border-soft bg-card flex items-center gap-4 rounded-[18px] border px-[18px] py-4';
+
+                                if (stage.href) {
+                                    return (
+                                        <Link key={stage.key} href={stage.href} className={cn(className, 'transition-colors hover:bg-black/[0.02]')}>
+                                            {body}
+                                        </Link>
+                                    );
+                                }
+
+                                return (
+                                    <div key={stage.key} className={className}>
+                                        {body}
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-bold">{stage.label}</p>
-                                        <p className="text-muted-foreground/70 mt-0.5 text-[12.5px] font-medium">
-                                            {completedAtByKey[stage.key]
-                                                ? `Diselesaikan · ${formatDate(completedAtByKey[stage.key] as string)}`
-                                                : 'Selesai'}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

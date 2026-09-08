@@ -90,35 +90,55 @@ export function StageStepper({ stages }: { stages: StepperStage[] }) {
 
             {/* Tablet+: horizontal */}
             <div className="hidden items-start md:flex">
-                {stages.map((stage, i) => (
-                    <div key={stage.key} className="flex flex-1 flex-col items-center gap-2">
-                        <div className="flex w-full items-center">
-                            <div
+                {stages.map((stage, i) => {
+                    const content = (
+                        <>
+                            <div className="flex w-full items-center">
+                                <div
+                                    className={cn(
+                                        'mt-[18px] h-0.5 flex-1',
+                                        i === 0 ? 'bg-transparent' : stage.status === 'done' ? 'bg-green-600' : 'bg-border',
+                                    )}
+                                />
+                                <StageCircle stage={stage} size={36} />
+                                <div
+                                    className={cn(
+                                        'mt-[18px] h-0.5 flex-1',
+                                        i === stages.length - 1 ? 'bg-transparent' : stage.status === 'done' ? 'bg-green-600' : 'bg-border',
+                                    )}
+                                />
+                            </div>
+                            <span
                                 className={cn(
-                                    'mt-[18px] h-0.5 flex-1',
-                                    i === 0 ? 'bg-transparent' : stage.status === 'done' ? 'bg-green-600' : 'bg-border',
+                                    'text-xs font-bold',
+                                    stage.status === 'done' && 'text-green-600',
+                                    stage.status === 'active' && 'text-primary',
+                                    stage.status === 'locked' && 'text-muted-foreground/70',
                                 )}
-                            />
-                            <StageCircle stage={stage} size={36} />
-                            <div
-                                className={cn(
-                                    'mt-[18px] h-0.5 flex-1',
-                                    i === stages.length - 1 ? 'bg-transparent' : stage.status === 'done' ? 'bg-green-600' : 'bg-border',
-                                )}
-                            />
+                            >
+                                {stage.label}
+                            </span>
+                        </>
+                    );
+
+                    if (stage.href) {
+                        return (
+                            <Link
+                                key={stage.key}
+                                href={stage.href}
+                                className="flex flex-1 flex-col items-center gap-2 rounded-xl py-1 transition-colors hover:bg-black/[0.03]"
+                            >
+                                {content}
+                            </Link>
+                        );
+                    }
+
+                    return (
+                        <div key={stage.key} className="flex flex-1 flex-col items-center gap-2">
+                            {content}
                         </div>
-                        <span
-                            className={cn(
-                                'text-xs font-bold',
-                                stage.status === 'done' && 'text-green-600',
-                                stage.status === 'active' && 'text-primary',
-                                stage.status === 'locked' && 'text-muted-foreground/70',
-                            )}
-                        >
-                            {stage.label}
-                        </span>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </>
     );

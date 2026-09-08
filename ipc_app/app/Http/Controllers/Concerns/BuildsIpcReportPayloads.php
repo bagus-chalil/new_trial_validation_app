@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\FinishedCheckSample;
+use App\Models\IpcApproval;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\MasterTestType;
@@ -198,5 +199,68 @@ trait BuildsIpcReportPayloads
             'photoUrls' => $photoUrls,
             'finishedSampleGroups' => FinishedCheckSample::sampleGroups(),
         ];
+    }
+
+    /**
+     * Resolves the Blade view + data + filename for one stage's report PDF — shared by
+     * ApprovalController::print() (a non-logged preview) and PrintController's own preview()/
+     * pdf() (the latter also logs an IpcPrintLog row, layered on by the caller). Extracted
+     * 2026-09-08 so the two controllers' identical eager-load/payload blocks can't drift apart the
+     * way the report payload builders above once could before this trait existed.
+     *
+     * @return array{0: string, 1: array<string, mixed>, 2: string}
+     */
+    private function resolveReportPdf(IpcBatch $batch, string $stage): array
+    {
+        return match ($stage) {
+            IpcApproval::STAGE_STARTUP => [
+                'pdf.approval-startup',
+                (function () use ($batch) {
+                    $batch->load(['startupCheck.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults.testType']);
+
+                    return $this->startupPayload($batch, $this->photoDataUris($batch, ['startup']));
+                })(),
+                "Startup-Inspection-{$batch->no_batch}.pdf",
+            ],
+            IpcApproval::STAGE_FILLING_PACKING => [
+                'pdf.approval-filling-packing',
+                (function () use ($batch) {
+                    $batch->load([
+                        'startupCheck',
+                        'fillingCheck.user',
+                        'fillingCheck.samples',
+                        'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                        'fillingCheck.revisions.user',
+                        'fillingCheck.revisions.samples',
+                        'packingCheck.user',
+                        'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                        'packingCheck.revisions.user',
+                        'packingCheck.revisions.photos',
+                    ]);
+
+                    return [
+                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing'])),
+                        'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
+                    ];
+                })(),
+                "Filling-Packing-Report-{$batch->no_batch}.pdf",
+            ],
+            IpcApproval::STAGE_FINISHED => [
+                'pdf.approval-finished',
+                (function () use ($batch) {
+                    $batch->load([
+                        'finishedCheck.user',
+                        'finishedCheck.samples',
+                        'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                        'finishedCheck.revisions.user',
+                        'finishedCheck.revisions.samples',
+                    ]);
+
+                    return $this->finishedPayload($batch, $this->photoDataUris($batch, ['finished']));
+                })(),
+                "Finished-Good-Report-{$batch->no_batch}.pdf",
+            ],
+            default => abort(404),
+        };
     }
 }

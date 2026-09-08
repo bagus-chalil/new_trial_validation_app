@@ -7,6 +7,7 @@ use App\Models\FillingCheckRevision;
 use App\Models\FinishedCheck;
 use App\Models\FinishedCheckRevision;
 use App\Models\IpcApproval;
+use App\Models\IpcApprovalRevision;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
@@ -236,6 +237,50 @@ class ApprovalTest extends TestCase
             'stage' => 'startup',
             'decision' => 'Approved',
         ]);
+    }
+
+    public function test_redeciding_a_stage_preserves_the_earlier_decision_as_a_revision(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Rejected', 'remarks' => 'Awal salah']);
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved']);
+
+        $approval = IpcApproval::query()->where('ipc_batch_id', $batch->id)->where('stage', 'startup')->firstOrFail();
+
+        // The live row only ever shows the latest decision...
+        $this->assertSame('Approved', $approval->decision);
+
+        // ...but both decisions survive as immutable revisions, not silently overwritten.
+        $this->assertSame(2, IpcApprovalRevision::query()->where('ipc_approval_id', $approval->id)->count());
+        $this->assertDatabaseHas('ipc_approval_revisions', [
+            'ipc_approval_id' => $approval->id,
+            'revision_no' => 1,
+            'decision' => 'Rejected',
+            'remarks' => 'Awal salah',
+        ]);
+        $this->assertDatabaseHas('ipc_approval_revisions', [
+            'ipc_approval_id' => $approval->id,
+            'revision_no' => 2,
+            'decision' => 'Approved',
+        ]);
+    }
+
+    public function test_approval_detail_page_shows_decision_revision_history(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Rejected', 'remarks' => 'Awal salah']);
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved']);
+
+        $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/startup");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('approval/startup')
+            ->has('stage.approval.revisions', 2));
     }
 
     public function test_approving_a_stage_that_is_not_ready_is_forbidden(): void

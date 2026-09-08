@@ -64,6 +64,11 @@ class IpcApproval extends Model
         return $this->belongsTo(User::class, 'approver_user_id');
     }
 
+    public function revisions()
+    {
+        return $this->hasMany(IpcApprovalRevision::class);
+    }
+
     /**
      * Whether the underlying check(s) for a given approval stage are done, i.e. this stage can
      * actually be approved yet. "filling_packing" combines two separate check tables into one

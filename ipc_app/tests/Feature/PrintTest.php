@@ -162,6 +162,36 @@ class PrintTest extends TestCase
         $this->assertSame(2, IpcPrintLog::query()->where('ipc_batch_id', $batch->id)->where('stage', 'startup')->count());
     }
 
+    public function test_preview_route_streams_a_pdf_without_logging_a_print_entry(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $user = User::factory()->create();
+
+        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+            $response = $this->actingAs($user)->get("/batches/{$batch->id}/print/{$stage}/preview");
+            $response->assertOk();
+            $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        }
+
+        $this->assertSame(0, IpcPrintLog::query()->where('ipc_batch_id', $batch->id)->count());
+    }
+
+    public function test_preview_route_is_forbidden_before_batch_reaches_print_stage(): void
+    {
+        $batch = $this->makeBatchNotYetAtPrintStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/startup/preview")->assertForbidden();
+    }
+
+    public function test_preview_route_unknown_stage_404s(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/bogus/preview")->assertNotFound();
+    }
+
     public function test_printing_all_three_stages_advances_batch_to_completed(): void
     {
         $batch = $this->makeBatchAtPrintStage();

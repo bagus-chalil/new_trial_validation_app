@@ -50,7 +50,8 @@ class ApprovalController extends Controller
             'startupInspection.items',
             'startupInspection.samples',
             'startupInspection.testResults.testType',
-            'approvals',
+            'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
+            'approvals.revisions.user',
         ]);
 
         return Inertia::render('approval/startup', [
@@ -76,7 +77,8 @@ class ApprovalController extends Controller
             'packingCheck.user',
             'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'packingCheck.revisions.user',
-            'approvals',
+            'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
+            'approvals.revisions.user',
         ]);
 
         return Inertia::render('approval/filling-packing', [
@@ -99,7 +101,8 @@ class ApprovalController extends Controller
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'finishedCheck.revisions.user',
             'finishedCheck.revisions.samples',
-            'approvals',
+            'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
+            'approvals.revisions.user',
         ]);
 
         return Inertia::render('approval/finished', [
@@ -137,56 +140,7 @@ class ApprovalController extends Controller
 
         $batch->load(['masterProduct', 'masterLine']);
 
-        [$view, $data, $filename] = match ($stage) {
-            IpcApproval::STAGE_STARTUP => [
-                'pdf.approval-startup',
-                (function () use ($batch) {
-                    $batch->load(['startupCheck.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults.testType']);
-
-                    return $this->startupPayload($batch, $this->photoDataUris($batch, ['startup']));
-                })(),
-                "Startup-Inspection-{$batch->no_batch}.pdf",
-            ],
-            IpcApproval::STAGE_FILLING_PACKING => [
-                'pdf.approval-filling-packing',
-                (function () use ($batch) {
-                    $batch->load([
-                        'startupCheck',
-                        'fillingCheck.user',
-                        'fillingCheck.samples',
-                        'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'fillingCheck.revisions.user',
-                        'fillingCheck.revisions.samples',
-                        'packingCheck.user',
-                        'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'packingCheck.revisions.user',
-                        'packingCheck.revisions.photos',
-                    ]);
-
-                    return [
-                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing'])),
-                        'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
-                    ];
-                })(),
-                "Filling-Packing-Report-{$batch->no_batch}.pdf",
-            ],
-            IpcApproval::STAGE_FINISHED => [
-                'pdf.approval-finished',
-                (function () use ($batch) {
-                    $batch->load([
-                        'finishedCheck.user',
-                        'finishedCheck.samples',
-                        'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'finishedCheck.revisions.user',
-                        'finishedCheck.revisions.samples',
-                    ]);
-
-                    return $this->finishedPayload($batch, $this->photoDataUris($batch, ['finished']));
-                })(),
-                "Finished-Good-Report-{$batch->no_batch}.pdf",
-            ],
-            default => abort(404),
-        };
+        [$view, $data, $filename] = $this->resolveReportPdf($batch, $stage);
 
         return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename);
     }

@@ -4,7 +4,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type User } from '@/types';
 import { Link } from '@inertiajs/react';
-import { LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { FlaskConical, LogOut, MapPin, Moon, Package, Settings, Sun } from 'lucide-react';
 
 interface UserMenuContentProps {
     user: User;
@@ -32,6 +32,28 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     <Link className="block w-full" href={route('profile.edit')} as="button" prefetch onClick={cleanup}>
                         <Settings className="mr-2" />
                         Settings
+                    </Link>
+                </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-muted-foreground px-2 py-1.5 text-xs font-semibold">Master Data</DropdownMenuLabel>
+            <DropdownMenuGroup>
+                <DropdownMenuItem asChild>
+                    <Link className="block w-full" href={route('master-lines.index')} as="button" prefetch onClick={cleanup}>
+                        <MapPin className="mr-2" />
+                        Master Line
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link className="block w-full" href={route('master-products.index')} as="button" prefetch onClick={cleanup}>
+                        <Package className="mr-2" />
+                        Master Produk
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link className="block w-full" href={route('master-test-types.index')} as="button" prefetch onClick={cleanup}>
+                        <FlaskConical className="mr-2" />
+                        Master Test Type
                     </Link>
                 </DropdownMenuItem>
             </DropdownMenuGroup>

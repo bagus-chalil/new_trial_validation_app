@@ -63,4 +63,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('batches/{batch}/print/{stage}/pdf', [PrintController::class, 'pdf'])
         ->whereIn('stage', IpcApproval::STAGES)
         ->name('print.pdf');
+    Route::get('batches/{batch}/print/{stage}/preview', [PrintController::class, 'preview'])
+        ->whereIn('stage', IpcApproval::STAGES)
+        ->name('print.preview');
 });

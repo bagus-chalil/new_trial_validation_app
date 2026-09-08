@@ -4,7 +4,7 @@ import { ChipToggleGroup, StatusChip } from '@/components/ipc/chip-toggle-group'
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/react';
-import { Printer } from 'lucide-react';
+import { Eye, Printer } from 'lucide-react';
 import { FormEventHandler, type ReactNode } from 'react';
 
 export interface ChecklistGroup {
@@ -19,11 +19,21 @@ export interface SampleGroup {
     parameters: Record<string, string>;
 }
 
+export interface ApprovalRevisionRow {
+    id: number;
+    revision_no: number;
+    decision: string;
+    remarks: string | null;
+    decided_at: string;
+    user?: { name: string } | null;
+}
+
 export interface ApprovalData {
     decision: string | null;
     remarks: string | null;
     approved_at: string | null;
     approver?: { name: string } | null;
+    revisions?: ApprovalRevisionRow[];
 }
 
 export interface StageInfo {
@@ -88,7 +98,13 @@ export function PhotoRow({ photos }: { photos: { key: string; label: string; url
                         {urls.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                                 {urls.map((u, i) => (
-                                    <img key={i} src={u} alt={label} className="border-border h-24 w-full rounded-xl border object-cover" style={urls.length > 1 ? { width: '5.5rem' } : undefined} />
+                                    <img
+                                        key={i}
+                                        src={u}
+                                        alt={label}
+                                        className="border-border h-24 w-full rounded-xl border object-cover"
+                                        style={urls.length > 1 ? { width: '5.5rem' } : undefined}
+                                    />
                                 ))}
                             </div>
                         ) : (
@@ -183,34 +199,41 @@ export interface PrintInfo {
 }
 
 /**
- * Bottom-of-page print action on each Print detail page — mirrors ApprovalActionCard's spot on
- * the Approval detail pages, but there's no decision to make here (legacy's *_View screens are
- * pure read+print). Shows how many times this stage has been printed and by whom, and the same
- * "opening the PDF logs a print" button as the header's PrintPreviewButton, just full-width and
- * labeled for the primary action.
+ * Bottom-of-page action on each Print detail page — mirrors ApprovalActionCard's spot on the
+ * Approval detail pages, but there's no decision to make here (legacy's *_View screens are pure
+ * read+print). Deliberately a *preview*, not the print action, since 2026-09-08 (direct user
+ * request): this is the button people actually reach for most — including just to look at the
+ * document for an audit, not to physically print it — so routing it at PrintController::preview()
+ * (unlogged) instead of pdf() keeps ipc_print_logs' history meaning "actually printed," not
+ * "opened." The header's PrintPreviewButton (label="Cetak") stays the one real, logged print
+ * action. Still shows the accumulated print count/last-printed-by so it's obvious that history
+ * exists even though this card's own button doesn't add to it.
  */
 export function PrintActionCard({ batchId, info }: { batchId: number; info: PrintInfo }) {
     return (
         <div className="border-border-soft bg-card flex flex-col gap-3 rounded-[20px] border p-[18px]">
             <div className="flex items-center justify-between gap-3">
-                <p className="text-[14.5px] font-bold">Cetak — {info.label}</p>
+                <p className="text-[14.5px] font-bold">Dokumen — {info.label}</p>
                 {info.printCount > 0 && (
                     <span className="rounded-full bg-green-100 px-3 py-1 text-[12px] font-bold text-green-800">Sudah dicetak {info.printCount}x</span>
                 )}
             </div>
             {info.lastPrintedAt && (
                 <p className="text-muted-foreground/70 -mt-1 text-[12px] font-medium">
-                    Terakhir oleh {info.lastPrintedBy ?? '—'} · {formatDateTime(info.lastPrintedAt)}
+                    Terakhir dicetak oleh {info.lastPrintedBy ?? '—'} · {formatDateTime(info.lastPrintedAt)}
                 </p>
             )}
+            <p className="text-muted-foreground/70 -mt-1 text-[12px] font-medium">
+                Tombol di bawah hanya untuk melihat dokumen (tidak tercatat). Untuk mencetak resmi, gunakan tombol "Cetak" di pojok kanan atas.
+            </p>
             <a
-                href={`/batches/${batchId}/print/${info.stage}/pdf`}
+                href={`/batches/${batchId}/print/${info.stage}/preview`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-primary flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white sm:w-auto sm:self-end sm:px-6"
+                className="border-border-soft bg-background text-foreground flex h-11 items-center justify-center gap-2 rounded-xl border text-[14px] font-bold sm:w-auto sm:self-end sm:px-6"
             >
-                <Printer className="size-4" strokeWidth={2.2} />
-                Cetak {info.label}
+                <Eye className="size-4" strokeWidth={2.2} />
+                Preview {info.label}
             </a>
         </div>
     );
@@ -280,6 +303,19 @@ export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: num
                         Simpan Keputusan
                     </button>
                 </form>
+            )}
+
+            {(existing?.revisions?.length ?? 0) > 0 && (
+                <RevisionHistoryCard
+                    title="Riwayat Keputusan"
+                    revisions={existing!.revisions!.map((rev) => ({ ...rev, finalize: true, created_at: rev.decided_at }))}
+                    renderSummary={(rev) => (
+                        <span className={rev.decision === 'Approved' ? 'font-bold text-green-700' : 'font-bold text-red-600'}>
+                            Keputusan: {rev.decision}
+                        </span>
+                    )}
+                    renderRemarks={(rev) => rev.remarks}
+                />
             )}
         </div>
     );

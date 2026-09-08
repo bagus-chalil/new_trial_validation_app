@@ -106,10 +106,12 @@ class PrintController extends Controller
     }
 
     /**
-     * Server-rendered PDF (spatie/browsershot), reusing the exact same Blade views as
-     * ApprovalController::print() — legacy's *_View screens show the same report as the
-     * *_Approval screens, just without the approve/reject action. Also the real "print" action:
-     * every view is logged to ipc_print_logs.
+     * The real "print" action, reserved for the header's "Cetak" button — every view is logged to
+     * ipc_print_logs, which is what the Print overview's "Dicetak Nx"/"Terakhir oleh ..." history
+     * and the batch's print->completed auto-advance are both driven by. Kept as a distinct route
+     * from preview() (added 2026-09-08, direct user request) precisely so a QC/audit user opening
+     * the document just to look at it — expected to be the common case, per the user — doesn't
+     * inflate that history with views that were never an actual physical print.
      */
     public function pdf(IpcBatch $batch, string $stage, PdfService $pdf, LogPrint $logPrint): HttpResponse
     {
@@ -117,58 +119,25 @@ class PrintController extends Controller
 
         $batch->load(['masterProduct', 'masterLine']);
 
-        [$view, $data, $filename] = match ($stage) {
-            IpcApproval::STAGE_STARTUP => [
-                'pdf.approval-startup',
-                (function () use ($batch) {
-                    $batch->load(['startupCheck.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults.testType']);
-
-                    return $this->startupPayload($batch, $this->photoDataUris($batch, ['startup']));
-                })(),
-                "Startup-Inspection-{$batch->no_batch}.pdf",
-            ],
-            IpcApproval::STAGE_FILLING_PACKING => [
-                'pdf.approval-filling-packing',
-                (function () use ($batch) {
-                    $batch->load([
-                        'startupCheck',
-                        'fillingCheck.user',
-                        'fillingCheck.samples',
-                        'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'fillingCheck.revisions.user',
-                        'fillingCheck.revisions.samples',
-                        'packingCheck.user',
-                        'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'packingCheck.revisions.user',
-                        'packingCheck.revisions.photos',
-                    ]);
-
-                    return [
-                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing'])),
-                        'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
-                    ];
-                })(),
-                "Filling-Packing-Report-{$batch->no_batch}.pdf",
-            ],
-            IpcApproval::STAGE_FINISHED => [
-                'pdf.approval-finished',
-                (function () use ($batch) {
-                    $batch->load([
-                        'finishedCheck.user',
-                        'finishedCheck.samples',
-                        'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'finishedCheck.revisions.user',
-                        'finishedCheck.revisions.samples',
-                    ]);
-
-                    return $this->finishedPayload($batch, $this->photoDataUris($batch, ['finished']));
-                })(),
-                "Finished-Good-Report-{$batch->no_batch}.pdf",
-            ],
-            default => abort(404),
-        };
+        [$view, $data, $filename] = $this->resolveReportPdf($batch, $stage);
 
         $logPrint->handle($batch, request()->user(), $stage);
+
+        return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename);
+    }
+
+    /**
+     * Same PDF, same Blade view, deliberately not logged — for "just looking at the document"
+     * (e.g. an audit review) as opposed to an actual print. See pdf()'s doc comment above for why
+     * these are two separate actions/routes rather than one.
+     */
+    public function preview(IpcBatch $batch, string $stage, PdfService $pdf): HttpResponse
+    {
+        $this->guardPrintable($batch);
+
+        $batch->load(['masterProduct', 'masterLine']);
+
+        [$view, $data, $filename] = $this->resolveReportPdf($batch, $stage);
 
         return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename);
     }
