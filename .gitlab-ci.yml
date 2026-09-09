@@ -12,7 +12,7 @@ stages:
   script:
     - test -n "$DEPLOY_PATH" || (echo "DEPLOY_PATH is not set for this job/environment" && exit 1)
     - >
-      rsync -a --no-owner --no-group --delete-after
+      rsync -a --no-owner --no-group --no-times --delete-after
       --exclude='.git/'
       --exclude='.gitlab-ci.yml'
       --exclude='config/database.php'
