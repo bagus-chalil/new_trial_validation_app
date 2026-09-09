@@ -1,13 +1,43 @@
 # Contoh vhost Nginx untuk environment development/test (legacy PHP app),
-# terpisah dari production. Copy ke
+# terpisah dari production, dengan HTTPS. Copy ke
 # /etc/nginx/sites-available/trial-validation-development.conf,
 # sesuaikan server_name/port & php-fpm socket version, lalu:
 #   sudo ln -s /etc/nginx/sites-available/trial-validation-development.conf /etc/nginx/sites-enabled/
 #   sudo nginx -t && sudo systemctl reload nginx
+#
+# Port beda dari production (8080/8443 vs 80/443) supaya bisa jalan di IP
+# yang sama tanpa bentrok — lihat deploy/README.md bagian "Satu IP untuk
+# production + development, bisa?" untuk detail.
+#
+# Server ini diakses lewat IP internal (belum ada domain publik), jadi
+# sertifikat di bawah pakai self-signed — Let's Encrypt TIDAK bisa issue
+# cert untuk bare IP, cuma untuk domain. Generate dulu sebelum nginx -t
+# (cert terpisah dari production, nama file beda):
+#
+#   sudo mkdir -p /etc/nginx/ssl
+#   sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+#     -keyout /etc/nginx/ssl/trial-validation-development.key \
+#     -out /etc/nginx/ssl/trial-validation-development.crt \
+#     -subj "/CN=100.100.160.23"
+#
+# Kalau nanti server ini dapat domain/subdomain publik, ganti ke Let's
+# Encrypt: sudo certbot --nginx -d dev.domain-kamu.com
 
+# Redirect semua HTTP ke HTTPS
 server {
     listen 8080; # port berbeda dari production (yang di :80), atau pakai subdomain terpisah
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
+    return 301 https://$host:8443$request_uri;
+}
+
+server {
+    listen 8443 ssl;
+    server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
+
+    ssl_certificate     /etc/nginx/ssl/trial-validation-development.crt;
+    ssl_certificate_key /etc/nginx/ssl/trial-validation-development.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
 
     root /var/www/trial_validation_app-development/public; # samakan dengan DEPLOY_PATH_DEVELOPMENT/public
     index index.php;
@@ -17,13 +47,16 @@ server {
 
     client_max_body_size 20m;
 
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock; # sesuaikan versi PHP
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock; # sesuaikan versi PHP
     }
 
     location ~ ^/(config|storage|database|app)/ {

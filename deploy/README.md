@@ -73,7 +73,7 @@ Jalankan sebagai user dengan sudo (bukan root langsung):
 
 ```bash
 sudo apt update
-sudo apt install -y nginx php8.3-fpm php8.3-mysql php8.3-mbstring \
+sudo apt install -y nginx php8.5-fpm php8.3-mysql php8.3-mbstring \
   php8.3-xml php8.3-curl php8.3-gd php8.3-zip git rsync
 
 sudo mkdir -p /var/www/trial_validation_app /var/www/trial_validation_app-development
@@ -99,6 +99,21 @@ sudo nginx -t && sudo systemctl reload nginx
 tidak bentrok dengan production di port `80` pada server yang sama — ganti
 kalau kamu lebih suka subdomain terpisah.
 
+**Satu IP untuk production + development, bisa?** Bisa, dan ini memang
+setup default kedua file contoh di atas: satu server (satu IP,
+`100.100.160.23` di catatan `ip a` kamu) menjalankan **dua vhost Nginx**
+sekaligus, dibedakan lewat **port** (`listen 80` untuk production,
+`listen 8080` untuk development) — bukan lewat `server_name`, yang sengaja
+dibiarkan `_` (wildcard, cocok untuk request apa pun) karena kamu akses lewat
+IP, bukan domain. Nginx sendiri bisa host banyak vhost di satu IP tanpa
+masalah selama kombinasi `listen`-nya tidak identik. Yang perlu dipastikan:
+- Kalau ada firewall (`ufw`, atau security group kalau ini VM cloud), port
+  `8080` juga harus dibuka — cuma buka `80`/`443` saja tidak cukup untuk
+  development.
+- `fastcgi_pass` di kedua file arahkan ke socket PHP-FPM yang sama
+  (`php8.5-fpm.sock` di contoh) — sesuaikan ke versi PHP yang benar-benar
+  terpasang (`ls /run/php/` untuk lihat nama socket aktual).
+
 ## 5. Seed folder yang tidak boleh ketimpa deploy otomatis
 
 `.gitlab-ci.yml` sengaja **meng-exclude** file-file ini dari rsync setiap
@@ -110,29 +125,51 @@ git — berlaku untuk kedua environment:
 - `storage/sessions/` — session file runtime
 - `public/uploads/` — file attachment trial
 
-File-file ini **harus dibuat manual sekali per environment** sebelum deploy pertama:
+File-file ini **harus dibuat manual sekali per environment**, idealnya sebelum
+deploy pertama — tapi kalau pipeline-nya sudah sempat jalan duluan (folder
+`config/`/`storage/`/`public/` sudah ada, dimiliki user `gitlab-runner` dari
+rsync), pakai `sudo mkdir -p` biasa (bukan `sudo -u www-data mkdir`) supaya
+tidak kena *Permission denied* — root selalu boleh menulis ke folder siapa
+pun, siapa pun pemiliknya sekarang. Lalu `chown` folder/file runtime-nya ke
+`www-data` (user PHP-FPM) supaya app tetap bisa baca `config/*.php` dan
+menulis ke `storage/sessions/` & `public/uploads/`:
 
 ```bash
 # Production
-sudo -u www-data mkdir -p /var/www/trial_validation_app/config
-sudo -u www-data mkdir -p /var/www/trial_validation_app/storage/sessions
-sudo -u www-data mkdir -p /var/www/trial_validation_app/public/uploads
+sudo mkdir -p /var/www/trial_validation_app/config
+sudo mkdir -p /var/www/trial_validation_app/storage/sessions
+sudo mkdir -p /var/www/trial_validation_app/public/uploads
+sudo chown -R www-data:www-data \
+  /var/www/trial_validation_app/storage/sessions \
+  /var/www/trial_validation_app/public/uploads
 sudo nano /var/www/trial_validation_app/config/database.php   # kredensial DB production
 sudo nano /var/www/trial_validation_app/config/sso.php        # URL new_trial_validation_app production
+sudo chown www-data:www-data \
+  /var/www/trial_validation_app/config/database.php \
+  /var/www/trial_validation_app/config/sso.php
 
 # Development/test
-sudo -u www-data mkdir -p /var/www/trial_validation_app-development/config
-sudo -u www-data mkdir -p /var/www/trial_validation_app-development/storage/sessions
-sudo -u www-data mkdir -p /var/www/trial_validation_app-development/public/uploads
+sudo mkdir -p /var/www/trial_validation_app-development/config
+sudo mkdir -p /var/www/trial_validation_app-development/storage/sessions
+sudo mkdir -p /var/www/trial_validation_app-development/public/uploads
+sudo chown -R www-data:www-data \
+  /var/www/trial_validation_app-development/storage/sessions \
+  /var/www/trial_validation_app-development/public/uploads
 sudo nano /var/www/trial_validation_app-development/config/database.php   # kredensial DB staging (lihat catatan di atas)
 sudo nano /var/www/trial_validation_app-development/config/sso.php        # URL new_trial_validation_app staging/dev
+sudo chown www-data:www-data \
+  /var/www/trial_validation_app-development/config/database.php \
+  /var/www/trial_validation_app-development/config/sso.php
 ```
 
 Format sama seperti versi di repo (lihat `config/database.php` /
 `config/sso.php`), tinggal ganti isinya.
 
-Setelah folder-folder ini ada, deploy otomatis tidak akan pernah menimpa atau
-menghapusnya (`rsync --exclude`).
+Setelah folder-folder ini ada, deploy otomatis (`rsync --exclude`) tidak akan
+pernah menimpa atau menghapus isinya — **urutan tidak masalah**: kalau
+pipeline sudah jalan duluan sebelum langkah ini, data yang sudah ter-rsync
+(source code) tetap aman, kamu cuma menambahkan folder yang di-exclude, bukan
+mengganti apa pun yang sudah ada.
 
 Import database: ikuti langkah di `README.md` root repo ("Database setup" —
 import `trial_validation_system.sql` lalu setiap file di `database/` sesuai
@@ -216,17 +253,45 @@ seharusnya kosong untuk push ke branch selain `production`/`development`.
 Kalau `opcache.validate_timestamps` di-nonaktifkan di server (biasanya untuk
 performa production), file PHP yang di-rsync tidak akan langsung kepakai
 sampai PHP-FPM di-reload. Kalau perlu, tambahkan sudoers rule khusus (bukan
-full sudo) untuk user `gitlab-runner`:
+full sudo) untuk user `gitlab-runner`.
+
+Dulu cek dulu nama service PHP-FPM yang benar-benar terpasang di server ini
+(jangan asumsikan `php8.5-fpm` — versi bisa beda):
+
+```bash
+systemctl list-units --type=service | grep php
+# atau
+php -v
+```
+
+**Jangan paste isi file di bawah langsung ke prompt bash** — itu akan
+dieksekusi sebagai command dan gagal dengan `syntax error near unexpected
+token '('`. Pakai `visudo -f` (mengecek syntax otomatis sebelum menyimpan):
+
+```bash
+sudo visudo -f /etc/sudoers.d/gitlab-runner-php-fpm
+```
+
+lalu ketik/paste baris ini **di dalam editor yang terbuka** (ganti
+`php8.5-fpm` sesuai hasil cek di atas), simpan, keluar:
 
 ```
-# /etc/sudoers.d/gitlab-runner-php-fpm
-gitlab-runner ALL=(root) NOPASSWD: /usr/bin/systemctl reload php8.3-fpm
+gitlab-runner ALL=(root) NOPASSWD: /usr/bin/systemctl reload php8.5-fpm
+```
+
+Alternatif non-interaktif (kalau tidak mau pakai editor):
+
+```bash
+echo 'gitlab-runner ALL=(root) NOPASSWD: /usr/bin/systemctl reload php8.5-fpm' \
+  | sudo tee /etc/sudoers.d/gitlab-runner-php-fpm
+sudo chmod 0440 /etc/sudoers.d/gitlab-runner-php-fpm
+sudo visudo -c   # verifikasi semua file sudoers.d masih valid
 ```
 
 Lalu tambahkan baris ini di `script:` job `deploy_legacy` pada `.gitlab-ci.yml`:
 
 ```yaml
-- sudo systemctl reload php8.3-fpm
+- sudo systemctl reload php8.5-fpm
 ```
 
 Default `opcache.validate_timestamps=1` di kebanyakan instalasi PHP-FPM

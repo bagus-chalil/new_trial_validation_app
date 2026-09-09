@@ -1,12 +1,44 @@
-# Contoh vhost Nginx untuk legacy PHP app (repo root).
+# Contoh vhost Nginx untuk legacy PHP app (repo root), dengan HTTPS.
 # Copy ke /etc/nginx/sites-available/trial-validation-legacy.conf,
-# sesuaikan server_name & php-fpm socket version, lalu:
+# sesuaikan server_name/IP & php-fpm socket version, lalu:
 #   sudo ln -s /etc/nginx/sites-available/trial-validation-legacy.conf /etc/nginx/sites-enabled/
 #   sudo nginx -t && sudo systemctl reload nginx
+#
+# Server ini diakses lewat IP internal (belum ada domain publik), jadi
+# sertifikat di bawah pakai self-signed — Let's Encrypt TIDAK bisa issue
+# cert untuk bare IP, cuma untuk domain. Generate dulu sebelum nginx -t:
+#
+#   sudo mkdir -p /etc/nginx/ssl
+#   sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+#     -keyout /etc/nginx/ssl/trial-validation-legacy.key \
+#     -out /etc/nginx/ssl/trial-validation-legacy.crt \
+#     -subj "/CN=100.100.160.23"
+#
+# Browser akan tetap menampilkan warning "not trusted" untuk self-signed
+# cert (normal, klik "advanced -> proceed" sekali per browser) — ini tetap
+# jauh lebih aman daripada HTTP polos karena traffic tetap terenkripsi,
+# cuma identitas server yang tidak diverifikasi pihak ketiga.
+#
+# Kalau nanti server ini dapat domain publik, ganti ke Let's Encrypt:
+#   sudo certbot --nginx -d domain-kamu.com
+# (certbot otomatis urus redirect http->https + auto-renewal, jauh lebih
+# baik daripada self-signed manual di atas — tidak ada warning browser lagi)
 
+# Redirect semua HTTP ke HTTPS
 server {
     listen 80;
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
+
+    ssl_certificate     /etc/nginx/ssl/trial-validation-legacy.crt;
+    ssl_certificate_key /etc/nginx/ssl/trial-validation-legacy.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
 
     root /var/www/trial_validation_app/public; # samakan dengan DEPLOY_PATH/public
     index index.php;
@@ -16,6 +48,9 @@ server {
 
     client_max_body_size 20m;
 
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+
     # Port dari public/.htaccess: semua request non-file/non-dir masuk ke index.php
     location / {
         try_files $uri $uri/ /index.php?$query_string;
@@ -23,7 +58,7 @@ server {
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock; # sesuaikan versi PHP
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock; # sesuaikan versi PHP
     }
 
     # Jangan pernah serve source di luar public/, meski root sudah diarahkan
