@@ -19,6 +19,7 @@ stages:
       --exclude='config/sso.php'
       --exclude='storage/sessions/'
       --exclude='public/uploads/'
+      --exclude='portal/config.js'
       "$CI_PROJECT_DIR/" "$DEPLOY_PATH/"
     - echo "Deployed $CI_COMMIT_SHORT_SHA to $DEPLOY_PATH ($CI_ENVIRONMENT_NAME)"
 

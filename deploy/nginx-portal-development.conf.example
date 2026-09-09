@@ -1,0 +1,47 @@
+# Contoh vhost Nginx untuk Portal — environment DEVELOPMENT.
+# Sama seperti nginx-portal.conf.example, tapi root-nya ke deploy path
+# development (/var/www/trial_validation_app-development), bukan production.
+#
+# Copy ke /etc/nginx/sites-available/trial-validation-portal-development.conf, lalu:
+#   sudo ln -s /etc/nginx/sites-available/trial-validation-portal-development.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Self-signed cert (terpisah dari yang production, nama file beda):
+#   sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+#     -keyout /etc/nginx/ssl/trial-validation-portal-development.key \
+#     -out /etc/nginx/ssl/trial-validation-portal-development.crt \
+#     -subj "/CN=100.100.160.23"
+#
+# PENTING: /var/www/trial_validation_app-development/portal/config.js harus
+# di-edit manual mengarah ke URL DEVELOPMENT new_trial_validation_app/ipc_app
+# (:9013 dan :9023), bukan URL production. File ini di-exclude dari rsync,
+# lihat deploy/README.md bagian "Routing semua aplikasi".
+
+server {
+    listen 9002;
+    server_name _;
+    return 301 https://$host:9003$request_uri;
+}
+
+server {
+    listen 9003 ssl;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/ssl/trial-validation-portal-development.crt;
+    ssl_certificate_key /etc/nginx/ssl/trial-validation-portal-development.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    root /var/www/trial_validation_app-development/portal;
+    index index.html;
+
+    access_log /var/log/nginx/trial-validation-portal-development.access.log;
+    error_log  /var/log/nginx/trial-validation-portal-development.error.log;
+
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

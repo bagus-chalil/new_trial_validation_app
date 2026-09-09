@@ -1,0 +1,68 @@
+# Sama seperti nginx-new-app.conf.example, tapi untuk environment DEVELOPMENT
+# (root ke /var/www/trial_validation_app-development/new_trial_validation_app/public).
+#
+# Setup Laravel manual (sekali, di path development):
+#   cd /var/www/trial_validation_app-development/new_trial_validation_app
+#   composer install --no-dev --optimize-autoloader
+#   cp .env.example .env
+#   sudo nano .env   # APP_URL=https://100.100.160.23:9013
+#                     # OLD_APP_URL=https://100.100.160.23:8443 (legacy DEVELOPMENT, bukan production)
+#                     # DB_* kredensial DB staging (terpisah dari production, lihat catatan di atas README)
+#   php artisan key:generate
+#   npm ci && npm run build
+#   php artisan migrate --force
+#   php artisan storage:link
+#   sudo chown -R www-data:www-data storage bootstrap/cache
+#
+# Copy ke /etc/nginx/sites-available/trial-validation-new-app-development.conf, lalu:
+#   sudo ln -s /etc/nginx/sites-available/trial-validation-new-app-development.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Self-signed cert:
+#   sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+#     -keyout /etc/nginx/ssl/trial-validation-new-app-development.key \
+#     -out /etc/nginx/ssl/trial-validation-new-app-development.crt \
+#     -subj "/CN=100.100.160.23"
+#
+# JUGA: config/sso.php di legacy DEVELOPMENT (/var/www/trial_validation_app-development/config/sso.php)
+# harus di-set 'new_app_url' => 'https://100.100.160.23:9013'.
+
+server {
+    listen 9012;
+    server_name _;
+    return 301 https://$host:9013$request_uri;
+}
+
+server {
+    listen 9013 ssl;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/ssl/trial-validation-new-app-development.crt;
+    ssl_certificate_key /etc/nginx/ssl/trial-validation-new-app-development.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    root /var/www/trial_validation_app-development/new_trial_validation_app/public;
+    index index.php;
+
+    access_log /var/log/nginx/trial-validation-new-app-development.access.log;
+    error_log  /var/log/nginx/trial-validation-new-app-development.error.log;
+
+    client_max_body_size 20m;
+
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock; # sesuaikan versi PHP
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}

@@ -124,6 +124,7 @@ git — berlaku untuk kedua environment:
 - `config/sso.php` — URL new_trial_validation_app yang sebenarnya (bukan `localhost:8001`)
 - `storage/sessions/` — session file runtime
 - `public/uploads/` — file attachment trial
+- `portal/config.js` — URL production new_trial_validation_app & ipc_app yang sebenarnya (bukan `localhost:8001`/`localhost:8002`) — lihat bagian "Routing semua aplikasi" di bawah untuk isi lengkapnya
 
 File-file ini **harus dibuat manual sekali per environment**, idealnya sebelum
 deploy pertama — tapi kalau pipeline-nya sudah sempat jalan duluan (folder
@@ -297,6 +298,101 @@ Lalu tambahkan baris ini di `script:` job `deploy_legacy` pada `.gitlab-ci.yml`:
 Default `opcache.validate_timestamps=1` di kebanyakan instalasi PHP-FPM
 sebenarnya sudah otomatis mendeteksi file berubah, jadi langkah ini hanya
 perlu kalau server production sengaja mematikan itu untuk performa.
+
+## 9. Portal, new_trial_validation_app, dan ipc_app di server yang sama
+
+Repo ini monorepo — rsync di `.gitlab-ci.yml` menyalin **seluruh isi repo**
+(`"$CI_PROJECT_DIR/" "$DEPLOY_PATH/"`, tanpa filter path), jadi folder
+`portal/`, `new_trial_validation_app/`, dan `ipc_app/` **otomatis ikut ada**
+di kedua `DEPLOY_PATH_PRODUCTION`/`DEPLOY_PATH_DEVELOPMENT` setiap kali
+legacy deploy — walau CI/CD ini scope-nya cuma legacy (lihat catatan di
+paling atas file ini). Yang **belum otomatis**: setup Laravel-nya sendiri
+(`composer install`, `.env`, `npm run build`, `php artisan migrate`) untuk
+`new_trial_validation_app`/`ipc_app` — itu manual untuk sekarang, dan
+step-nya ada di komentar masing-masing file `.conf.example` di bawah.
+
+Semua 4 hal (legacy, portal, new_trial_validation_app, ipc_app) jalan di
+**satu server, satu IP**, dibedakan lewat **port** (bukan domain, karena
+belum ada domain publik — lihat pembahasan IP-vs-domain di histori chat).
+Setiap aplikasi juga punya versi production dan development terpisah,
+mengikuti pola `DEPLOY_PATH_PRODUCTION`/`DEPLOY_PATH_DEVELOPMENT` legacy:
+
+| Aplikasi | Prod HTTP→HTTPS | Prod HTTPS | Dev HTTP→HTTPS | Dev HTTPS |
+|---|---|---|---|---|
+| Legacy | 80 | **443** | 8080 | **8443** |
+| Portal (pintu masuk, pilih new app / ipc) | 9000 | **9001** | 9002 | **9003** |
+| new_trial_validation_app | 9010 | **9011** | 9012 | **9013** |
+| ipc_app | 9020 | **9021** | 9022 | **9023** |
+
+Alur pemakaian: user buka portal (`:9001` prod / `:9003` dev) → pilih salah
+satu tombol → masuk ke new_trial_validation_app (`:9011`/`:9013`) atau
+ipc_app (`:9021`/`:9023`). Dari new_trial_validation_app, tombol "Aplikasi
+Lama" di sidebar balik ke legacy **environment yang sama** (prod balik ke
+prod `:443`, dev balik ke dev `:8443`) lewat SSO bridge — `ipc_app` tidak
+ada SSO/tombol balik sama sekali, app-nya independen (lihat CLAUDE.md).
+
+File vhost contoh (pola sama seperti legacy: HTTP redirect + HTTPS
+self-signed, lihat komentar di `nginx-legacy.conf.example` untuk penjelasan
+kenapa self-signed bukan Let's Encrypt):
+
+- `deploy/nginx-portal.conf.example` / `nginx-portal-development.conf.example`
+- `deploy/nginx-new-app.conf.example` / `nginx-new-app-development.conf.example`
+- `deploy/nginx-ipc-app.conf.example` / `nginx-ipc-app-development.conf.example`
+
+Cara pakai tiap file: generate self-signed cert-nya sendiri-sendiri (nama
+file cert beda per file, sudah dicontohkan di komentar masing-masing),
+copy ke `sites-available`, `ln -s` ke `sites-enabled`, `nginx -t && systemctl
+reload nginx` — persis pola langkah 4 di atas.
+
+### Isi file yang di-exclude dari rsync (langkah 5), versi lengkap dengan port
+
+**`portal/config.js`** — buat manual di kedua path:
+
+```bash
+# Production: /var/www/trial_validation_app/portal/config.js
+sudo -u www-data tee /var/www/trial_validation_app/portal/config.js > /dev/null <<'EOF'
+window.PORTAL_CONFIG = {
+  trialValidationUrl: "https://100.100.160.23:9011",
+  ipcUrl: "https://100.100.160.23:9021",
+};
+EOF
+
+# Development: /var/www/trial_validation_app-development/portal/config.js
+sudo -u www-data tee /var/www/trial_validation_app-development/portal/config.js > /dev/null <<'EOF'
+window.PORTAL_CONFIG = {
+  trialValidationUrl: "https://100.100.160.23:9013",
+  ipcUrl: "https://100.100.160.23:9023",
+};
+EOF
+```
+
+**`config/sso.php`** (legacy) — isi `new_app_url` sesuai environment:
+
+```php
+<?php
+// Production: /var/www/trial_validation_app/config/sso.php
+return [
+  'new_app_url' => 'https://100.100.160.23:9011'
+];
+```
+
+```php
+<?php
+// Development: /var/www/trial_validation_app-development/config/sso.php
+return [
+  'new_app_url' => 'https://100.100.160.23:9013'
+];
+```
+
+**`new_trial_validation_app/.env`** (dibuat manual saat setup Laravel-nya,
+lihat komentar di `nginx-new-app.conf.example`) — `OLD_APP_URL` mengarah ke
+legacy **environment yang sama**, jangan silang (dev new-app jangan
+mengarah ke legacy production):
+
+| Environment | `APP_URL` | `OLD_APP_URL` |
+|---|---|---|
+| Production | `https://100.100.160.23:9011` | `https://100.100.160.23` |
+| Development | `https://100.100.160.23:9013` | `https://100.100.160.23:8443` |
 
 ## Catatan keamanan
 
