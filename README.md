@@ -118,4 +118,4 @@ Perubahan utama:
 
 ## Catatan akses
 - `Super Admin` dapat mengelola kategori hak akses, kategori reviewer, dan mengubah role user dari menu **Super Admin > Hak Akses**.
-- `Viewer` hanya diberi akses lihat report dan tidak dapat mencetak report melalui tombol aplikasi.
+- `Viewer` hanya diberi akses lihat report dan tidak dapat mencetak report melalui tombol aplikasi
