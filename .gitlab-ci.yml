@@ -1,0 +1,43 @@
+# CI/CD for the legacy PHP app (repo root) only.
+# GitHub mirrors every branch here (see .github/workflows/mirror-to-gitlab.yml),
+# but only `production` and `development` actually run a deploy job, on the
+# on-premise GitLab Runner. See deploy/README.md.
+
+stages:
+  - deploy
+
+.deploy_legacy:
+  tags:
+    - onprem-legacy
+  script:
+    - test -n "$DEPLOY_PATH" || (echo "DEPLOY_PATH is not set for this job/environment" && exit 1)
+    - >
+      rsync -a --delete-after
+      --exclude='.git/'
+      --exclude='.gitlab-ci.yml'
+      --exclude='config/database.php'
+      --exclude='config/sso.php'
+      --exclude='storage/sessions/'
+      --exclude='public/uploads/'
+      "$CI_PROJECT_DIR/" "$DEPLOY_PATH/"
+    - echo "Deployed $CI_COMMIT_SHORT_SHA to $DEPLOY_PATH ($CI_ENVIRONMENT_NAME)"
+
+deploy_legacy_production:
+  extends: .deploy_legacy
+  stage: deploy
+  environment:
+    name: production
+  variables:
+    DEPLOY_PATH: $DEPLOY_PATH_PRODUCTION
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+
+deploy_legacy_development:
+  extends: .deploy_legacy
+  stage: deploy
+  environment:
+    name: development
+  variables:
+    DEPLOY_PATH: $DEPLOY_PATH_DEVELOPMENT
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "development"'

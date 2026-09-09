@@ -1,0 +1,29 @@
+name: Mirror all branches to GitLab
+
+# Full mirror: every branch/tag from GitHub is kept in sync on GitLab (so
+# the whole journey/history lives there too). GitLab CI itself only *runs*
+# deploy jobs for the `production` and `development` branches — see
+# .gitlab-ci.yml. GitHub stays the source of truth for development.
+# See deploy/README.md for the full setup.
+
+on:
+  push:
+    branches: ['**']
+  delete:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror-push all refs to GitLab
+        env:
+          GITLAB_PROJECT_URL: ${{ secrets.GITLAB_PROJECT_URL }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --mirror "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo-mirror
+          cd repo-mirror
+          git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@${GITLAB_PROJECT_URL}"
+          # --mirror pushes every branch/tag and removes on GitLab whatever
+          # was removed on GitHub, so GitLab always matches GitHub exactly.
+          git push gitlab --mirror --force

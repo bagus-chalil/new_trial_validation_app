@@ -1,0 +1,36 @@
+# Contoh vhost Nginx untuk environment development/test (legacy PHP app),
+# terpisah dari production. Copy ke
+# /etc/nginx/sites-available/trial-validation-development.conf,
+# sesuaikan server_name/port & php-fpm socket version, lalu:
+#   sudo ln -s /etc/nginx/sites-available/trial-validation-development.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+
+server {
+    listen 8080; # port berbeda dari production (yang di :80), atau pakai subdomain terpisah
+    server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
+
+    root /var/www/trial_validation_app-development/public; # samakan dengan DEPLOY_PATH_DEVELOPMENT/public
+    index index.php;
+
+    access_log /var/log/nginx/trial-validation-development.access.log;
+    error_log  /var/log/nginx/trial-validation-development.error.log;
+
+    client_max_body_size 20m;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock; # sesuaikan versi PHP
+    }
+
+    location ~ ^/(config|storage|database|app)/ {
+        deny all;
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}

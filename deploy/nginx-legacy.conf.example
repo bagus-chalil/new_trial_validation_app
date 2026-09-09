@@ -1,0 +1,38 @@
+# Contoh vhost Nginx untuk legacy PHP app (repo root).
+# Copy ke /etc/nginx/sites-available/trial-validation-legacy.conf,
+# sesuaikan server_name & php-fpm socket version, lalu:
+#   sudo ln -s /etc/nginx/sites-available/trial-validation-legacy.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+
+server {
+    listen 80;
+    server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
+
+    root /var/www/trial_validation_app/public; # samakan dengan DEPLOY_PATH/public
+    index index.php;
+
+    access_log /var/log/nginx/trial-validation-legacy.access.log;
+    error_log  /var/log/nginx/trial-validation-legacy.error.log;
+
+    client_max_body_size 20m;
+
+    # Port dari public/.htaccess: semua request non-file/non-dir masuk ke index.php
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock; # sesuaikan versi PHP
+    }
+
+    # Jangan pernah serve source di luar public/, meski root sudah diarahkan
+    # ke public/ ini extra safety kalau ada symlink/alias lain.
+    location ~ ^/(config|storage|database|app)/ {
+        deny all;
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}
