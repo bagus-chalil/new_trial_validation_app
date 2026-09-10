@@ -56,6 +56,12 @@ server {
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.5-fpm.sock; # sesuaikan versi PHP
+        # Cookie session+XSRF-TOKEN Laravel/Fortify/Inertia lebih besar dari
+        # PHP session biasa (legacy) — default nginx (4-8k) bisa kena
+        # "upstream sent too big header" pas response set banyak/besar
+        # cookie sekaligus (mis. GET /dashboard). Naikkan buffer-nya.
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 32k;
     }
 
     location ~ /\.(?!well-known) {
