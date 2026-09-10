@@ -126,6 +126,29 @@ git — berlaku untuk kedua environment:
 - `public/uploads/` — file attachment trial
 - `portal/config.js` — URL production new_trial_validation_app & ipc_app yang sebenarnya (bukan `localhost:8001`/`localhost:8002`) — lihat bagian "Routing semua aplikasi" di bawah untuk isi lengkapnya
 
+**⚠️ Insiden 2026-09-10 + fix:** rsync di atas awalnya cuma exclude path-path
+di atas (semuanya di root repo, punya legacy), padahal command-nya sendiri
+menyalin **seluruh isi repo** tanpa filter path (`"$CI_PROJECT_DIR/"
+"$DEPLOY_PATH/"`) — jadi walau komentar di `.gitlab-ci.yml` bilang "scope
+legacy saja", tiap deploy legacy tetap ikut menyentuh `new_trial_validation_app/`
+dan `ipc_app/` di server, karena kedua app itu punya placeholder `.gitignore`
+yang ter-*commit* di git (`storage/logs/.gitignore`, `bootstrap/cache/.gitignore`,
+dst. — pola standar Laravel). Akibatnya: `--no-owner --no-group` bikin
+direktori yang disentuh ulang oleh rsync balik jadi milik user CI
+(`gitlab-runner`), bukan `www-data` (PHP-FPM jadi *permission denied* nulis
+log/cache); dan `--delete-after` **menghapus** apa pun yang tidak ada di git
+checkout sama sekali — termasuk `.env`, `vendor/`, `node_modules/`,
+`public/build/` kedua app, karena semuanya di-gitignore. Ditemukan lewat
+`new_trial_validation_app` di server development yang `.env`-nya hilang dan
+`storage/logs/laravel.log` kena *permission denied* setelah deploy legacy,
+padahal tidak ada perubahan apa pun ke `new_trial_validation_app/` itu
+sendiri. **Fix:** exclude eksplisit ditambahkan di `.gitlab-ci.yml` untuk
+`new_trial_validation_app/` dan `ipc_app/` — `.env`, `storage/`,
+`bootstrap/cache/`, `vendor/`, `node_modules/`, `public/build/`, `public/hot`
+per app, pola yang sama seperti proteksi punya legacy di atas. Source code
+kedua app **tetap** ikut auto-sync seperti sebelumnya (tidak di-exclude
+seluruh foldernya) — cuma runtime state-nya sekarang dilindungi.
+
 File-file ini **harus dibuat manual sekali per environment**, idealnya sebelum
 deploy pertama — tapi kalau pipeline-nya sudah sempat jalan duluan (folder
 `config/`/`storage/`/`public/` sudah ada, dimiliki user `gitlab-runner` dari
