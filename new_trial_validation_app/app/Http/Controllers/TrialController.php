@@ -40,7 +40,7 @@ class TrialController extends Controller
         'in-review' => ['in-review', 'In Review Trials', 'Trial yang sedang dalam proses review.'],
         'need-revision' => ['need-revision', 'Need Revision Trials', 'Trial yang dikembalikan ke Staff untuk direvisi.'],
         'rejected' => ['rejected', 'Rejected Trials', 'Trial yang ditolak final.'],
-        'waiting-approval' => ['waiting', 'Waiting Approval', 'Trial yang menunggu approval Manager QAC.'],
+        'waiting-approval' => ['waiting', 'Tracking Proses', 'Pantau trial yang menunggu approval Manager QAC — halaman ini untuk memantau, aksi approve/reject dilakukan lewat Approval Queue Saya.'],
         'draft' => ['draft', 'Draft Trials', 'Trial yang masih berupa draft.'],
     ];
 

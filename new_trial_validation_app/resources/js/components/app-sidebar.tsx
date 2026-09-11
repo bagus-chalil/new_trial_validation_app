@@ -91,7 +91,7 @@ export function AppSidebar() {
                       ]
                     : []),
                 {
-                    title: 'Ready for Approval',
+                    title: 'Tracking Proses',
                     href: trialsIndex('waiting-approval'),
                     icon: Clock,
                 },
@@ -104,6 +104,11 @@ export function AppSidebar() {
                           },
                       ]
                     : []),
+                {
+                    title: 'Need Revision',
+                    href: trialsIndex('need-revision'),
+                    icon: AlertTriangle,
+                },
             ],
         },
         {
@@ -113,11 +118,6 @@ export function AppSidebar() {
                     title: 'Approved',
                     href: trialsIndex('approved'),
                     icon: CheckCircle2,
-                },
-                {
-                    title: 'Need Revision',
-                    href: trialsIndex('need-revision'),
-                    icon: AlertTriangle,
                 },
                 {
                     title: 'Rejected',

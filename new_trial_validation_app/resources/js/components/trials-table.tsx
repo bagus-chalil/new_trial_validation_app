@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-table';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { TrialProcessProgress } from '@/components/trial-process-progress';
 import { TrialStepProgress } from '@/components/trial-step-progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,11 +71,13 @@ const columns = [
         ),
     }),
     columnHelper.accessor('current_step', {
-        header: 'Current Step',
+        header: 'Progress',
         cell: (info) => (
-            <div className="space-y-1.5">
-                <div>{info.getValue() ?? '-'}</div>
-                <TrialStepProgress trial={info.row.original} />
+            <div className="space-y-2">
+                <TrialProcessProgress trial={info.row.original} />
+                {info.row.original.progress_status === 'Draft' && (
+                    <TrialStepProgress trial={info.row.original} />
+                )}
             </div>
         ),
     }),
