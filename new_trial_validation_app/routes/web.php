@@ -4,7 +4,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SsoController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::get('/', function () {
+    return redirect()->route(auth()->check() ? 'dashboard' : 'login');
+})->name('home');
 
 Route::get('sso/exchange', [SsoController::class, 'exchange'])->name('sso.exchange');
 

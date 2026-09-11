@@ -1,7 +1,22 @@
 import { Link, usePage } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { CheckCircle2 } from 'lucide-react';
+import cosmaxLogo from '@/assets/cosmax-idn-logo.jpg';
+import AppearanceToggleTab from '@/components/appearance-tabs';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
+
+const highlights = [
+    'Form trial, validasi parameter & weighing',
+    'Review berjenjang per departemen',
+    'Approval, laporan, dan riwayat aktivitas',
+];
 
 export default function AuthSplitLayout({
     children,
@@ -11,32 +26,94 @@ export default function AuthSplitLayout({
     const { name } = usePage().props;
 
     return (
-        <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
-            <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-                <div className="absolute inset-0 bg-zinc-900" />
-                <Link
-                    href={home()}
-                    className="relative z-20 flex items-center text-lg font-medium"
-                >
-                    <AppLogoIcon className="mr-2 size-8 fill-current text-white" />
-                    {name}
-                </Link>
-            </div>
-            <div className="w-full lg:p-8">
-                <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+        <div className="flex min-h-svh flex-col bg-background lg:flex-row">
+            <div className="relative hidden overflow-hidden lg:flex lg:w-[45%] lg:flex-col lg:justify-between lg:p-12 xl:w-2/5">
+                <div className="absolute inset-0 bg-gradient-to-br from-brand via-[#c81a1f] to-[#7a1014]" />
+                <div className="absolute -top-24 -right-24 size-72 rounded-full bg-white/10 blur-3xl" />
+                <div className="absolute bottom-0 left-0 size-80 -translate-x-1/3 translate-y-1/3 rounded-full bg-black/10 blur-3xl" />
+                <div
+                    className="absolute inset-0 opacity-[0.07]"
+                    style={{
+                        backgroundImage:
+                            'radial-gradient(circle, white 1px, transparent 1px)',
+                        backgroundSize: '22px 22px',
+                    }}
+                />
+
+                <div className="relative z-10 flex flex-col gap-10">
                     <Link
                         href={home()}
-                        className="relative z-20 flex items-center justify-center lg:hidden"
+                        className="inline-flex w-fit items-center rounded-2xl bg-white px-6 py-4 shadow-lg"
                     >
-                        <AppLogoIcon className="h-10 fill-current text-black sm:h-12" />
+                        <img
+                            src={cosmaxLogo}
+                            alt="COSMAX Indonesia"
+                            className="h-14 w-auto object-contain"
+                        />
                     </Link>
-                    <div className="flex flex-col items-start gap-2 text-left sm:items-center sm:text-center">
-                        <h1 className="text-xl font-medium">{title}</h1>
-                        <p className="text-sm text-balance text-muted-foreground">
-                            {description}
+
+                    <div className="space-y-4 text-white">
+                        <p className="text-sm font-semibold tracking-wide text-white/70 uppercase">
+                            QAC Super Apps
+                        </p>
+                        <h2 className="text-3xl leading-tight font-bold text-balance">
+                            {name}
+                        </h2>
+                        <p className="max-w-sm text-balance text-white/80">
+                            Pengelolaan trial produksi dari pengajuan, review
+                            lintas departemen, hingga approval dan pelaporan —
+                            dalam satu alur kerja.
                         </p>
                     </div>
-                    {children}
+                </div>
+
+                <ul className="relative z-10 flex flex-col gap-3">
+                    {highlights.map((item) => (
+                        <li
+                            key={item}
+                            className="flex items-start gap-3 text-sm text-white/90"
+                        >
+                            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                            <span>{item}</span>
+                        </li>
+                    ))}
+                </ul>
+
+                <p className="relative z-10 text-xs text-white/60">
+                    &copy; {new Date().getFullYear()} Cosmax Indonesia. All
+                    rights reserved.
+                </p>
+            </div>
+
+            <div className="flex flex-1 flex-col">
+                <div className="flex items-center justify-between p-6 lg:justify-end lg:p-8">
+                    <Link
+                        href={home()}
+                        className="inline-flex items-center rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-border lg:hidden"
+                    >
+                        <img
+                            src={cosmaxLogo}
+                            alt="COSMAX Indonesia"
+                            className="h-8 w-auto object-contain"
+                        />
+                    </Link>
+                    <AppearanceToggleTab className="scale-90" />
+                </div>
+
+                <div className="flex flex-1 items-center justify-center px-6 pb-12">
+                    <div className="w-full max-w-sm duration-500 animate-in fade-in slide-in-from-bottom-4">
+                        <Card className="border-border/60 shadow-xl shadow-black/5">
+                            <CardHeader className="items-center text-center">
+                                <CardTitle className="text-xl">
+                                    {title}
+                                </CardTitle>
+                                <CardDescription>
+                                    {description}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>{children}</CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
         </div>
