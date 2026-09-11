@@ -24,15 +24,19 @@
 # (certbot otomatis urus redirect http->https + auto-renewal, jauh lebih
 # baik daripada self-signed manual di atas — tidak ada warning browser lagi)
 
+# Legacy TIDAK lagi di port default 80/443 — port itu sekarang dipakai Portal
+# (lihat deploy/nginx-portal.conf.example), supaya IP polos langsung buka
+# Portal dulu. Legacy pindah ke :9000 (HTTP redirect) / :9001 (HTTPS).
+
 # Redirect semua HTTP ke HTTPS
 server {
-    listen 80;
+    listen 9000;
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
-    return 301 https://$host$request_uri;
+    return 301 https://$host:9001$request_uri;
 }
 
 server {
-    listen 443 ssl;
+    listen 9001 ssl;
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
 
     ssl_certificate     /etc/nginx/ssl/trial-validation-legacy.crt;

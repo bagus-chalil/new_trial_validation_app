@@ -16,15 +16,20 @@
 # di-edit manual mengarah ke URL DEVELOPMENT new_trial_validation_app/ipc_app
 # (:9013 dan :9023), bukan URL production. File ini di-exclude dari rsync,
 # lihat deploy/README.md bagian "Routing semua aplikasi".
+#
+# Portal development sengaja dipasang di port default-nya sendiri (8080/8443,
+# sama seperti legacy development yang lama) supaya IP polos di lingkungan
+# development juga langsung buka Portal — Legacy development pindah ke
+# :9002/:9003, lihat deploy/nginx-development.conf.example.
 
 server {
-    listen 9002;
+    listen 8080;
     server_name _;
-    return 301 https://$host:9003$request_uri;
+    return 301 https://$host:8443$request_uri;
 }
 
 server {
-    listen 9003 ssl;
+    listen 8443 ssl;
     server_name _;
 
     ssl_certificate     /etc/nginx/ssl/trial-validation-portal-development.crt;

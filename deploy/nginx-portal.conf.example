@@ -17,15 +17,20 @@
 # & ipcUrl mengarah ke URL production new_trial_validation_app/ipc_app yang
 # sebenarnya, bukan localhost. File ini di-exclude dari rsync (lihat
 # .gitlab-ci.yml) supaya edit manual itu tidak pernah ketimpa deploy.
+#
+# Portal sengaja dipasang di port DEFAULT (80/443) supaya IP polos
+# (https://100.100.160.23) langsung buka Portal tanpa perlu ketik port —
+# Legacy yang dulu di sini sekarang pindah ke :9000/:9001, lihat
+# deploy/nginx-legacy.conf.example.
 
 server {
-    listen 9000;
+    listen 80;
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
-    return 301 https://$host:9001$request_uri;
+    return 301 https://$host$request_uri;
 }
 
 server {
-    listen 9001 ssl;
+    listen 443 ssl;
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
 
     ssl_certificate     /etc/nginx/ssl/trial-validation-portal.crt;

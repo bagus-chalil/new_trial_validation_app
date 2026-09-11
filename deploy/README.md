@@ -106,21 +106,26 @@ sudo ln -s /etc/nginx/sites-available/trial-validation-development.conf /etc/ngi
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-`nginx-development.conf.example` defaultnya listen di port `8080` supaya
-tidak bentrok dengan production di port `80` pada server yang sama — ganti
-kalau kamu lebih suka subdomain terpisah.
+`nginx-development.conf.example` defaultnya listen di port `9002` supaya
+tidak bentrok dengan production di port `9000` pada server yang sama — ganti
+kalau kamu lebih suka subdomain terpisah. (Legacy sengaja tidak di port
+default `80`/`443` — itu port Portal, lihat bagian 9 di bawah.)
 
 **Satu IP untuk production + development, bisa?** Bisa, dan ini memang
 setup default kedua file contoh di atas: satu server (satu IP,
 `100.100.160.23` di catatan `ip a` kamu) menjalankan **dua vhost Nginx**
-sekaligus, dibedakan lewat **port** (`listen 80` untuk production,
-`listen 8080` untuk development) — bukan lewat `server_name`, yang sengaja
+sekaligus, dibedakan lewat **port** (`listen 9000` untuk production,
+`listen 9002` untuk development) — bukan lewat `server_name`, yang sengaja
 dibiarkan `_` (wildcard, cocok untuk request apa pun) karena kamu akses lewat
 IP, bukan domain. Nginx sendiri bisa host banyak vhost di satu IP tanpa
-masalah selama kombinasi `listen`-nya tidak identik. Yang perlu dipastikan:
+masalah selama kombinasi `listen`-nya tidak identik. **Legacy sengaja TIDAK
+di port default (`80`/`443`)** — port itu dipakai Portal (lihat bagian 9 di
+bawah), supaya IP polos (`https://100.100.160.23`, tanpa ketik port sama
+sekali) langsung buka Portal dulu, baru user pilih mau ke legacy/app baru/IPC
+dari sana. Yang perlu dipastikan:
 - Kalau ada firewall (`ufw`, atau security group kalau ini VM cloud), port
-  `8080` juga harus dibuka — cuma buka `80`/`443` saja tidak cukup untuk
-  development.
+  `9000`-`9003` (legacy prod+dev) dan `80`/`443`/`8080`/`8443` (portal
+  prod+dev) semuanya harus dibuka.
 - `fastcgi_pass` di kedua file arahkan ke socket PHP-FPM yang sama
   (`php8.5-fpm.sock` di contoh) — sesuaikan ke versi PHP yang benar-benar
   terpasang (`ls /run/php/` untuk lihat nama socket aktual).
@@ -452,21 +457,34 @@ Semua 4 hal (legacy, portal, new_trial_validation_app, ipc_app) jalan di
 **satu server, satu IP**, dibedakan lewat **port** (bukan domain, karena
 belum ada domain publik — lihat pembahasan IP-vs-domain di histori chat).
 Setiap aplikasi juga punya versi production dan development terpisah,
-mengikuti pola `DEPLOY_PATH_PRODUCTION`/`DEPLOY_PATH_DEVELOPMENT` legacy:
+mengikuti pola `DEPLOY_PATH_PRODUCTION`/`DEPLOY_PATH_DEVELOPMENT` legacy.
+
+**Portal sengaja dipasang di port DEFAULT** (`80`/`443` prod, `8080`/`8443`
+dev) supaya IP polos (`https://100.100.160.23`, tanpa ketik port) langsung
+buka Portal — pintu masuk pertama, sama kayak yang biasa kamu lihat di
+localhost. Legacy (yang tadinya di port default) pindah ke `9000`-`9003`:
 
 | Aplikasi | Prod HTTP→HTTPS | Prod HTTPS | Dev HTTP→HTTPS | Dev HTTPS |
 |---|---|---|---|---|
-| Legacy | 80 | **443** | 8080 | **8443** |
-| Portal (pintu masuk, pilih new app / ipc) | 9000 | **9001** | 9002 | **9003** |
+| Portal (pintu masuk, pilih legacy / new app / ipc) | 80 | **443** | 8080 | **8443** |
+| Legacy | 9000 | **9001** | 9002 | **9003** |
 | new_trial_validation_app | 9010 | **9011** | 9012 | **9013** |
 | ipc_app | 9020 | **9021** | 9022 | **9023** |
 
-Alur pemakaian: user buka portal (`:9001` prod / `:9003` dev) → pilih salah
-satu tombol → masuk ke new_trial_validation_app (`:9011`/`:9013`) atau
-ipc_app (`:9021`/`:9023`). Dari new_trial_validation_app, tombol "Aplikasi
-Lama" di sidebar balik ke legacy **environment yang sama** (prod balik ke
-prod `:443`, dev balik ke dev `:8443`) lewat SSO bridge — `ipc_app` tidak
-ada SSO/tombol balik sama sekali, app-nya independen (lihat CLAUDE.md).
+Alur pemakaian: user buka IP polos / portal (`:443` prod / `:8443` dev,
+efektifnya cuma `https://100.100.160.23`) → pilih salah satu tombol → masuk
+ke legacy (`:9001`/`:9003`), new_trial_validation_app (`:9011`/`:9013`),
+atau ipc_app (`:9021`/`:9023`). Dari new_trial_validation_app, tombol
+"Aplikasi Lama" di sidebar balik ke legacy **environment yang sama** (prod
+balik ke prod `:9001`, dev balik ke dev `:9003`) lewat SSO bridge — `ipc_app`
+tidak ada SSO/tombol balik sama sekali, app-nya independen (lihat
+CLAUDE.md).
+
+**Portal sendiri tidak punya halaman `/login`** — dia cuma static chooser
+(`index.html` + dua tombol). Kalau ada yang buka
+`https://100.100.160.23/login` (di port Portal) bakal 404 by design; login
+yang beneran ada di masing-masing app setelah klik tombolnya (`:9001`/`:9003`
+legacy, `:9011`/`:9013` new app, `:9021`/`:9023` ipc).
 
 File vhost contoh (pola sama seperti legacy: HTTP redirect + HTTPS
 self-signed, lihat komentar di `nginx-legacy.conf.example` untuk penjelasan
@@ -524,12 +542,13 @@ return [
 **`new_trial_validation_app/.env`** (dibuat manual saat setup Laravel-nya,
 lihat komentar di `nginx-new-app.conf.example`) — `OLD_APP_URL` mengarah ke
 legacy **environment yang sama**, jangan silang (dev new-app jangan
-mengarah ke legacy production):
+mengarah ke legacy production). Legacy TIDAK lagi di port default, jadi
+kedua URL di bawah harus eksplisit sebut port-nya:
 
 | Environment | `APP_URL` | `OLD_APP_URL` |
 |---|---|---|
-| Production | `https://100.100.160.23:9011` | `https://100.100.160.23` |
-| Development | `https://100.100.160.23:9013` | `https://100.100.160.23:8443` |
+| Production | `https://100.100.160.23:9011` | `https://100.100.160.23:9001` |
+| Development | `https://100.100.160.23:9013` | `https://100.100.160.23:9003` |
 
 ## Catatan keamanan
 

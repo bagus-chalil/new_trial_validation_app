@@ -13,7 +13,7 @@
 #   composer install --no-dev --optimize-autoloader
 #   cp .env.example .env
 #   sudo nano .env   # isi APP_URL=https://100.100.160.23:9011
-#                     #      OLD_APP_URL=https://100.100.160.23 (legacy production)
+#                     #      OLD_APP_URL=https://100.100.160.23:9001 (legacy production — legacy TIDAK lagi di port default, lihat deploy/nginx-legacy.conf.example)
 #                     #      DB_* (kredensial DB production, JANGAN default lokal)
 #   php artisan key:generate
 #   npm ci && npm run build

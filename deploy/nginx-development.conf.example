@@ -5,9 +5,12 @@
 #   sudo ln -s /etc/nginx/sites-available/trial-validation-development.conf /etc/nginx/sites-enabled/
 #   sudo nginx -t && sudo systemctl reload nginx
 #
-# Port beda dari production (8080/8443 vs 80/443) supaya bisa jalan di IP
+# Port beda dari production (9002/9003 vs 9000/9001) supaya bisa jalan di IP
 # yang sama tanpa bentrok — lihat deploy/README.md bagian "Satu IP untuk
-# production + development, bisa?" untuk detail.
+# production + development, bisa?" untuk detail. (Legacy TIDAK di port
+# default 80/443 — port itu dipakai Portal, lihat
+# deploy/nginx-portal-development.conf.example, supaya IP polos langsung
+# buka Portal dulu.)
 #
 # Server ini diakses lewat IP internal (belum ada domain publik), jadi
 # sertifikat di bawah pakai self-signed — Let's Encrypt TIDAK bisa issue
@@ -25,13 +28,13 @@
 
 # Redirect semua HTTP ke HTTPS
 server {
-    listen 8080; # port berbeda dari production (yang di :80), atau pakai subdomain terpisah
+    listen 9002; # port berbeda dari production (yang di :9000), atau pakai subdomain terpisah
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
-    return 301 https://$host:8443$request_uri;
+    return 301 https://$host:9003$request_uri;
 }
 
 server {
-    listen 8443 ssl;
+    listen 9003 ssl;
     server_name _; # ganti dengan domain/IP on-premise yang sebenarnya
 
     ssl_certificate     /etc/nginx/ssl/trial-validation-development.crt;

@@ -6,7 +6,7 @@
 #   composer install --no-dev --optimize-autoloader
 #   cp .env.example .env
 #   sudo nano .env   # APP_URL=https://100.100.160.23:9013
-#                     # OLD_APP_URL=https://100.100.160.23:8443 (legacy DEVELOPMENT, bukan production)
+#                     # OLD_APP_URL=https://100.100.160.23:9003 (legacy DEVELOPMENT, bukan production)
 #                     # DB_* kredensial DB staging (terpisah dari production, lihat catatan di atas README)
 #   php artisan key:generate
 #   npm ci && npm run build
