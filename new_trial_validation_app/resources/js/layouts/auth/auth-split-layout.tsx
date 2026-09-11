@@ -101,15 +101,13 @@ export default function AuthSplitLayout({
                 </div>
 
                 <div className="flex flex-1 items-center justify-center px-6 pb-12">
-                    <div className="w-full max-w-sm duration-500 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="w-full max-w-sm animate-in duration-500 fade-in slide-in-from-bottom-4">
                         <Card className="border-border/60 shadow-xl shadow-black/5">
                             <CardHeader className="items-center text-center">
                                 <CardTitle className="text-xl">
                                     {title}
                                 </CardTitle>
-                                <CardDescription>
-                                    {description}
-                                </CardDescription>
+                                <CardDescription>{description}</CardDescription>
                             </CardHeader>
                             <CardContent>{children}</CardContent>
                         </Card>
