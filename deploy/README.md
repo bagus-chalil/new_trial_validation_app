@@ -21,13 +21,24 @@ Branch lain (mis. `main`, `migrate-framework`, `feat/*`) tetap ikut ter-mirror
 ke GitLab (jadi histori lengkap ada di sana), tapi **tidak** memicu job deploy
 apa pun — `.gitlab-ci.yml` cuma punya `rules` untuk dua branch di atas.
 
-Scope saat ini: **legacy PHP app (repo root) saja**. `new_trial_validation_app/`
-dan `ipc_app/` belum masuk pipeline ini — nanti bisa ditambahkan sebagai stage
-terpisah kalau sudah siap.
+Scope: rsync (stage `deploy`) selalu menyalin **seluruh repo** — legacy,
+`new_trial_validation_app/`, `ipc_app/`, `portal/` — ke `DEPLOY_PATH_*`, di
+setiap push ke `production`/`development` (lihat bagian 9 di bawah, itu
+sudah lama begini walau nama job-nya `deploy_legacy_*`). **Sejak
+2026-09-11**, ada stage kedua, `build_apps`, yang otomatis menjalankan
+`composer install`/`npm run build`/`artisan migrate`/`artisan storage:link`
+untuk `new_trial_validation_app/`atau `ipc_app/` — tapi **hanya kalau ada
+file berubah di folder app itu** (`rules: changes:`), supaya push yang cuma
+menyentuh legacy tetap cepat dan tidak ikut nge-build 2 app lain. Sebelum ini,
+langkah build Laravel-nya (`composer install`, `npm run build`,
+`php artisan migrate`) untuk kedua app itu manual — lihat catatan di bagian 9
+untuk detail keputusan dan risiko yang belum tentu ketahuan tanpa akses SSH
+langsung ke server (kepemilikan file `vendor/`/`node_modules/`/dll yang
+sebelumnya dibuat manual, mungkin bukan milik user `gitlab-runner`).
 
 File terkait:
 - `.github/workflows/mirror-to-gitlab.yml` — full mirror-push (semua branch/tag) ke GitLab, trigger: push ke branch apa pun.
-- `.gitlab-ci.yml` — dua deploy job (`deploy_legacy_production`, `deploy_legacy_development`), jalan di runner dengan tag `onprem-legacy`, masing-masing hanya untuk branch-nya sendiri.
+- `.gitlab-ci.yml` — stage `deploy` (`deploy_legacy_production`/`deploy_legacy_development`, selalu jalan) lalu stage `build_apps` (`build_new_trial_validation_app_*`/`build_ipc_app_*`, jalan kondisional per app), semuanya di runner dengan tag `onprem-legacy`, masing-masing hanya untuk branch-nya sendiri.
 - `deploy/nginx-legacy.conf.example` — vhost Nginx production.
 - `deploy/nginx-development.conf.example` — vhost Nginx development/test (port/domain terpisah).
 
@@ -381,11 +392,40 @@ Repo ini monorepo — rsync di `.gitlab-ci.yml` menyalin **seluruh isi repo**
 (`"$CI_PROJECT_DIR/" "$DEPLOY_PATH/"`, tanpa filter path), jadi folder
 `portal/`, `new_trial_validation_app/`, dan `ipc_app/` **otomatis ikut ada**
 di kedua `DEPLOY_PATH_PRODUCTION`/`DEPLOY_PATH_DEVELOPMENT` setiap kali
-legacy deploy — walau CI/CD ini scope-nya cuma legacy (lihat catatan di
-paling atas file ini). Yang **belum otomatis**: setup Laravel-nya sendiri
-(`composer install`, `.env`, `npm run build`, `php artisan migrate`) untuk
-`new_trial_validation_app`/`ipc_app` — itu manual untuk sekarang, dan
-step-nya ada di komentar masing-masing file `.conf.example` di bawah.
+push ke `production`/`development`, apa pun yang berubah.
+
+**Sejak 2026-09-11**, setup Laravel-nya (`composer install`, `npm ci`,
+`npm run build`, `npx puppeteer browsers install ...` untuk Browsershot,
+`php artisan storage:link`, `php artisan migrate --force`) untuk
+`new_trial_validation_app`/`ipc_app` **sudah otomatis** lewat stage
+`build_apps` di `.gitlab-ci.yml` — jalan kondisional per app (`rules:
+changes:`), cuma kalau ada file berubah di folder app itu. **`.env` tetap
+harus dibuat manual sekali di awal** (job `build_apps` sengaja `exit 1` kalau
+`.env` app itu belum ada, bukan bikin otomatis — kredensial/APP_KEY tidak
+boleh ke-generate ulang tanpa sengaja tiap deploy) — step-nya ada di komentar
+masing-masing file `.conf.example` di bawah, sama seperti sebelumnya.
+
+**⚠️ Risiko belum-terverifikasi pada otomasi ini:** ditambahkan lewat audit
+statis (`.gitignore` + `composer.json`/`package.json`), **tanpa** akses SSH
+ke server production/development untuk mengecek langsung. Kalau
+`vendor/`/`node_modules/`/`public/build/`/`bootstrap/cache/`/
+`resources/js/{actions,routes,wayfinder}` di server saat ini dimiliki user
+lain (misal hasil `npm run build` manual yang dijalankan sebagai user SSH
+kamu sendiri, bukan `gitlab-runner`), job `build_apps` pertama kali jalan
+kemungkinan gagal `Permission denied` juga — sama kelas masalah dengan
+insiden rsync yang diperbaiki hari yang sama (lihat bagian 5). **Kalau itu
+terjadi**, jalankan sekali per app/environment via SSH:
+```bash
+sudo chown -R gitlab-runner:gitlab-runner \
+  $DEPLOY_PATH/new_trial_validation_app/{vendor,node_modules,bootstrap/cache,bootstrap/ssr,storage,public/build,resources/js/actions,resources/js/routes,resources/js/wayfinder} \
+  2>/dev/null
+# ganti path & nama app untuk ipc_app juga
+```
+(pakai `2>/dev/null` karena tidak semua folder itu mesti sudah ada). Setelah
+kepemilikan disamakan ke `gitlab-runner` sekali, deploy berikutnya seharusnya
+tidak kena masalah ini lagi — rekomendasi: coba dulu di `development`,
+pantau job `build_new_trial_validation_app_development`/
+`build_ipc_app_development` di GitLab, baru percaya untuk `production`.
 
 Semua 4 hal (legacy, portal, new_trial_validation_app, ipc_app) jalan di
 **satu server, satu IP**, dibedakan lewat **port** (bukan domain, karena

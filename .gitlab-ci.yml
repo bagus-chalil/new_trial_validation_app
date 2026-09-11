@@ -1,10 +1,22 @@
-# CI/CD for the legacy PHP app (repo root) only.
+# CI/CD for this monorepo (legacy PHP app, new_trial_validation_app, ipc_app).
 # GitHub mirrors every branch here (see .github/workflows/mirror-to-gitlab.yml),
-# but only `production` and `development` actually run a deploy job, on the
+# but only `production` and `development` actually run deploy jobs, on the
 # on-premise GitLab Runner. See deploy/README.md.
+#
+# Two stages, in order:
+#   1. deploy      - rsync the whole repo to DEPLOY_PATH (all 3 apps + portal).
+#                    Always runs on every push to production/development.
+#   2. build_apps  - for new_trial_validation_app/ipc_app only: composer
+#                    install, npm ci && npm run build, artisan migrate/
+#                    storage:link against the code the deploy stage just
+#                    synced. Only runs when that app's own files changed
+#                    (`rules: changes:`), so a legacy-only push stays fast.
+# build_apps jobs run in a later stage than deploy on purpose, so they never
+# race the rsync that puts their source there first.
 
 stages:
   - deploy
+  - build_apps
 
 .deploy_legacy:
   tags:
@@ -76,3 +88,71 @@ deploy_legacy_development:
     DEPLOY_PATH: $DEPLOY_PATH_DEVELOPMENT
   rules:
     - if: '$CI_COMMIT_BRANCH == "development"'
+
+.build_app:
+  tags:
+    - onprem-legacy
+  script:
+    - test -n "$DEPLOY_PATH" || (echo "DEPLOY_PATH is not set for this job/environment" && exit 1)
+    - test -n "$APP_DIR" || (echo "APP_DIR is not set for this job/environment" && exit 1)
+    - test -f "$DEPLOY_PATH/$APP_DIR/.env" || (echo "$DEPLOY_PATH/$APP_DIR/.env is missing - create it manually first (see deploy/README.md), this job will not create one" && exit 1)
+    - cd "$DEPLOY_PATH/$APP_DIR"
+    - composer install --no-interaction --prefer-dist
+    - npm ci
+    - npx puppeteer browsers install chrome chrome-headless-shell
+    - npm run build
+    - php artisan storage:link
+    - php artisan migrate --force
+    - echo "Built and migrated $APP_DIR at $DEPLOY_PATH ($CI_ENVIRONMENT_NAME)"
+
+build_new_trial_validation_app_production:
+  extends: .build_app
+  stage: build_apps
+  environment:
+    name: production
+  variables:
+    DEPLOY_PATH: $DEPLOY_PATH_PRODUCTION
+    APP_DIR: new_trial_validation_app
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+      changes:
+        - new_trial_validation_app/**/*
+
+build_new_trial_validation_app_development:
+  extends: .build_app
+  stage: build_apps
+  environment:
+    name: development
+  variables:
+    DEPLOY_PATH: $DEPLOY_PATH_DEVELOPMENT
+    APP_DIR: new_trial_validation_app
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "development"'
+      changes:
+        - new_trial_validation_app/**/*
+
+build_ipc_app_production:
+  extends: .build_app
+  stage: build_apps
+  environment:
+    name: production
+  variables:
+    DEPLOY_PATH: $DEPLOY_PATH_PRODUCTION
+    APP_DIR: ipc_app
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+      changes:
+        - ipc_app/**/*
+
+build_ipc_app_development:
+  extends: .build_app
+  stage: build_apps
+  environment:
+    name: development
+  variables:
+    DEPLOY_PATH: $DEPLOY_PATH_DEVELOPMENT
+    APP_DIR: ipc_app
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "development"'
+      changes:
+        - ipc_app/**/*
