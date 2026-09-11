@@ -170,11 +170,13 @@ export default function TrialAttachments({
                             setSelected([]);
                             syncInput([]);
                             setCategory(categories[0] ?? '');
-                            const captionInput = document.getElementById('caption') as HTMLInputElement | null;
+                            const captionInput = document.getElementById(
+                                'caption',
+                            ) as HTMLInputElement | null;
 
                             if (captionInput) {
-captionInput.value = '';
-}
+                                captionInput.value = '';
+                            }
                         }}
                         className="space-y-4"
                     >
@@ -219,7 +221,9 @@ captionInput.value = '';
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="caption">Caption (Optional)</Label>
+                                        <Label htmlFor="caption">
+                                            Caption (Optional)
+                                        </Label>
                                         <Input
                                             id="caption"
                                             name="caption"
@@ -292,12 +296,12 @@ captionInput.value = '';
                                         />
                                         <figcaption className="space-y-0.5 text-xs text-muted-foreground">
                                             {file.caption && (
-                                                <span className="block whitespace-pre-wrap break-words font-medium text-foreground">
+                                                <span className="block font-medium break-words whitespace-pre-wrap text-foreground">
                                                     {file.caption}
                                                 </span>
                                             )}
                                             <span className="block truncate">
-                                            {file.file_name}
+                                                {file.file_name}
                                             </span>
                                         </figcaption>
                                         {canEdit && (

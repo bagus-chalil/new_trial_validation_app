@@ -31,6 +31,7 @@ export type TrialRow = {
     product_name: string;
     finish_good_code: string;
     product_type: string;
+    validation_scope: string[] | null;
     progress_status: string;
     final_decision: string | null;
     current_step: string | null;
@@ -56,6 +57,26 @@ const columns = [
     columnHelper.accessor('product_name', { header: 'Product Name' }),
     columnHelper.accessor('finish_good_code', { header: 'Finish Good Code' }),
     columnHelper.accessor('product_type', { header: 'Product Type' }),
+    columnHelper.accessor('validation_scope', {
+        header: 'Jenis Trial',
+        cell: (info) => {
+            const scopes = info.getValue() ?? [];
+
+            if (scopes.length === 0) {
+                return '-';
+            }
+
+            return (
+                <div className="flex flex-wrap gap-1">
+                    {scopes.map((scope) => (
+                        <Badge key={scope} variant="secondary">
+                            {scope}
+                        </Badge>
+                    ))}
+                </div>
+            );
+        },
+    }),
     columnHelper.accessor('progress_status', {
         header: 'Status',
         cell: (info) => (

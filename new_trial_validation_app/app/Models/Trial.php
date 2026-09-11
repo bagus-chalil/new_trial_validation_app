@@ -317,6 +317,15 @@ class Trial extends Model
             $query->where('progress_status', $status);
         }
 
+        // Quote-wrapped LIKE (not a bare '%value%') so selecting "Filling"
+        // doesn't also match a trial whose only scope is "Filling-sealing" —
+        // validation_scope is stored as a JSON-encoded array (see the array
+        // cast above), so each entry is wrapped in double quotes on disk.
+        $validationScope = trim($filters['validation_scope'] ?? '');
+        if ($validationScope !== '') {
+            $query->where('validation_scope', 'like', '%"'.$validationScope.'"%');
+        }
+
         $dateFrom = trim($filters['date_from'] ?? '');
         if ($dateFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom) === 1) {
             $query->where('validation_date', '>=', $dateFrom);

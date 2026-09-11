@@ -44,6 +44,7 @@ type Summary = {
 type Filters = {
     q: string;
     product_type: string;
+    validation_scope: string;
     date_from: string;
     date_to: string;
     status: string;
@@ -68,6 +69,7 @@ type PageProps = {
     trials: Paginated<TrialRow>;
     filters: Filters;
     productTypes: string[];
+    validationScopes: string[];
     summary: Summary;
     overview: Overview;
 };
@@ -126,6 +128,7 @@ export default function Dashboard({
     trials,
     filters,
     productTypes,
+    validationScopes,
     summary,
     overview,
 }: PageProps) {
@@ -168,6 +171,11 @@ export default function Dashboard({
             key: 'product_type',
             label: `Product Type: ${filters.product_type}`,
             onClear: () => clearFilter('product_type'),
+        },
+        filters.validation_scope && {
+            key: 'validation_scope',
+            label: `Jenis Trial: ${filters.validation_scope}`,
+            onClear: () => clearFilter('validation_scope'),
         },
         filters.date_from && {
             key: 'date_from',
@@ -325,9 +333,7 @@ export default function Dashboard({
 
                 <FilterBar
                     searchValue={form.q}
-                    onSearchChange={(value) =>
-                        setForm({ ...form, q: value })
-                    }
+                    onSearchChange={(value) => setForm({ ...form, q: value })}
                     searchPlaceholder="Trial, product, FG code, category, scope, machine"
                     onSubmit={submit}
                     onReset={reset}
@@ -349,6 +355,15 @@ export default function Dashboard({
                             setForm({ ...form, product_type: value })
                         }
                         options={productTypes}
+                    />
+                    <FilterSelect
+                        label="Jenis Trial"
+                        value={form.validation_scope}
+                        onChange={(value) =>
+                            setForm({ ...form, validation_scope: value })
+                        }
+                        options={validationScopes}
+                        placeholder="Semua jenis trial"
                     />
                     <FilterField label="Tanggal Dari">
                         <Input

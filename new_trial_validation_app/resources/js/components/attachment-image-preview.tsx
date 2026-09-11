@@ -111,9 +111,13 @@ export function AttachmentImagePreview({
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[95vh] max-w-[min(95vw,1200px)] overflow-hidden p-4 sm:p-6">
-                <DialogTitle className="pr-8">{caption || fileName}</DialogTitle>
+                <DialogTitle className="pr-8">
+                    {caption || fileName}
+                </DialogTitle>
                 <DialogDescription className="break-all">
-                    {caption ? fileName : 'Klik di luar gambar atau tekan Escape untuk menutup.'}
+                    {caption
+                        ? fileName
+                        : 'Klik di luar gambar atau tekan Escape untuk menutup.'}
                 </DialogDescription>
                 <div
                     className={`flex h-[min(65vh,700px)] items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2 ${fitToScreen || zoom <= 1 ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
@@ -131,7 +135,9 @@ export function AttachmentImagePreview({
                         className="max-h-full max-w-full rounded object-contain select-none"
                         style={{
                             transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                            transition: isDragging.current ? 'none' : 'transform 150ms ease-out',
+                            transition: isDragging.current
+                                ? 'none'
+                                : 'transform 150ms ease-out',
                         }}
                     />
                 </div>
@@ -147,7 +153,7 @@ export function AttachmentImagePreview({
                     >
                         <ZoomOut className="size-4" />
                     </Button>
-                    <span className="min-w-14 text-center text-sm tabular-nums text-muted-foreground">
+                    <span className="min-w-14 text-center text-sm text-muted-foreground tabular-nums">
                         {fitToScreen ? 'Fit' : `${Math.round(zoom * 100)}%`}
                     </span>
                     <Button
@@ -185,7 +191,7 @@ export function AttachmentImagePreview({
                     </Button>
                 </div>
                 {caption && (
-                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                    <p className="text-sm whitespace-pre-wrap text-muted-foreground">
                         {caption}
                     </p>
                 )}

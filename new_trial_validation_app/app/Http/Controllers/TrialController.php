@@ -126,6 +126,7 @@ class TrialController extends Controller
         $filters = [
             'q' => trim((string) $request->query('q', '')),
             'product_type' => trim((string) $request->query('product_type', '')),
+            'validation_scope' => trim((string) $request->query('validation_scope', '')),
             'date_from' => trim((string) $request->query('date_from', '')),
             'date_to' => trim((string) $request->query('date_to', '')),
         ];
@@ -142,8 +143,8 @@ class TrialController extends Controller
             $trial->setAttribute('can_edit', Gate::forUser($user)->allows('update', $trial));
         });
 
-        $productTypes = MasterOption::query()
-            ->where('type', 'product_type')
+        $option = fn (string $type) => MasterOption::query()
+            ->where('type', $type)
             ->where('is_active', 1)
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -152,7 +153,8 @@ class TrialController extends Controller
         return Inertia::render('trials/index', [
             'trials' => $trials,
             'filters' => $filters,
-            'productTypes' => $productTypes,
+            'productTypes' => $option('product_type'),
+            'validationScopes' => $option('validation_scope'),
             'pageTitle' => $title,
             'pageSubtitle' => $subtitle,
             'group' => $group,

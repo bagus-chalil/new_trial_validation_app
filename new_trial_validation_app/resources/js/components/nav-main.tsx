@@ -29,7 +29,7 @@ export function NavMain({ groups = [] }: { readonly groups: NavGroup[] }) {
 
         return Boolean(
             trial?.progress_status &&
-                statusNavTitles[trial.progress_status] === item.title,
+            statusNavTitles[trial.progress_status] === item.title,
         );
     }
 

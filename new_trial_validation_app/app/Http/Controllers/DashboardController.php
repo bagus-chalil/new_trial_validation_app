@@ -31,6 +31,7 @@ class DashboardController extends Controller
         $filters = [
             'q' => trim((string) $request->query('q', '')),
             'product_type' => trim((string) $request->query('product_type', '')),
+            'validation_scope' => trim((string) $request->query('validation_scope', '')),
             'date_from' => trim((string) $request->query('date_from', '')),
             'date_to' => trim((string) $request->query('date_to', '')),
             'status' => trim((string) $request->query('status', '')),
@@ -50,12 +51,15 @@ class DashboardController extends Controller
 
         $summary = Trial::summaryCounts($user);
 
-        $productTypes = MasterOption::query()
-            ->where('type', 'product_type')
+        $option = fn (string $type) => MasterOption::query()
+            ->where('type', $type)
             ->where('is_active', 1)
             ->orderBy('sort_order')
             ->orderBy('name')
             ->pluck('name');
+
+        $productTypes = $option('product_type');
+        $validationScopes = $option('validation_scope');
 
         $overview = [
             'headline' => Trial::approvalHealth($user, $summary),
@@ -76,6 +80,7 @@ class DashboardController extends Controller
             'trials' => $trials,
             'filters' => $filters,
             'productTypes' => $productTypes,
+            'validationScopes' => $validationScopes,
             'summary' => $summary,
             'overview' => $overview,
         ]);

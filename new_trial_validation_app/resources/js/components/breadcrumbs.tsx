@@ -56,7 +56,8 @@ function trialBreadcrumbs(
     segments: string[],
     trial: TrialContext,
 ): BreadcrumbItemType[] {
-    const group = trialGroups[trialStatusLabel(trial.progress_status)] ?? 'draft';
+    const group =
+        trialGroups[trialStatusLabel(trial.progress_status)] ?? 'draft';
     const statusTitle = trialStatusLabel(trial.progress_status);
 
     return [
@@ -76,7 +77,9 @@ function groupedBreadcrumbs(
 
         if (['Users', 'Access Rights'].includes(title)) {
             group = 'User Management';
-        } else if (['Notifications', 'Trash', 'Activity Logs'].includes(title)) {
+        } else if (
+            ['Notifications', 'Trash', 'Activity Logs'].includes(title)
+        ) {
             group = 'System';
         }
 
@@ -114,11 +117,15 @@ export function contextualBreadcrumbs(
         }
 
         if (segments.length === 2 && trialGroups[segments[1]]) {
-            const title = Object.entries(trialGroups).find(
-                ([, group]) => group === segments[1],
-            )?.[0] ?? 'Trials';
+            const title =
+                Object.entries(trialGroups).find(
+                    ([, group]) => group === segments[1],
+                )?.[0] ?? 'Trials';
 
-            return [item('Trials', '/trials/draft'), item(`${title} Trials`, '#')];
+            return [
+                item('Trials', '/trials/draft'),
+                item(`${title} Trials`, '#'),
+            ];
         }
 
         if (trial && segments[1] && /^\d+$/.test(segments[1])) {

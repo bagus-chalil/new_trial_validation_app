@@ -61,7 +61,12 @@ export function TrialProcessProgress({ trial }: { trial: TrialProcessTrial }) {
                     </div>
                 ))}
             </div>
-            <div className={cn('text-xs font-medium', LABEL_CLASSNAMES[stage.tone])}>
+            <div
+                className={cn(
+                    'text-xs font-medium',
+                    LABEL_CLASSNAMES[stage.tone],
+                )}
+            >
                 {stage.label}
             </div>
         </div>

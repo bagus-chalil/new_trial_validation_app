@@ -15,6 +15,7 @@ import type { Paginated } from '@/types';
 type Filters = {
     q: string;
     product_type: string;
+    validation_scope: string;
     date_from: string;
     date_to: string;
 };
@@ -23,6 +24,7 @@ type PageProps = {
     trials: Paginated<TrialRow>;
     filters: Filters;
     productTypes: string[];
+    validationScopes: string[];
     pageTitle: string;
     pageSubtitle: string;
     group: string;
@@ -33,6 +35,7 @@ export default function TrialsIndex({
     trials,
     filters,
     productTypes,
+    validationScopes,
     pageTitle,
     pageSubtitle,
     group,
@@ -68,6 +71,11 @@ export default function TrialsIndex({
             label: `Product Type: ${filters.product_type}`,
             onClear: () => clearFilter('product_type'),
         },
+        filters.validation_scope && {
+            key: 'validation_scope',
+            label: `Jenis Trial: ${filters.validation_scope}`,
+            onClear: () => clearFilter('validation_scope'),
+        },
         filters.date_from && {
             key: 'date_from',
             label: `Dari: ${filters.date_from}`,
@@ -96,9 +104,7 @@ export default function TrialsIndex({
 
                 <FilterBar
                     searchValue={form.q}
-                    onSearchChange={(value) =>
-                        setForm({ ...form, q: value })
-                    }
+                    onSearchChange={(value) => setForm({ ...form, q: value })}
                     searchPlaceholder="Trial, product, FG code, scope, machine"
                     onSubmit={submit}
                     onReset={reset}
@@ -112,6 +118,15 @@ export default function TrialsIndex({
                             setForm({ ...form, product_type: value })
                         }
                         options={productTypes}
+                    />
+                    <FilterSelect
+                        label="Jenis Trial"
+                        value={form.validation_scope}
+                        onChange={(value) =>
+                            setForm({ ...form, validation_scope: value })
+                        }
+                        options={validationScopes}
+                        placeholder="Semua jenis trial"
                     />
                     <FilterField label="Tanggal Dari">
                         <Input

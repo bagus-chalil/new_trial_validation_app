@@ -589,12 +589,16 @@ export default function TrialReport({
                                                             />
                                                             <figcaption className="space-y-0.5 text-xs text-muted-foreground">
                                                                 {file.caption && (
-                                                                    <span className="block whitespace-pre-wrap break-words font-medium text-foreground">
-                                                                        {file.caption}
+                                                                    <span className="block font-medium break-words whitespace-pre-wrap text-foreground">
+                                                                        {
+                                                                            file.caption
+                                                                        }
                                                                     </span>
                                                                 )}
                                                                 <span className="block truncate">
-                                                                    {file.file_name}
+                                                                    {
+                                                                        file.file_name
+                                                                    }
                                                                 </span>
                                                             </figcaption>
                                                         </figure>

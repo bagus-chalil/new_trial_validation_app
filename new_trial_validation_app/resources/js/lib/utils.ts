@@ -13,15 +13,15 @@ export function toUrl(url: NonNullable<InertiaLinkProps['href']>): string {
 
 export function formatDate(dateString: string | null | undefined): string {
     if (!dateString) {
-return '-';
-}
+        return '-';
+    }
 
     try {
         const date = new Date(dateString);
 
         if (isNaN(date.getTime())) {
-return dateString;
-}
+            return dateString;
+        }
 
         const formatted = new Intl.DateTimeFormat('id-ID', {
             year: 'numeric',
@@ -29,7 +29,7 @@ return dateString;
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-            timeZone: 'Asia/Jakarta'
+            timeZone: 'Asia/Jakarta',
         }).format(date);
 
         return formatted.replace('pukul ', '').replace(/\./g, ':') + ' WIB';
@@ -37,4 +37,3 @@ return dateString;
         return dateString;
     }
 }
-
