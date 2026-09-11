@@ -405,16 +405,19 @@ harus dibuat manual sekali di awal** (job `build_apps` sengaja `exit 1` kalau
 boleh ke-generate ulang tanpa sengaja tiap deploy) — step-nya ada di komentar
 masing-masing file `.conf.example` di bawah, sama seperti sebelumnya.
 
-**⚠️ Risiko belum-terverifikasi pada otomasi ini:** ditambahkan lewat audit
+**⚠️ Risiko ini terkonfirmasi nyata, 2026-09-11:** awalnya ditulis lewat audit
 statis (`.gitignore` + `composer.json`/`package.json`), **tanpa** akses SSH
-ke server production/development untuk mengecek langsung. Kalau
-`vendor/`/`node_modules/`/`public/build/`/`bootstrap/cache/`/
-`resources/js/{actions,routes,wayfinder}` di server saat ini dimiliki user
-lain (misal hasil `npm run build` manual yang dijalankan sebagai user SSH
-kamu sendiri, bukan `gitlab-runner`), job `build_apps` pertama kali jalan
-kemungkinan gagal `Permission denied` juga — sama kelas masalah dengan
-insiden rsync yang diperbaiki hari yang sama (lihat bagian 5). **Kalau itu
-terjadi**, jalankan sekali per app/environment via SSH:
+ke server production/development untuk mengecek langsung — dan memang benar
+terjadi persis seperti diprediksi. Job `build_new_trial_validation_app_development`
+gagal di `npm ci` dengan `EACCES: permission denied` saat mencoba menghapus
+`new_trial_validation_app/node_modules/.cache/laravel-vite-plugin` — folder itu
+di server dimiliki user lain (bukan `gitlab-runner`), kemungkinan bekas
+`npm install`/`npm run build` manual lewat SSH sebelum stage `build_apps`
+otomatis ini ada. Kalau `vendor/`/`node_modules/`/`public/build/`/`bootstrap/cache/`/
+`resources/js/{actions,routes,wayfinder}` di server dimiliki user lain,
+job `build_apps` pertama kali jalan kemungkinan gagal `Permission denied` juga —
+sama kelas masalah dengan insiden rsync yang diperbaiki hari yang sama (lihat
+bagian 5). **Kalau itu terjadi**, jalankan sekali per app/environment via SSH:
 ```bash
 sudo chown -R gitlab-runner:gitlab-runner \
   $DEPLOY_PATH/new_trial_validation_app/{vendor,node_modules,bootstrap/cache,bootstrap/ssr,storage,public/build,resources/js/actions,resources/js/routes,resources/js/wayfinder} \

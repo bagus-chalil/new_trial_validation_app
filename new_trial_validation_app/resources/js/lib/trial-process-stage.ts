@@ -16,7 +16,7 @@ export type TrialProcessStage = {
  * Approved), distinct from TRIAL_WIZARD_STEPS in trial-wizard.ts — that one
  * tracks the 6 Staff-facing form steps *inside* Draft and reads "Wizard
  * selesai" for everything past Draft, which doesn't answer "how far along in
- * the review/approval process is this trial".
+ * the review/approval process is this trial"
  */
 export const PROCESS_STAGE_LABELS = [
     'Draft',
