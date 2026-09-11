@@ -18,6 +18,7 @@ type Filters = {
     validation_scope: string;
     date_from: string;
     date_to: string;
+    status: string;
 };
 
 type PageProps = {
@@ -66,6 +67,11 @@ export default function TrialsIndex({
             label: `Search: ${filters.q}`,
             onClear: () => clearFilter('q'),
         },
+        filters.status && {
+            key: 'status',
+            label: `Status: ${filters.status}`,
+            onClear: () => clearFilter('status'),
+        },
         filters.product_type && {
             key: 'product_type',
             label: `Product Type: ${filters.product_type}`,
@@ -111,6 +117,17 @@ export default function TrialsIndex({
                     hasActiveFilters={hasActiveFilters}
                     activeChips={activeChips}
                 >
+                    {group === 'tracking' && (
+                        <FilterSelect
+                            label="Status"
+                            value={form.status}
+                            onChange={(value) =>
+                                setForm({ ...form, status: value })
+                            }
+                            options={['In Review', 'Ready for Approval']}
+                            placeholder="Semua status"
+                        />
+                    )}
                     <FilterSelect
                         label="Product Type"
                         value={form.product_type}

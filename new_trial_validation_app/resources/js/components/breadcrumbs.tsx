@@ -18,8 +18,8 @@ type TrialContext = {
 
 const trialGroups: Record<string, string> = {
     Draft: 'draft',
-    'In Review': 'in-review',
-    'Ready for Approval': 'waiting-approval',
+    'In Review': 'tracking',
+    'Ready for Approval': 'tracking',
     Approved: 'approved',
     'Need Revision': 'need-revision',
     Rejected: 'rejected',
@@ -135,17 +135,17 @@ export function contextualBreadcrumbs(
 
     if (pathname === '/reviews') {
         return [
-            item('Trials', '/trials/in-review'),
-            item('In Review', '/trials/in-review'),
-            item('Review Queue Saya', '#'),
+            item('Trials', '/trials/tracking'),
+            item('Tracking Proses', '/trials/tracking'),
+            item('Need Review', '#'),
         ];
     }
 
     if (pathname === '/approvals') {
         return [
-            item('Trials', '/trials/waiting-approval'),
-            item('Ready for Approval', '/trials/waiting-approval'),
-            item('Approval Queue Saya', '#'),
+            item('Trials', '/trials/tracking'),
+            item('Tracking Proses', '/trials/tracking'),
+            item('Need Approval', '#'),
         ];
     }
 

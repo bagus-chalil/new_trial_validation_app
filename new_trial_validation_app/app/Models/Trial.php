@@ -156,6 +156,22 @@ class Trial extends Model
     }
 
     /**
+     * Whether any trials_review row for this trial's current round has moved
+     * past Pending — i.e. at least one department has already submitted its
+     * review. Drives TrialPolicy::update()'s In Review edit window: the
+     * owner may still fix a mistake while every department is untouched, but
+     * once one has reviewed, further edits are blocked so a later change
+     * can't silently invalidate a review already submitted against older data.
+     */
+    public function currentRoundReviewStarted(): bool
+    {
+        return $this->reviews()
+            ->where('review_round', $this->currentReviewRound())
+            ->where('status', '!=', 'Pending')
+            ->exists();
+    }
+
+    /**
      * Per-department review pivot for this trial's current review round —
      * factors out the inline computation legacy repeats in both report.php
      * and report_department_review.php (public/index.php:281-308). Every
@@ -241,15 +257,45 @@ class Trial extends Model
             'rejected' => $query->where(fn (Builder $q) => $q->where('trials_header.progress_status', 'Rejected')
                 ->orWhere('trials_header.final_decision', 'Rejected')),
             'waiting' => $query->where('trials_header.progress_status', 'Ready for Approval'),
+            // Merged monitor-only group (2026-09-11 menu restructure) behind
+            // the sidebar's single "Tracking Proses" entry — everything
+            // actively moving through the process, In Review and Ready for
+            // Approval together. 'in-review'/'waiting' above stay as
+            // internal-only building blocks (still used by summaryCounts()
+            // and the dashboard's per-status card links via the `status`
+            // list filter), just no longer exposed as their own URL groups.
+            'tracking' => $query->whereIn('trials_header.progress_status', ['In Review', 'Ready for Approval']),
             'draft' => $query->where('trials_header.progress_status', 'Draft'),
             default => null,
         };
 
-        if ($statusGroup === 'waiting' && ! $user->isAdmin() && ! $user->isManagerQac()) {
-            $query->where('trials_header.approver_user_id', $user->id);
-        } elseif ($statusGroup === 'waiting' && ! $user->isAdmin()) {
-            $query->where(fn (Builder $q) => $q->whereNull('trials_header.approver_user_id')
-                ->orWhere('trials_header.approver_user_id', $user->id));
+        // The Ready-for-Approval-only narrowing (port of legacy's
+        // scoped_trials_parts(), which applies this only to that one
+        // status) must keep applying to just the Ready for Approval slice
+        // of the merged 'tracking' group — an In Review row is never
+        // touched by it, matching legacy's per-status behavior exactly.
+        if (in_array($statusGroup, ['waiting', 'tracking'], true)) {
+            if (! $user->isAdmin() && ! $user->isManagerQac()) {
+                $query->where(function (Builder $q) use ($user, $statusGroup) {
+                    if ($statusGroup === 'tracking') {
+                        $q->where('trials_header.progress_status', '!=', 'Ready for Approval')
+                            ->orWhere('trials_header.approver_user_id', $user->id);
+                    } else {
+                        $q->where('trials_header.approver_user_id', $user->id);
+                    }
+                });
+            } elseif (! $user->isAdmin()) {
+                $query->where(function (Builder $q) use ($user, $statusGroup) {
+                    if ($statusGroup === 'tracking') {
+                        $q->where('trials_header.progress_status', '!=', 'Ready for Approval')
+                            ->orWhereNull('trials_header.approver_user_id')
+                            ->orWhere('trials_header.approver_user_id', $user->id);
+                    } else {
+                        $q->whereNull('trials_header.approver_user_id')
+                            ->orWhere('trials_header.approver_user_id', $user->id);
+                    }
+                });
+            }
         }
 
         return $query;
@@ -456,7 +502,7 @@ class Trial extends Model
     public static function productTypeBreakdown(User $user, int $top = 6): array
     {
         $rows = static::query()->visibleTo($user)
-            ->selectRaw('product_type, COUNT(*) as cnt')
+            ->select(DB::raw('product_type, COUNT(*) as cnt'))
             ->groupBy('product_type')
             ->orderByDesc('cnt')
             ->toBase()

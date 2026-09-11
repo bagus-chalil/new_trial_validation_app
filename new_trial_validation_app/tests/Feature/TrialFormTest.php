@@ -5,6 +5,7 @@ use App\Models\MasterOption;
 use App\Models\Product;
 use App\Models\Trial;
 use App\Models\TrialEditPermission;
+use App\Models\TrialReview;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
@@ -224,6 +225,45 @@ test('a need-revision trial is editable by any staff member', function () {
     $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'Need Revision', 'created_by' => $owner->email]);
 
     $this->actingAs($otherStaff)->get(route('trials.edit', $trial))->assertOk();
+});
+
+test('an in-review trial is editable by its owner while every department review is still pending', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'In Review', 'current_step' => 'Review', 'revision_no' => 0, 'created_by' => 'owner@local.test']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending', 'is_required' => true]);
+
+    $this->actingAs($owner)->get(route('trials.edit', $trial))->assertOk();
+
+    $response = $this->actingAs($owner)->put(route('trials.update', $trial), [
+        ...validTrialPayload($product),
+        'batch_number' => 'B-FIXED',
+    ]);
+
+    $response->assertRedirect(route('trials.report.show', $trial));
+    expect($trial->fresh()->batch_number)->toBe('B-FIXED');
+    expect($trial->fresh()->progress_status)->toBe('In Review');
+});
+
+test('an in-review trial is not editable by an unrelated staff member', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $otherStaff = User::factory()->create(['email' => 'other@local.test']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'In Review', 'current_step' => 'Review', 'revision_no' => 0, 'created_by' => $owner->email]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending', 'is_required' => true]);
+
+    $this->actingAs($otherStaff)->get(route('trials.edit', $trial))->assertForbidden();
+});
+
+test('an in-review trial locks again once any department has already reviewed', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'In Review', 'current_step' => 'Review', 'revision_no' => 0, 'created_by' => $owner->email]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Reviewed', 'is_required' => true]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'RNI', 'review_round' => 1, 'status' => 'Pending', 'is_required' => true]);
+
+    $this->actingAs($owner)->get(route('trials.edit', $trial))->assertForbidden();
+    $this->actingAs($owner)->put(route('trials.update', $trial), validTrialPayload($product))->assertForbidden();
 });
 
 test('an approved trial cannot be edited', function () {

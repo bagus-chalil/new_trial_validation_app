@@ -35,12 +35,12 @@ type PageProps = {
 export default function ApprovalsIndex({ items }: PageProps) {
     return (
         <>
-            <Head title="Approval Queue" />
+            <Head title="Need Approval" />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Approval Queue"
-                    description="Trial yang menunggu keputusan final Manager QAC / approver."
+                    title="Need Approval"
+                    description="Trial yang menunggu keputusan final Manager QAC / approver — semua approver yang ditunjuk bisa melakukan aksi approve di sini."
                 />
 
                 <Card>
@@ -139,5 +139,5 @@ export default function ApprovalsIndex({ items }: PageProps) {
 }
 
 ApprovalsIndex.layout = {
-    breadcrumbs: [{ title: 'Approval Queue', href: approvalsIndex() }],
+    breadcrumbs: [{ title: 'Need Approval', href: approvalsIndex() }],
 };

@@ -83,18 +83,26 @@ test('a non-super-admin does not see another user\'s draft trial', function () {
             && ! collect($data)->pluck('trial_code')->contains('TRIAL-SOMEONE-ELSE-DRAFT')));
 });
 
-test('myWork lists the current user\'s own active trials but excludes finished ones', function () {
+test('myWork splits the current user\'s own trials into draft/needs-revision/in-progress buckets', function () {
     $staff = User::factory()->create(['email' => 'staff@local.test']);
     makeDashboardTrial(['trial_code' => 'TRIAL-MINE-DRAFT', 'progress_status' => 'Draft', 'created_by' => 'staff@local.test']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-MINE-REVISION', 'progress_status' => 'Need Revision', 'created_by' => 'staff@local.test']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-MINE-IN-REVIEW', 'progress_status' => 'In Review', 'created_by' => 'staff@local.test']);
     makeDashboardTrial(['trial_code' => 'TRIAL-MINE-APPROVED', 'progress_status' => 'Approved', 'created_by' => 'staff@local.test']);
     makeDashboardTrial(['trial_code' => 'TRIAL-SOMEONE-ELSE', 'progress_status' => 'Draft', 'created_by' => 'other@local.test']);
 
     $response = $this->actingAs($staff)->get(route('my-work'));
 
     $response->assertInertia(fn ($page) => $page
-        ->where('myWork.myTrialsTotal', 1)
-        ->has('myWork.myTrials', 1)
-        ->where('myWork.myTrials.0.trial_code', 'TRIAL-MINE-DRAFT'));
+        ->where('myWork.draftTrialsTotal', 1)
+        ->has('myWork.draftTrials', 1)
+        ->where('myWork.draftTrials.0.trial_code', 'TRIAL-MINE-DRAFT')
+        ->where('myWork.needsRevisionTrialsTotal', 1)
+        ->has('myWork.needsRevisionTrials', 1)
+        ->where('myWork.needsRevisionTrials.0.trial_code', 'TRIAL-MINE-REVISION')
+        ->where('myWork.inProgressTrialsTotal', 1)
+        ->has('myWork.inProgressTrials', 1)
+        ->where('myWork.inProgressTrials.0.trial_code', 'TRIAL-MINE-IN-REVIEW'));
 });
 
 test('myWork lists pending reviews for the current user\'s department only', function () {
@@ -226,6 +234,23 @@ test('overview buckets product types beyond the top 6 into "Lainnya"', function 
 
         return $labels->count() === 7 && $labels->contains('Lainnya');
     }));
+});
+
+test('a reviewer can load the dashboard without a GROUP BY select conflict', function () {
+    // Regression test for a real bug: Trial::scopeVisibleTo() adds an explicit
+    // select('trials_header.*')->distinct() only on the reviewer branch, and
+    // productTypeBreakdown() used to append via selectRaw() instead of
+    // replacing it — MySQL's ONLY_FULL_GROUP_BY mode rejected the resulting
+    // query (trials_header.* selected but not in GROUP BY). Sqlite (this
+    // test's connection) doesn't enforce that mode, so this only guards
+    // against the select-accumulation regression, not a query-mode crash —
+    // the crash itself was confirmed fixed live against the real MySQL DB.
+    $reviewer = User::factory()->role('PRD')->create();
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-REVIEWER', 'progress_status' => 'In Review']);
+
+    $response = $this->actingAs($reviewer)->get(route('dashboard'));
+
+    $response->assertOk();
 });
 
 test('overview department-pending breakdown only counts trials visible to the acting user', function () {

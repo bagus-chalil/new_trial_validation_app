@@ -20,7 +20,7 @@ export default function MyWorkPage({ canCreateTrial, myWork }: PageProps) {
                 <div className="flex items-start justify-between gap-4">
                     <Heading
                         title="My Work"
-                        description="Pantau trial yang sedang berjalan dan pekerjaan yang menunggu tindakan Anda."
+                        description="Ringkasan aksi Anda: draft yang perlu dilanjutkan, trial yang perlu direvisi, yang sedang berjalan, serta review/approval yang menunggu Anda."
                     />
                     {canCreateTrial && (
                         <Button asChild>

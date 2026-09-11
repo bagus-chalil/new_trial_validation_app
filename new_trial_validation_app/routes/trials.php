@@ -37,6 +37,6 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
     Route::get('{trial}/report/pdf', [TrialReportController::class, 'pdf'])->whereNumber('trial')->name('report.pdf');
 
     Route::get('{group}', [TrialController::class, 'index'])
-        ->whereIn('group', ['approved', 'in-review', 'need-revision', 'rejected', 'waiting-approval', 'draft'])
+        ->whereIn('group', ['approved', 'tracking', 'need-revision', 'rejected', 'draft'])
         ->name('index');
 });

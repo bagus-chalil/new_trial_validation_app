@@ -69,9 +69,8 @@ function trialListGroupFor(trial: TrialData): string {
 
     switch (trial.progress_status) {
         case 'In Review':
-            return 'in-review';
         case 'Ready for Approval':
-            return 'waiting-approval';
+            return 'tracking';
         case 'Approved':
             return 'approved';
         case 'Need Revision':

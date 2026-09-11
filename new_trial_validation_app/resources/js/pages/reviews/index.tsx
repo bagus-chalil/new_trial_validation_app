@@ -34,12 +34,12 @@ type PageProps = {
 export default function ReviewsIndex({ items }: PageProps) {
     return (
         <>
-            <Head title="Review Queue" />
+            <Head title="Need Review" />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Review Department"
-                    description="Trial yang perlu direview oleh department Anda."
+                    title="Need Review"
+                    description="Trial yang perlu direview oleh department Anda — semua departemen yang terlibat bisa melakukan aksi review di sini."
                 />
 
                 <Card>
@@ -130,5 +130,5 @@ export default function ReviewsIndex({ items }: PageProps) {
 }
 
 ReviewsIndex.layout = {
-    breadcrumbs: [{ title: 'Review Queue', href: reviewsIndex() }],
+    breadcrumbs: [{ title: 'Need Review', href: reviewsIndex() }],
 };

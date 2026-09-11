@@ -7,7 +7,6 @@ import {
     CheckCircle2,
     CircleCheckBig,
     ClipboardCheck,
-    Clock,
     FlaskConical,
     History,
     KeyRound,
@@ -77,28 +76,23 @@ export function AppSidebar() {
                     icon: BriefcaseBusiness,
                 },
                 {
-                    title: 'In Review',
-                    href: trialsIndex('in-review'),
+                    title: 'Tracking Proses',
+                    href: trialsIndex('tracking'),
                     icon: Search,
                 },
                 ...(canReviewTrials
                     ? [
                           {
-                              title: 'Review Queue Saya',
+                              title: 'Need Review',
                               href: reviewsIndex(),
                               icon: ClipboardCheck,
                           },
                       ]
                     : []),
-                {
-                    title: 'Tracking Proses',
-                    href: trialsIndex('waiting-approval'),
-                    icon: Clock,
-                },
                 ...(canApproveTrials
                     ? [
                           {
-                              title: 'Approval Queue Saya',
+                              title: 'Need Approval',
                               href: approvalsIndex(),
                               icon: CircleCheckBig,
                           },

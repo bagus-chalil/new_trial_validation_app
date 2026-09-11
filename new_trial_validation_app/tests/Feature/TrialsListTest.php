@@ -56,16 +56,30 @@ test('the rejected group includes trials rejected via final_decision', function 
             && ! collect($data)->pluck('trial_code')->contains('TRIAL-APPROVED')));
 });
 
-test('the waiting-approval group maps to the Ready for Approval status', function () {
+test('the tracking group includes both In Review and Ready for Approval trials', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
     makeGroupTrial(['trial_code' => 'TRIAL-READY', 'progress_status' => 'Ready for Approval']);
+    makeGroupTrial(['trial_code' => 'TRIAL-IN-REVIEW', 'progress_status' => 'In Review']);
     makeGroupTrial(['trial_code' => 'TRIAL-APPROVED', 'progress_status' => 'Approved']);
 
-    $response = $this->actingAs($superAdmin)->get(route('trials.index', 'waiting-approval'));
+    $response = $this->actingAs($superAdmin)->get(route('trials.index', 'tracking'));
 
     $response->assertInertia(fn ($page) => $page
         ->where('trials.data', fn ($data) => collect($data)->pluck('trial_code')->contains('TRIAL-READY')
+            && collect($data)->pluck('trial_code')->contains('TRIAL-IN-REVIEW')
             && ! collect($data)->pluck('trial_code')->contains('TRIAL-APPROVED')));
+});
+
+test('a staff member with no assigned approvals only sees their own In Review trials in the tracking group', function () {
+    $staff = User::factory()->create(['role' => 'Staff', 'email' => 'staff@local.test']);
+    makeGroupTrial(['trial_code' => 'TRIAL-MINE-IN-REVIEW', 'progress_status' => 'In Review', 'created_by' => 'staff@local.test']);
+    makeGroupTrial(['trial_code' => 'TRIAL-READY-UNASSIGNED', 'progress_status' => 'Ready for Approval', 'created_by' => 'other@local.test']);
+
+    $response = $this->actingAs($staff)->get(route('trials.index', 'tracking'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('trials.data', fn ($data) => collect($data)->pluck('trial_code')->contains('TRIAL-MINE-IN-REVIEW')
+            && ! collect($data)->pluck('trial_code')->contains('TRIAL-READY-UNASSIGNED')));
 });
 
 test('the product_type filter narrows the trial list', function () {

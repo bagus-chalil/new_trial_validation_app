@@ -105,17 +105,36 @@ class DashboardController extends Controller
      * only surfaces what's really this user's to act on, not everything
      * they're merely allowed to see.
      *
+     * 2026-09-11 (direct user request): own trials used to be one flat
+     * "Trial Saya" bucket (any non-finished status), which didn't say
+     * whether the user actually had to do anything. Split into three so
+     * every trial answers "what's my action here?": draftTrials (still
+     * being written — the owner needs to continue the wizard),
+     * needsRevisionTrials (bounced back by the approver — the owner needs
+     * to fix and resubmit), and inProgressTrials (In Review / Ready for
+     * Approval — genuinely nothing for the owner to do but wait, kept
+     * separate and clearly informational rather than mixed in as if it
+     * needed action too).
+     *
      * @return array<string, mixed>
      */
     private function myWorkData(User $user): array
     {
-        $myTrialsQuery = Trial::query()
+        $ownTrials = fn () => Trial::query()
             ->whereNull('deleted_at')
-            ->whereRaw('LOWER(TRIM(created_by)) = ?', [strtolower(trim($user->email))])
-            ->whereNotIn('progress_status', ['Approved', 'Rejected']);
+            ->whereRaw('LOWER(TRIM(created_by)) = ?', [strtolower(trim($user->email))]);
 
-        $myTrials = (clone $myTrialsQuery)->orderByDesc('updated_at')->limit(5)->get();
-        $myTrialsTotal = (clone $myTrialsQuery)->count();
+        $draftQuery = $ownTrials()->where('progress_status', 'Draft');
+        $draftTrials = (clone $draftQuery)->orderByDesc('updated_at')->limit(5)->get();
+        $draftTrialsTotal = (clone $draftQuery)->count();
+
+        $needsRevisionQuery = $ownTrials()->where('progress_status', 'Need Revision');
+        $needsRevisionTrials = (clone $needsRevisionQuery)->orderByDesc('updated_at')->limit(5)->get();
+        $needsRevisionTrialsTotal = (clone $needsRevisionQuery)->count();
+
+        $inProgressQuery = $ownTrials()->whereIn('progress_status', ['In Review', 'Ready for Approval']);
+        $inProgressTrials = (clone $inProgressQuery)->orderByDesc('updated_at')->limit(5)->get();
+        $inProgressTrialsTotal = (clone $inProgressQuery)->count();
 
         $pendingReviews = collect();
         $pendingReviewsTotal = 0;
@@ -173,16 +192,22 @@ class DashboardController extends Controller
                 ->get(['id', 'trial_code', 'product_name', 'final_decision', 'updated_at']);
         }
 
+        $trialSummary = fn (Trial $t) => [
+            'id' => $t->id,
+            'trial_code' => $t->trial_code,
+            'product_name' => $t->product_name,
+            'progress_status' => $t->progress_status,
+            'current_step' => $t->current_step,
+            'pending_with' => $t->pending_with,
+        ];
+
         return [
-            'myTrials' => $myTrials->map(fn (Trial $t) => [
-                'id' => $t->id,
-                'trial_code' => $t->trial_code,
-                'product_name' => $t->product_name,
-                'progress_status' => $t->progress_status,
-                'current_step' => $t->current_step,
-                'pending_with' => $t->pending_with,
-            ])->values(),
-            'myTrialsTotal' => $myTrialsTotal,
+            'draftTrials' => $draftTrials->map($trialSummary)->values(),
+            'draftTrialsTotal' => $draftTrialsTotal,
+            'needsRevisionTrials' => $needsRevisionTrials->map($trialSummary)->values(),
+            'needsRevisionTrialsTotal' => $needsRevisionTrialsTotal,
+            'inProgressTrials' => $inProgressTrials->map($trialSummary)->values(),
+            'inProgressTrialsTotal' => $inProgressTrialsTotal,
             'pendingReviews' => $pendingReviews->map(fn (TrialReview $r) => [
                 'id' => $r->id,
                 'trial_id' => $r->trial_id,

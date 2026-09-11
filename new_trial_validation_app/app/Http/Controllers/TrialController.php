@@ -34,13 +34,20 @@ class TrialController extends Controller
      * Copied verbatim from the legacy $map array (public/index.php:223-229),
      * plus a 'draft' group Fase 3 needs so a newly-created trial has
      * somewhere to be listed (Trial::scopeVisibleTo() already supports it).
+     *
+     * 'tracking' replaces the old separate 'in-review'/'waiting-approval'
+     * segments (2026-09-11 menu restructure, direct user request): a single
+     * monitor-only page covering every trial actively moving through the
+     * process (In Review + Ready for Approval). It has no action buttons on
+     * purpose — reviewing/approving happens on "Need Review"/"Need Approval"
+     * (ReviewController/ApprovalController) or the per-trial Report Summary
+     * page, never here.
      */
     private const GROUPS = [
         'approved' => ['approved', 'Approved Trials', 'Daftar trial dengan status approved.'],
-        'in-review' => ['in-review', 'In Review Trials', 'Trial yang sedang dalam proses review.'],
+        'tracking' => ['tracking', 'Tracking Proses', 'Pantau semua trial yang sedang berjalan (In Review & Ready for Approval) — halaman ini untuk memantau saja, aksi review/approve dilakukan lewat Need Review / Need Approval.'],
         'need-revision' => ['need-revision', 'Need Revision Trials', 'Trial yang dikembalikan ke Staff untuk direvisi.'],
         'rejected' => ['rejected', 'Rejected Trials', 'Trial yang ditolak final.'],
-        'waiting-approval' => ['waiting', 'Tracking Proses', 'Pantau trial yang menunggu approval Manager QAC — halaman ini untuk memantau, aksi approve/reject dilakukan lewat Approval Queue Saya.'],
         'draft' => ['draft', 'Draft Trials', 'Trial yang masih berupa draft.'],
     ];
 
@@ -113,6 +120,15 @@ class TrialController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil diperbarui.']);
 
+        // Only a still-Draft trial is mid-wizard, so only it continues into
+        // Validation. A Need Revision/In Review edit is a standalone
+        // correction to an already-submitted trial — send it back to the
+        // Report Summary page instead, matching this app's detail-then-act
+        // navigation used everywhere else a non-Draft trial is acted on.
+        if ($trial->progress_status !== 'Draft') {
+            return to_route('trials.report.show', $trial);
+        }
+
         return to_route('trials.validation.edit', $trial);
     }
 
@@ -129,6 +145,12 @@ class TrialController extends Controller
             'validation_scope' => trim((string) $request->query('validation_scope', '')),
             'date_from' => trim((string) $request->query('date_from', '')),
             'date_to' => trim((string) $request->query('date_to', '')),
+            // Only meaningful on the merged 'tracking' group (In Review +
+            // Ready for Approval) — lets that page's own status sub-filter
+            // narrow to one of the two without needing a separate group.
+            // Harmless no-op elsewhere since scopeSearch() ANDs it onto a
+            // statusGroup that's already fixed to a single status.
+            'status' => trim((string) $request->query('status', '')),
         ];
 
         $trials = Trial::query()

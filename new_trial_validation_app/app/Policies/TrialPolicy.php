@@ -58,13 +58,27 @@ class TrialPolicy
         return $user->isStaff();
     }
 
+    /**
+     * In Review is a deliberate deviation from legacy's can_edit(), which
+     * never allows editing past Draft/Need Revision at all — added per direct
+     * user request so an owner can fix a mistake before anyone has acted on
+     * it. Narrower than Draft's window: only while every department review
+     * for the current round is still Pending (Trial::currentRoundReviewStarted()),
+     * so an edit can never silently invalidate a review already submitted
+     * against older data. Once any department has reviewed, this locks again
+     * until Need Revision or Approval, same as legacy.
+     */
     public function update(User $user, Trial $trial): bool
     {
-        if (! $user->isStaff() || ! in_array($trial->progress_status, ['Draft', 'Need Revision'], true)) {
+        if (! $user->isStaff() || ! in_array($trial->progress_status, ['Draft', 'Need Revision', 'In Review'], true)) {
             return false;
         }
 
-        if ($trial->progress_status === 'Draft') {
+        if ($trial->progress_status === 'In Review' && $trial->currentRoundReviewStarted()) {
+            return false;
+        }
+
+        if (in_array($trial->progress_status, ['Draft', 'In Review'], true)) {
             return $user->isTrialOwner($trial) || $user->hasTrialEditPermission($trial->id);
         }
 
