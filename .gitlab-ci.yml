@@ -27,6 +27,9 @@ stages:
       --exclude='new_trial_validation_app/node_modules/'
       --exclude='new_trial_validation_app/public/build/'
       --exclude='new_trial_validation_app/public/hot'
+      --exclude='new_trial_validation_app/resources/js/actions/'
+      --exclude='new_trial_validation_app/resources/js/routes/'
+      --exclude='new_trial_validation_app/resources/js/wayfinder/'
       --exclude='ipc_app/.env'
       --exclude='ipc_app/storage/'
       --exclude='ipc_app/bootstrap/cache/'
@@ -34,6 +37,9 @@ stages:
       --exclude='ipc_app/node_modules/'
       --exclude='ipc_app/public/build/'
       --exclude='ipc_app/public/hot'
+      --exclude='ipc_app/resources/js/actions/'
+      --exclude='ipc_app/resources/js/routes/'
+      --exclude='ipc_app/resources/js/wayfinder/'
       "$CI_PROJECT_DIR/" "$DEPLOY_PATH/"
     - echo "Deployed $CI_COMMIT_SHORT_SHA to $DEPLOY_PATH ($CI_ENVIRONMENT_NAME)"
 

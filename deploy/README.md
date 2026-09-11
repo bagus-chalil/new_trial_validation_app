@@ -149,6 +149,25 @@ per app, pola yang sama seperti proteksi punya legacy di atas. Source code
 kedua app **tetap** ikut auto-sync seperti sebelumnya (tidak di-exclude
 seluruh foldernya) — cuma runtime state-nya sekarang dilindungi.
 
+**⚠️ Insiden lanjutan 2026-09-11:** fix di atas ternyata belum lengkap —
+pipeline masih gagal (`exit status 23`) karena `--delete-after` mencoba
+menghapus `new_trial_validation_app/resources/js/{actions,routes,wayfinder}/`
+(file TypeScript hasil generate `php artisan wayfinder:generate`, di-gitignore
+sama seperti `vendor/`/`node_modules/` sehingga tidak pernah ada di git
+checkout CI) tapi gagal `Permission denied (13)` karena file-file itu di
+server sudah dimiliki user lain (proses build/`www-data`, bukan
+`gitlab-runner`). Persis kelas risiko yang sama seperti insiden 2026-09-10 di
+atas — folder gitignored yang muncul lagi di server tapi belum masuk exclude
+list. **Fix:** ditambahkan 3 exclude lagi untuk `new_trial_validation_app/`
+(`resources/js/actions/`, `resources/js/routes/`, `resources/js/wayfinder/`)
+plus versi yang sama untuk `ipc_app/` sekaligus (scaffold yang sama,
+`laravel/react-starter-kit`, jadi berisiko sama begitu wayfinder mulai
+generate file di sana juga) — meskipun `ipc_app/.gitignore` belum
+menge-gitignore ketiga folder itu sama sekali (beda dari
+`new_trial_validation_app/.gitignore`), jadi itu sendiri celah terpisah yang
+masih perlu dibereskan di `ipc_app/` kalau/ketika wayfinder mulai jalan di
+sana.
+
 File-file ini **harus dibuat manual sekali per environment**, idealnya sebelum
 deploy pertama — tapi kalau pipeline-nya sudah sempat jalan duluan (folder
 `config/`/`storage/`/`public/` sudah ada, dimiliki user `gitlab-runner` dari
