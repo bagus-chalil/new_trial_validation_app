@@ -4,7 +4,7 @@ import type { SyntheticEvent } from 'react';
  * Some attachment rows point at files that no longer exist on disk (e.g. old
  * trials whose photos live on a server this environment's `legacy_uploads`
  * disk doesn't have a full copy of) — without this the browser renders its
- * own ugly broken-image icon. Swap it for a neutral placeholder instead.
+ * own ugly broken-image icon. Swap it for a neutral placeholder instead
  */
 const MISSING_IMAGE_PLACEHOLDER =
     'data:image/svg+xml;utf8,' +
