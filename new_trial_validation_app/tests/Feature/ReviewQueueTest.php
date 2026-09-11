@@ -109,7 +109,7 @@ test('submitting a review without a comment is rejected', function () {
     expect($review->fresh()->status)->toBe('Pending');
 });
 
-test('a review that has already been reviewed cannot be saved again', function () {
+test('a reviewer can edit their already-reviewed comment while the trial is still In Review', function () {
     $reviewer = User::factory()->role('PRD')->create();
     $trial = makeInReviewTrial();
     $review = TrialReview::create([
@@ -121,9 +121,80 @@ test('a review that has already been reviewed cannot be saved again', function (
         'comment' => 'Already done',
     ]);
 
+    $response = $this->actingAs($reviewer)->put(route('reviews.update', $review), [
+        'comment' => 'Revised comment',
+    ]);
+
+    $response->assertRedirect(route('reviews.index'));
+
+    $review->refresh();
+    expect($review->status)->toBe('Reviewed');
+    expect($review->comment)->toBe('Revised comment');
+    expect($review->edit_count)->toBe(1);
+    expect($review->reviewer_email)->toBe($reviewer->email);
+
+    $log = ActivityLog::where('module', 'REVIEW')->where('action', 'EDIT_REVIEW')->where('record_id', (string) $review->id)->first();
+    expect($log)->not->toBeNull();
+});
+
+test('a reviewer can edit their already-reviewed comment while the trial is waiting for approval', function () {
+    $reviewer = User::factory()->role('PRD')->create();
+    $trial = makeInReviewTrial(['pending_with' => 'Manager QAC']);
+    $trial->progress_status = 'Ready for Approval';
+    $trial->save();
+    $review = TrialReview::create([
+        'trial_id' => $trial->id,
+        'department' => 'PRD',
+        'review_round' => 1,
+        'status' => 'Reviewed',
+        'comment' => 'Already done',
+    ]);
+
     $this->actingAs($reviewer)->put(route('reviews.update', $review), [
-        'comment' => 'Trying again',
+        'comment' => 'Revised while waiting for approval',
+    ])->assertRedirect(route('reviews.index'));
+
+    expect($review->fresh()->comment)->toBe('Revised while waiting for approval');
+});
+
+test('editing an already-reviewed comment is capped at 3 edits', function () {
+    $reviewer = User::factory()->role('PRD')->create();
+    $trial = makeInReviewTrial();
+    $review = TrialReview::create([
+        'trial_id' => $trial->id,
+        'department' => 'PRD',
+        'review_round' => 1,
+        'status' => 'Reviewed',
+        'comment' => 'Original',
+        'edit_count' => 3,
+    ]);
+
+    $this->actingAs($reviewer)->put(route('reviews.update', $review), [
+        'comment' => 'One edit too many',
     ])->assertForbidden();
+
+    expect($review->fresh()->comment)->toBe('Original');
+});
+
+test('an already-reviewed comment cannot be edited once the trial has a final approval decision', function () {
+    $reviewer = User::factory()->role('PRD')->create();
+    $trial = makeInReviewTrial();
+    $trial->progress_status = 'Approved';
+    $trial->final_decision = 'Approved';
+    $trial->save();
+    $review = TrialReview::create([
+        'trial_id' => $trial->id,
+        'department' => 'PRD',
+        'review_round' => 1,
+        'status' => 'Reviewed',
+        'comment' => 'Original',
+    ]);
+
+    $this->actingAs($reviewer)->put(route('reviews.update', $review), [
+        'comment' => 'Too late now',
+    ])->assertForbidden();
+
+    expect($review->fresh()->comment)->toBe('Original');
 });
 
 test('a stale review from an older round cannot be saved', function () {

@@ -63,6 +63,26 @@ class TrialReportController extends Controller
                 ->get(['id', 'department']);
         }
 
+        $editableReviews = collect();
+        if ($trial->final_decision === null
+            && in_array($trial->progress_status, ['In Review', 'Ready for Approval'], true)
+            && $user->isReviewer()
+        ) {
+            $departments = $user->reviewDepartmentsForUser();
+
+            $editableReviews = TrialReview::query()
+                ->where('trial_id', $trial->id)
+                ->where('review_round', $trial->currentReviewRound())
+                ->where('status', 'Reviewed')
+                ->where('edit_count', '<', TrialReview::MAX_EDITS)
+                ->when(
+                    $departments,
+                    fn ($q) => $q->whereIn(DB::raw('UPPER(TRIM(department))'), $departments),
+                    fn ($q) => $q->whereRaw('1 = 0'),
+                )
+                ->get(['id', 'department', 'comment', 'edit_count']);
+        }
+
         $core = $this->reportCore($trial);
 
         $attachments = TrialAttachmentFile::query()
@@ -111,6 +131,12 @@ class TrialReportController extends Controller
             'pendingReviews' => $pendingReviews->map(fn (TrialReview $r) => [
                 'id' => $r->id,
                 'department' => $r->department,
+            ])->values(),
+            'editableReviews' => $editableReviews->map(fn (TrialReview $r) => [
+                'id' => $r->id,
+                'department' => $r->department,
+                'comment' => $r->comment,
+                'editsRemaining' => TrialReview::MAX_EDITS - $r->edit_count,
             ])->values(),
             'approvalBlockedNote' => $approvalBlockedNote,
             'reviewCompletedNote' => $reviewCompletedNote,

@@ -96,6 +96,13 @@ type PendingReview = {
     department: string;
 };
 
+type EditableReview = {
+    id: number;
+    department: string;
+    comment: string | null;
+    editsRemaining: number;
+};
+
 type PageProps = {
     trial: TrialData;
     results: ResultItem[];
@@ -108,6 +115,7 @@ type PageProps = {
     canEdit: boolean;
     canApprove: boolean;
     pendingReviews: PendingReview[];
+    editableReviews: EditableReview[];
     approvalBlockedNote: string | null;
     reviewCompletedNote: string | null;
 };
@@ -147,6 +155,7 @@ export default function TrialReport({
     canEdit,
     canApprove,
     pendingReviews,
+    editableReviews,
     approvalBlockedNote,
     reviewCompletedNote,
 }: PageProps) {
@@ -696,6 +705,73 @@ export default function TrialReport({
                                                                 }
                                                             >
                                                                 Submit Review
+                                                            </Button>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            )}
+                                        </Form>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {editableReviews.length > 0 && (
+                            <div className="print:hidden">
+                                <h3 className="mb-2 text-base font-semibold">
+                                    Edit Review Department Anda
+                                </h3>
+                                <div className="space-y-4">
+                                    {editableReviews.map((review) => (
+                                        <Form
+                                            key={review.id}
+                                            {...ReviewController.update.form(
+                                                review.id,
+                                            )}
+                                        >
+                                            {({ processing, errors }) => (
+                                                <Card>
+                                                    <CardHeader>
+                                                        <CardTitle className="text-sm">
+                                                            Comment review
+                                                            department{' '}
+                                                            {review.department}
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent className="space-y-3">
+                                                        {errors.comment && (
+                                                            <Alert variant="destructive">
+                                                                <AlertDescription>
+                                                                    {
+                                                                        errors.comment
+                                                                    }
+                                                                </AlertDescription>
+                                                            </Alert>
+                                                        )}
+                                                        <Textarea
+                                                            name="comment"
+                                                            required
+                                                            defaultValue={
+                                                                review.comment ??
+                                                                ''
+                                                            }
+                                                            placeholder="Comment review..."
+                                                        />
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Sisa{' '}
+                                                                {
+                                                                    review.editsRemaining
+                                                                }{' '}
+                                                                kali edit.
+                                                            </p>
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                Simpan Perubahan
                                                             </Button>
                                                         </div>
                                                     </CardContent>

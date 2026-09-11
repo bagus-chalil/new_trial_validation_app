@@ -265,7 +265,30 @@ test('a reviewer who already reviewed their department sees a note once no pendi
     $response->assertInertia(fn ($page) => $page
         ->has('pendingReviews', 0)
         ->where('reviewCompletedNote', fn ($note) => $note !== null)
-        ->where('approvalBlockedNote', null));
+        ->where('approvalBlockedNote', null)
+        ->has('editableReviews', 1)
+        ->where('editableReviews.0.department', 'PRD')
+        ->where('editableReviews.0.editsRemaining', 3));
+});
+
+test('the editable-reviews list excludes a reviewed department once its edits are used up or the trial is decided', function () {
+    $reviewer = User::factory()->role('PRD')->create();
+    $trial = makeReportTrial(['trial_code' => 'TRIAL-EDITS-USED-UP', 'progress_status' => 'In Review', 'revision_no' => 0]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Reviewed', 'reviewed_at' => Carbon::now(), 'edit_count' => 3]);
+
+    $response = $this->actingAs($reviewer)->get(route('trials.report.show', $trial));
+    $response->assertInertia(fn ($page) => $page->has('editableReviews', 0));
+
+    $trial->progress_status = 'Approved';
+    $trial->final_decision = 'Approved';
+    $trial->save();
+
+    $review = TrialReview::where('trial_id', $trial->id)->first();
+    $review->edit_count = 0;
+    $review->save();
+
+    $response = $this->actingAs($reviewer)->get(route('trials.report.show', $trial));
+    $response->assertInertia(fn ($page) => $page->has('editableReviews', 0));
 });
 
 test('each report list has a PDF export that returns a PDF response', function (string $route) {

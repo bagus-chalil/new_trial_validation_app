@@ -21,10 +21,17 @@ use Illuminate\Support\Carbon;
  * @property string|null $reviewer_email
  * @property string|null $comment
  * @property Carbon|null $reviewed_at
+ * @property int $edit_count
  */
-#[Fillable(['trial_id', 'department', 'review_round', 'status', 'is_required', 'reviewer_name', 'reviewer_email', 'comment', 'reviewed_at'])]
+#[Fillable(['trial_id', 'department', 'review_round', 'status', 'is_required', 'reviewer_name', 'reviewer_email', 'comment', 'reviewed_at', 'edit_count'])]
 class TrialReview extends Model
 {
+    /**
+     * A reviewer may revise their already-submitted comment this many times
+     * before the review locks (see TrialReviewPolicy::update()).
+     */
+    public const MAX_EDITS = 3;
+
     protected $table = 'trials_review';
 
     public $timestamps = false;
