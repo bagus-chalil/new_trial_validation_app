@@ -394,8 +394,9 @@ Repo ini monorepo — rsync di `.gitlab-ci.yml` menyalin **seluruh isi repo**
 di kedua `DEPLOY_PATH_PRODUCTION`/`DEPLOY_PATH_DEVELOPMENT` setiap kali
 push ke `production`/`development`, apa pun yang berubah.
 
-**Sejak 2026-09-11**, setup Laravel-nya (`composer install`, `npm ci`,
-`npm run build`, `npx puppeteer browsers install ...` untuk Browsershot,
+**Sejak 2026-09-11**, setup Laravel-nya (`composer install`,
+`php artisan optimize:clear`, `npm ci`, `npm run build`,
+`npx puppeteer browsers install ...` untuk Browsershot,
 `php artisan storage:link`, `php artisan migrate --force`) untuk
 `new_trial_validation_app`/`ipc_app` **sudah otomatis** lewat stage
 `build_apps` di `.gitlab-ci.yml` — jalan kondisional per app (`rules:
@@ -404,6 +405,23 @@ harus dibuat manual sekali di awal** (job `build_apps` sengaja `exit 1` kalau
 `.env` app itu belum ada, bukan bikin otomatis — kredensial/APP_KEY tidak
 boleh ke-generate ulang tanpa sengaja tiap deploy) — step-nya ada di komentar
 masing-masing file `.conf.example` di bawah, sama seperti sebelumnya.
+
+**⚠️ Insiden lanjutan 2026-09-11 (build_apps run pertama):** setelah job
+`build_apps` pertama sukses untuk `new_trial_validation_app` di
+`development`, `/login` tetap 500 — bukan masalah baru, tapi cache Laravel
+basi (`bootstrap/cache/services.php`/`packages.php`/`config.php`) yang
+kemungkinan ditulis oleh `php artisan optimize`/`config:cache` manual jauh
+sebelum stage otomatis ini ada, dari kondisi `vendor/`/`composer.lock` yang
+sudah lama tidak sinkron dengan yang sekarang. Setelah `composer install`
+meng-update `vendor/` ke lock file terbaru, cache lama itu jadi merujuk ke
+daftar package/service-provider yang tidak lagi cocok, dan Laravel membaca
+cache itu dulu daripada state kode yang sebenarnya sekarang → fatal error di
+setiap request. Hilang setelah `php artisan optimize:clear` dijalankan
+manual satu kali. **Fix permanen:** `php artisan optimize:clear` ditambahkan
+ke `.build_app` di `.gitlab-ci.yml`, dijalankan tiap kali setelah
+`composer install` dan sebelum `npm ci`/`migrate` — jadi setiap deploy mulai
+dari cache bersih, tidak tergantung riwayat manual apa pun yang pernah
+terjadi di server sebelum otomasi ini ada.
 
 **⚠️ Risiko ini terkonfirmasi nyata, 2026-09-11:** awalnya ditulis lewat audit
 statis (`.gitignore` + `composer.json`/`package.json`), **tanpa** akses SSH

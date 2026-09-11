@@ -98,6 +98,7 @@ deploy_legacy_development:
     - test -f "$DEPLOY_PATH/$APP_DIR/.env" || (echo "$DEPLOY_PATH/$APP_DIR/.env is missing - create it manually first (see deploy/README.md), this job will not create one" && exit 1)
     - cd "$DEPLOY_PATH/$APP_DIR"
     - composer install --no-interaction --prefer-dist
+    - php artisan optimize:clear
     - npm ci
     - npx puppeteer browsers install chrome chrome-headless-shell
     - npm run build
