@@ -168,6 +168,40 @@ menge-gitignore ketiga folder itu sama sekali (beda dari
 masih perlu dibereskan di `ipc_app/` kalau/ketika wayfinder mulai jalan di
 sana.
 
+**Audit menyeluruh, sama hari (2026-09-11):** daripada nunggu insiden ketiga,
+tiap baris `.gitignore` root/`new_trial_validation_app/`/`ipc_app/` dicek satu
+per satu terhadap exclude list rsync. Temuan paling penting: **`public/storage`**
+(symlink hasil `php artisan storage:link`, gitignored di kedua app) belum
+ter-exclude sama sekali — dan `ipc_app` **memang benar-benar pakai**
+`Storage::disk('public')` di semua controller foto (Startup/Filling/Packing/
+Finished Check), jadi symlink ini nyata dipakai di production, bukan cuma
+teori. Beda dari kasus wayfinder (bikin pipeline gagal dengan error jelas),
+kalau rsync justru **berhasil** menghapus symlink ini (tergantung siapa yang
+memilikinya di server), akibatnya foto-foto IPC berhenti tampil di production
+**tanpa pipeline gagal sama sekali** — silent breakage yang lebih berbahaya.
+Ditambahkan juga `bootstrap/ssr/` (gitignored di kedua app, belum dipakai tapi
+defensif) dan beberapa file tunggal yang gitignored dan realistis bisa muncul
+di server (`.phpunit.cache`, `.phpunit.result.cache`, `.env.backup`,
+`.env.production`, `npm-debug.log` — semuanya bisa muncul kalau ada yang
+pernah menjalankan test atau `npm install` gagal langsung di server). Yang
+**sengaja tidak** ditambahkan karena mustahil muncul di server Linux headless
+ini: `.DS_Store` (butuh macOS Finder), `.phpactor.json`/`Homestead.json`/
+`.fleet`/`.idea`/`.nova`/`.vscode`/`.zed` (config IDE/Vagrant lokal), dan
+`auth.json` (tidak ada private Composer repo di `composer.json` kedua app).
+
+**Batasan audit ini:** dilakukan lewat analisis statis (`.gitignore` +
+`composer.json`/`package.json` scripts), **bukan** dengan SSH langsung ke
+server production/development — tidak ada akses SSH ke situ dari sesi
+Claude Code ini. Kalau ada folder/file yang sebelumnya dibuat manual di server
+dengan cara di luar langkah standar di dokumen ini, folder itu tetap berisiko
+sampai ditambahkan ke exclude list secara eksplisit. Pertimbangkan
+`--filter=':- .gitignore'` (per-directory merge, rsync otomatis baca
+`.gitignore` tiap folder) sebagai jaring pengaman permanen di masa depan —
+belum diterapkan sekarang karena mengubah mekanisme sync yang tidak bisa
+diuji tanpa menjalankan pipeline sungguhan, dan repo ini punya riwayat
+insiden dari perubahan yang tidak diuji dulu (lihat catatan insiden
+"shared DB wiped 2026-08-24" di memory).
+
 File-file ini **harus dibuat manual sekali per environment**, idealnya sebelum
 deploy pertama — tapi kalau pipeline-nya sudah sempat jalan duluan (folder
 `config/`/`storage/`/`public/` sudah ada, dimiliki user `gitlab-runner` dari
