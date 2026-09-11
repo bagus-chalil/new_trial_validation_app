@@ -99,7 +99,7 @@ deploy_legacy_development:
     - cd "$DEPLOY_PATH/$APP_DIR"
     - composer install --no-interaction --prefer-dist
     - chgrp -R www-data storage bootstrap/cache 2>/dev/null || true
-    - chmod -R ug+rwX storage bootstrap/cache
+    - chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
     - php artisan optimize:clear
     - npm ci
     - npx puppeteer browsers install chrome chrome-headless-shell
