@@ -12,7 +12,7 @@ export function stageLabel(stage: string): string {
     return STAGE_LABELS[stage] ?? stage;
 }
 
-// Exact badge colors from the redesign mockup (one per stage, not a generic accent tint).
+// Exact badge colors from the redesign mockup (one per stage, not a generic accent tint)
 export const STAGE_BADGE_COLORS: Record<string, { bg: string; fg: string }> = {
     startup: { bg: '#DBEAFE', fg: '#1D4ED8' },
     filling: { bg: '#EDE9FE', fg: '#6D28D9' },
