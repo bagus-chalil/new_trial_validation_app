@@ -12,8 +12,10 @@ use Spatie\Browsershot\Browsershot;
  * poorly, while Browsershot renders through real Chrome.
  *
  * Requires the Chromium build Puppeteer manages to already be downloaded on
- * this machine (`node node_modules/puppeteer/install.mjs`, or `npx puppeteer
- * browsers install chrome chrome-headless-shell`) — a plain `npm install`
+ * this machine (`node node_modules/puppeteer/install.mjs`, or two separate
+ * `npx puppeteer browsers install chrome` / `npx puppeteer browsers install
+ * chrome-headless-shell` calls — NOT one call with both names as positional
+ * args, which silently installs only the first) — a plain `npm install`
  * alone does not guarantee this if install scripts are gated in this
  * environment.
  *
@@ -32,6 +34,18 @@ use Spatie\Browsershot\Browsershot;
  * putenv()-only var isn't in $_SERVER, so it gets silently dropped before
  * reaching the spawned `node` process. $_ENV is merged in unconditionally,
  * bypassing that filter.
+ *
+ * ->noSandbox(): Chrome's sandbox needs unprivileged user namespaces, which
+ * Ubuntu 23.10+ restricts by default via AppArmor — without this, launch
+ * fails outright with "FATAL:zygote_host_impl_linux.cc No usable sandbox!"
+ * (hit on the real Ubuntu 26.04 production/development servers, 2026-09-14,
+ * via new_trial_validation_app's copy of this class — same fix applies
+ * here). Accepted because the HTML rendered is always our own
+ * server-generated Blade output, not an arbitrary user-supplied URL or
+ * third-party page — the sandbox's real threat model (a malicious remote
+ * page escaping the renderer) doesn't apply. The AppArmor-profile
+ * alternative needs a root-level, Ubuntu-version-specific policy on every
+ * deploy server and was not pursued.
  */
 class BrowsershotPdfRenderer implements PdfRenderer
 {
@@ -47,6 +61,7 @@ class BrowsershotPdfRenderer implements PdfRenderer
             ->showBackground()
             ->waitUntilNetworkIdle()
             ->timeout(60)
+            ->noSandbox()
             ->pdf();
     }
 }

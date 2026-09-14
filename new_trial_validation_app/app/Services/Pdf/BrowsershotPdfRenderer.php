@@ -12,11 +12,17 @@ use Spatie\Browsershot\Browsershot;
  * renders poorly, while Browsershot renders through real Chrome.
  *
  * Requires the Chromium build(s) Puppeteer manages to already be downloaded
- * on this machine (`npx puppeteer browsers install chrome
- * chrome-headless-shell`) — this project's .npmrc sets ignore-scripts=true,
- * so a plain `npm install` does NOT fetch them automatically the way a
- * default Puppeteer install would. `composer run setup` runs this
- * explicitly; a machine that skipped `setup` needs it run by hand once.
+ * on this machine via two separate calls — `npx puppeteer browsers install
+ * chrome` then `npx puppeteer browsers install chrome-headless-shell` — NOT
+ * one call with both names as positional args (`... install chrome
+ * chrome-headless-shell`), which silently installs only the first and was
+ * the actual cause of "Could not find chrome-headless-shell" recurring in
+ * both production and development on 2026-09-14 despite CI/`setup`
+ * "succeeding" on every prior deploy. This project's .npmrc sets
+ * ignore-scripts=true, so a plain `npm install` does NOT fetch them
+ * automatically the way a default Puppeteer install would. `composer run
+ * setup` runs this explicitly; a machine that skipped `setup` needs it run
+ * by hand once.
  *
  * Puppeteer resolves its cache directory from the *current process's*
  * $HOME by default. On the deploy servers, CI installs the browser as the
@@ -32,6 +38,18 @@ use Spatie\Browsershot\Browsershot;
  * putenv()-only var isn't in $_SERVER, so it gets silently dropped before
  * reaching the spawned `node` process. $_ENV is merged in unconditionally,
  * bypassing that filter.
+ *
+ * ->noSandbox(): Chrome's sandbox needs unprivileged user namespaces, which
+ * Ubuntu 23.10+ restricts by default via AppArmor — without this, launch
+ * fails outright with "FATAL:zygote_host_impl_linux.cc No usable sandbox!"
+ * (hit on the real Ubuntu 26.04 production/development servers, 2026-09-14).
+ * Accepted here because the HTML rendered is always our own server-generated
+ * Blade output (trials.report / *.blade.php under resources/views/pdf), not
+ * an arbitrary user-supplied URL or third-party page — the sandbox's real
+ * threat model (a malicious remote page escaping the renderer) doesn't
+ * apply. The AppArmor-profile alternative (letting the sandbox work as
+ * intended) needs a root-level, Ubuntu-version-specific policy on every
+ * deploy server and was not pursued.
  */
 class BrowsershotPdfRenderer implements PdfRenderer
 {
@@ -47,6 +65,7 @@ class BrowsershotPdfRenderer implements PdfRenderer
             ->showBackground()
             ->waitUntilNetworkIdle()
             ->timeout(60)
+            ->noSandbox()
             ->pdf();
     }
 }

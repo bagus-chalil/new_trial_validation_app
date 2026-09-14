@@ -107,7 +107,17 @@ deploy_legacy_development:
     # requests as www-data — a different $HOME, so the default location
     # would be invisible at request time. BrowsershotPdfRenderer.php in
     # both apps points Puppeteer at this exact same path at runtime.
-    - PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache" npx puppeteer browsers install chrome chrome-headless-shell
+    #
+    # Two separate `install` calls, not one call with two positional
+    # browser args: `npx puppeteer browsers install chrome
+    # chrome-headless-shell` silently installs only the first one — the
+    # CLI's `browser` positional is singular, it doesn't fan out over
+    # multiple names. Confirmed live on production 2026-09-14: that one-line
+    # form had been "succeeding" for every prior deploy while only ever
+    # downloading `chrome`, leaving `chrome-headless-shell` missing and
+    # breaking every PDF export in production and development.
+    - PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache" npx puppeteer browsers install chrome
+    - PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache" npx puppeteer browsers install chrome-headless-shell
     - chmod -R a+rX storage/app/puppeteer-cache 2>/dev/null || true
     - npm run build
     - php artisan storage:link
