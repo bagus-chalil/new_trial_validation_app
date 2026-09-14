@@ -38,6 +38,7 @@ class TrialReviewController extends Controller
         $approvers = User::query()
             ->where('is_active', 1)
             ->whereNull('deleted_at')
+            ->whereIn('role', User::approverEligibleRoles())
             ->orderBy('role')
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'role']);
@@ -78,14 +79,17 @@ class TrialReviewController extends Controller
             ]),
             'selectedApproverId' => $trial->approver_user_id,
             'completeness' => (new CheckTrialCompleteness)($trial),
-            'canEdit' => Gate::allows('update', $trial),
+            'canEdit' => Gate::allows('submitForReview', $trial),
         ]);
     }
 
     public function store(SubmitTrialForReviewRequest $request, int $trial, SubmitTrialForReview $action): RedirectResponse
     {
         $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
-        $approver = User::where('is_active', 1)->whereNull('deleted_at')->findOrFail($request->integer('approver_user_id'));
+        $approver = User::where('is_active', 1)
+            ->whereNull('deleted_at')
+            ->whereIn('role', User::approverEligibleRoles())
+            ->findOrFail($request->integer('approver_user_id'));
 
         $action($trial, $request->departments(), $request->reviewerUserIds(), $approver, $request->user());
 

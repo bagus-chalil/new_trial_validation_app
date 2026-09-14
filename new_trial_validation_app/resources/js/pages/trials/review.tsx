@@ -22,6 +22,7 @@ import { trialStatusBadgeClassName } from '@/lib/trial-status';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import attachments from '@/routes/trials/attachments';
+import { show as reportShow } from '@/routes/trials/report';
 
 type TrialData = {
     id: number;
@@ -357,9 +358,14 @@ export default function TrialReview({
                         </Form>
                     ))}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" asChild>
                         <Link href={backHref}>Back</Link>
+                    </Button>
+                    <Button type="button" asChild>
+                        <Link href={reportShow(trial.id).url}>
+                            Lihat Detail Trial
+                        </Link>
                     </Button>
                 </div>
             </div>

@@ -86,6 +86,26 @@ class TrialPolicy
     }
 
     /**
+     * Wizard Step 6 (Review & Submit) specifically — narrower than update()'s
+     * general edit window. update() deliberately still allows fixing the
+     * trial's own data (header/validation/weighing/attachments) while In
+     * Review and unreviewed, but re-running the *submit-for-review* action
+     * itself (department/approver selection) only ever makes sense before
+     * the trial has been sent for review the first time, or after it's been
+     * kicked back to Need Revision — never while it's already In Review,
+     * since that would let someone silently reassign departments/approver
+     * out from under a review that's already active.
+     */
+    public function submitForReview(User $user, Trial $trial): bool
+    {
+        if (! in_array($trial->progress_status, ['Draft', 'Need Revision'], true)) {
+            return false;
+        }
+
+        return $this->update($user, $trial);
+    }
+
+    /**
      * Port of the authorization checks inline in legacy's POST
      * /trials/{id}/approval handler (public/index.php:884-898). Note this is
      * narrower than the approval *queue's* visibility (see

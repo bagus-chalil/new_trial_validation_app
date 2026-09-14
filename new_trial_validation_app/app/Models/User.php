@@ -133,6 +133,22 @@ class User extends Authenticatable
         return $this->role === 'Viewer';
     }
 
+    /**
+     * Roles structurally eligible to be assigned as a trial's approver —
+     * used to restrict the approver picker on the Review & Submit page
+     * (wizard Step 6) and to re-validate approver_user_id server-side, so a
+     * Staff/Viewer/etc. user can never be picked as an approver only to find
+     * they have no way to act on it afterward (canApproveTrials() gates the
+     * "Need Approval" sidebar entry on this same role set, plus an existing
+     * assignment — see canApproveTrials() below).
+     *
+     * @return list<string>
+     */
+    public static function approverEligibleRoles(): array
+    {
+        return ['Admin', 'Super Admin', 'Manager QAC', 'Team Leader', 'Part Leader', 'Team Leader QA', 'Manager'];
+    }
+
     public function departmentCode(): string
     {
         $dept = self::normalizeDepartment($this->department ?? '');

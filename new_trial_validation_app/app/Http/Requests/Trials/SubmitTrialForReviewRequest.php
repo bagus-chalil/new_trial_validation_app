@@ -23,7 +23,7 @@ class SubmitTrialForReviewRequest extends FormRequest
     {
         $trial = Trial::whereNull('deleted_at')->where('id', $this->route('trial'))->firstOrFail();
 
-        return Gate::allows('update', $trial);
+        return Gate::allows('submitForReview', $trial);
     }
 
     /**
@@ -38,7 +38,10 @@ class SubmitTrialForReviewRequest extends FormRequest
             'approver_user_id' => [
                 'required',
                 'integer',
-                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at'),
+                Rule::exists('users', 'id')
+                    ->where('is_active', 1)
+                    ->whereNull('deleted_at')
+                    ->whereIn('role', User::approverEligibleRoles()),
             ],
         ];
     }

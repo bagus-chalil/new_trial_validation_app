@@ -81,6 +81,23 @@ test('the review page shows no completeness errors when validation is complete',
     $response->assertInertia(fn ($page) => $page->where('completeness', []));
 });
 
+test('the review page only offers approver-eligible roles as approvers', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $eligible = User::factory()->create(['name' => 'Eligible Manager', 'role' => 'Manager QAC']);
+    $ineligible = User::factory()->create(['name' => 'Ineligible Staff', 'role' => 'Staff']);
+    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->get(route('trials.review.edit', $trial));
+
+    $response->assertOk();
+    $response->assertInertia(function ($page) use ($eligible, $ineligible) {
+        $ids = collect($page->toArray()['props']['approvers'])->pluck('id');
+
+        expect($ids)->toContain($eligible->id);
+        expect($ids)->not->toContain($ineligible->id);
+    });
+});
+
 test('a soft-deleted trial 404s on the review page', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $trial = makeCompleteTrial(['created_by' => $owner->email]);
@@ -88,6 +105,41 @@ test('a soft-deleted trial 404s on the review page', function () {
     $trial->save();
 
     $this->actingAs($owner)->get(route('trials.review.edit', $trial))->assertNotFound();
+});
+
+test('an in-review trial cannot re-submit for review even before any department has reviewed', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $approver = User::factory()->create(['role' => 'Manager QAC']);
+    $trial = makeCompleteTrial([
+        'created_by' => $owner->email,
+        'progress_status' => 'In Review',
+        'current_step' => 'Review',
+        'approver_user_id' => $approver->id,
+    ]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending', 'is_required' => true]);
+
+    $response = $this->actingAs($owner)->get(route('trials.review.edit', $trial));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('canEdit', false));
+
+    $storeResponse = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PRD'],
+        'reviewer_user_ids' => [],
+        'approver_user_id' => $approver->id,
+    ]);
+
+    $storeResponse->assertForbidden();
+});
+
+test('a need-revision trial can still reach and use the review-submit form', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $trial = makeCompleteTrial(['created_by' => $owner->email, 'progress_status' => 'Need Revision']);
+
+    $response = $this->actingAs($owner)->get(route('trials.review.edit', $trial));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('canEdit', true));
 });
 
 test('submitting for review creates pending trials_review rows and moves the trial to In Review', function () {
@@ -178,6 +230,21 @@ test('submitting for review with an inactive approver is rejected', function () 
     ]);
 
     $response->assertSessionHasErrors('approver_user_id');
+});
+
+test('submitting for review with a non-approver-role user as approver is rejected', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $staffApprover = User::factory()->create(['role' => 'Staff']);
+    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PROD'],
+        'approver_user_id' => $staffApprover->id,
+    ]);
+
+    $response->assertSessionHasErrors('approver_user_id');
+    expect(TrialReview::where('trial_id', $trial->id)->count())->toBe(0);
+    expect($trial->fresh()->progress_status)->toBe('Draft');
 });
 
 test('a staff member without edit rights is forbidden from submitting for review', function () {
