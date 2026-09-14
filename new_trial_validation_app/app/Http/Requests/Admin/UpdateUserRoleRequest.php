@@ -33,7 +33,6 @@ class UpdateUserRoleRequest extends FormRequest
     {
         return [
             'role' => ['required', 'string', 'max:50'],
-            'department' => ['nullable', 'string', 'max:50'],
             'review_unit' => ['nullable', Rule::in(User::reviewerDepartmentCodes())],
         ];
     }

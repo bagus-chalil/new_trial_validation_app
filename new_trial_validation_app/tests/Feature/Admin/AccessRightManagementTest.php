@@ -46,10 +46,13 @@ test('super admin cannot change their own role from this screen', function () {
     expect($superAdmin->refresh()->role)->toBe('Super Admin');
 });
 
-test('super admin can reassign another user role and department', function () {
+test('super admin can reassign another user role, legacy department is left untouched', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
     $target = User::factory()->create(['role' => 'Viewer', 'department' => null]);
 
+    // This screen no longer edits `department` (a legacy-shared attribute) —
+    // even if a stray 'department' key were submitted, it must have no
+    // effect, since the field was removed from the form on purpose.
     $response = $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
         'role' => 'Staff',
         'department' => 'ops',
@@ -58,7 +61,7 @@ test('super admin can reassign another user role and department', function () {
     $response->assertRedirect(route('admin.access-rights.index'));
     $target->refresh();
     expect($target->role)->toBe('Staff');
-    expect($target->department)->toBe('OPS');
+    expect($target->department)->toBeNull();
 });
 
 test('super admin can assign a review team independently of role/department', function () {
@@ -67,13 +70,12 @@ test('super admin can assign a review team independently of role/department', fu
 
     $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
         'role' => 'Staff',
-        'department' => 'Ops',
         'review_unit' => 'PROD',
     ]);
 
     $target->refresh();
     expect($target->role)->toBe('Staff');
-    expect($target->department)->toBe('OPS');
+    expect($target->department)->toBe('Ops');
     expect($target->review_unit)->toBe('PROD');
 });
 

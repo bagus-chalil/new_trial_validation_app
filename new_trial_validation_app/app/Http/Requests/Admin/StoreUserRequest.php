@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreUserRequest extends FormRequest
@@ -22,7 +21,6 @@ class StoreUserRequest extends FormRequest
             'email' => ['required', 'email', 'max:191'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'string', 'max:50'],
-            'department' => ['nullable', 'string', 'max:50'],
         ];
     }
 
@@ -33,7 +31,6 @@ class StoreUserRequest extends FormRequest
     {
         $data = parent::validated($key, $default);
         $data['role'] = trim($data['role']);
-        $data['department'] = User::normalizeDepartment($data['department'] ?? '');
 
         return $data;
     }

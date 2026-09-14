@@ -196,9 +196,23 @@ class User extends Authenticatable
      *
      * @return list<string>
      */
+    /**
+     * The hardcoded default review-team codes, i.e. what's available even
+     * with zero `master_options` (type=reviewer_department) rows. Exposed
+     * separately from reviewerDepartmentCodes() so the Access Rights screen
+     * can display these as read-only "built-in" entries alongside whatever
+     * custom departments have actually been added.
+     *
+     * @return list<string>
+     */
+    public static function defaultReviewerDepartmentCodes(): array
+    {
+        return ['PROD', 'RNI', 'QAC', 'PRNI', 'PI'];
+    }
+
     public static function reviewerDepartmentCodes(): array
     {
-        $defaults = ['PROD', 'RNI', 'QAC', 'PRNI', 'PI'];
+        $defaults = self::defaultReviewerDepartmentCodes();
 
         try {
             $codes = $defaults;

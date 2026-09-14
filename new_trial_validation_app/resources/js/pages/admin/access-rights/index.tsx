@@ -73,6 +73,7 @@ type PageProps = {
     filters: { q: string };
     roleCategories: string[];
     reviewUnitOptions: string[];
+    defaultReviewUnits: string[];
     reviewerDepartments: ReviewerDepartment[];
     draftTrials: DraftTrial[];
     staffUsers: StaffUser[];
@@ -104,7 +105,7 @@ function EditRoleDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Edit Role & Department</DialogTitle>
+                    <DialogTitle>Edit Role & Review Team</DialogTitle>
                 </DialogHeader>
                 {editingUser && (
                     <Form
@@ -122,6 +123,14 @@ function EditRoleDialog({
                                     <p className="text-sm text-muted-foreground">
                                         {editingUser.name} ({editingUser.email})
                                     </p>
+                                    {editingUser.department && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Dept (legacy):{' '}
+                                            {editingUser.department} — hanya
+                                            referensi, dikelola di Aplikasi
+                                            Lama.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-2">
@@ -144,22 +153,11 @@ function EditRoleDialog({
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Menentukan hak akses user di aplikasi
+                                        ini (Staff/Admin/dsb).
+                                    </p>
                                     <InputError message={errors.role} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="department">
-                                        Department
-                                    </Label>
-                                    <Input
-                                        id="department"
-                                        name="department"
-                                        defaultValue={
-                                            editingUser.department ?? ''
-                                        }
-                                        placeholder="Auto untuk role reviewer"
-                                    />
-                                    <InputError message={errors.department} />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -190,9 +188,11 @@ function EditRoleDialog({
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
-                                        Menentukan trial department mana yang
-                                        bisa ditugaskan review ke user ini,
-                                        terpisah dari Role/Department di atas.
+                                        Tim review yang boleh ditugaskan
+                                        me-review trial dari department ini di
+                                        Review & Submit. Pilih &quot;Tidak
+                                        ada&quot; kalau user ini bukan
+                                        reviewer.
                                     </p>
                                     <InputError message={errors.review_unit} />
                                 </div>
@@ -348,6 +348,7 @@ export default function AdminAccessRightsIndex({
     filters,
     roleCategories,
     reviewUnitOptions,
+    defaultReviewUnits,
     reviewerDepartments,
     draftTrials,
     staffUsers,
@@ -374,7 +375,7 @@ export default function AdminAccessRightsIndex({
             <div className="space-y-6 p-4">
                 <Heading
                     title="Access Rights"
-                    description="Super Admin only: reassign role/department, kelola master reviewer department, dan izin edit Draft report."
+                    description="Super Admin only: atur role & review team, kelola master reviewer department, dan izin edit Draft report."
                 />
 
                 <EditRoleDialog
@@ -391,7 +392,7 @@ export default function AdminAccessRightsIndex({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>User Role & Department</CardTitle>
+                        <CardTitle>User Role & Review Team</CardTitle>
                         <form
                             onSubmit={submitSearch}
                             className="flex items-end gap-2 pt-2"
@@ -417,7 +418,7 @@ export default function AdminAccessRightsIndex({
                                     <TableHead>Name</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
-                                    <TableHead>Dept</TableHead>
+                                    <TableHead>Dept (Legacy)</TableHead>
                                     <TableHead>Review Team</TableHead>
                                     <TableHead>Action</TableHead>
                                 </TableRow>
@@ -428,7 +429,9 @@ export default function AdminAccessRightsIndex({
                                         <TableCell>{usr.name}</TableCell>
                                         <TableCell>{usr.email}</TableCell>
                                         <TableCell>{usr.role}</TableCell>
-                                        <TableCell>{usr.department}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {usr.department ?? '-'}
+                                        </TableCell>
                                         <TableCell>
                                             {usr.review_unit ?? '-'}
                                         </TableCell>
@@ -478,7 +481,17 @@ export default function AdminAccessRightsIndex({
 
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
-                        <CardTitle>Reviewer Department Master</CardTitle>
+                        <div>
+                            <CardTitle>Reviewer Department Master</CardTitle>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Daftar tim/department yang bisa dipilih
+                                sebagai &quot;Review Team&quot; user dan
+                                muncul di daftar department review saat submit
+                                trial baru. 5 baris bawaan sistem selalu aktif
+                                (read-only); tambahkan di sini kalau perlu tim
+                                baru di luar itu.
+                            </p>
+                        </div>
                         <Button
                             type="button"
                             onClick={() => setDepartmentDialogOpen(true)}
@@ -496,6 +509,19 @@ export default function AdminAccessRightsIndex({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
+                                {defaultReviewUnits.map((code) => (
+                                    <TableRow key={`default-${code}`}>
+                                        <TableCell>{code}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            —
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-xs text-muted-foreground">
+                                                Bawaan sistem
+                                            </span>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
                                 {reviewerDepartments.map((department) => (
                                     <TableRow key={department.id}>
                                         <TableCell>{department.name}</TableCell>

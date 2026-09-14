@@ -61,6 +61,22 @@ test('saving with an existing email updates that user instead of creating a new 
     expect($existing->role)->toBe('Viewer');
 });
 
+test('editing an existing user via this screen leaves their legacy department untouched', function () {
+    $admin = makeUser(['role' => 'Admin']);
+    $existing = makeUser(['email' => 'existing@example.com', 'role' => 'Staff', 'department' => 'QAC']);
+
+    // This form has no Department field (see the 2026-09-14 review_unit
+    // redesign) — saving must never blank/derive it from Role.
+    $this->actingAs($admin)->post(route('admin.users.store'), [
+        'name' => 'Existing Person',
+        'email' => 'existing@example.com',
+        'password' => 'password123',
+        'role' => 'Viewer',
+    ])->assertRedirect(route('admin.users.index'));
+
+    expect($existing->refresh()->department)->toBe('QAC');
+});
+
 test('non-super-admin cannot grant the super admin role when one already exists', function () {
     $admin = makeUser(['role' => 'Admin']);
     makeUser(['role' => 'Super Admin']);
