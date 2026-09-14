@@ -8,6 +8,31 @@ export const TRIAL_STATUSES = [
     'Rejected',
 ] as const;
 
+// Port of legacy's group mapping in TrialController::GROUPS — maps a trial's
+// status to the sidebar list group it belongs to, for "back to list" links.
+export function trialListGroupFor(
+    status: string,
+    finalDecision: string | null,
+): string {
+    if (finalDecision === 'Rejected') {
+        return 'rejected';
+    }
+
+    switch (status) {
+        case 'In Review':
+        case 'Ready for Approval':
+            return 'tracking';
+        case 'Approved':
+            return 'approved';
+        case 'Need Revision':
+            return 'need-revision';
+        case 'Rejected':
+            return 'rejected';
+        default:
+            return 'draft';
+    }
+}
+
 export function trialStatusBadgeClassName(
     status: string,
     finalDecision: string | null,

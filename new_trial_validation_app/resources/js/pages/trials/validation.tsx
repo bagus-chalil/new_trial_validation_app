@@ -24,7 +24,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import {
+    trialListGroupFor,
+    trialStatusBadgeClassName,
+} from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { edit as editTrial, index as trialsIndex } from '@/routes/trials';
 
@@ -58,29 +61,6 @@ type PageProps = {
 };
 
 const DECISIONS = ['OK', 'NOT OK', 'N/A'] as const;
-
-// Port of legacy's group mapping in TrialController::GROUPS — used only for
-// the non-editable-viewer Back-link fallback (legacy's own fallback is a
-// /report page this app hasn't built yet).
-function trialListGroupFor(trial: TrialData): string {
-    if (trial.final_decision === 'Rejected') {
-        return 'rejected';
-    }
-
-    switch (trial.progress_status) {
-        case 'In Review':
-        case 'Ready for Approval':
-            return 'tracking';
-        case 'Approved':
-            return 'approved';
-        case 'Need Revision':
-            return 'need-revision';
-        case 'Rejected':
-            return 'rejected';
-        default:
-            return 'draft';
-    }
-}
 
 function ValidationParameterRow({
     index,
@@ -173,7 +153,9 @@ export default function TrialValidation({
 }: PageProps) {
     const backHref = canEdit
         ? editTrial(trial.id).url
-        : trialsIndex(trialListGroupFor(trial)).url;
+        : trialsIndex(
+              trialListGroupFor(trial.progress_status, trial.final_decision),
+          ).url;
 
     const table = (
         <Table>
