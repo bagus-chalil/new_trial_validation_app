@@ -30,7 +30,17 @@ class TrialReviewPolicy
             return false;
         }
 
-        if (! in_array(User::normalizeDepartment($review->department), $user->reviewDepartmentsForUser(), true)) {
+        // A row assigned to a specific reviewer may only be acted on by that
+        // person. A row with no assignment (e.g. written by the still-live
+        // legacy app, which has no concept of per-person assignment) falls
+        // back to the old department-match check, aliasing a since-renamed
+        // department code so historical rows still resolve (see
+        // User::normalizeReviewDepartment()).
+        if ($review->reviewer_user_id !== null) {
+            if ($review->reviewer_user_id !== $user->id) {
+                return false;
+            }
+        } elseif (! in_array(User::normalizeReviewDepartment($review->department), $user->reviewDepartmentsForUser(), true)) {
             return false;
         }
 

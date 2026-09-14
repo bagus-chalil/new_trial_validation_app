@@ -20,10 +20,13 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import {
+    trialListGroupFor,
+    trialStatusBadgeClassName,
+} from '@/lib/trial-status';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
-import { edit as attachmentsEdit } from '@/routes/trials/attachments';
+import { edit as editTrial, index as trialsIndex } from '@/routes/trials';
 import { edit as reviewEdit } from '@/routes/trials/review';
 
 type TrialData = {
@@ -220,11 +223,23 @@ export default function TrialReport({
 
                 {canEdit && (
                     <div className="flex flex-wrap items-center gap-3 print:hidden">
-                        <Button variant="secondary" asChild>
+                        <Button variant="outline" asChild>
                             <Link
-                                href={attachmentsEdit({ trial: trial.id }).url}
+                                href={
+                                    trialsIndex(
+                                        trialListGroupFor(
+                                            trial.progress_status,
+                                            trial.final_decision,
+                                        ),
+                                    ).url
+                                }
                             >
-                                Edit / Back
+                                Kembali
+                            </Link>
+                        </Button>
+                        <Button variant="secondary" asChild>
+                            <Link href={editTrial({ trial: trial.id }).url}>
+                                Edit Trial
                             </Link>
                         </Button>
                         {completeness.length > 0 ? (

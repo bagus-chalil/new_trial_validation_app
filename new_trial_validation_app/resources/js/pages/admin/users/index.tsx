@@ -111,7 +111,7 @@ function UserFormDialog({
                                 <InputError message={errors.password} />
                             </div>
 
-                            <div className="grid gap-2">
+                            <div className="grid gap-2 sm:col-span-2">
                                 <Label htmlFor="role">Role</Label>
                                 <Select
                                     name="role"
@@ -130,18 +130,12 @@ function UserFormDialog({
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Untuk menjadikan user ini reviewer
+                                    department tertentu, atur &quot;Review
+                                    Team&quot; di halaman Access Rights.
+                                </p>
                                 <InputError message={errors.role} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="department">Department</Label>
-                                <Input
-                                    id="department"
-                                    name="department"
-                                    placeholder="Auto untuk role reviewer"
-                                    defaultValue={editingUser?.department ?? ''}
-                                />
-                                <InputError message={errors.department} />
                             </div>
 
                             <DialogFooter className="sm:col-span-2">
@@ -229,7 +223,7 @@ export default function AdminUsersIndex({
                                     <TableHead>Name</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
-                                    <TableHead>Dept</TableHead>
+                                    <TableHead>Dept (Legacy)</TableHead>
                                     <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -239,7 +233,9 @@ export default function AdminUsersIndex({
                                         <TableCell>{usr.name}</TableCell>
                                         <TableCell>{usr.email}</TableCell>
                                         <TableCell>{usr.role}</TableCell>
-                                        <TableCell>{usr.department}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {usr.department ?? '-'}
+                                        </TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
                                                 {usr.id !== auth.user.id && (

@@ -109,9 +109,10 @@ class TrialAttachmentController extends Controller
 
         $file = TrialAttachmentFile::where('trial_id', $trial->id)->findOrFail($attachment);
 
-        return Storage::disk('legacy_uploads')->response(
-            $trial->id.'/'.$file->file_name,
-            $file->file_name,
-        );
+        $path = $trial->id.'/'.$file->file_name;
+
+        abort_unless(Storage::disk('legacy_uploads')->exists($path), 404);
+
+        return Storage::disk('legacy_uploads')->response($path, $file->file_name);
     }
 }

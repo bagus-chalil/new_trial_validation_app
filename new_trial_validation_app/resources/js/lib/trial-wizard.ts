@@ -22,6 +22,7 @@ export const TRIAL_WIZARD_STEPS: TrialWizardStep[] = [
 ];
 
 export type TrialWizardTrial = {
+    id: number;
     current_step: string | null;
     progress_status: string;
 };

@@ -240,7 +240,7 @@ test('an in-review trial is editable by its owner while every department review 
         'batch_number' => 'B-FIXED',
     ]);
 
-    $response->assertRedirect(route('trials.report.show', $trial));
+    $response->assertRedirect(route('trials.validation.edit', $trial));
     expect($trial->fresh()->batch_number)->toBe('B-FIXED');
     expect($trial->fresh()->progress_status)->toBe('In Review');
 });

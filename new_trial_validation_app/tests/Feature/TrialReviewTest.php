@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\TrialReviewRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Trial;
@@ -8,6 +9,7 @@ use App\Models\User;
 use App\Models\ValidationParameter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 function makeReviewableTrial(array $attributes = []): Trial
 {
@@ -79,6 +81,23 @@ test('the review page shows no completeness errors when validation is complete',
     $response->assertInertia(fn ($page) => $page->where('completeness', []));
 });
 
+test('the review page only offers approver-eligible roles as approvers', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $eligible = User::factory()->create(['name' => 'Eligible Manager', 'role' => 'Manager QAC']);
+    $ineligible = User::factory()->create(['name' => 'Ineligible Staff', 'role' => 'Staff']);
+    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->get(route('trials.review.edit', $trial));
+
+    $response->assertOk();
+    $response->assertInertia(function ($page) use ($eligible, $ineligible) {
+        $ids = collect($page->toArray()['props']['approvers'])->pluck('id');
+
+        expect($ids)->toContain($eligible->id);
+        expect($ids)->not->toContain($ineligible->id);
+    });
+});
+
 test('a soft-deleted trial 404s on the review page', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $trial = makeCompleteTrial(['created_by' => $owner->email]);
@@ -88,27 +107,69 @@ test('a soft-deleted trial 404s on the review page', function () {
     $this->actingAs($owner)->get(route('trials.review.edit', $trial))->assertNotFound();
 });
 
-test('submitting for review creates pending trials_review rows and moves the trial to In Review', function () {
+test('an in-review trial cannot re-submit for review even before any department has reviewed', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $approver = User::factory()->create(['role' => 'Manager QAC']);
-    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+    $trial = makeCompleteTrial([
+        'created_by' => $owner->email,
+        'progress_status' => 'In Review',
+        'current_step' => 'Review',
+        'approver_user_id' => $approver->id,
+    ]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending', 'is_required' => true]);
 
-    $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD', 'QAC'],
+    $response = $this->actingAs($owner)->get(route('trials.review.edit', $trial));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('canEdit', false));
+
+    $storeResponse = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PRD'],
+        'reviewer_user_ids' => [],
         'approver_user_id' => $approver->id,
     ]);
 
-    $response->assertRedirect(route('trials.review.edit', $trial));
+    $storeResponse->assertForbidden();
+});
+
+test('a need-revision trial can still reach and use the review-submit form', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $trial = makeCompleteTrial(['created_by' => $owner->email, 'progress_status' => 'Need Revision']);
+
+    $response = $this->actingAs($owner)->get(route('trials.review.edit', $trial));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('canEdit', true));
+});
+
+test('submitting for review creates pending trials_review rows and moves the trial to In Review', function () {
+    Mail::fake();
+
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $approver = User::factory()->create(['role' => 'Manager QAC']);
+    $prodReviewer = User::factory()->reviewUnit('PROD')->create();
+    $qacReviewer = User::factory()->reviewUnit('QAC')->create();
+    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PROD', 'QAC'],
+        'reviewer_user_ids' => ['PROD' => $prodReviewer->id, 'QAC' => $qacReviewer->id],
+        'approver_user_id' => $approver->id,
+    ]);
+
+    $response->assertRedirect(route('trials.report.show', $trial));
 
     $reviews = TrialReview::where('trial_id', $trial->id)->orderBy('department')->get();
     expect($reviews)->toHaveCount(2);
-    expect($reviews->pluck('department')->all())->toBe(['PRD', 'QAC']);
+    expect($reviews->pluck('department')->all())->toBe(['PROD', 'QAC']);
     expect($reviews->every(fn (TrialReview $r) => $r->status === 'Pending'))->toBeTrue();
+    expect($reviews->firstWhere('department', 'PROD')->reviewer_user_id)->toBe($prodReviewer->id);
+    expect($reviews->firstWhere('department', 'QAC')->reviewer_user_id)->toBe($qacReviewer->id);
 
     $trial->refresh();
     expect($trial->progress_status)->toBe('In Review');
     expect($trial->current_step)->toBe('Review');
-    expect($trial->pending_with)->toBe('PRD,QAC');
+    expect($trial->pending_with)->toBe('PROD,QAC');
     expect($trial->approver_user_id)->toBe($approver->id);
 
     $log = ActivityLog::where('module', 'REVIEW')->where('action', 'SUBMIT_REVIEW')->first();
@@ -117,6 +178,10 @@ test('submitting for review creates pending trials_review rows and moves the tri
 
     expect(Notification::where('trial_id', $trial->id)->where('type', 'review')->count())->toBe(2);
     expect(Notification::where('trial_id', $trial->id)->where('type', 'info')->count())->toBe(1);
+
+    Mail::assertSent(TrialReviewRequestedMail::class, 2);
+    Mail::assertSent(TrialReviewRequestedMail::class, fn ($mail) => $mail->hasTo($prodReviewer->email) && $mail->department === 'PROD');
+    Mail::assertSent(TrialReviewRequestedMail::class, fn ($mail) => $mail->hasTo($qacReviewer->email) && $mail->department === 'QAC');
 });
 
 test('submitting for review is rejected when validation is incomplete and nothing is persisted', function () {
@@ -131,7 +196,7 @@ test('submitting for review is rejected when validation is incomplete and nothin
     ]);
 
     $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD'],
+        'departments' => ['PROD'],
         'approver_user_id' => $approver->id,
     ]);
 
@@ -160,11 +225,26 @@ test('submitting for review with an inactive approver is rejected', function () 
     $trial = makeCompleteTrial(['created_by' => $owner->email]);
 
     $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD'],
+        'departments' => ['PROD'],
         'approver_user_id' => $approver->id,
     ]);
 
     $response->assertSessionHasErrors('approver_user_id');
+});
+
+test('submitting for review with a non-approver-role user as approver is rejected', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $staffApprover = User::factory()->create(['role' => 'Staff']);
+    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PROD'],
+        'approver_user_id' => $staffApprover->id,
+    ]);
+
+    $response->assertSessionHasErrors('approver_user_id');
+    expect(TrialReview::where('trial_id', $trial->id)->count())->toBe(0);
+    expect($trial->fresh()->progress_status)->toBe('Draft');
 });
 
 test('a staff member without edit rights is forbidden from submitting for review', function () {
@@ -174,7 +254,7 @@ test('a staff member without edit rights is forbidden from submitting for review
     $trial = makeCompleteTrial(['created_by' => $owner->email]);
 
     $this->actingAs($otherStaff)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD'],
+        'departments' => ['PROD'],
         'approver_user_id' => $approver->id,
     ])->assertForbidden();
 });

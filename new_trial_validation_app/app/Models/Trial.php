@@ -187,11 +187,11 @@ class Trial extends Model
         $reviews = $this->reviews()
             ->where('review_round', $round)
             ->get()
-            ->keyBy(fn (TrialReview $r) => User::normalizeDepartment($r->department));
+            ->keyBy(fn (TrialReview $r) => User::normalizeReviewDepartment($r->department));
 
         $result = [];
         foreach (User::reviewerDepartmentCodes() as $dept) {
-            $review = $reviews->get(User::normalizeDepartment($dept));
+            $review = $reviews->get(User::normalizeReviewDepartment($dept));
             $result[$dept] = [
                 'status' => $review->status ?? 'N/A',
                 'review' => $review,
@@ -549,7 +549,11 @@ class Trial extends Model
 
         $result = [];
         foreach (User::reviewerDepartmentCodes() as $dept) {
-            $result[] = ['department' => $dept, 'count' => (int) ($counts[$dept] ?? 0)];
+            $count = 0;
+            foreach (User::expandReviewDepartmentAliases([$dept]) as $rawDept) {
+                $count += (int) ($counts[$rawDept] ?? 0);
+            }
+            $result[] = ['department' => $dept, 'count' => $count];
         }
 
         return $result;

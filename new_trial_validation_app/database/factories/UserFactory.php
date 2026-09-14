@@ -43,4 +43,16 @@ class UserFactory extends Factory
             'department' => $department ?? $role,
         ]);
     }
+
+    /**
+     * Indicate that the model is a reviewer for the given review team code
+     * (e.g. 'PROD', 'QAC') — decoupled from role/department, see
+     * User::reviewDepartmentsForUser().
+     */
+    public function reviewUnit(string $unit): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'review_unit' => $unit,
+        ]);
+    }
 }

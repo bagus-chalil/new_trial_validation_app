@@ -93,6 +93,8 @@ class AccessRightController extends Controller
             'filters' => ['q' => $search],
             'editUser' => $editUser,
             'roleCategories' => User::roleCategories(),
+            'reviewUnitOptions' => User::reviewerDepartmentCodes(),
+            'defaultReviewUnits' => User::defaultReviewerDepartmentCodes(),
             'reviewerDepartments' => $reviewerDepartments,
             'draftTrials' => $draftTrials,
             'staffUsers' => $staffUsers,
@@ -108,21 +110,17 @@ class AccessRightController extends Controller
 
         $data = $request->validated();
         $role = trim($data['role']);
-        $department = User::normalizeDepartment($data['department'] ?? '');
 
         if (! in_array($role, User::roleCategories(), true)) {
             return back()->withErrors(['role' => 'Kategori hak akses tidak valid.']);
         }
 
-        if (in_array(User::normalizeDepartment($role), User::reviewerDepartmentCodes(), true)) {
-            $role = User::normalizeDepartment($role);
-            $department = $role;
-        } elseif ($department === '') {
-            $department = User::normalizeDepartment($role);
-        }
-
+        // `department` is a legacy-shared attribute (see the 2026-09-14
+        // review_unit migration doc comment) — this screen no longer edits
+        // it, so it's left completely untouched here rather than derived
+        // from Role like it used to be.
         $user->role = $role;
-        $user->department = $department;
+        $user->review_unit = $data['review_unit'] ?? null;
         $user->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Hak akses user berhasil diperbarui.']);

@@ -59,18 +59,10 @@ class UserController extends Controller
     {
         $data = $request->validated();
         $role = $data['role'];
-        $department = $data['department'];
 
         $hasSuperAdmin = User::where('role', 'Super Admin')->where('is_active', 1)->whereNull('deleted_at')->exists();
         if ($role === 'Super Admin' && ! $request->user()->isSuperAdmin() && $hasSuperAdmin) {
             return back()->withErrors(['role' => 'Hanya Super Admin yang bisa membuat atau memberikan role Super Admin.'])->withInput();
-        }
-
-        if (in_array(User::normalizeDepartment($role), User::reviewerDepartmentCodes(), true)) {
-            $role = User::normalizeDepartment($role);
-            $department = $role;
-        } elseif ($department === '') {
-            $department = User::normalizeDepartment($role);
         }
 
         $existing = User::where('email', $data['email'])->first();
@@ -84,10 +76,14 @@ class UserController extends Controller
         // is_active, deleted_at and deleted_by are intentionally excluded
         // from User's #[Fillable] list since they shouldn't be settable from
         // arbitrary request input.
+        // `department` is a legacy-shared attribute (see the 2026-09-14
+        // review_unit migration doc comment) — this form no longer edits it,
+        // so an existing user's value is left untouched and a brand new user
+        // simply gets none (nullable column; only relevant to the still-live
+        // legacy app, which has its own admin screen for it).
         $user = $existing ?? new User(['email' => $data['email']]);
         $user->name = $data['name'];
         $user->role = $role;
-        $user->department = $department;
         $user->password_hash = Hash::make($data['password']);
         $user->is_active = true;
         $user->deleted_at = null;

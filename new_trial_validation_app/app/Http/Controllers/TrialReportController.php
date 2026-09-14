@@ -14,7 +14,6 @@ use App\Services\Pdf\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -49,17 +48,11 @@ class TrialReportController extends Controller
 
         $pendingReviews = collect();
         if ($trial->progress_status === 'In Review' && $user->isReviewer()) {
-            $departments = $user->reviewDepartmentsForUser();
-
             $pendingReviews = TrialReview::query()
                 ->where('trial_id', $trial->id)
                 ->where('review_round', $trial->currentReviewRound())
                 ->where('status', 'Pending')
-                ->when(
-                    $departments,
-                    fn ($q) => $q->whereIn(DB::raw('UPPER(TRIM(department))'), $departments),
-                    fn ($q) => $q->whereRaw('1 = 0'),
-                )
+                ->visibleToReviewer($user)
                 ->get(['id', 'department']);
         }
 
@@ -68,18 +61,12 @@ class TrialReportController extends Controller
             && in_array($trial->progress_status, ['In Review', 'Ready for Approval'], true)
             && $user->isReviewer()
         ) {
-            $departments = $user->reviewDepartmentsForUser();
-
             $editableReviews = TrialReview::query()
                 ->where('trial_id', $trial->id)
                 ->where('review_round', $trial->currentReviewRound())
                 ->where('status', 'Reviewed')
                 ->where('edit_count', '<', TrialReview::MAX_EDITS)
-                ->when(
-                    $departments,
-                    fn ($q) => $q->whereIn(DB::raw('UPPER(TRIM(department))'), $departments),
-                    fn ($q) => $q->whereRaw('1 = 0'),
-                )
+                ->visibleToReviewer($user)
                 ->get(['id', 'department', 'comment', 'edit_count']);
         }
 
@@ -110,7 +97,7 @@ class TrialReportController extends Controller
         if ($trial->progress_status === 'In Review' && $user->isReviewer() && $pendingReviews->isEmpty()) {
             $myDepartments = $user->reviewDepartmentsForUser();
             foreach ($reviewByDept as $dept => $entry) {
-                if ($entry['status'] === 'Reviewed' && in_array(User::normalizeDepartment($dept), $myDepartments, true)) {
+                if ($entry['status'] === 'Reviewed' && in_array(User::normalizeReviewDepartment($dept), $myDepartments, true)) {
                     $reviewCompletedNote = 'Anda sudah menyelesaikan review department Anda untuk trial ini.';
                     break;
                 }

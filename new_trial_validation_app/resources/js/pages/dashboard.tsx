@@ -95,13 +95,16 @@ const summaryCards: {
     {
         key: 'in_review',
         label: 'In Review',
-        href: () => trialsIndex('tracking', { query: { status: 'In Review' } }).url,
+        href: () =>
+            trialsIndex('tracking', { query: { status: 'In Review' } }).url,
         icon: Search,
     },
     {
         key: 'ready',
         label: 'Ready for Approval',
-        href: () => trialsIndex('tracking', { query: { status: 'Ready for Approval' } }).url,
+        href: () =>
+            trialsIndex('tracking', { query: { status: 'Ready for Approval' } })
+                .url,
         icon: Clock,
     },
     {

@@ -120,15 +120,14 @@ class TrialController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil diperbarui.']);
 
-        // Only a still-Draft trial is mid-wizard, so only it continues into
-        // Validation. A Need Revision/In Review edit is a standalone
-        // correction to an already-submitted trial — send it back to the
-        // Report Summary page instead, matching this app's detail-then-act
-        // navigation used everywhere else a non-Draft trial is acted on.
-        if ($trial->progress_status !== 'Draft') {
-            return to_route('trials.report.show', $trial);
-        }
-
+        // TrialPolicy::update() only lets this succeed for Draft, Need
+        // Revision, or In-Review-before-any-department-has-reviewed — every
+        // case where the owner is meant to be able to redo the trial from
+        // the start (validation/weighing/attachments), not just patch the
+        // header and stop. So always continue into the wizard here; the
+        // review/approval decisions themselves stay untouched regardless,
+        // since this only ever writes trials_header, never trials_review or
+        // the approval fields.
         return to_route('trials.validation.edit', $trial);
     }
 

@@ -75,7 +75,7 @@ export function MultiSelect({
                         aria-invalid={ariaInvalid}
                         disabled={disabled}
                         className={cn(
-                            'w-full justify-between font-normal',
+                            'w-full min-w-0 justify-between font-normal',
                             selectedOptions.length === 0 &&
                                 'text-muted-foreground',
                         )}

@@ -22,6 +22,7 @@ import { trialStatusBadgeClassName } from '@/lib/trial-status';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import attachments from '@/routes/trials/attachments';
+import { show as reportShow } from '@/routes/trials/report';
 
 type TrialData = {
     id: number;
@@ -37,6 +38,7 @@ type ReviewItem = {
     review_round: number;
     status: string;
     reviewer_name: string | null;
+    assigned_to: string | null;
     reviewed_at: string | null;
     comment: string | null;
 };
@@ -46,9 +48,15 @@ type ApproverOption = {
     label: string;
 };
 
+type ReviewerOption = {
+    id: number;
+    label: string;
+};
+
 type PageProps = {
     trial: TrialData;
     reviewerDepartments: string[];
+    reviewersByDepartment: Record<string, ReviewerOption[]>;
     reviews: ReviewItem[];
     approvers: ApproverOption[];
     selectedApproverId: number | null;
@@ -59,6 +67,7 @@ type PageProps = {
 export default function TrialReview({
     trial,
     reviewerDepartments,
+    reviewersByDepartment,
     reviews,
     approvers,
     selectedApproverId,
@@ -70,6 +79,9 @@ export default function TrialReview({
     );
     const [departments, setDepartments] =
         useState<string[]>(reviewerDepartments);
+    const [reviewerSelections, setReviewerSelections] = useState<
+        Record<string, string>
+    >({});
 
     const approverOptions = approvers.map((a) => ({
         value: String(a.id),
@@ -81,6 +93,14 @@ export default function TrialReview({
             checked ? [...prev, dept] : prev.filter((d) => d !== dept),
         );
     }
+
+    function setReviewerFor(dept: string, userId: string) {
+        setReviewerSelections((prev) => ({ ...prev, [dept]: userId }));
+    }
+
+    const allReviewersAssigned = departments.every(
+        (dept) => reviewerSelections[dept],
+    );
 
     const backHref = attachments.edit({ trial: trial.id }).url;
     const alreadySubmitted = reviews.length > 0;
@@ -119,6 +139,7 @@ export default function TrialReview({
                                     <TableRow>
                                         <TableHead>Round</TableHead>
                                         <TableHead>Department</TableHead>
+                                        <TableHead>Assigned To</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Reviewer</TableHead>
                                         <TableHead>Reviewed At</TableHead>
@@ -135,6 +156,9 @@ export default function TrialReview({
                                             </TableCell>
                                             <TableCell>
                                                 {r.department}
+                                            </TableCell>
+                                            <TableCell>
+                                                {r.assigned_to ?? '-'}
                                             </TableCell>
                                             <TableCell>{r.status}</TableCell>
                                             <TableCell>
@@ -193,6 +217,13 @@ export default function TrialReview({
                                                 </AlertDescription>
                                             </Alert>
                                         )}
+                                        {errors.reviewer_user_ids && (
+                                            <Alert variant="destructive">
+                                                <AlertDescription>
+                                                    {errors.reviewer_user_ids}
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
                                         {errors.approver_user_id && (
                                             <Alert variant="destructive">
                                                 <AlertDescription>
@@ -201,38 +232,93 @@ export default function TrialReview({
                                             </Alert>
                                         )}
 
-                                        <div className="grid gap-3 sm:grid-cols-3">
-                                            {reviewerDepartments.map((dept) => (
-                                                <label
-                                                    key={dept}
-                                                    className="flex items-center gap-2 rounded-md border p-2 text-sm"
-                                                >
-                                                    <Checkbox
-                                                        checked={departments.includes(
-                                                            dept,
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            {reviewerDepartments.map((dept) => {
+                                                const checked =
+                                                    departments.includes(dept);
+                                                const reviewerOptions = (
+                                                    reviewersByDepartment[
+                                                        dept
+                                                    ] ?? []
+                                                ).map((r) => ({
+                                                    value: String(r.id),
+                                                    label: r.label,
+                                                }));
+
+                                                return (
+                                                    <div
+                                                        key={dept}
+                                                        className="space-y-2 rounded-md border p-3 text-sm"
+                                                    >
+                                                        <label className="flex items-center gap-2 font-medium">
+                                                            <Checkbox
+                                                                checked={
+                                                                    checked
+                                                                }
+                                                                onCheckedChange={(
+                                                                    isChecked,
+                                                                ) =>
+                                                                    toggleDepartment(
+                                                                        dept,
+                                                                        isChecked ===
+                                                                            true,
+                                                                    )
+                                                                }
+                                                            />
+                                                            {checked && (
+                                                                <input
+                                                                    type="hidden"
+                                                                    name="departments[]"
+                                                                    value={dept}
+                                                                />
+                                                            )}
+                                                            {dept}
+                                                        </label>
+
+                                                        {checked && (
+                                                            <>
+                                                                {reviewerOptions.length ===
+                                                                0 ? (
+                                                                    <p className="text-xs text-destructive">
+                                                                        {`Belum ada user dengan review team ${dept}. Atur di Access Rights.`}
+                                                                    </p>
+                                                                ) : (
+                                                                    <Combobox
+                                                                        options={
+                                                                            reviewerOptions
+                                                                        }
+                                                                        value={
+                                                                            reviewerSelections[
+                                                                                dept
+                                                                            ] ??
+                                                                            ''
+                                                                        }
+                                                                        onChange={(
+                                                                            value,
+                                                                        ) =>
+                                                                            setReviewerFor(
+                                                                                dept,
+                                                                                value,
+                                                                            )
+                                                                        }
+                                                                        placeholder="Pilih reviewer..."
+                                                                        searchPlaceholder="Cari reviewer..."
+                                                                    />
+                                                                )}
+                                                                <input
+                                                                    type="hidden"
+                                                                    name={`reviewer_user_ids[${dept}]`}
+                                                                    value={
+                                                                        reviewerSelections[
+                                                                            dept
+                                                                        ] ?? ''
+                                                                    }
+                                                                />
+                                                            </>
                                                         )}
-                                                        onCheckedChange={(
-                                                            checked,
-                                                        ) =>
-                                                            toggleDepartment(
-                                                                dept,
-                                                                checked ===
-                                                                    true,
-                                                            )
-                                                        }
-                                                    />
-                                                    {departments.includes(
-                                                        dept,
-                                                    ) && (
-                                                        <input
-                                                            type="hidden"
-                                                            name="departments[]"
-                                                            value={dept}
-                                                        />
-                                                    )}
-                                                    {dept}
-                                                </label>
-                                            ))}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
 
                                         <div className="grid gap-2 sm:w-2/3">
@@ -259,6 +345,7 @@ export default function TrialReview({
                                                 disabled={
                                                     processing ||
                                                     departments.length === 0 ||
+                                                    !allReviewersAssigned ||
                                                     !approverId
                                                 }
                                             >
@@ -271,9 +358,14 @@ export default function TrialReview({
                         </Form>
                     ))}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" asChild>
                         <Link href={backHref}>Back</Link>
+                    </Button>
+                    <Button type="button" asChild>
+                        <Link href={reportShow(trial.id).url}>
+                            Lihat Detail Trial
+                        </Link>
                     </Button>
                 </div>
             </div>
