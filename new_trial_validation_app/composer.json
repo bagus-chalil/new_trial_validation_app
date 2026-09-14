@@ -50,7 +50,7 @@
             "@php artisan key:generate",
             "@php artisan migrate --force",
             "npm install",
-            "npx puppeteer browsers install chrome chrome-headless-shell",
+            "@php -r \"putenv('PUPPETEER_CACHE_DIR=' . getcwd() . '/storage/app/puppeteer-cache'); passthru('npx puppeteer browsers install chrome chrome-headless-shell');\"",
             "npm run build"
         ],
         "dev": [

@@ -102,7 +102,13 @@ deploy_legacy_development:
     - chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
     - php artisan optimize:clear
     - npm ci
-    - npx puppeteer browsers install chrome chrome-headless-shell
+    # Pinned to a deploy-relative path (not the default ~/.cache/puppeteer)
+    # because this install runs as gitlab-runner, but PHP-FPM serves
+    # requests as www-data — a different $HOME, so the default location
+    # would be invisible at request time. BrowsershotPdfRenderer.php in
+    # both apps points Puppeteer at this exact same path at runtime.
+    - PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache" npx puppeteer browsers install chrome chrome-headless-shell
+    - chmod -R a+rX storage/app/puppeteer-cache 2>/dev/null || true
     - npm run build
     - php artisan storage:link
     - php artisan migrate --force
