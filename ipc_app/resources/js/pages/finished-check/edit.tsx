@@ -12,14 +12,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Camera } from 'lucide-react';
+import { Camera, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-const PHOTO_FIELDS: { key: string; label: string }[] = [
-    { key: 'wi_number', label: 'WI Number' },
+// WI Number accumulates instead of replacing (see FinishedCheckController::MULTI_PHOTO_FIELDS) and
+// stays uploadable/deletable even after Finished Check is finalized — Exp Date/Color don't.
+const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
+    { key: 'wi_number', label: 'WI Number', multi: true },
     { key: 'exp_date', label: 'Exp Date' },
     { key: 'color', label: 'Color' },
 ];
+
+const MAX_WI_NUMBER_PHOTOS = 4;
 
 interface Batch {
     id: number;
@@ -117,7 +121,7 @@ export default function FinishedCheckEdit({
     isReadOnly: boolean;
     sampleGroups: SampleGroup[];
     dispositions: string[];
-    photoUrls: Record<string, string | null>;
+    photoUrls: Record<string, string | null | { id: number; url: string }[]>;
     lineleaderName: string | null;
 }) {
     const { props } = usePage<SharedData>();
@@ -128,6 +132,10 @@ export default function FinishedCheckEdit({
 
     const uploadPhoto = (field: string, file: File) => {
         router.post(`/batches/${batch.id}/finished-check/photo/${field}`, { photo: file }, { forceFormData: true, preserveScroll: true });
+    };
+
+    const deletePhoto = (attachmentId: number) => {
+        router.delete(`/batches/${batch.id}/finished-check/photo/${attachmentId}`, { preserveScroll: true });
     };
 
     const inspectorName = finishedCheck?.user?.name ?? props.auth.user.name;
@@ -271,8 +279,10 @@ export default function FinishedCheckEdit({
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty = computeEmptyRequiredFields();
-        PHOTO_FIELDS.forEach(({ key }) => {
-            if (!photoUrls[key]) empty.add(key);
+        PHOTO_FIELDS.forEach(({ key, multi }) => {
+            const val = photoUrls[key];
+            const hasPhoto = multi ? Array.isArray(val) && val.length > 0 : Boolean(val);
+            if (!hasPhoto) empty.add(key);
         });
         if (empty.size) {
             setErrorFields(empty);
@@ -320,32 +330,81 @@ export default function FinishedCheckEdit({
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
-                        {/* WI_NUMBER/EXP_DATE/COLOR are camera-only in legacy — no text/date value. */}
+                        {/* WI_NUMBER/EXP_DATE/COLOR are camera-only in legacy — no text/date value.
+                            WI Number is multi-photo (max 4) and, unlike Exp Date/Color, stays
+                            uploadable/deletable even after Finished Check is finalized. */}
                         <div className="border-border-soft bg-card grid grid-cols-1 gap-4 rounded-[20px] border p-[18px] sm:grid-cols-3">
-                            {PHOTO_FIELDS.map(({ key, label }) => (
-                                <div key={key} id={key} className="flex flex-col gap-2">
-                                    <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
-                                    <button
-                                        type="button"
-                                        disabled={isReadOnly}
-                                        onClick={() => setCameraField(key)}
-                                        className={`bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60 ${
-                                            errorFields.has(key) ? errorBorder : 'border-border'
-                                        }`}
-                                    >
-                                        <Camera className="size-4" strokeWidth={2.2} />
-                                        {photoUrls[key] ? 'Ganti Foto' : 'Ambil Foto'}
-                                    </button>
-                                    {photoUrls[key] && (
-                                        <img
-                                            src={photoUrls[key]!}
-                                            alt={`Foto ${label}`}
-                                            className="border-border h-24 w-24 rounded-xl border object-cover"
-                                        />
-                                    )}
-                                    <InputError message={errors[`photo_${key}`]} />
-                                </div>
-                            ))}
+                            {PHOTO_FIELDS.map(({ key, label, multi }) => {
+                                const raw = photoUrls[key];
+                                const multiPhotos = multi ? (Array.isArray(raw) ? (raw as { id: number; url: string }[]) : []) : null;
+                                const singleUrl = !multi ? (raw as string | null) : null;
+                                const atMax = multi ? (multiPhotos?.length ?? 0) >= MAX_WI_NUMBER_PHOTOS : false;
+                                // Exp Date only accepts a photo on TH Progress round 1 — once the
+                                // form has ever been saved (finishedCheck exists), it locks, even
+                                // while the rest of the page is still editable pre-finalize.
+                                const expDateLocked = key === 'exp_date' && finishedCheck !== null;
+                                const fieldDisabled = multi ? atMax : isReadOnly || expDateLocked;
+
+                                return (
+                                    <div key={key} id={key} className="flex flex-col gap-2">
+                                        <Label className="text-muted-foreground text-xs font-semibold">
+                                            {label}
+                                            {multi && ` (${multiPhotos?.length ?? 0}/${MAX_WI_NUMBER_PHOTOS})`}
+                                        </Label>
+                                        <button
+                                            type="button"
+                                            disabled={fieldDisabled}
+                                            onClick={() => setCameraField(key)}
+                                            className={`bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60 ${
+                                                errorFields.has(key) ? errorBorder : 'border-border'
+                                            }`}
+                                        >
+                                            <Camera className="size-4" strokeWidth={2.2} />
+                                            {multi ? 'Tambah Foto' : singleUrl ? 'Ganti Foto' : 'Ambil Foto'}
+                                        </button>
+                                        {multi
+                                            ? multiPhotos!.length > 0 && (
+                                                  <div className="flex flex-wrap gap-2">
+                                                      {multiPhotos!.map((p) => (
+                                                          <div key={p.id} className="relative">
+                                                              <img
+                                                                  src={p.url}
+                                                                  alt={`Foto ${label}`}
+                                                                  className="border-border h-24 w-24 rounded-xl border object-cover"
+                                                              />
+                                                              <button
+                                                                  type="button"
+                                                                  onClick={() => deletePhoto(p.id)}
+                                                                  className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow"
+                                                                  title="Hapus foto"
+                                                              >
+                                                                  <Trash2 className="size-3" strokeWidth={2.5} />
+                                                              </button>
+                                                          </div>
+                                                      ))}
+                                                  </div>
+                                              )
+                                            : singleUrl && (
+                                                  <img
+                                                      src={singleUrl}
+                                                      alt={`Foto ${label}`}
+                                                      className="border-border h-24 w-24 rounded-xl border object-cover"
+                                                  />
+                                              )}
+                                        {multi && isReadOnly && (
+                                            <p className="text-muted-foreground/70 text-[11px] font-medium">
+                                                Foto tetap bisa ditambahkan/dihapus meski Finished Check sudah selesai.
+                                            </p>
+                                        )}
+                                        {expDateLocked && !isReadOnly && (
+                                            <p className="text-muted-foreground/70 text-[11px] font-medium">
+                                                Terkunci sejak TH Progress 1 — tidak bisa diganti lagi.
+                                            </p>
+                                        )}
+                                        <InputError message={errors[`photo_${key}`]} />
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         <AccordionCard title="Kuantitas & Sampling">

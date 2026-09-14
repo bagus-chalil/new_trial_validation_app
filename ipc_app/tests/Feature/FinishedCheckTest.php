@@ -174,7 +174,7 @@ class FinishedCheckTest extends TestCase
                 'quantity_wi', 'masterbox', 'no_pallet_qty',
                 'quantity_sampling_aql', 'quantity_sample_aql_cd', 'quantity_sample_aql_md', 'quantity_sample_aql_mnd',
                 'quantity_special_inspection', 'quantity_special_inspection_cd', 'quantity_special_inspection_md', 'quantity_special_inspection_mnd',
-                'line_leader_name', 'disposition', 'remarks',
+                'disposition', 'remarks',
                 'photo_wi_number', 'photo_exp_date', 'photo_color',
                 'samples.tersier_identity', 'samples.functional_test',
             ]);
@@ -324,6 +324,118 @@ class FinishedCheckTest extends TestCase
         $this->seedFinishedCheckPhotos($batch);
         $this->put("/batches/{$batch->id}/finished-check", $this->validPayload());
 
+        $photo = UploadedFile::fake()->image('color.jpg');
+        $this->post("/batches/{$batch->id}/finished-check/photo/color", ['photo' => $photo])->assertForbidden();
+    }
+
+    public function test_wi_number_photo_accumulates_instead_of_replacing(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/wi_number", ['photo' => UploadedFile::fake()->image('a.jpg')]);
+        $this->post("/batches/{$batch->id}/finished-check/photo/wi_number", ['photo' => UploadedFile::fake()->image('b.jpg')]);
+
+        $this->assertSame(2, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'wi_number')->count());
+    }
+
+    public function test_wi_number_photo_upload_rejected_past_the_max_of_four(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        foreach (range(1, FinishedCheckController::MAX_PHOTOS_PER_FIELD['wi_number']) as $i) {
+            $this->post("/batches/{$batch->id}/finished-check/photo/wi_number", ['photo' => UploadedFile::fake()->image("{$i}.jpg")]);
+        }
+
+        $this->assertSame(4, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'wi_number')->count());
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/wi_number", ['photo' => UploadedFile::fake()->image('5.jpg')])
+            ->assertSessionHasErrors(['photo_wi_number']);
+
+        $this->assertSame(4, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'wi_number')->count());
+    }
+
+    public function test_wi_number_photo_can_be_deleted(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/wi_number", ['photo' => UploadedFile::fake()->image('a.jpg')]);
+        $attachment = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'wi_number')->firstOrFail();
+
+        $this->delete("/batches/{$batch->id}/finished-check/photo/{$attachment->id}")
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
+
+        $this->assertSame(0, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'wi_number')->count());
+        Storage::disk('public')->assertMissing($attachment->file_path);
+    }
+
+    public function test_deleting_a_single_photo_field_via_the_wi_number_route_is_forbidden(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/color", ['photo' => UploadedFile::fake()->image('a.jpg')]);
+        $attachment = IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->firstOrFail();
+
+        $this->delete("/batches/{$batch->id}/finished-check/photo/{$attachment->id}")->assertNotFound();
+    }
+
+    public function test_exp_date_photo_can_be_uploaded_before_the_first_save(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/exp_date", ['photo' => UploadedFile::fake()->image('a.jpg')])
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'exp_date')->count());
+    }
+
+    public function test_exp_date_photo_locks_after_the_first_draft_save(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/exp_date", ['photo' => UploadedFile::fake()->image('a.jpg')]);
+
+        // A draft save (finalize=false) already creates the finishedCheck row — that alone
+        // should lock Exp Date, well before the record is ever finalized.
+        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'remarks' => 'progress note']);
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/exp_date", ['photo' => UploadedFile::fake()->image('b.jpg')])
+            ->assertForbidden();
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'exp_date')->count());
+    }
+
+    public function test_wi_number_photo_stays_uploadable_and_deletable_after_finished_check_is_completed(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $this->seedFinishedCheckPhotos($batch);
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload());
+
+        $this->post("/batches/{$batch->id}/finished-check/photo/wi_number", ['photo' => UploadedFile::fake()->image('after.jpg')])
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
+
+        $newAttachment = IpcAttachment::where('ipc_batch_id', $batch->id)
+            ->where('field_label', 'wi_number')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->delete("/batches/{$batch->id}/finished-check/photo/{$newAttachment->id}")
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
+
+        // Every other field stays locked, confirming the exception is scoped to wi_number only.
         $photo = UploadedFile::fake()->image('color.jpg');
         $this->post("/batches/{$batch->id}/finished-check/photo/color", ['photo' => $photo])->assertForbidden();
     }

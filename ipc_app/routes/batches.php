@@ -44,6 +44,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('batches/{batch}/finished-check/photo/{field}', [FinishedCheckController::class, 'uploadPhoto'])
         ->whereIn('field', FinishedCheckController::PHOTO_FIELDS)
         ->name('finished-check.photo');
+    Route::delete('batches/{batch}/finished-check/photo/{attachment}', [FinishedCheckController::class, 'deletePhoto'])
+        ->whereNumber('attachment')
+        ->name('finished-check.photo.delete');
 
     Route::get('batches/{batch}/approval', [ApprovalController::class, 'edit'])->name('approval.edit');
     Route::get('batches/{batch}/approval/startup', [ApprovalController::class, 'startup'])->name('approval.startup');
