@@ -3,12 +3,15 @@
 namespace App\Actions\Trials;
 
 use App\Actions\Notifications\CreateNotification;
+use App\Mail\TrialApprovalRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 /**
  * Port of the /review/{id}/save save block in the legacy app's
@@ -106,9 +109,32 @@ class SaveDepartmentReview
                 'message' => "Trial {$trial->trial_code} - {$trial->product_name} sudah selesai direview dan menunggu final approval.",
                 'type' => 'approval',
             ]);
+
+            $this->emailApprover($trial, $approver);
         }
 
         return $trial;
+    }
+
+    /**
+     * Email must never block the review-save workflow, matching the
+     * never-throw invariant CreateNotification already relies on.
+     */
+    private function emailApprover(Trial $trial, ?User $approver): void
+    {
+        if (! $approver || ! $approver->email) {
+            return;
+        }
+
+        try {
+            Mail::to($approver->email)->send(new TrialApprovalRequestedMail(
+                trial: $trial,
+                approverName: $approver->name ?: $approver->email,
+                approvalUrl: route('trials.report.show', $trial->id),
+            ));
+        } catch (Throwable) {
+            // Email delivery must never block the main workflow.
+        }
     }
 
     private function editReview(TrialReview $review, string $comment, User $reviewer): Trial

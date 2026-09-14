@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\TrialReviewRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Trial;
@@ -8,6 +9,7 @@ use App\Models\User;
 use App\Models\ValidationParameter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 function makeReviewableTrial(array $attributes = []): Trial
 {
@@ -89,6 +91,8 @@ test('a soft-deleted trial 404s on the review page', function () {
 });
 
 test('submitting for review creates pending trials_review rows and moves the trial to In Review', function () {
+    Mail::fake();
+
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $approver = User::factory()->create(['role' => 'Manager QAC']);
     $prodReviewer = User::factory()->reviewUnit('PROD')->create();
@@ -101,7 +105,7 @@ test('submitting for review creates pending trials_review rows and moves the tri
         'approver_user_id' => $approver->id,
     ]);
 
-    $response->assertRedirect(route('trials.review.edit', $trial));
+    $response->assertRedirect(route('trials.report.show', $trial));
 
     $reviews = TrialReview::where('trial_id', $trial->id)->orderBy('department')->get();
     expect($reviews)->toHaveCount(2);
@@ -122,6 +126,10 @@ test('submitting for review creates pending trials_review rows and moves the tri
 
     expect(Notification::where('trial_id', $trial->id)->where('type', 'review')->count())->toBe(2);
     expect(Notification::where('trial_id', $trial->id)->where('type', 'info')->count())->toBe(1);
+
+    Mail::assertSent(TrialReviewRequestedMail::class, 2);
+    Mail::assertSent(TrialReviewRequestedMail::class, fn ($mail) => $mail->hasTo($prodReviewer->email) && $mail->department === 'PROD');
+    Mail::assertSent(TrialReviewRequestedMail::class, fn ($mail) => $mail->hasTo($qacReviewer->email) && $mail->department === 'QAC');
 });
 
 test('submitting for review is rejected when validation is incomplete and nothing is persisted', function () {

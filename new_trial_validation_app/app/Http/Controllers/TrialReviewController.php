@@ -91,6 +91,6 @@ class TrialReviewController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil dikirim untuk review.']);
 
-        return to_route('trials.review.edit', $trial);
+        return to_route('trials.report.show', $trial);
     }
 }

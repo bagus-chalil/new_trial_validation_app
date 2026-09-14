@@ -1,10 +1,12 @@
 <?php
 
+use App\Mail\TrialApprovalRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 
 function makeInReviewTrial(array $attributes = []): Trial
 {
@@ -70,6 +72,8 @@ test('submitting a department review marks it reviewed and keeps the trial In Re
 });
 
 test('submitting the last pending department review promotes the trial to Ready for Approval', function () {
+    Mail::fake();
+
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $approver = User::factory()->create(['name' => 'Approver One', 'role' => 'Manager QAC']);
     $trial = makeInReviewTrial(['pending_with' => 'PROD', 'approver_user_id' => $approver->id]);
@@ -85,6 +89,24 @@ test('submitting the last pending department review promotes the trial to Ready 
     expect($trial->pending_with)->toBe('Approver One');
 
     expect(Notification::where('trial_id', $trial->id)->where('type', 'approval')->count())->toBe(2);
+
+    Mail::assertSent(TrialApprovalRequestedMail::class, fn ($mail) => $mail->hasTo($approver->email));
+});
+
+test('submitting a review that leaves other departments pending does not email the approver yet', function () {
+    Mail::fake();
+
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $approver = User::factory()->create(['name' => 'Approver One', 'role' => 'Manager QAC']);
+    $trial = makeInReviewTrial(['pending_with' => 'PROD,QAC', 'approver_user_id' => $approver->id]);
+    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $this->actingAs($reviewer)->put(route('reviews.update', $review), [
+        'comment' => 'Looks good',
+    ]);
+
+    Mail::assertNotSent(TrialApprovalRequestedMail::class);
 });
 
 test('a reviewer from a different department is forbidden from saving a review that is not theirs', function () {

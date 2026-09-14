@@ -3,11 +3,14 @@
 namespace App\Actions\Trials;
 
 use App\Actions\Notifications\CreateNotification;
+use App\Mail\TrialReviewRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 /**
  * Port of the /trials/{id}/submit-review save block in the legacy app's
@@ -79,6 +82,8 @@ class SubmitTrialForReview
                 'message' => "Trial {$trial->trial_code} - {$trial->product_name} membutuhkan review Anda.",
                 'type' => 'review',
             ]);
+
+            $this->emailReviewer($trial, $reviewerId, $department);
         }
 
         (new CreateNotification)([
@@ -90,5 +95,33 @@ class SubmitTrialForReview
         ]);
 
         return $trial->fresh();
+    }
+
+    /**
+     * Emails must never block the submit-for-review workflow, matching the
+     * never-throw invariant CreateNotification already relies on.
+     */
+    private function emailReviewer(Trial $trial, ?int $reviewerId, string $department): void
+    {
+        if (! $reviewerId) {
+            return;
+        }
+
+        try {
+            $reviewer = User::query()->where('id', $reviewerId)->where('is_active', 1)->first();
+
+            if (! $reviewer || ! $reviewer->email) {
+                return;
+            }
+
+            Mail::to($reviewer->email)->send(new TrialReviewRequestedMail(
+                trial: $trial,
+                reviewerName: $reviewer->name ?: $reviewer->email,
+                department: $department,
+                reviewUrl: route('trials.report.show', $trial->id),
+            ));
+        } catch (Throwable) {
+            // Email delivery must never block the main workflow.
+        }
     }
 }
