@@ -20,6 +20,7 @@
 /resources/js/wayfinder
 /storage/*.key
 /storage/pail
+/storage/app/puppeteer-cache
 /vendor
 auth.json
 Homestead.json
