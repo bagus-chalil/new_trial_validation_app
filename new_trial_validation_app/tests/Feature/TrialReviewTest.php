@@ -91,10 +91,13 @@ test('a soft-deleted trial 404s on the review page', function () {
 test('submitting for review creates pending trials_review rows and moves the trial to In Review', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $approver = User::factory()->create(['role' => 'Manager QAC']);
+    $prodReviewer = User::factory()->reviewUnit('PROD')->create();
+    $qacReviewer = User::factory()->reviewUnit('QAC')->create();
     $trial = makeCompleteTrial(['created_by' => $owner->email]);
 
     $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD', 'QAC'],
+        'departments' => ['PROD', 'QAC'],
+        'reviewer_user_ids' => ['PROD' => $prodReviewer->id, 'QAC' => $qacReviewer->id],
         'approver_user_id' => $approver->id,
     ]);
 
@@ -102,13 +105,15 @@ test('submitting for review creates pending trials_review rows and moves the tri
 
     $reviews = TrialReview::where('trial_id', $trial->id)->orderBy('department')->get();
     expect($reviews)->toHaveCount(2);
-    expect($reviews->pluck('department')->all())->toBe(['PRD', 'QAC']);
+    expect($reviews->pluck('department')->all())->toBe(['PROD', 'QAC']);
     expect($reviews->every(fn (TrialReview $r) => $r->status === 'Pending'))->toBeTrue();
+    expect($reviews->firstWhere('department', 'PROD')->reviewer_user_id)->toBe($prodReviewer->id);
+    expect($reviews->firstWhere('department', 'QAC')->reviewer_user_id)->toBe($qacReviewer->id);
 
     $trial->refresh();
     expect($trial->progress_status)->toBe('In Review');
     expect($trial->current_step)->toBe('Review');
-    expect($trial->pending_with)->toBe('PRD,QAC');
+    expect($trial->pending_with)->toBe('PROD,QAC');
     expect($trial->approver_user_id)->toBe($approver->id);
 
     $log = ActivityLog::where('module', 'REVIEW')->where('action', 'SUBMIT_REVIEW')->first();
@@ -131,7 +136,7 @@ test('submitting for review is rejected when validation is incomplete and nothin
     ]);
 
     $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD'],
+        'departments' => ['PROD'],
         'approver_user_id' => $approver->id,
     ]);
 
@@ -160,7 +165,7 @@ test('submitting for review with an inactive approver is rejected', function () 
     $trial = makeCompleteTrial(['created_by' => $owner->email]);
 
     $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD'],
+        'departments' => ['PROD'],
         'approver_user_id' => $approver->id,
     ]);
 
@@ -174,7 +179,7 @@ test('a staff member without edit rights is forbidden from submitting for review
     $trial = makeCompleteTrial(['created_by' => $owner->email]);
 
     $this->actingAs($otherStaff)->post(route('trials.review.store', $trial), [
-        'departments' => ['PRD'],
+        'departments' => ['PROD'],
         'approver_user_id' => $approver->id,
     ])->assertForbidden();
 });

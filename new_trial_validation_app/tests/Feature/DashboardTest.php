@@ -106,9 +106,9 @@ test('myWork splits the current user\'s own trials into draft/needs-revision/in-
 });
 
 test('myWork lists pending reviews for the current user\'s department only', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->role('PRD')->reviewUnit('PROD')->create();
     $trial = makeDashboardTrial(['trial_code' => 'TRIAL-REVIEW-MINE', 'progress_status' => 'In Review', 'revision_no' => 0]);
-    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
 
     $response = $this->actingAs($reviewer)->get(route('my-work'));
@@ -117,7 +117,7 @@ test('myWork lists pending reviews for the current user\'s department only', fun
         ->where('myWork.pendingReviewsTotal', 1)
         ->has('myWork.pendingReviews', 1)
         ->where('myWork.pendingReviews.0.trial_code', 'TRIAL-REVIEW-MINE')
-        ->where('myWork.pendingReviews.0.department', 'PRD'));
+        ->where('myWork.pendingReviews.0.department', 'PROD'));
 });
 
 test('myWork lists only approvals specifically assigned to the current user, not the whole approval queue', function () {
@@ -245,7 +245,7 @@ test('a reviewer can load the dashboard without a GROUP BY select conflict', fun
     // test's connection) doesn't enforce that mode, so this only guards
     // against the select-accumulation regression, not a query-mode crash —
     // the crash itself was confirmed fixed live against the real MySQL DB.
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->role('PRD')->reviewUnit('PROD')->create();
     makeDashboardTrial(['trial_code' => 'TRIAL-OV-REVIEWER', 'progress_status' => 'In Review']);
 
     $response = $this->actingAs($reviewer)->get(route('dashboard'));

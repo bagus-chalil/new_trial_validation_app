@@ -34,6 +34,7 @@ class SubmitTrialForReviewRequest extends FormRequest
         return [
             'departments' => ['required', 'array', 'min:1'],
             'departments.*' => [Rule::in(User::reviewerDepartmentCodes())],
+            'reviewer_user_ids' => ['required', 'array'],
             'approver_user_id' => [
                 'required',
                 'integer',
@@ -51,6 +52,30 @@ class SubmitTrialForReviewRequest extends FormRequest
             if ($errors) {
                 $validator->errors()->add('completeness', 'Belum bisa submit review: '.implode(' | ', $errors));
             }
+
+            $departments = $this->departments();
+            $reviewerUserIds = (array) $this->input('reviewer_user_ids', []);
+
+            foreach ($departments as $department) {
+                $reviewerId = $reviewerUserIds[$department] ?? null;
+
+                if (! $reviewerId || ! ctype_digit((string) $reviewerId)) {
+                    $validator->errors()->add('reviewer_user_ids', "Pilih reviewer untuk department {$department}.");
+
+                    continue;
+                }
+
+                $valid = User::query()
+                    ->where('id', (int) $reviewerId)
+                    ->where('is_active', 1)
+                    ->whereNull('deleted_at')
+                    ->whereRaw('UPPER(TRIM(review_unit)) = ?', [$department])
+                    ->exists();
+
+                if (! $valid) {
+                    $validator->errors()->add('reviewer_user_ids', "Reviewer yang dipilih tidak valid untuk department {$department}.");
+                }
+            }
         });
     }
 
@@ -60,5 +85,23 @@ class SubmitTrialForReviewRequest extends FormRequest
     public function departments(): array
     {
         return array_values(array_unique((array) $this->input('departments', [])));
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function reviewerUserIds(): array
+    {
+        $reviewerUserIds = (array) $this->input('reviewer_user_ids', []);
+        $result = [];
+
+        foreach ($this->departments() as $department) {
+            $id = $reviewerUserIds[$department] ?? null;
+            if ($id && ctype_digit((string) $id)) {
+                $result[$department] = (int) $id;
+            }
+        }
+
+        return $result;
     }
 }

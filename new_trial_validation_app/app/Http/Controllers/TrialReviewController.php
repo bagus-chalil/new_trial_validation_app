@@ -33,7 +33,7 @@ class TrialReviewController extends Controller
 
         Gate::authorize('view', $trial);
 
-        $reviews = $trial->reviews()->orderBy('review_round')->orderBy('department')->get();
+        $reviews = $trial->reviews()->with('reviewer:id,name,email')->orderBy('review_round')->orderBy('department')->get();
 
         $approvers = User::query()
             ->where('is_active', 1)
@@ -42,14 +42,33 @@ class TrialReviewController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'role']);
 
+        $reviewerDepartments = User::reviewerDepartmentCodes();
+
+        $reviewersByDepartment = [];
+        foreach ($reviewerDepartments as $department) {
+            $reviewersByDepartment[$department] = User::query()
+                ->where('is_active', 1)
+                ->whereNull('deleted_at')
+                ->whereRaw('UPPER(TRIM(review_unit)) = ?', [$department])
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+                ->map(fn (User $u) => [
+                    'id' => $u->id,
+                    'label' => trim((string) ($u->name ?: $u->email)),
+                ])
+                ->values();
+        }
+
         return Inertia::render('trials/review', [
             'trial' => $trial,
-            'reviewerDepartments' => User::reviewerDepartmentCodes(),
+            'reviewerDepartments' => $reviewerDepartments,
+            'reviewersByDepartment' => $reviewersByDepartment,
             'reviews' => $reviews->map(fn (TrialReview $r) => [
                 'department' => $r->department,
                 'review_round' => $r->review_round,
                 'status' => $r->status,
                 'reviewer_name' => $r->reviewer_name,
+                'assigned_to' => $r->reviewer?->name,
                 'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
                 'comment' => $r->comment,
             ]),
@@ -68,7 +87,7 @@ class TrialReviewController extends Controller
         $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
         $approver = User::where('is_active', 1)->whereNull('deleted_at')->findOrFail($request->integer('approver_user_id'));
 
-        $action($trial, $request->departments(), $approver, $request->user());
+        $action($trial, $request->departments(), $request->reviewerUserIds(), $approver, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil dikirim untuk review.']);
 

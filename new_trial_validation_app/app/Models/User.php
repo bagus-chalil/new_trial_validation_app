@@ -28,12 +28,13 @@ use Illuminate\Support\Carbon;
  * @property string $password_hash
  * @property string $role
  * @property string|null $department
+ * @property string|null $review_unit
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $deleted_at
  * @property int|null $deleted_by
  */
-#[Fillable(['name', 'email', 'role', 'department'])]
+#[Fillable(['name', 'email', 'role', 'department', 'review_unit'])]
 #[Hidden(['password_hash'])]
 class User extends Authenticatable
 {
@@ -140,6 +141,54 @@ class User extends Authenticatable
     }
 
     /**
+     * Legacy review-team codes that were renamed going forward in this app
+     * (see the 2026-09-14 `review_unit` migration doc comment) — kept here
+     * so a `trials_review` row written before the rename (department='PRD')
+     * still resolves to the same reviewer group as one written after
+     * (review_unit='PROD'). Only used for reading old data; new
+     * assignments always use the canonical code from reviewerDepartmentCodes().
+     */
+    private const REVIEW_DEPARTMENT_ALIASES = ['PRD' => 'PROD'];
+
+    /**
+     * Normalizes a stored trials_review.department value for comparison
+     * against reviewerDepartmentCodes()/reviewDepartmentsForUser(), applying
+     * REVIEW_DEPARTMENT_ALIASES so historical rows using a since-renamed code
+     * still match.
+     */
+    public static function normalizeReviewDepartment(?string $dept): string
+    {
+        $code = self::normalizeDepartment($dept);
+
+        return self::REVIEW_DEPARTMENT_ALIASES[$code] ?? $code;
+    }
+
+    /**
+     * Expands a list of canonical review-department codes to also include
+     * any legacy alias that maps onto one of them — for building a SQL
+     * IN(...) list that must match both old and new stored values.
+     *
+     * @param  list<string>  $codes
+     * @return list<string>
+     */
+    public static function expandReviewDepartmentAliases(array $codes): array
+    {
+        $expanded = $codes;
+        foreach (self::REVIEW_DEPARTMENT_ALIASES as $old => $new) {
+            if (in_array($new, $codes, true) && ! in_array($old, $expanded, true)) {
+                $expanded[] = $old;
+            }
+        }
+
+        return $expanded;
+    }
+
+    public function reviewUnitCode(): string
+    {
+        return self::normalizeDepartment($this->review_unit ?? '');
+    }
+
+    /**
      * Department codes eligible to be a per-department reviewer, i.e. the
      * hardcoded defaults plus anything added via master_options
      * (type=reviewer_department). Falls back to defaults if that table
@@ -149,7 +198,7 @@ class User extends Authenticatable
      */
     public static function reviewerDepartmentCodes(): array
     {
-        $defaults = ['PRD', 'RNI', 'QAC', 'PRNI', 'PI'];
+        $defaults = ['PROD', 'RNI', 'QAC', 'PRNI', 'PI'];
 
         try {
             $codes = $defaults;
@@ -174,25 +223,18 @@ class User extends Authenticatable
     }
 
     /**
-     * Department codes this user reviews for (their role and/or their
-     * department, when either is a recognized reviewer department).
+     * Review-team codes this user is a reviewer for, sourced from the
+     * decoupled `review_unit` column (not `role`/`department` — those stay
+     * legacy-owned, see the 2026-09-14 migration doc comment).
      *
      * @return list<string>
      */
     public function reviewDepartmentsForUser(): array
     {
         $codes = self::reviewerDepartmentCodes();
-        $items = [];
-        $role = self::normalizeDepartment($this->role);
-        $dept = $this->departmentCode();
-        if (in_array($role, $codes, true)) {
-            $items[] = $role;
-        }
-        if (in_array($dept, $codes, true) && ! in_array($dept, $items, true)) {
-            $items[] = $dept;
-        }
+        $unit = $this->reviewUnitCode();
 
-        return array_values(array_unique($items));
+        return in_array($unit, $codes, true) ? [$unit] : [];
     }
 
     public function isReviewer(): bool
@@ -201,21 +243,19 @@ class User extends Authenticatable
     }
 
     /**
-     * Assignable role categories: the hardcoded defaults, plus any reviewer
-     * department codes and any custom roles added via master_options
-     * (type=role_category). Port of legacy bootstrap.php's role_categories().
+     * Assignable role categories: the hardcoded defaults, plus any custom
+     * roles added via master_options (type=role_category). Port of legacy
+     * bootstrap.php's role_categories() — unlike legacy, this deliberately
+     * does NOT fold reviewerDepartmentCodes() in here: which review team a
+     * user belongs to is managed independently via `review_unit` (Access
+     * Rights' "Review Team" field), not by picking a department code as
+     * someone's Role. See the 2026-09-14 `review_unit` migration doc comment.
      *
      * @return list<string>
      */
     public static function roleCategories(): array
     {
         $roles = ['Staff', 'Viewer', 'Manager QAC', 'Admin', 'Super Admin'];
-
-        foreach (self::reviewerDepartmentCodes() as $dept) {
-            if (! in_array($dept, $roles, true)) {
-                $roles[] = $dept;
-            }
-        }
 
         try {
             $names = MasterOption::query()

@@ -93,6 +93,7 @@ class AccessRightController extends Controller
             'filters' => ['q' => $search],
             'editUser' => $editUser,
             'roleCategories' => User::roleCategories(),
+            'reviewUnitOptions' => User::reviewerDepartmentCodes(),
             'reviewerDepartments' => $reviewerDepartments,
             'draftTrials' => $draftTrials,
             'staffUsers' => $staffUsers,
@@ -123,6 +124,7 @@ class AccessRightController extends Controller
 
         $user->role = $role;
         $user->department = $department;
+        $user->review_unit = $data['review_unit'] ?? null;
         $user->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Hak akses user berhasil diperbarui.']);

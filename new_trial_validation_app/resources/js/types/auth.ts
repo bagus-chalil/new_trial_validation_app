@@ -5,6 +5,7 @@ export type User = {
     avatar?: string;
     role: string;
     department: string | null;
+    review_unit: string | null;
     is_active: boolean;
     created_at: string;
     [key: string]: unknown;

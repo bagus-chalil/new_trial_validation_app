@@ -111,7 +111,7 @@ test('the trial summary report applies each filter field', function () {
 test('the department review report shows a status per department and the correct overall review status', function () {
     $owner = User::factory()->create();
     $trial = makeReportTrial(['trial_code' => 'TRIAL-DEPTREVIEW', 'progress_status' => 'In Review', 'pending_with' => 'QAC']);
-    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Reviewed']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed']);
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
 
     $response = $this->actingAs($owner)->get(route('reports.department-review'));
@@ -119,7 +119,7 @@ test('the department review report shows a status per department and the correct
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->has('items.data', 1)
-        ->where('items.data.0.departments.PRD', 'Reviewed')
+        ->where('items.data.0.departments.PROD', 'Reviewed')
         ->where('items.data.0.departments.QAC', 'Pending')
         ->where('items.data.0.departments.RNI', 'N/A')
         ->where('items.data.0.review_status', 'Pending')
@@ -127,9 +127,13 @@ test('the department review report shows a status per department and the correct
 });
 
 test('a reviewer only sees department review rows for trials tied to their own department', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    // Trial::scopeVisibleTo()'s reviewer-only narrowing only applies to a
+    // user who isn't also Staff/an approver (see its own doc comment) — a
+    // real reviewer account keeps a non-Staff role (e.g. legacy's 'PRD',
+    // untouched by the review_unit rename) for exactly this reason.
+    $reviewer = User::factory()->role('PRD')->reviewUnit('PROD')->create();
     $trial = makeReportTrial(['trial_code' => 'TRIAL-DEPT-MINE', 'progress_status' => 'In Review']);
-    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
 
     $otherTrial = makeReportTrial(['trial_code' => 'TRIAL-DEPT-OTHER', 'progress_status' => 'In Review']);
     TrialReview::create(['trial_id' => $otherTrial->id, 'department' => 'RNI', 'review_round' => 1, 'status' => 'Pending']);
@@ -255,9 +259,9 @@ test('an approver who is not the assigned approver sees a note explaining why th
 });
 
 test('a reviewer who already reviewed their department sees a note once no pending review remains', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeReportTrial(['trial_code' => 'TRIAL-REVIEW-DONE', 'progress_status' => 'In Review', 'revision_no' => 0]);
-    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Reviewed', 'reviewed_at' => Carbon::now()]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed', 'reviewed_at' => Carbon::now()]);
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
 
     $response = $this->actingAs($reviewer)->get(route('trials.report.show', $trial));
@@ -267,14 +271,14 @@ test('a reviewer who already reviewed their department sees a note once no pendi
         ->where('reviewCompletedNote', fn ($note) => $note !== null)
         ->where('approvalBlockedNote', null)
         ->has('editableReviews', 1)
-        ->where('editableReviews.0.department', 'PRD')
+        ->where('editableReviews.0.department', 'PROD')
         ->where('editableReviews.0.editsRemaining', 3));
 });
 
 test('the editable-reviews list excludes a reviewed department once its edits are used up or the trial is decided', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeReportTrial(['trial_code' => 'TRIAL-EDITS-USED-UP', 'progress_status' => 'In Review', 'revision_no' => 0]);
-    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Reviewed', 'reviewed_at' => Carbon::now(), 'edit_count' => 3]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed', 'reviewed_at' => Carbon::now(), 'edit_count' => 3]);
 
     $response = $this->actingAs($reviewer)->get(route('trials.report.show', $trial));
     $response->assertInertia(fn ($page) => $page->has('editableReviews', 0));

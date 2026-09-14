@@ -12,22 +12,25 @@ use Illuminate\Support\Facades\DB;
 /**
  * Port of the /trials/{id}/submit-review save block in the legacy app's
  * public/index.php:740-793 — wizard Step 6 (Review & Submit). Completeness
- * (CheckTrialCompleteness) and the departments/approver themselves are
- * validated by SubmitTrialForReviewRequest before this runs; this action
- * just performs the state transition. Upserts a Pending trials_review row
- * per selected department for the trial's current review round (resetting
- * any stale reviewer/comment data from a prior round, matching legacy's
- * ON DUPLICATE KEY UPDATE), moves the trial to In Review, and notifies each
- * department's reviewers plus Admin.
+ * (CheckTrialCompleteness) and the departments/approver/reviewer assignments
+ * themselves are validated by SubmitTrialForReviewRequest before this runs;
+ * this action just performs the state transition. Upserts a Pending
+ * trials_review row per selected department for the trial's current review
+ * round (resetting any stale reviewer/comment data from a prior round,
+ * matching legacy's ON DUPLICATE KEY UPDATE) — unlike legacy, each row is
+ * assigned to one specific reviewer rather than leaving it open to anyone in
+ * the department (see TrialReviewPolicy::update()) — moves the trial to In
+ * Review, and notifies each assigned reviewer plus Admin.
  */
 class SubmitTrialForReview
 {
     /**
      * @param  list<string>  $departments
+     * @param  array<string, int>  $reviewerUserIds  department => assigned reviewer's user id
      */
-    public function __invoke(Trial $trial, array $departments, User $approver, User $submittedBy): Trial
+    public function __invoke(Trial $trial, array $departments, array $reviewerUserIds, User $approver, User $submittedBy): Trial
     {
-        DB::transaction(function () use ($trial, $departments, $approver, $submittedBy) {
+        DB::transaction(function () use ($trial, $departments, $reviewerUserIds, $approver, $submittedBy) {
             $round = $trial->currentReviewRound();
 
             foreach ($departments as $department) {
@@ -36,6 +39,7 @@ class SubmitTrialForReview
                     [
                         'status' => 'Pending',
                         'is_required' => true,
+                        'reviewer_user_id' => $reviewerUserIds[$department] ?? null,
                         'reviewer_name' => null,
                         'reviewer_email' => null,
                         'comment' => null,
@@ -59,17 +63,20 @@ class SubmitTrialForReview
                 'record_id' => (string) $trial->id,
                 'record_label' => $trial->trial_code,
                 'old_data' => null,
-                'new_data' => json_encode(['round' => $round, 'departments' => $departments, 'approver' => $approver->email]),
+                'new_data' => json_encode(['round' => $round, 'departments' => $departments, 'reviewer_user_ids' => $reviewerUserIds, 'approver' => $approver->email]),
             ]);
         });
 
         foreach ($departments as $department) {
+            $reviewerId = $reviewerUserIds[$department] ?? null;
+
             (new CreateNotification)([
-                'role_target' => 'Reviewer',
-                'department_target' => $department,
+                'user_id' => $reviewerId,
+                'role_target' => $reviewerId ? null : 'Reviewer',
+                'department_target' => $reviewerId ? null : $department,
                 'trial_id' => $trial->id,
                 'title' => 'New Trial Waiting for Review',
-                'message' => "Trial {$trial->trial_code} - {$trial->product_name} membutuhkan review department Anda.",
+                'message' => "Trial {$trial->trial_code} - {$trial->product_name} membutuhkan review Anda.",
                 'type' => 'review',
             ]);
         }

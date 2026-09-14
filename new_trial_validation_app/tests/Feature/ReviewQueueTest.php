@@ -16,15 +16,15 @@ function makeInReviewTrial(array $attributes = []): Trial
         'current_step' => 'Review',
         'created_by' => $attributes['created_by'] ?? 'owner@local.test',
         'revision_no' => 0,
-        'pending_with' => $attributes['pending_with'] ?? 'PRD',
+        'pending_with' => $attributes['pending_with'] ?? 'PROD',
         'approver_user_id' => $attributes['approver_user_id'] ?? null,
     ]);
 }
 
 test('a reviewer only sees pending reviews for their own department', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial();
-    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
 
     $otherTrial = makeInReviewTrial(['trial_code' => 'TRIAL-INREVIEW-2']);
@@ -45,9 +45,9 @@ test('a non-reviewer is forbidden from the review queue', function () {
 });
 
 test('submitting a department review marks it reviewed and keeps the trial In Review when other departments are pending', function () {
-    $reviewer = User::factory()->role('PRD')->create();
-    $trial = makeInReviewTrial(['pending_with' => 'PRD,QAC']);
-    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeInReviewTrial(['pending_with' => 'PROD,QAC']);
+    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
 
     $response = $this->actingAs($reviewer)->put(route('reviews.update', $review), [
@@ -70,10 +70,10 @@ test('submitting a department review marks it reviewed and keeps the trial In Re
 });
 
 test('submitting the last pending department review promotes the trial to Ready for Approval', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $approver = User::factory()->create(['name' => 'Approver One', 'role' => 'Manager QAC']);
-    $trial = makeInReviewTrial(['pending_with' => 'PRD', 'approver_user_id' => $approver->id]);
-    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    $trial = makeInReviewTrial(['pending_with' => 'PROD', 'approver_user_id' => $approver->id]);
+    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
 
     $this->actingAs($reviewer)->put(route('reviews.update', $review), [
         'comment' => 'All good',
@@ -88,7 +88,7 @@ test('submitting the last pending department review promotes the trial to Ready 
 });
 
 test('a reviewer from a different department is forbidden from saving a review that is not theirs', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial();
     $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
 
@@ -98,9 +98,9 @@ test('a reviewer from a different department is forbidden from saving a review t
 });
 
 test('submitting a review without a comment is rejected', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial();
-    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
 
     $this->actingAs($reviewer)->put(route('reviews.update', $review), [
         'comment' => '',
@@ -110,11 +110,11 @@ test('submitting a review without a comment is rejected', function () {
 });
 
 test('a reviewer can edit their already-reviewed comment while the trial is still In Review', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial();
     $review = TrialReview::create([
         'trial_id' => $trial->id,
-        'department' => 'PRD',
+        'department' => 'PROD',
         'review_round' => 1,
         'status' => 'Reviewed',
         'reviewer_name' => 'Someone Else',
@@ -138,13 +138,13 @@ test('a reviewer can edit their already-reviewed comment while the trial is stil
 });
 
 test('a reviewer can edit their already-reviewed comment while the trial is waiting for approval', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial(['pending_with' => 'Manager QAC']);
     $trial->progress_status = 'Ready for Approval';
     $trial->save();
     $review = TrialReview::create([
         'trial_id' => $trial->id,
-        'department' => 'PRD',
+        'department' => 'PROD',
         'review_round' => 1,
         'status' => 'Reviewed',
         'comment' => 'Already done',
@@ -158,11 +158,11 @@ test('a reviewer can edit their already-reviewed comment while the trial is wait
 });
 
 test('editing an already-reviewed comment is capped at 3 edits', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial();
     $review = TrialReview::create([
         'trial_id' => $trial->id,
-        'department' => 'PRD',
+        'department' => 'PROD',
         'review_round' => 1,
         'status' => 'Reviewed',
         'comment' => 'Original',
@@ -177,14 +177,14 @@ test('editing an already-reviewed comment is capped at 3 edits', function () {
 });
 
 test('an already-reviewed comment cannot be edited once the trial has a final approval decision', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial();
     $trial->progress_status = 'Approved';
     $trial->final_decision = 'Approved';
     $trial->save();
     $review = TrialReview::create([
         'trial_id' => $trial->id,
-        'department' => 'PRD',
+        'department' => 'PROD',
         'review_round' => 1,
         'status' => 'Reviewed',
         'comment' => 'Original',
@@ -198,11 +198,11 @@ test('an already-reviewed comment cannot be edited once the trial has a final ap
 });
 
 test('a stale review from an older round cannot be saved', function () {
-    $reviewer = User::factory()->role('PRD')->create();
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial(['trial_code' => 'TRIAL-STALE-1']);
     $trial->revision_no = 1;
     $trial->save();
-    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
 
     $this->actingAs($reviewer)->put(route('reviews.update', $review), [
         'comment' => 'Too late',

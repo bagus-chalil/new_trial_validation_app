@@ -72,6 +72,7 @@ type PageProps = {
     users: Paginated<User>;
     filters: { q: string };
     roleCategories: string[];
+    reviewUnitOptions: string[];
     reviewerDepartments: ReviewerDepartment[];
     draftTrials: DraftTrial[];
     staffUsers: StaffUser[];
@@ -83,12 +84,22 @@ function EditRoleDialog({
     onOpenChange,
     editingUser,
     roleCategories,
+    reviewUnitOptions,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     editingUser: User | null;
     roleCategories: string[];
+    reviewUnitOptions: string[];
 }) {
+    // An existing user's role may hold a value no longer offered here (e.g.
+    // a review-team code from before review_unit existed) — keep it
+    // selectable so saving without touching Role doesn't blank it out.
+    const roleOptions =
+        editingUser && !roleCategories.includes(editingUser.role)
+            ? [editingUser.role, ...roleCategories]
+            : roleCategories;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
@@ -123,7 +134,7 @@ function EditRoleDialog({
                                             <SelectValue placeholder="Role" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {roleCategories.map((role) => (
+                                            {roleOptions.map((role) => (
                                                 <SelectItem
                                                     key={role}
                                                     value={role}
@@ -149,6 +160,41 @@ function EditRoleDialog({
                                         placeholder="Auto untuk role reviewer"
                                     />
                                     <InputError message={errors.department} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="review_unit">
+                                        Review Team
+                                    </Label>
+                                    <Select
+                                        name="review_unit"
+                                        defaultValue={
+                                            editingUser.review_unit ?? '__none'
+                                        }
+                                    >
+                                        <SelectTrigger id="review_unit">
+                                            <SelectValue placeholder="Tidak ada" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none">
+                                                Tidak ada
+                                            </SelectItem>
+                                            {reviewUnitOptions.map((unit) => (
+                                                <SelectItem
+                                                    key={unit}
+                                                    value={unit}
+                                                >
+                                                    {unit}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Menentukan trial department mana yang
+                                        bisa ditugaskan review ke user ini,
+                                        terpisah dari Role/Department di atas.
+                                    </p>
+                                    <InputError message={errors.review_unit} />
                                 </div>
 
                                 <DialogFooter>
@@ -301,6 +347,7 @@ export default function AdminAccessRightsIndex({
     users,
     filters,
     roleCategories,
+    reviewUnitOptions,
     reviewerDepartments,
     draftTrials,
     staffUsers,
@@ -339,6 +386,7 @@ export default function AdminAccessRightsIndex({
                     }}
                     editingUser={editingUser}
                     roleCategories={roleCategories}
+                    reviewUnitOptions={reviewUnitOptions}
                 />
 
                 <Card>
@@ -370,6 +418,7 @@ export default function AdminAccessRightsIndex({
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Dept</TableHead>
+                                    <TableHead>Review Team</TableHead>
                                     <TableHead>Action</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -380,6 +429,9 @@ export default function AdminAccessRightsIndex({
                                         <TableCell>{usr.email}</TableCell>
                                         <TableCell>{usr.role}</TableCell>
                                         <TableCell>{usr.department}</TableCell>
+                                        <TableCell>
+                                            {usr.review_unit ?? '-'}
+                                        </TableCell>
                                         <TableCell>
                                             {usr.id !== auth.user.id && (
                                                 <Button
@@ -398,7 +450,7 @@ export default function AdminAccessRightsIndex({
                                 {users.data.length === 0 && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             Belum ada user.

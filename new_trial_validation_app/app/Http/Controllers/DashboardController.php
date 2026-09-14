@@ -6,9 +6,7 @@ use App\Models\MasterOption;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -140,18 +138,12 @@ class DashboardController extends Controller
         $pendingReviewsTotal = 0;
         $recentlyReviewed = collect();
         if ($user->isReviewer()) {
-            $departments = $user->reviewDepartmentsForUser();
-
             $reviewQuery = TrialReview::query()
                 ->join('trials_header as h', 'h.id', '=', 'trials_review.trial_id')
                 ->where('h.progress_status', 'In Review')
                 ->whereRaw('trials_review.review_round = h.revision_no + 1')
                 ->where('trials_review.status', 'Pending')
-                ->when(
-                    $departments,
-                    fn (Builder $q) => $q->whereIn(DB::raw('UPPER(TRIM(trials_review.department))'), $departments),
-                    fn (Builder $q) => $q->whereRaw('1 = 0'),
-                );
+                ->visibleToReviewer($user);
 
             $pendingReviewsTotal = (clone $reviewQuery)->count();
             $pendingReviews = (clone $reviewQuery)
