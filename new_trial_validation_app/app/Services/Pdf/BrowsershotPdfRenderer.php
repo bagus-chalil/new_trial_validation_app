@@ -25,12 +25,21 @@ use Spatie\Browsershot\Browsershot;
  * invisible at request time ("Could not find chrome-headless-shell").
  * Pinning PUPPETEER_CACHE_DIR to a path inside this app fixes that for any
  * user; .gitlab-ci.yml's puppeteer install step must use the same path.
+ *
+ * Must be set via $_ENV, not just putenv(): under PHP-FPM (unlike the CLI
+ * SAPI), Symfony Process's default child-process environment is getenv()
+ * intersected with $_SERVER's keys (see Process::getDefaultEnv()) — a
+ * putenv()-only var isn't in $_SERVER, so it gets silently dropped before
+ * reaching the spawned `node` process. $_ENV is merged in unconditionally,
+ * bypassing that filter.
  */
 class BrowsershotPdfRenderer implements PdfRenderer
 {
     public function render(string $html): string
     {
-        putenv('PUPPETEER_CACHE_DIR='.storage_path('app/puppeteer-cache'));
+        $cacheDir = storage_path('app/puppeteer-cache');
+        putenv("PUPPETEER_CACHE_DIR={$cacheDir}");
+        $_ENV['PUPPETEER_CACHE_DIR'] = $cacheDir;
 
         return Browsershot::html($html)
             ->format('A4')
