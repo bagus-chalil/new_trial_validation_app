@@ -71,10 +71,10 @@
                         <tr>
                             <td class="center">{{ $itemNo }}</td>
                             <td style="padding-left: 14px;">{{ $label }}</td>
-                            <td class="center">{{ $row->ac ?? '—' }}</td>
-                            <td class="center">{{ $row->cd ?? '—' }}</td>
-                            <td class="center">{{ $row->md ?? '—' }}</td>
-                            <td class="center">{{ $row->mnd ?? '—' }}</td>
+                            <td class="center">{{ $row->ac ?? 'N/A' }}</td>
+                            <td class="center">{{ $row->cd ?? 'N/A' }}</td>
+                            <td class="center">{{ $row->md ?? 'N/A' }}</td>
+                            <td class="center">{{ $row->mnd ?? 'N/A' }}</td>
                         </tr>
                     @endforeach
                 @endforeach

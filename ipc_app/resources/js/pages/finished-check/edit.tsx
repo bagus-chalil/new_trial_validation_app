@@ -87,8 +87,7 @@ const inputClass =
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
 // The header-level fields SaveFinishedCheckRequest requires on finalize. The 19-row AQL sample
-// grid is required too (at least one of AC/CD/MD/mD per row) but is checked separately below,
-// against allParameterKeys/samplesData — see computeEmptyRequiredFields().
+// grid is deliberately not required — a blank row is valid QC data (see computeEmptyRequiredFields()).
 const REQUIRED_FIELDS = [
     'quantity_wi',
     'masterbox',
@@ -206,17 +205,13 @@ export default function FinishedCheckEdit({
         return headerHasValue || filledSampleCount > 0;
     };
 
-    // Reused for the Simpan/empty-progress highlight below. Each AQL sample row counts as empty
-    // only when all four of its AC/CD/MD/mD cells are blank — matching the backend's per-row
-    // (not per-cell) requirement — so a single filled cell clears that row's error.
+    // Reused for the Simpan/empty-progress highlight below. The AQL sample grid is not required —
+    // an entirely blank row (e.g. a tier that doesn't apply to this product) is valid QC data, not
+    // an error; the report renders a blank row as "N/A" instead of leaving it empty/dashed.
     const computeEmptyRequiredFields = () => {
         const empty = new Set<string>();
         REQUIRED_FIELDS.forEach((key) => {
             if (!(data[key] as string)?.toString().trim()) empty.add(key);
-        });
-        allParameterKeys.forEach((key) => {
-            const row = samplesData[key];
-            if (!(row && (row.ac || row.cd || row.md || row.mnd))) empty.add(key);
         });
         return empty;
     };
@@ -583,10 +578,8 @@ export default function FinishedCheckEdit({
 
                         <AccordionCard title="Keputusan">
                             <div className="flex flex-col gap-2">
-                                <Label className="text-muted-foreground text-xs font-semibold">
-                                    Line Leader (dari Packing Check)
-                                </Label>
-                                <div className={`${inputClass} flex items-center bg-muted/40`}>{lineleaderName ?? '—'}</div>
+                                <Label className="text-muted-foreground text-xs font-semibold">Line Leader (dari Packing Check)</Label>
+                                <div className={`${inputClass} bg-muted/40 flex items-center`}>{lineleaderName ?? '—'}</div>
                             </div>
                             <div id="disposition" className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Disposition</Label>

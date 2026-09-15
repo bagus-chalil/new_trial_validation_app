@@ -18,16 +18,13 @@ use Illuminate\Foundation\Http\FormRequest;
  * 2026-09-04 after direct live-testing feedback showed a blank form could be finalized straight
  * through, which isn't acceptable even though the raw legacy export itself has zero server-side
  * validation here (see ipc_app/CLAUDE.md's "Finished Check" note).
- * The 19-group/76-field AQL sample grid is NOT required cell-by-cell (mandating all 4 of
- * AC/CD/MD/mD on every row would be unrealistic to enforce) — but revised again same day after
- * further feedback: leaving the whole grid optional while the header fields turn red on
- * Selesaikan was an inconsistent "required" story, and the frontend's Quantity Sample accordions
- * were staying collapsed by default regardless, hiding whichever rows were still blank. Each of
- * the 19 rows must now have at least one of AC/CD/MD/mD filled on finalize (see the second
- * withValidator() loop below) — a fully-blank row isn't real QC data either. The frontend mirrors
- * this: FinishedCheckEdit's REQUIRED_FIELDS/computeEmptyRequiredFields() now also check every
- * sample row, and AccordionCard's new forceOpen prop expands a Quantity Sample group as soon as
- * one of its rows is flagged, instead of leaving it collapsed.
+ * The 19-group/76-field AQL sample grid is NOT required, cell-by-cell or row-by-row — a real
+ * sample (e.g. no tersier packaging on this product) legitimately has nothing to record there.
+ * A 2026-09-04 revision briefly required at least one of AC/CD/MD/mD per row on finalize, but
+ * that was reversed 2026-09-15 per direct user request: an entirely blank AQL row is valid QC
+ * data (nothing to report for that parameter), not an error — the report renders it as "N/A"
+ * instead of leaving it blank/dashed (see resources/views/pdf/approval-finished.blade.php and
+ * the matching approval/finished.tsx + print/finished.tsx pages).
  */
 class SaveFinishedCheckRequest extends FormRequest
 {
@@ -83,7 +80,6 @@ class SaveFinishedCheckRequest extends FormRequest
 
         $validator->after(function (Validator $validator) {
             $this->validateFinalizePhotos($validator);
-            $this->validateFinalizeSampleRows($validator);
         });
     }
 
@@ -129,22 +125,6 @@ class SaveFinishedCheckRequest extends FormRequest
         foreach (FinishedCheckController::PHOTO_FIELDS as $field) {
             if (! $uploadedPhotoFields->contains($field)) {
                 $validator->errors()->add("photo_{$field}", 'Foto wajib diunggah.');
-            }
-        }
-    }
-
-    /**
-     * Each of the 19 AQL sample rows needs at least one of AC/CD/MD/mD filled on finalize — not
-     * all four columns (unrealistic to enforce cell-by-cell), just not a fully-blank row.
-     */
-    private function validateFinalizeSampleRows(Validator $validator): void
-    {
-        foreach (FinishedCheckSample::PARAMETER_KEYS as $key) {
-            $row = $this->input("samples.{$key}", []);
-            $hasValue = collect(['ac', 'cd', 'md', 'mnd'])->contains(fn ($field) => filled($row[$field] ?? null));
-
-            if (! $hasValue) {
-                $validator->errors()->add("samples.{$key}", 'Minimal satu kolom (AC/CD/MD/mD) wajib diisi.');
             }
         }
     }

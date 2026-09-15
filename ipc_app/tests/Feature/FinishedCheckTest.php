@@ -57,9 +57,9 @@ class FinishedCheckTest extends TestCase
     }
 
     /**
-     * Every one of the 19 AQL parameter rows needs at least one of AC/CD/MD/mD filled on
-     * finalize (see SaveFinishedCheckRequest::validateFinalizeSampleRows()) — so a "valid"
-     * payload for finalize tests must give each row a value, not just a couple of them.
+     * The AQL sample grid is not required (see SaveFinishedCheckRequest's class doc comment) —
+     * this just gives every row a value so tests that aren't specifically about the sample grid
+     * have realistic, non-blank data to assert against.
      */
     private function validSamples(): array
     {
@@ -176,7 +176,6 @@ class FinishedCheckTest extends TestCase
                 'quantity_special_inspection', 'quantity_special_inspection_cd', 'quantity_special_inspection_md', 'quantity_special_inspection_mnd',
                 'disposition', 'remarks',
                 'photo_wi_number', 'photo_exp_date', 'photo_color',
-                'samples.tersier_identity', 'samples.functional_test',
             ]);
 
         $this->assertNull($batch->fresh()->finishedCheck);
@@ -194,11 +193,11 @@ class FinishedCheckTest extends TestCase
     }
 
     /**
-     * Direct user feedback 2026-09-04: the header quantity fields turned red on a failed
-     * Selesaikan while the 19-row AQL sample grid stayed collapsed and unvalidated — an
-     * inconsistent "required" story. Each row now needs at least one of AC/CD/MD/mD filled.
+     * Reversed 2026-09-15, direct user request: a completely blank AQL row (e.g. a tier that
+     * doesn't apply to this product) is valid QC data, not an error — finalize must accept it.
+     * The report renders the blank row's AC/CD/MD/mD cells as "N/A".
      */
-    public function test_finalize_rejects_a_completely_blank_sample_row(): void
+    public function test_finalize_accepts_a_completely_blank_sample_row(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedPackingCheck();
@@ -208,9 +207,14 @@ class FinishedCheckTest extends TestCase
         $samples['tersier_appearance'] = ['ac' => null, 'cd' => null, 'md' => null, 'mnd' => null];
 
         $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['samples' => $samples]))
-            ->assertSessionHasErrors(['samples.tersier_appearance']);
+            ->assertSessionHasNoErrors()
+            ->assertRedirect("/batches/{$batch->id}");
 
-        $this->assertNull($batch->fresh()->finishedCheck);
+        $tersierAppearance = $batch->fresh()->finishedCheck->samples()->where('parameter_key', 'tersier_appearance')->first();
+        $this->assertNull($tersierAppearance->ac);
+        $this->assertNull($tersierAppearance->cd);
+        $this->assertNull($tersierAppearance->md);
+        $this->assertNull($tersierAppearance->mnd);
     }
 
     public function test_finalize_persists_header_and_samples_and_advances_stage(): void

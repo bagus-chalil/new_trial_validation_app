@@ -138,10 +138,10 @@ export default function PrintFinished({
                                                     return (
                                                         <tr key={key} className="border-border-soft border-b last:border-0">
                                                             <td className="py-1.5 pr-2 font-semibold">{label}</td>
-                                                            <td className="py-1.5 pr-2">{row?.ac ?? '—'}</td>
-                                                            <td className="py-1.5 pr-2">{row?.cd ?? '—'}</td>
-                                                            <td className="py-1.5 pr-2">{row?.md ?? '—'}</td>
-                                                            <td className="py-1.5 pr-2">{row?.mnd ?? '—'}</td>
+                                                            <td className="py-1.5 pr-2">{row?.ac ?? 'N/A'}</td>
+                                                            <td className="py-1.5 pr-2">{row?.cd ?? 'N/A'}</td>
+                                                            <td className="py-1.5 pr-2">{row?.md ?? 'N/A'}</td>
+                                                            <td className="py-1.5 pr-2">{row?.mnd ?? 'N/A'}</td>
                                                         </tr>
                                                     );
                                                 })}
