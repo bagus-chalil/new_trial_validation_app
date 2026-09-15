@@ -35,6 +35,7 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
     Route::get('{trial}/report', [TrialReportController::class, 'show'])->whereNumber('trial')->name('report.show');
     Route::post('{trial}/report/print-log', [TrialReportController::class, 'logPrint'])->whereNumber('trial')->name('report.print-log');
     Route::get('{trial}/report/pdf', [TrialReportController::class, 'pdf'])->whereNumber('trial')->name('report.pdf');
+    Route::get('{trial}/report/excel', [TrialReportController::class, 'excel'])->whereNumber('trial')->name('report.excel');
 
     Route::get('{group}', [TrialController::class, 'index'])
         ->whereIn('group', ['approved', 'tracking', 'need-revision', 'rejected', 'draft'])

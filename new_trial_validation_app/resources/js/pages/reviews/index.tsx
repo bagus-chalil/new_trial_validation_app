@@ -1,5 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
+import { FilterBar } from '@/components/filter-bar';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
 import { Button } from '@/components/ui/button';
@@ -27,11 +30,28 @@ type ReviewItem = {
     active: boolean;
 };
 
-type PageProps = {
-    items: Paginated<ReviewItem>;
+type Filters = {
+    q: string;
 };
 
-export default function ReviewsIndex({ items }: PageProps) {
+type PageProps = {
+    items: Paginated<ReviewItem>;
+    filters: Filters;
+};
+
+export default function ReviewsIndex({ items, filters }: PageProps) {
+    const [form, setForm] = useState<Filters>(filters);
+    const url = reviewsIndex().url;
+
+    function submit(e: FormEvent) {
+        e.preventDefault();
+        router.get(url, form, { preserveState: true, replace: true });
+    }
+
+    function reset() {
+        router.get(url);
+    }
+
     return (
         <>
             <Head title="Need Review" />
@@ -40,6 +60,15 @@ export default function ReviewsIndex({ items }: PageProps) {
                 <Heading
                     title="Need Review"
                     description="Trial yang perlu direview oleh department Anda — semua departemen yang terlibat bisa melakukan aksi review di sini."
+                />
+
+                <FilterBar
+                    searchValue={form.q}
+                    onSearchChange={(value) => setForm({ q: value })}
+                    searchPlaceholder="Cari trial atau product"
+                    onSubmit={submit}
+                    onReset={reset}
+                    hasActiveFilters={Boolean(filters.q)}
                 />
 
                 <Card>
@@ -115,8 +144,8 @@ export default function ReviewsIndex({ items }: PageProps) {
                         </Table>
 
                         <PaginationFooter
-                            url={reviewsIndex().url}
-                            query={{}}
+                            url={url}
+                            query={filters}
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}

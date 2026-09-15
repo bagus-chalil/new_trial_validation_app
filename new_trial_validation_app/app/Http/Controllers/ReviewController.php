@@ -25,11 +25,20 @@ class ReviewController extends Controller
     {
         Gate::authorize('viewAny', TrialReview::class);
 
+        $q = trim((string) $request->query('q', ''));
+
         $reviews = TrialReview::query()
             ->join('trials_header as h', 'h.id', '=', 'trials_review.trial_id')
             ->where('h.progress_status', 'In Review')
             ->whereRaw('trials_review.review_round = h.revision_no + 1')
             ->visibleToReviewer($request->user())
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%'.$q.'%';
+                $query->where(function ($sub) use ($like) {
+                    $sub->where('h.trial_code', 'like', $like)
+                        ->orWhere('h.product_name', 'like', $like);
+                });
+            })
             ->orderByRaw("trials_review.status = 'Pending' desc")
             ->orderByDesc('trials_review.id')
             ->select('trials_review.*', 'h.trial_code', 'h.product_name', 'h.revision_no', 'h.progress_status')
@@ -47,6 +56,7 @@ class ReviewController extends Controller
 
         return Inertia::render('reviews/index', [
             'items' => $reviews,
+            'filters' => ['q' => $q],
         ]);
     }
 

@@ -67,6 +67,20 @@ test('an assigned approver only sees their own assigned trials in the queue', fu
         ->where('items.data.0.trial_code', 'TRIAL-MINE'));
 });
 
+test('the approval queue can be searched by trial code or product name', function () {
+    $manager = User::factory()->role('Manager QAC')->create();
+    $target = makeApprovableTrial(['trial_code' => 'TRIAL-FINDME-2']);
+    $target->update(['product_name' => 'Special Lotion']);
+    makeApprovableTrial(['trial_code' => 'TRIAL-OTHER-2']);
+
+    $response = $this->actingAs($manager)->get(route('approvals.index', ['q' => 'Special Lotion']));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('items.data', 1)
+        ->where('items.data.0.trial_code', 'TRIAL-FINDME-2'));
+});
+
 test('a Team Leader can see but not approve a trial assigned to someone else', function () {
     $teamLeader = User::factory()->role('Team Leader')->create();
     $other = User::factory()->create();

@@ -334,6 +334,29 @@ test('a user without view access is forbidden from the per-trial report PDF', fu
     $this->actingAs($outsider)->get(route('trials.report.pdf', $trial))->assertForbidden();
 });
 
+test('downloading the per-trial report Excel export returns an xlsx file and writes the report_printed audit trail', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $trial = makeReportTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->get(route('trials.report.excel', $trial));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    $auditLog = AuditLog::where('trial_id', $trial->id)->where('action', 'report_printed')->first();
+    expect($auditLog)->not->toBeNull();
+
+    $activityLog = ActivityLog::where('module', 'REPORT')->where('action', 'PRINT_REPORT')->first();
+    expect($activityLog)->not->toBeNull();
+});
+
+test('a user without view access is forbidden from the per-trial report Excel export', function () {
+    $outsider = User::factory()->create(['role' => 'Random Role', 'department' => 'Nowhere']);
+    $trial = makeReportTrial(['progress_status' => 'In Review']);
+
+    $this->actingAs($outsider)->get(route('trials.report.excel', $trial))->assertForbidden();
+});
+
 test('printing a report writes both an AuditLog and an ActivityLog row', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $trial = makeReportTrial(['created_by' => $owner->email]);

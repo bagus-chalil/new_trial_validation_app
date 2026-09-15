@@ -18,6 +18,12 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Port of legacy's per-trial Report Summary page (app/views/report.php,
@@ -182,6 +188,177 @@ class TrialReportController extends Controller
             'approvedByName' => $core['approvedByName'],
             'rejectedByName' => $core['rejectedByName'],
         ], "Report-{$trial->trial_code}.pdf");
+    }
+
+    /**
+     * Server-side Excel export (PhpSpreadsheet) of the same report data
+     * show()/pdf() render — one sheet each for the header info, validation
+     * parameters, weighing stats, department reviews, and the final
+     * Manager QAC decision. Counts as "printing" the same way the PDF
+     * download does, so it fires the same report_printed audit write.
+     */
+    public function excel(Request $request, int $trial, RecordReportPrint $action): StreamedResponse
+    {
+        $trial = Trial::whereNull('deleted_at')->with(['product', 'approver'])->findOrFail($trial);
+
+        Gate::authorize('view', $trial);
+
+        $action($trial, $request->user());
+
+        $core = $this->reportCore($trial);
+        $spreadsheet = $this->buildExcel($trial, $core);
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, "Report-{$trial->trial_code}.xlsx", [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $core
+     */
+    private function buildExcel(Trial $trial, array $core): Spreadsheet
+    {
+        $displayDecision = in_array($trial->progress_status, ['Approved', 'Rejected'], true)
+            ? ($trial->final_decision ?? $trial->progress_status)
+            : $trial->progress_status;
+
+        $spreadsheet = new Spreadsheet;
+
+        $this->writeKeyValueSheet($spreadsheet->getActiveSheet(), 'Info Trial', 'Informasi Trial', [
+            ['Trial ID', $trial->trial_code],
+            ['Product Name', $trial->product_name],
+            ['FG Code', $trial->finish_good_code],
+            ['Validation Category', $trial->validation_category],
+            ['Validation Scope', implode(', ', $trial->validation_scope ?? [])],
+            ['Product Type', $trial->product_type],
+            ['Validation Date', $trial->validation_date],
+            ['Risk Level', $trial->risk_level],
+            ['Machine Used', implode(', ', $trial->machine_used ?? [])],
+            ['Batch Number', $trial->batch_number],
+            ['Bulk Code', $trial->bulk_code],
+            ['Estimate Qty', $trial->estimate_qty],
+            ['Support Team', $trial->support_team],
+            ['Initiated Person/Team', $trial->initiated_person_team],
+            ['Reason', $trial->reason],
+            ['B.O.M', $trial->bom],
+            ['Created By', $trial->created_by],
+            ['Status', $trial->progress_status],
+            ['Pending With', $trial->pending_with],
+            ['Selected Approver', $trial->approver ? ($trial->approver->name ?: $trial->approver->email) : null],
+            ['Revision No', $trial->revision_no],
+            ['Approval Status', $displayDecision],
+        ]);
+
+        $this->writeTableSheet($spreadsheet->createSheet(), 'Validasi', [
+            'Parameter', 'Spesifikasi', 'Decision', 'Hasil', 'Catatan',
+        ], $core['results']->map(fn (array $r) => [
+            $r['parameter_name'], $r['specification'], $r['decision'], $r['result_value'], $r['remark'],
+        ])->all());
+
+        $this->writeTableSheet($spreadsheet->createSheet(), 'Weighing', [
+            'Section', 'Total Sample', 'Rata-rata', 'Minimum', 'Maksimum',
+        ], $core['weighingSections']->map(fn (array $section) => [
+            $section['section'],
+            $section['stats']['count'],
+            $section['stats']['avg'] !== null ? round($section['stats']['avg'], 2) : null,
+            $section['stats']['min'],
+            $section['stats']['max'],
+        ])->all());
+
+        $this->writeTableSheet($spreadsheet->createSheet(), 'Review Department', [
+            'Round', 'Department', 'Status', 'Reviewer', 'Direview Pada', 'Komentar',
+        ], $core['reviews']->map(fn (array $r) => [
+            $r['review_round'], $r['department'], $r['status'], $r['reviewer_name'], $r['reviewed_at'], $r['comment'],
+        ])->all());
+
+        $managerDecision = $trial->final_decision ?? $trial->progress_status;
+        $decisionBy = $managerDecision === 'Approved' ? $core['approvedByName'] : $core['rejectedByName'];
+        $decisionAt = $managerDecision === 'Approved' ? $trial->approved_at : $trial->rejected_at;
+
+        $this->writeKeyValueSheet($spreadsheet->createSheet(), 'Keputusan', 'Keputusan Manager QAC', [
+            ['Decision', $managerDecision],
+            ['Status', $trial->progress_status],
+            ['Diputuskan Oleh', $decisionBy],
+            ['Diputuskan Pada', $decisionAt],
+            ['Komentar', $trial->approval_comment],
+        ]);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        return $spreadsheet;
+    }
+
+    /**
+     * @param  list<array{0: string, 1: mixed}>  $rows
+     */
+    private function writeKeyValueSheet(Worksheet $sheet, string $sheetTitle, string $heading, array $rows): void
+    {
+        $sheet->setTitle($sheetTitle);
+
+        $sheet->setCellValue('A1', $heading);
+        $sheet->mergeCells('A1:B1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+        $rowIndex = 3;
+        foreach ($rows as [$label, $value]) {
+            $sheet->setCellValue("A{$rowIndex}", $label);
+            $sheet->setCellValue("B{$rowIndex}", $this->cellValue($value));
+            $sheet->getStyle("A{$rowIndex}")->getFont()->setBold(true);
+            $rowIndex++;
+        }
+
+        $sheet->getColumnDimension('A')->setWidth(28);
+        $sheet->getColumnDimension('B')->setWidth(50);
+    }
+
+    /**
+     * @param  list<string>  $headers
+     * @param  list<list<mixed>>  $rows
+     */
+    private function writeTableSheet(Worksheet $sheet, string $sheetTitle, array $headers, array $rows): void
+    {
+        $sheet->setTitle($sheetTitle);
+
+        $lastColumn = Coordinate::stringFromColumnIndex(count($headers));
+        foreach ($headers as $i => $header) {
+            $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1).'1', $header);
+        }
+        $headerRange = "A1:{$lastColumn}1";
+        $sheet->getStyle($headerRange)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle($headerRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EA1D22');
+
+        $rowIndex = 2;
+        foreach ($rows as $row) {
+            foreach ($row as $i => $value) {
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex($i + 1).$rowIndex, $this->cellValue($value));
+            }
+            $rowIndex++;
+        }
+
+        if ($rows === []) {
+            $sheet->setCellValue('A2', 'Tidak ada data.');
+        }
+
+        foreach (range(1, count($headers)) as $i) {
+            $sheet->getColumnDimensionByColumn($i)->setAutoSize(true);
+        }
+        $sheet->freezePane('A2');
+    }
+
+    private function cellValue(mixed $value): string|int|float
+    {
+        if ($value === null || $value === '') {
+            return '-';
+        }
+
+        if (is_string($value) || is_int($value) || is_float($value)) {
+            return $value;
+        }
+
+        return (string) $value;
     }
 
     /**

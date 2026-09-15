@@ -40,6 +40,32 @@ test('a reviewer only sees pending reviews for their own department', function (
         ->where('items.data.0.trial_id', $trial->id));
 });
 
+test('the review queue can be searched by trial code or product name', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+
+    $target = Trial::create([
+        'trial_code' => 'TRIAL-FINDME-1',
+        'product_name' => 'Special Lotion',
+        'product_type' => 'Tube',
+        'progress_status' => 'In Review',
+        'current_step' => 'Review',
+        'created_by' => 'owner@local.test',
+        'revision_no' => 0,
+        'pending_with' => 'PROD',
+    ]);
+    TrialReview::create(['trial_id' => $target->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
+
+    $other = makeInReviewTrial(['trial_code' => 'TRIAL-OTHER-1']);
+    TrialReview::create(['trial_id' => $other->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
+
+    $response = $this->actingAs($reviewer)->get(route('reviews.index', ['q' => 'Special Lotion']));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('items.data', 1)
+        ->where('items.data.0.trial_id', $target->id));
+});
+
 test('a non-reviewer is forbidden from the review queue', function () {
     $staff = User::factory()->create();
 

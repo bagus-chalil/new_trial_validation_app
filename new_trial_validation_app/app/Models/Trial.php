@@ -32,6 +32,8 @@ use Illuminate\Support\Facades\DB;
  * @property Carbon|null $rejected_at
  * @property string|null $approval_comment
  * @property string|null $pending_with
+ * @property array<int, string>|null $validation_scope
+ * @property array<int, string>|null $machine_used
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at

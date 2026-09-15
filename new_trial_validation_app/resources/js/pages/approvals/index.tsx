@@ -1,5 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
+import { FilterBar } from '@/components/filter-bar';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
 import { Badge } from '@/components/ui/badge';
@@ -28,11 +31,28 @@ type ApprovalItem = {
     approver: { id: number; name: string; email: string } | null;
 };
 
-type PageProps = {
-    items: Paginated<ApprovalItem>;
+type Filters = {
+    q: string;
 };
 
-export default function ApprovalsIndex({ items }: PageProps) {
+type PageProps = {
+    items: Paginated<ApprovalItem>;
+    filters: Filters;
+};
+
+export default function ApprovalsIndex({ items, filters }: PageProps) {
+    const [form, setForm] = useState<Filters>(filters);
+    const url = approvalsIndex().url;
+
+    function submit(e: FormEvent) {
+        e.preventDefault();
+        router.get(url, form, { preserveState: true, replace: true });
+    }
+
+    function reset() {
+        router.get(url);
+    }
+
     return (
         <>
             <Head title="Need Approval" />
@@ -41,6 +61,15 @@ export default function ApprovalsIndex({ items }: PageProps) {
                 <Heading
                     title="Need Approval"
                     description="Trial yang menunggu keputusan final Manager QAC / approver — semua approver yang ditunjuk bisa melakukan aksi approve di sini."
+                />
+
+                <FilterBar
+                    searchValue={form.q}
+                    onSearchChange={(value) => setForm({ q: value })}
+                    searchPlaceholder="Cari trial atau product"
+                    onSubmit={submit}
+                    onReset={reset}
+                    hasActiveFilters={Boolean(filters.q)}
                 />
 
                 <Card>
@@ -124,8 +153,8 @@ export default function ApprovalsIndex({ items }: PageProps) {
                         </Table>
 
                         <PaginationFooter
-                            url={approvalsIndex().url}
-                            query={{}}
+                            url={url}
+                            query={filters}
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}

@@ -192,15 +192,26 @@ export default function TrialReport({
                         title="Report Summary"
                         description="Trial validation summary dan attachment evidence."
                     />
-                    <Button asChild>
-                        <a
-                            href={TrialReportController.pdf(trial.id).url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            Unduh PDF
-                        </a>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button asChild variant="outline">
+                            <a
+                                href={TrialReportController.excel(trial.id).url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Export Excel
+                            </a>
+                        </Button>
+                        <Button asChild>
+                            <a
+                                href={TrialReportController.pdf(trial.id).url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Unduh PDF
+                            </a>
+                        </Button>
+                    </div>
                 </div>
 
                 {approvalBlockedNote && (

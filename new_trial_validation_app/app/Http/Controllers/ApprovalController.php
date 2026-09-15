@@ -23,8 +23,11 @@ class ApprovalController extends Controller
     {
         Gate::authorize('view-approval-queue');
 
+        $q = trim((string) $request->query('q', ''));
+
         $items = Trial::query()
             ->awaitingApprovalFor($request->user())
+            ->search(['q' => $q])
             ->with('approver:id,name,email')
             ->orderByDesc('updated_at')
             ->paginate(20)
@@ -32,6 +35,7 @@ class ApprovalController extends Controller
 
         return Inertia::render('approvals/index', [
             'items' => $items,
+            'filters' => ['q' => $q],
         ]);
     }
 
