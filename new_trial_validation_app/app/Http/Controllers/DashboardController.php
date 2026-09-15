@@ -71,6 +71,7 @@ class DashboardController extends Controller
                 ['status' => 'Rejected', 'count' => $summary['rejected']],
             ],
             'productTypeBreakdown' => Trial::productTypeBreakdown($user),
+            'productTypePie' => Trial::productTypeBreakdown($user, 3),
             'departmentPending' => Trial::pendingReviewsByDepartment($user),
         ];
 

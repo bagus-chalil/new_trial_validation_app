@@ -15,6 +15,7 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { CategoryBarChart } from '@/components/dashboard/category-bar-chart';
 import { KpiTile } from '@/components/dashboard/kpi-tile';
+import { ProductTypePieChart } from '@/components/dashboard/product-type-pie-chart';
 import { StatusDistributionChart } from '@/components/dashboard/status-distribution-chart';
 import type { StatusDatum } from '@/components/dashboard/status-distribution-chart';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -62,6 +63,7 @@ type Overview = {
     trend: TrendDatum[];
     statusBreakdown: StatusDatum[];
     productTypeBreakdown: { label: string; count: number }[];
+    productTypePie: { label: string; count: number }[];
     departmentPending: { department: string; count: number }[];
 };
 
@@ -311,6 +313,20 @@ export default function Dashboard({
                                         count: row.count,
                                     }),
                                 )}
+                                emptyMessage="Belum ada trial."
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                Proporsi Jenis Trial (Product Type)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ProductTypePieChart
+                                data={overview.productTypePie}
                                 emptyMessage="Belum ada trial."
                             />
                         </CardContent>

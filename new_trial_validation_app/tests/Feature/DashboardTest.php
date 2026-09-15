@@ -236,6 +236,26 @@ test('overview buckets product types beyond the top 6 into "Lainnya"', function 
     }));
 });
 
+test('overview product-type pie buckets beyond the top 3 into "Lainnya"', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    foreach (range(1, 4) as $i) {
+        makeDashboardTrial(['trial_code' => "TRIAL-OV-PIE-{$i}", 'product_type' => "PieType{$i}"]);
+    }
+    makeDashboardTrial(['trial_code' => 'TRIAL-OV-PIE-1B', 'product_type' => 'PieType1']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page->where('overview.productTypePie', function ($rows) {
+        $labels = collect($rows)->pluck('label');
+        $other = collect($rows)->firstWhere('label', 'Lainnya');
+
+        return $labels->count() === 4
+            && $labels->contains('Lainnya')
+            && $labels->first() === 'PieType1'
+            && $other['count'] === 1;
+    }));
+});
+
 test('a reviewer can load the dashboard without a GROUP BY select conflict', function () {
     // Regression test for a real bug: Trial::scopeVisibleTo() adds an explicit
     // select('trials_header.*')->distinct() only on the reviewer branch, and
