@@ -95,7 +95,38 @@ class TrialReportController extends Controller
 
         $reviewByDept = $trial->reviewStatusByDepartment();
 
-        $lineConfigurationReport = TrialLineConfigurationReport::where('trial_id', $trial->id)->first();
+        $lineConfigurationReport = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('is_locked', false)->first();
+        $lineConfigurationReportVersions = TrialLineConfigurationReport::where('trial_id', $trial->id)
+            ->where('is_locked', true)
+            ->orderByDesc('version')
+            ->get(['id', 'version', 'locked_at', 'return_prod', 'return_reason']);
+        $lineConfigurationApprovers = User::query()
+            ->where('is_active', 1)
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
+            ->values();
+
+        // Once Returned, the maker needs to actually see why when they
+        // reopen the (now-unlocked) form — look at the version immediately
+        // before this one, which is exactly the row Return locked.
+        $lineConfigurationReturnNote = null;
+        if ($lineConfigurationReport && $lineConfigurationReport->version > 1) {
+            $previousVersion = TrialLineConfigurationReport::where('trial_id', $trial->id)
+                ->where('version', $lineConfigurationReport->version - 1)
+                ->where('is_locked', true)
+                ->where('return_prod', true)
+                ->first();
+
+            if ($previousVersion) {
+                $lineConfigurationReturnNote = [
+                    'reason' => $previousVersion->return_reason,
+                    'by' => $previousVersion->return_prod_by,
+                    'at' => $previousVersion->return_prod_at?->toDateTimeString(),
+                ];
+            }
+        }
 
         $approvalBlockedNote = null;
         if ($trial->progress_status === 'Ready for Approval' && ! $canApprove && $user->canApproveTrials()) {
@@ -137,7 +168,24 @@ class TrialReportController extends Controller
             'approvalBlockedNote' => $approvalBlockedNote,
             'reviewCompletedNote' => $reviewCompletedNote,
             'lineConfigurationReport' => $lineConfigurationReport,
-            'canEditLineConfigurationReport' => Gate::allows('manage-line-configuration-report'),
+            // Combines the general PROD-reviewer/Admin gate with the
+            // maker-checker lock: once submitted, only Admin may still open
+            // the edit form — everyone else must wait for a Return.
+            'canEditLineConfigurationReport' => Gate::allows('manage-line-configuration-report')
+                && (! $lineConfigurationReport || ! $lineConfigurationReport->isSubmittedForApproval() || $user->isAdmin()),
+            'lineConfigurationReportLocked' => $lineConfigurationReport?->isSubmittedForApproval() ?? false,
+            'lineConfigurationReturnNote' => $lineConfigurationReturnNote,
+            'lineConfigurationReportVersions' => $lineConfigurationReportVersions->map(fn (TrialLineConfigurationReport $v) => [
+                'id' => $v->id,
+                'version' => $v->version,
+                'locked_at' => $v->locked_at?->toDateTimeString(),
+                'return_prod' => $v->return_prod,
+                'return_reason' => $v->return_reason,
+            ])->values(),
+            'lineConfigurationApprovers' => $lineConfigurationApprovers,
+            'canApprovePieLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('approvePie', $lineConfigurationReport) : false,
+            'canCheckProdLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('checkProd', $lineConfigurationReport) : false,
+            'canReturnLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('returnReport', $lineConfigurationReport) : false,
         ]);
     }
 

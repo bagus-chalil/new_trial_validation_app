@@ -21,6 +21,19 @@ class TrialPolicy
 
     public function view(User $user, Trial $trial): bool
     {
+        // A user assigned as the Line Configuration Report's Approved(PIE)/
+        // Checked(PROD) sign-off (see MarkTrialLineConfigurationReportSignOff)
+        // needs to open this trial's Report Summary to act on it, regardless
+        // of status/role — they may be a PIE-department user with none of
+        // the ordinary staff/reviewer/approver access below.
+        $lineConfigurationReport = $trial->lineConfigurationReport;
+        if ($lineConfigurationReport && (
+            ($lineConfigurationReport->approved_pie_user_id && (int) $lineConfigurationReport->approved_pie_user_id === $user->id)
+            || ($lineConfigurationReport->checked_prod_user_id && (int) $lineConfigurationReport->checked_prod_user_id === $user->id)
+        )) {
+            return true;
+        }
+
         if ($trial->progress_status === 'Draft') {
             return $user->isSuperAdmin()
                 || $user->isTrialOwner($trial)

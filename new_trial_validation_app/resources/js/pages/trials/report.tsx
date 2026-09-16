@@ -5,7 +5,11 @@ import TrialReportController from '@/actions/App/Http/Controllers/TrialReportCon
 import { AttachmentImagePreview } from '@/components/attachment-image-preview';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
-import type { LineConfigurationReportData } from '@/components/trials/line-configuration-report-section';
+import type {
+    LineConfigurationApproverOption,
+    LineConfigurationReportData,
+    LineConfigurationReportVersion,
+} from '@/components/trials/line-configuration-report-section';
 import { LineConfigurationReportSection } from '@/components/trials/line-configuration-report-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -125,6 +129,10 @@ type PageProps = {
     reviewCompletedNote: string | null;
     lineConfigurationReport: LineConfigurationReportData;
     canEditLineConfigurationReport: boolean;
+    lineConfigurationReportVersions: LineConfigurationReportVersion[];
+    lineConfigurationApprovers: LineConfigurationApproverOption[];
+    canApprovePieLineConfigurationReport: boolean;
+    canCheckProdLineConfigurationReport: boolean;
 };
 
 const APPROVAL_DECISIONS = [
@@ -167,6 +175,10 @@ export default function TrialReport({
     reviewCompletedNote,
     lineConfigurationReport,
     canEditLineConfigurationReport,
+    lineConfigurationReportVersions,
+    lineConfigurationApprovers,
+    canApprovePieLineConfigurationReport,
+    canCheckProdLineConfigurationReport,
 }: PageProps) {
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
@@ -696,6 +708,10 @@ export default function TrialReport({
                             trialId={trial.id}
                             report={lineConfigurationReport}
                             canEdit={canEditLineConfigurationReport}
+                            versions={lineConfigurationReportVersions}
+                            approvers={lineConfigurationApprovers}
+                            canApprovePie={canApprovePieLineConfigurationReport}
+                            canCheckProd={canCheckProdLineConfigurationReport}
                         />
 
                         {pendingReviews.length > 0 && (

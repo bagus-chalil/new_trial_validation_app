@@ -121,11 +121,28 @@ class Trial extends Model
     }
 
     /**
+     * The one *editable* Line Configuration Report row (is_locked=false) —
+     * see TrialLineConfigurationReport's doc comment on versioning. Historical
+     * (Returned-then-superseded) versions are lineConfigurationReportVersions()
+     * below.
+     *
      * @return HasOne<TrialLineConfigurationReport, $this>
      */
     public function lineConfigurationReport(): HasOne
     {
-        return $this->hasOne(TrialLineConfigurationReport::class, 'trial_id');
+        return $this->hasOne(TrialLineConfigurationReport::class, 'trial_id')->where('is_locked', false);
+    }
+
+    /**
+     * Locked, read-only, download-only historical versions, newest first.
+     *
+     * @return HasMany<TrialLineConfigurationReport, $this>
+     */
+    public function lineConfigurationReportVersions(): HasMany
+    {
+        return $this->hasMany(TrialLineConfigurationReport::class, 'trial_id')
+            ->where('is_locked', true)
+            ->orderByDesc('version');
     }
 
     /**

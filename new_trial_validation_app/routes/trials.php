@@ -35,6 +35,14 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
 
     Route::put('{trial}/line-configuration', [TrialLineConfigurationReportController::class, 'update'])
         ->whereNumber('trial')->name('line-configuration.update');
+    Route::post('{trial}/line-configuration/approve-pie', [TrialLineConfigurationReportController::class, 'approvePie'])
+        ->whereNumber('trial')->name('line-configuration.approve-pie');
+    Route::post('{trial}/line-configuration/check-prod', [TrialLineConfigurationReportController::class, 'checkProd'])
+        ->whereNumber('trial')->name('line-configuration.check-prod');
+    Route::post('{trial}/line-configuration/return', [TrialLineConfigurationReportController::class, 'returnReport'])
+        ->whereNumber('trial')->name('line-configuration.return');
+    Route::get('{trial}/line-configuration/versions/{version}/pdf', [TrialLineConfigurationReportController::class, 'downloadVersion'])
+        ->whereNumber('trial')->whereNumber('version')->name('line-configuration.versions.pdf');
 
     Route::get('{trial}/report', [TrialReportController::class, 'show'])->whereNumber('trial')->name('report.show');
     Route::post('{trial}/report/print-log', [TrialReportController::class, 'logPrint'])->whereNumber('trial')->name('report.print-log');
