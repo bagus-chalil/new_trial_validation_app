@@ -3,9 +3,11 @@ import { Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import TrialLineConfigurationReportController from '@/actions/App/Http/Controllers/TrialLineConfigurationReportController';
 import { Combobox } from '@/components/combobox';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -65,9 +67,6 @@ export type LineConfigurationReportData = {
     checked_prod_by: string | null;
     checked_prod_at: string | null;
     checked_prod_user_id: number | null;
-    return_prod: boolean;
-    return_prod_by: string | null;
-    return_prod_at: string | null;
 } | null;
 
 export type LineConfigurationApproverOption = { id: number; label: string };
@@ -77,20 +76,29 @@ export type LineConfigurationReportVersion = {
     version: number;
     locked_at: string | null;
     return_prod: boolean;
+    return_reason: string | null;
 };
 
-type ApprovalField = 'approved_pie' | 'checked_prod' | 'return_prod';
+export type LineConfigurationReturnNote = {
+    reason: string | null;
+    by: string | null;
+    at: string | null;
+} | null;
 
-const APPROVAL_FIELDS: {
-    field: ApprovalField;
-    label: string;
-    /** Return(PROD) being checked signals a problem, not a sign-off — badge reads red instead of green. */
-    negative?: boolean;
-}[] = [
+type StageField = 'approved_pie' | 'checked_prod';
+
+const STAGE_FIELDS: { field: StageField; label: string }[] = [
     { field: 'approved_pie', label: 'Approved (PIE)' },
     { field: 'checked_prod', label: 'Checked (PROD)' },
-    { field: 'return_prod', label: 'Return (PROD)', negative: true },
 ];
+
+const MIN_RETURN_REASON_WORDS = 10;
+
+function countWords(value: string): number {
+    return value.trim() === ''
+        ? 0
+        : value.trim().split(/\s+/).filter(Boolean).length;
+}
 
 type KeyedRow<T> = { key: number; row: T };
 
@@ -124,18 +132,28 @@ export function LineConfigurationReportSection({
     trialId,
     report,
     canEdit,
+    locked,
+    returnNote,
     versions,
     approvers,
+    prodApprovers,
     canApprovePie,
     canCheckProd,
+    canReturn,
 }: {
     trialId: number;
     report: LineConfigurationReportData;
     canEdit: boolean;
+    locked: boolean;
+    returnNote: LineConfigurationReturnNote;
     versions: LineConfigurationReportVersion[];
+    /** Any active user — offered for Approved(PIE), which has no coded team. */
     approvers: LineConfigurationApproverOption[];
+    /** Only users on the PROD review team — offered for Checked(PROD). */
+    prodApprovers: LineConfigurationApproverOption[];
     canApprovePie: boolean;
     canCheckProd: boolean;
+    canReturn: boolean;
 }) {
     const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -145,10 +163,17 @@ export function LineConfigurationReportSection({
 
     return (
         <div className="print:hidden">
-            <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-base font-semibold">
-                    Line Configuration Report (Production)
-                </h3>
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold">
+                        Line Configuration Report (Production)
+                    </h3>
+                    {locked && (
+                        <Badge variant="outline" className="text-amber-600">
+                            Dalam Proses Approval
+                        </Badge>
+                    )}
+                </div>
                 {canEdit && (
                     <Button
                         type="button"
@@ -160,6 +185,25 @@ export function LineConfigurationReportSection({
                     </Button>
                 )}
             </div>
+
+            {returnNote && (
+                <Alert variant="destructive" className="mb-3">
+                    <AlertTitle>Dikembalikan untuk Revisi</AlertTitle>
+                    <AlertDescription>
+                        <span className="whitespace-pre-line">
+                            {returnNote.reason}
+                        </span>
+                        {(returnNote.by || returnNote.at) && (
+                            <div className="mt-1 text-xs opacity-80">
+                                — {returnNote.by || 'Approver'}
+                                {returnNote.at &&
+                                    `, ${formatDate(returnNote.at)}`}
+                            </div>
+                        )}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <Card>
                 <CardContent className="pt-6">
                     <ReadOnlyLineConfigurationReport
@@ -167,6 +211,7 @@ export function LineConfigurationReportSection({
                         report={report}
                         canApprovePie={canApprovePie}
                         canCheckProd={canCheckProd}
+                        canReturn={canReturn}
                     />
                 </CardContent>
             </Card>
@@ -187,6 +232,7 @@ export function LineConfigurationReportSection({
                                 <TableRow>
                                     <TableHead>Versi</TableHead>
                                     <TableHead>Dikunci Pada</TableHead>
+                                    <TableHead>Alasan Return</TableHead>
                                     <TableHead />
                                 </TableRow>
                             </TableHeader>
@@ -196,6 +242,9 @@ export function LineConfigurationReportSection({
                                         <TableCell>v{v.version}</TableCell>
                                         <TableCell>
                                             {formatDate(v.locked_at)}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs">
+                                            {v.return_reason ?? '-'}
                                         </TableCell>
                                         <TableCell>
                                             <Button
@@ -236,10 +285,30 @@ export function LineConfigurationReportSection({
                                 Line Configuration Report (Production)
                             </DialogTitle>
                         </DialogHeader>
+                        {returnNote && (
+                            <Alert variant="destructive">
+                                <AlertTitle>
+                                    Dikembalikan untuk Revisi
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <span className="whitespace-pre-line">
+                                        {returnNote.reason}
+                                    </span>
+                                    {(returnNote.by || returnNote.at) && (
+                                        <div className="mt-1 text-xs opacity-80">
+                                            — {returnNote.by || 'Approver'}
+                                            {returnNote.at &&
+                                                `, ${formatDate(returnNote.at)}`}
+                                        </div>
+                                    )}
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         <EditableLineConfigurationReport
                             trialId={trialId}
                             report={report}
                             approvers={approvers}
+                            prodApprovers={prodApprovers}
                             onSaved={() => setDialogOpen(false)}
                         />
                     </DialogContent>
@@ -253,11 +322,13 @@ function EditableLineConfigurationReport({
     trialId,
     report,
     approvers,
+    prodApprovers,
     onSaved,
 }: {
     trialId: number;
     report: LineConfigurationReportData;
     approvers: LineConfigurationApproverOption[];
+    prodApprovers: LineConfigurationApproverOption[];
     onSaved: () => void;
 }) {
     const standardCounter = useRef(report?.production_standard?.length ?? 2);
@@ -271,6 +342,10 @@ function EditableLineConfigurationReport({
     >(() => toKeyedRows(report?.line_configuration, 3, blankConfigRow));
 
     const approverOptions = approvers.map((a) => ({
+        value: String(a.id),
+        label: a.label,
+    }));
+    const prodApproverOptions = prodApprovers.map((a) => ({
         value: String(a.id),
         label: a.label,
     }));
@@ -312,13 +387,20 @@ function EditableLineConfigurationReport({
                             </div>
                             <div className="grid gap-2">
                                 <Label>Checked (PROD)</Label>
-                                <Combobox
-                                    options={approverOptions}
-                                    value={checkedProdUserId}
-                                    onChange={setCheckedProdUserId}
-                                    placeholder="Pilih user..."
-                                    searchPlaceholder="Cari user..."
-                                />
+                                {prodApproverOptions.length === 0 ? (
+                                    <p className="text-xs text-destructive">
+                                        Belum ada user dengan review team PROD.
+                                        Atur di Access Rights.
+                                    </p>
+                                ) : (
+                                    <Combobox
+                                        options={prodApproverOptions}
+                                        value={checkedProdUserId}
+                                        onChange={setCheckedProdUserId}
+                                        placeholder="Pilih user PROD..."
+                                        searchPlaceholder="Cari user..."
+                                    />
+                                )}
                                 <input
                                     type="hidden"
                                     name="checked_prod_user_id"
@@ -332,47 +414,12 @@ function EditableLineConfigurationReport({
                         </div>
                         <p className="text-xs text-muted-foreground">
                             User yang dipilih akan menerima email, lalu
-                            approve/checked sendiri di halaman ini — tanggal
-                            tercatat otomatis saat itu.
+                            approve/checked sendiri di halaman ini (berjenjang —
+                            Checked (PROD) baru bisa setelah Approved (PIE)
+                            selesai) — tanggal tercatat otomatis saat itu.
+                            Begitu salah satu di-assign, form ini terkunci
+                            (tidak bisa diedit lagi) sampai di-Return.
                         </p>
-
-                        <div className="grid gap-2 sm:w-72">
-                            <Label>Return (PROD)</Label>
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id="lcr_return_prod"
-                                    name="return_prod"
-                                    value="1"
-                                    defaultChecked={
-                                        report?.return_prod ?? false
-                                    }
-                                />
-                                <Label
-                                    htmlFor="lcr_return_prod"
-                                    className="font-normal"
-                                >
-                                    Dikembalikan untuk revisi
-                                </Label>
-                            </div>
-                            <Input
-                                name="return_prod_by"
-                                placeholder="Nama"
-                                defaultValue={report?.return_prod_by ?? ''}
-                            />
-                            <Input
-                                type="date"
-                                name="return_prod_at"
-                                defaultValue={
-                                    report?.return_prod_at?.slice(0, 10) ?? ''
-                                }
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Mencentang Return (dari kondisi belum
-                                tercentang) langsung mengunci versi ini sebagai
-                                riwayat (lihat Riwayat Versi di bawah) dan
-                                membuka versi baru untuk revisi selanjutnya.
-                            </p>
-                        </div>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-3">
@@ -692,7 +739,7 @@ function SignOffStatusHint({
     field,
     report,
 }: {
-    field: 'approved_pie' | 'checked_prod';
+    field: StageField;
     report: LineConfigurationReportData;
 }) {
     const done = report?.[field] ?? false;
@@ -719,11 +766,13 @@ function ReadOnlyLineConfigurationReport({
     report,
     canApprovePie,
     canCheckProd,
+    canReturn,
 }: {
     trialId: number;
     report: LineConfigurationReportData;
     canApprovePie: boolean;
     canCheckProd: boolean;
+    canReturn: boolean;
 }) {
     if (!report) {
         return (
@@ -744,6 +793,7 @@ function ReadOnlyLineConfigurationReport({
                     report={report}
                     canApprovePie={canApprovePie}
                     canCheckProd={canCheckProd}
+                    canReturn={canReturn}
                 />
             </div>
 
@@ -860,30 +910,35 @@ function ReadOnlyLineConfigurationReport({
 }
 
 /**
- * Sign-off box mirroring the source Excel's header table (row 59-62:
- * "Prepared(PIE) | Approved(PIE) | Checked(PROD) | Return(PROD)").
- * Prepared(PIE) just reflects the existing `pic` field.
+ * Sign-off box mirroring the source Excel's header table, minus the
+ * Return(PROD) column (row 59-62 originally had it as a 4th column) — Return
+ * is now its own action (see ReturnDialog below), available next to whichever
+ * stage's confirm button is currently active, not a persistent field on
+ * every version. Prepared(PIE) just reflects the existing `pic` field.
  *
- * Approved(PIE)/Checked(PROD) show an inline Approve/Tandai Checked button
- * instead of a dash when the viewer is the specifically assigned user (or
- * Admin) and it isn't done yet (see
- * App\Policies\TrialLineConfigurationReportPolicy) — clicking it stamps
- * their own name and Carbon::now() server-side (see
- * MarkTrialLineConfigurationReportSignOff), never a value typed into a
- * form field. Return(PROD) has no assignment/action of its own — it stays a
- * plain freely-editable checkbox+name+date on the edit form, so it never
- * shows an action button here.
+ * The two real stages are sequential (Approved(PIE) before Checked(PROD) —
+ * see App\Policies\TrialLineConfigurationReportPolicy): Checked(PROD) shows
+ * a muted "Menunggu Approved (PIE)" placeholder instead of a dash while
+ * that's still pending, rather than looking actionable when it isn't yet.
+ * A cell shows Approve/Tandai Checked + Return buttons only when the viewer
+ * is specifically authorized for that action right now (canApprovePie/
+ * canCheckProd/canReturn, all pre-computed server-side) — clicking Approve/
+ * Checked stamps the acting user's own name and Carbon::now() server-side
+ * (see MarkTrialLineConfigurationReportSignOff), never a value typed into a
+ * form field.
  */
 function SignOffSummaryTable({
     trialId,
     report,
     canApprovePie,
     canCheckProd,
+    canReturn,
 }: {
     trialId: number;
     report: NonNullable<LineConfigurationReportData>;
     canApprovePie: boolean;
     canCheckProd: boolean;
+    canReturn: boolean;
 }) {
     return (
         <div className="inline-block overflow-x-auto rounded-md border">
@@ -893,7 +948,7 @@ function SignOffSummaryTable({
                         <TableHead className="text-center whitespace-nowrap">
                             Prepared (PIE)
                         </TableHead>
-                        {APPROVAL_FIELDS.map(({ field, label }) => (
+                        {STAGE_FIELDS.map(({ field, label }) => (
                             <TableHead
                                 key={field}
                                 className="text-center whitespace-nowrap"
@@ -908,19 +963,34 @@ function SignOffSummaryTable({
                         <TableCell className="text-center align-top">
                             {report.pic || '-'}
                         </TableCell>
-                        {APPROVAL_FIELDS.map(({ field, negative }) => {
+                        {STAGE_FIELDS.map(({ field }) => {
                             const by = report[`${field}_by`] ?? null;
                             const at = report[`${field}_at`] ?? null;
                             const done = report[field] ?? false;
-                            const canAct =
+                            const canConfirm =
                                 field === 'approved_pie'
                                     ? canApprovePie
-                                    : field === 'checked_prod'
-                                      ? canCheckProd
-                                      : false;
+                                    : canCheckProd;
+                            const waitingOnPreviousStage =
+                                field === 'checked_prod' &&
+                                !report.approved_pie &&
+                                !done;
 
-                            if (!done && canAct) {
-                                const formProps =
+                            if (waitingOnPreviousStage) {
+                                return (
+                                    <TableCell
+                                        key={field}
+                                        className="text-center align-top"
+                                    >
+                                        <span className="text-xs text-muted-foreground">
+                                            Menunggu Approved (PIE)
+                                        </span>
+                                    </TableCell>
+                                );
+                            }
+
+                            if (!done && (canConfirm || canReturn)) {
+                                const confirmFormProps =
                                     field === 'approved_pie'
                                         ? TrialLineConfigurationReportController.approvePie.form(
                                               trialId,
@@ -934,19 +1004,31 @@ function SignOffSummaryTable({
                                         key={field}
                                         className="text-center align-top"
                                     >
-                                        <Form {...formProps}>
-                                            {({ processing }) => (
-                                                <Button
-                                                    type="submit"
-                                                    size="sm"
-                                                    disabled={processing}
-                                                >
-                                                    {field === 'approved_pie'
-                                                        ? 'Approve'
-                                                        : 'Tandai Checked'}
-                                                </Button>
+                                        <div className="flex flex-col items-center gap-1.5">
+                                            {canConfirm && (
+                                                <Form {...confirmFormProps}>
+                                                    {({ processing }) => (
+                                                        <Button
+                                                            type="submit"
+                                                            size="sm"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            {field ===
+                                                            'approved_pie'
+                                                                ? 'Approve'
+                                                                : 'Tandai Checked'}
+                                                        </Button>
+                                                    )}
+                                                </Form>
                                             )}
-                                        </Form>
+                                            {canReturn && (
+                                                <ReturnDialog
+                                                    trialId={trialId}
+                                                />
+                                            )}
+                                        </div>
                                     </TableCell>
                                 );
                             }
@@ -957,14 +1039,7 @@ function SignOffSummaryTable({
                                     className="text-center align-top"
                                 >
                                     {done ? (
-                                        <div
-                                            className={cn(
-                                                'text-sm font-medium',
-                                                negative
-                                                    ? 'text-red-600 dark:text-red-400'
-                                                    : 'text-green-600 dark:text-green-400',
-                                            )}
-                                        >
+                                        <div className="text-sm font-medium text-green-600 dark:text-green-400">
                                             {by || 'Ya'}
                                             {at && (
                                                 <div className="text-[10px] font-normal text-muted-foreground">
@@ -984,5 +1059,77 @@ function SignOffSummaryTable({
                 </TableBody>
             </Table>
         </div>
+    );
+}
+
+/**
+ * Send-back-for-revision action, available to whoever's turn it currently
+ * is (canReturn, pre-resolved server-side via
+ * TrialLineConfigurationReportPolicy::returnReport() — never gated
+ * per-field on the frontend, since only one stage is ever active at once).
+ * Requires a reason of at least MIN_RETURN_REASON_WORDS words, enforced both
+ * client-side (live counter, disables Submit) and server-side (the
+ * authoritative check).
+ */
+function ReturnDialog({ trialId }: { trialId: number }) {
+    const [reason, setReason] = useState('');
+    const wordCount = countWords(reason);
+    const reasonOk = wordCount >= MIN_RETURN_REASON_WORDS;
+
+    return (
+        <ConfirmDialog
+            trigger={
+                <Button type="button" size="sm" variant="destructive">
+                    Return
+                </Button>
+            }
+            title="Return Line Configuration Report"
+            description="Kembalikan Line Configuration Report ini untuk direvisi. Versi saat ini akan terkunci sebagai riwayat, dan versi baru akan dibuka untuk revisi."
+            confirmLabel="Return"
+            confirmVariant="destructive"
+            formProps={TrialLineConfigurationReportController.returnReport.form(
+                trialId,
+            )}
+        >
+            {({ errors, processing }) => (
+                <div className="space-y-2">
+                    <Label htmlFor="lcr_return_reason">
+                        Alasan Return (minimal {MIN_RETURN_REASON_WORDS} kata)
+                    </Label>
+                    <Textarea
+                        id="lcr_return_reason"
+                        name="reason"
+                        rows={4}
+                        required
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="Jelaskan apa yang perlu direvisi..."
+                    />
+                    <p
+                        className={cn(
+                            'text-xs',
+                            reasonOk
+                                ? 'text-muted-foreground'
+                                : 'text-destructive',
+                        )}
+                    >
+                        {wordCount} / {MIN_RETURN_REASON_WORDS} kata
+                    </p>
+                    {errors.reason && (
+                        <p className="text-sm text-destructive">
+                            {errors.reason}
+                        </p>
+                    )}
+                    {/* Extra guard beyond the live counter above — a real
+                        submit is still blocked server-side either way. */}
+                    <input
+                        type="hidden"
+                        name="_client_reason_ok"
+                        value={reasonOk ? '1' : ''}
+                        disabled={processing}
+                    />
+                </div>
+            )}
+        </ConfirmDialog>
     );
 }

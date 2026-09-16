@@ -18,13 +18,20 @@ use Throwable;
  * is Admin) lives in SaveTrialLineConfigurationReportRequest::authorize(),
  * not here; this action just performs the plain save.
  *
- * Assigning a new Approved(PIE)/Checked(PROD) user (approved_pie_user_id/
- * checked_prod_user_id changing to a different, non-null value) emails that
- * user a link to the trial's Report Summary page. This action never sets
- * approved_pie/checked_prod/return_prod itself — those are each their own
- * dedicated, auto-stamped action (MarkTrialLineConfigurationReportSignOff /
- * ReturnTrialLineConfigurationReport), so the date they record is a real
- * "I clicked this" timestamp, not whatever the form-filler happened to type.
+ * Assigning a new Approved(PIE) user (approved_pie_user_id changing to a
+ * different, non-null value) emails that user immediately — PIE is always
+ * the first stage. Assigning a new Checked(PROD) user is deliberately
+ * step-by-step, matching the sequential approval chain
+ * (TrialLineConfigurationReport::currentApprovalStage()): the email only
+ * fires here if Approved(PIE) is *already* done (e.g. an Admin reassigning
+ * the PROD checker after PIE already approved); otherwise it's deferred to
+ * MarkTrialLineConfigurationReportSignOff, right when Approved(PIE) actually
+ * gets confirmed, so PROD isn't notified before it's really their turn.
+ * This action never sets approved_pie/checked_prod/return_prod itself —
+ * those are each their own dedicated, auto-stamped action
+ * (MarkTrialLineConfigurationReportSignOff/ReturnTrialLineConfigurationReport),
+ * so the date they record is a real "I clicked this" timestamp, not
+ * whatever the form-filler happened to type.
  */
 class SaveTrialLineConfigurationReport
 {
@@ -56,7 +63,9 @@ class SaveTrialLineConfigurationReport
         ]);
 
         $this->notifyIfNewlyAssigned($trial, $report, 'approved_pie_user_id', $previousApprovedPieUserId, 'Approved (PIE)');
-        $this->notifyIfNewlyAssigned($trial, $report, 'checked_prod_user_id', $previousCheckedProdUserId, 'Checked (PROD)');
+        if ($report->approved_pie) {
+            $this->notifyIfNewlyAssigned($trial, $report, 'checked_prod_user_id', $previousCheckedProdUserId, 'Checked (PROD)');
+        }
 
         return $report;
     }

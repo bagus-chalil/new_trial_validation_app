@@ -107,6 +107,17 @@ class TrialReportController extends Controller
             ->get(['id', 'name', 'email'])
             ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
             ->values();
+        // Checked(PROD) may only be assigned to someone on the PROD review
+        // team — unlike Approved(PIE), which has no coded team in this
+        // system's master data and so stays open to any active user.
+        $lineConfigurationProdApprovers = User::query()
+            ->where('is_active', 1)
+            ->whereNull('deleted_at')
+            ->whereRaw('UPPER(TRIM(review_unit)) = ?', ['PROD'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
+            ->values();
 
         // Once Returned, the maker needs to actually see why when they
         // reopen the (now-unlocked) form — look at the version immediately
@@ -183,6 +194,7 @@ class TrialReportController extends Controller
                 'return_reason' => $v->return_reason,
             ])->values(),
             'lineConfigurationApprovers' => $lineConfigurationApprovers,
+            'lineConfigurationProdApprovers' => $lineConfigurationProdApprovers,
             'canApprovePieLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('approvePie', $lineConfigurationReport) : false,
             'canCheckProdLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('checkProd', $lineConfigurationReport) : false,
             'canReturnLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('returnReport', $lineConfigurationReport) : false,

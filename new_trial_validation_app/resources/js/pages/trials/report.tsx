@@ -9,6 +9,7 @@ import type {
     LineConfigurationApproverOption,
     LineConfigurationReportData,
     LineConfigurationReportVersion,
+    LineConfigurationReturnNote,
 } from '@/components/trials/line-configuration-report-section';
 import { LineConfigurationReportSection } from '@/components/trials/line-configuration-report-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -129,10 +130,14 @@ type PageProps = {
     reviewCompletedNote: string | null;
     lineConfigurationReport: LineConfigurationReportData;
     canEditLineConfigurationReport: boolean;
+    lineConfigurationReportLocked: boolean;
+    lineConfigurationReturnNote: LineConfigurationReturnNote;
     lineConfigurationReportVersions: LineConfigurationReportVersion[];
     lineConfigurationApprovers: LineConfigurationApproverOption[];
+    lineConfigurationProdApprovers: LineConfigurationApproverOption[];
     canApprovePieLineConfigurationReport: boolean;
     canCheckProdLineConfigurationReport: boolean;
+    canReturnLineConfigurationReport: boolean;
 };
 
 const APPROVAL_DECISIONS = [
@@ -175,10 +180,14 @@ export default function TrialReport({
     reviewCompletedNote,
     lineConfigurationReport,
     canEditLineConfigurationReport,
+    lineConfigurationReportLocked,
+    lineConfigurationReturnNote,
     lineConfigurationReportVersions,
     lineConfigurationApprovers,
+    lineConfigurationProdApprovers,
     canApprovePieLineConfigurationReport,
     canCheckProdLineConfigurationReport,
+    canReturnLineConfigurationReport,
 }: PageProps) {
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
@@ -708,10 +717,14 @@ export default function TrialReport({
                             trialId={trial.id}
                             report={lineConfigurationReport}
                             canEdit={canEditLineConfigurationReport}
+                            locked={lineConfigurationReportLocked}
+                            returnNote={lineConfigurationReturnNote}
                             versions={lineConfigurationReportVersions}
                             approvers={lineConfigurationApprovers}
+                            prodApprovers={lineConfigurationProdApprovers}
                             canApprovePie={canApprovePieLineConfigurationReport}
                             canCheckProd={canCheckProdLineConfigurationReport}
+                            canReturn={canReturnLineConfigurationReport}
                         />
 
                         {pendingReviews.length > 0 && (

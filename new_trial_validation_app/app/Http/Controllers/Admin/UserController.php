@@ -65,7 +65,14 @@ class UserController extends Controller
             return back()->withErrors(['role' => 'Hanya Super Admin yang bisa membuat atau memberikan role Super Admin.'])->withInput();
         }
 
-        $existing = User::where('email', $data['email'])->first();
+        // The edit dialog identifies the row by id, not by email — email
+        // itself is an editable field here, so matching by email would treat
+        // "edit + change email" as a brand new user instead of updating the
+        // existing row (this was a real bug: it silently created a duplicate
+        // row and left the original untouched).
+        $existing = isset($data['id'])
+            ? User::where('id', $data['id'])->firstOrFail()
+            : User::where('email', $data['email'])->first();
         if ($existing) {
             Gate::authorize('update', $existing);
         } else {
@@ -83,6 +90,7 @@ class UserController extends Controller
         // legacy app, which has its own admin screen for it).
         $user = $existing ?? new User(['email' => $data['email']]);
         $user->name = $data['name'];
+        $user->email = $data['email'];
         $user->role = $role;
         $user->password_hash = Hash::make($data['password']);
         $user->is_active = true;

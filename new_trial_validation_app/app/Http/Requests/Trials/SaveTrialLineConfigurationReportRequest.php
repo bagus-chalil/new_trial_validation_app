@@ -69,14 +69,19 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             // Approve/Checked button can set them (see
             // MarkTrialLineConfigurationReportSignOff), so this form only
             // ever picks *who* is assigned, not the done/by/at values
-            // themselves.
+            // themselves. Approved(PIE) has no coded team in this system's
+            // master data, so any active user is eligible; Checked(PROD)
+            // must be someone on the PROD review team specifically —
+            // enforced here (not just filtered in the UI's Combobox
+            // options), so a direct POST can't assign an arbitrary user.
             'approved_pie_user_id' => [
                 'nullable', 'integer',
                 Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at'),
             ],
             'checked_prod_user_id' => [
                 'nullable', 'integer',
-                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at'),
+                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
+                    ->where(fn ($query) => $query->whereRaw('UPPER(TRIM(review_unit)) = ?', ['PROD'])),
             ],
 
             // Return is its own dedicated, auto-stamped action now (see

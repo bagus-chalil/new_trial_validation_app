@@ -77,6 +77,40 @@ test('editing an existing user via this screen leaves their legacy department un
     expect($existing->refresh()->department)->toBe('QAC');
 });
 
+test('editing a user by id and changing their email updates the same row instead of creating a duplicate', function () {
+    $admin = makeUser(['role' => 'Admin']);
+    $existing = makeUser(['email' => 'old@example.com', 'role' => 'Staff', 'name' => 'Old Name']);
+
+    $this->actingAs($admin)->post(route('admin.users.store'), [
+        'id' => $existing->id,
+        'name' => 'New Name',
+        'email' => 'new@example.com',
+        'password' => 'password123',
+        'role' => 'Staff',
+    ])->assertRedirect(route('admin.users.index'));
+
+    expect(User::count())->toBe(2);
+    $existing->refresh();
+    expect($existing->name)->toBe('New Name');
+    expect($existing->email)->toBe('new@example.com');
+});
+
+test('editing a user by id cannot steal another user\'s email', function () {
+    $admin = makeUser(['role' => 'Admin']);
+    $target = makeUser(['email' => 'target@example.com', 'role' => 'Staff']);
+    makeUser(['email' => 'taken@example.com', 'role' => 'Staff']);
+
+    $this->actingAs($admin)->post(route('admin.users.store'), [
+        'id' => $target->id,
+        'name' => 'Target',
+        'email' => 'taken@example.com',
+        'password' => 'password123',
+        'role' => 'Staff',
+    ])->assertSessionHasErrors('email');
+
+    expect($target->refresh()->email)->toBe('target@example.com');
+});
+
 test('non-super-admin cannot grant the super admin role when one already exists', function () {
     $admin = makeUser(['role' => 'Admin']);
     makeUser(['role' => 'Super Admin']);

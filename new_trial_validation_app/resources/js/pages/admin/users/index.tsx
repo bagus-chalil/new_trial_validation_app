@@ -70,6 +70,13 @@ function UserFormDialog({
                 >
                     {({ processing, errors }) => (
                         <>
+                            {editingUser && (
+                                <input
+                                    type="hidden"
+                                    name="id"
+                                    defaultValue={editingUser.id}
+                                />
+                            )}
                             <div className="grid gap-2 sm:col-span-2">
                                 <Label htmlFor="name">Name</Label>
                                 <Input
@@ -88,8 +95,20 @@ function UserFormDialog({
                                     name="email"
                                     type="email"
                                     required
+                                    readOnly={!!editingUser}
+                                    className={
+                                        editingUser
+                                            ? 'bg-muted text-muted-foreground'
+                                            : undefined
+                                    }
                                     defaultValue={editingUser?.email ?? ''}
                                 />
+                                {editingUser && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Email tidak bisa diubah setelah user
+                                        dibuat.
+                                    </p>
+                                )}
                                 <InputError message={errors.email} />
                             </div>
 
