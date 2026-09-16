@@ -713,20 +713,6 @@ export default function TrialReport({
                             </Table>
                         </div>
 
-                        <LineConfigurationReportSection
-                            trialId={trial.id}
-                            report={lineConfigurationReport}
-                            canEdit={canEditLineConfigurationReport}
-                            locked={lineConfigurationReportLocked}
-                            returnNote={lineConfigurationReturnNote}
-                            versions={lineConfigurationReportVersions}
-                            approvers={lineConfigurationApprovers}
-                            prodApprovers={lineConfigurationProdApprovers}
-                            canApprovePie={canApprovePieLineConfigurationReport}
-                            canCheckProd={canCheckProdLineConfigurationReport}
-                            canReturn={canReturnLineConfigurationReport}
-                        />
-
                         {pendingReviews.length > 0 && (
                             <div className="print:hidden">
                                 <h3 className="mb-2 text-base font-semibold">
@@ -994,6 +980,20 @@ export default function TrialReport({
                                 </Table>
                             </div>
                         )}
+
+                        <LineConfigurationReportSection
+                            trialId={trial.id}
+                            report={lineConfigurationReport}
+                            canEdit={canEditLineConfigurationReport}
+                            locked={lineConfigurationReportLocked}
+                            returnNote={lineConfigurationReturnNote}
+                            versions={lineConfigurationReportVersions}
+                            approvers={lineConfigurationApprovers}
+                            prodApprovers={lineConfigurationProdApprovers}
+                            canApprovePie={canApprovePieLineConfigurationReport}
+                            canCheckProd={canCheckProdLineConfigurationReport}
+                            canReturn={canReturnLineConfigurationReport}
+                        />
                     </CardContent>
                 </Card>
             </div>
