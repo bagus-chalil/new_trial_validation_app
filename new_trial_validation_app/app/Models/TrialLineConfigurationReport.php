@@ -15,6 +15,13 @@ use Illuminate\Support\Carbon;
  * enforced by unique(trial_id, version) plus the app only ever writing one
  * unlocked row) — see Trial::lineConfigurationReport()/lineConfigurationReportVersions().
  *
+ * Anyone on the PROD review team may start or claim a report for a trial
+ * that doesn't have a recorded drafter yet, but once one is recorded
+ * (`blocksEditFor()`, backed by `updated_by_user_id`), only that drafter —
+ * or Admin — may keep editing it; being on the PROD team is not itself a
+ * blanket edit right on every trial's report (see
+ * SaveTrialLineConfigurationReportRequest and TrialReportController::show()).
+ *
  * Deliberately has no locking tied to the *trial's* status (no dependency on
  * progress_status/final_decision) — the current version stays editable
  * regardless of whether the trial itself has been decided.
@@ -160,6 +167,20 @@ class TrialLineConfigurationReport extends Model
     public function isSubmittedForApproval(): bool
     {
         return ! empty($this->approved_pie_user_id) || ! empty($this->checked_prod_user_id);
+    }
+
+    /**
+     * True when this report already has a recorded drafter
+     * (updated_by_user_id — whoever last saved its content) and $user isn't
+     * them. A report with no drafter recorded yet (e.g. one seeded directly
+     * rather than through the normal save action) is open to any PROD-team
+     * member to claim — being on the PROD team only grants the right to
+     * start or claim a report nobody has drafted yet, not to edit someone
+     * else's already-claimed draft.
+     */
+    public function blocksEditFor(User $user): bool
+    {
+        return ! empty($this->updated_by_user_id) && (int) $this->updated_by_user_id !== $user->id;
     }
 
     /**

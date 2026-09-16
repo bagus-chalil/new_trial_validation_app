@@ -179,11 +179,22 @@ class TrialReportController extends Controller
             'approvalBlockedNote' => $approvalBlockedNote,
             'reviewCompletedNote' => $reviewCompletedNote,
             'lineConfigurationReport' => $lineConfigurationReport,
-            // Combines the general PROD-reviewer/Admin gate with the
-            // maker-checker lock: once submitted, only Admin may still open
-            // the edit form — everyone else must wait for a Return.
+            // Combines the general PROD-reviewer/Admin gate with two further
+            // narrowings: (1) once a report already has a recorded drafter
+            // (updated_by_user_id — whoever actually filled it in), only
+            // that drafter may keep editing it, not just any PROD-team
+            // member — being on the PROD team only grants the right to
+            // start/claim a report nobody has drafted yet; (2) the
+            // maker-checker lock — once submitted, even the drafter must
+            // wait for a Return. Admin bypasses both.
             'canEditLineConfigurationReport' => Gate::allows('manage-line-configuration-report')
-                && (! $lineConfigurationReport || ! $lineConfigurationReport->isSubmittedForApproval() || $user->isAdmin()),
+                && (
+                    $user->isAdmin()
+                    || (
+                        (! $lineConfigurationReport || ! $lineConfigurationReport->blocksEditFor($user))
+                        && (! $lineConfigurationReport || ! $lineConfigurationReport->isSubmittedForApproval())
+                    )
+                ),
             'lineConfigurationReportLocked' => $lineConfigurationReport?->isSubmittedForApproval() ?? false,
             'lineConfigurationReturnNote' => $lineConfigurationReturnNote,
             'lineConfigurationReportVersions' => $lineConfigurationReportVersions->map(fn (TrialLineConfigurationReport $v) => [

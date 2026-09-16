@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\TrialLineConfigurationReturnedMail;
 use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Trial;
@@ -101,6 +102,29 @@ test('the line configuration report stays editable even after the trial has been
     $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
     expect($report->client_name)->toBe('Updated Client');
     expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'UPDATE')->exists())->toBeTrue();
+});
+
+test('a different PROD reviewer cannot edit a report someone else already drafted, only the drafter (or admin) can', function () {
+    $drafter = User::factory()->reviewUnit('PROD')->create();
+    $otherProdReviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($drafter)->put(route('trials.line-configuration.update', $trial->id), [
+        'client_name' => 'Drafted by first reviewer',
+    ]);
+
+    $page = $this->actingAs($otherProdReviewer)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p->where('canEditLineConfigurationReport', false));
+
+    $this->actingAs($otherProdReviewer)
+        ->put(route('trials.line-configuration.update', $trial->id), ['client_name' => 'Sneaky edit by another reviewer'])
+        ->assertForbidden();
+
+    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail()->client_name)->toBe('Drafted by first reviewer');
+
+    // The original drafter can still edit their own report freely.
+    $page = $this->actingAs($drafter)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p->where('canEditLineConfigurationReport', true));
 });
 
 test('an admin can also edit the line configuration report regardless of review team', function () {
@@ -279,6 +303,44 @@ test('a user who is not the assigned Approved(PIE) cannot confirm approval', fun
         ->assertForbidden();
 });
 
+test('an admin cannot Approve/Checked/Return on someone else\'s behalf — these are personal sign-offs, not an admin override', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $admin = User::factory()->role('Admin')->create();
+    $pieUser = User::factory()->create();
+    $prodUser = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+        'checked_prod_user_id' => $prodUser->id,
+    ]);
+
+    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('canApprovePieLineConfigurationReport', false)
+        ->where('canReturnLineConfigurationReport', false));
+
+    $this->actingAs($admin)
+        ->post(route('trials.line-configuration.approve-pie', $trial->id))
+        ->assertForbidden();
+    $this->actingAs($admin)
+        ->post(route('trials.line-configuration.return', $trial->id), [
+            'reason' => 'Ini alasan pengembalian yang sengaja dibuat panjang untuk lolos validasi',
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
+
+    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('canCheckProdLineConfigurationReport', false)
+        ->where('canReturnLineConfigurationReport', false));
+
+    $this->actingAs($admin)
+        ->post(route('trials.line-configuration.check-prod', $trial->id))
+        ->assertForbidden();
+});
+
 test('Checked(PROD) cannot be confirmed until Approved(PIE) is done, even by the assigned Checked(PROD) user', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $pieUser = User::factory()->create();
@@ -317,7 +379,7 @@ test('the assigned Checked(PROD) user can confirm checked once Approved(PIE) is 
     expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'CHECK_PROD')->exists())->toBeTrue();
 });
 
-test('returning requires a reason of at least 10 words', function () {
+test('returning requires a reason of at least 5 words', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $pieUser = User::factory()->create();
     $trial = makeLcrTrial();
@@ -333,7 +395,7 @@ test('returning requires a reason of at least 10 words', function () {
     expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->count())->toBe(1);
 });
 
-test('only whoever the currently active stage is assigned to (or admin) may return', function () {
+test('only whoever the currently active stage is assigned to may return', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $pieUser = User::factory()->create();
     $prodUser = User::factory()->reviewUnit('PROD')->create();
@@ -407,6 +469,44 @@ test('returning locks the current version with the reason and stamped approver, 
     expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'NEW_VERSION')->exists())->toBeTrue();
 });
 
+test('returning emails the report drafter directly, regardless of which stage returned it', function () {
+    Mail::fake();
+
+    $reviewer = User::factory()->reviewUnit('PROD')->create(['name' => 'Dedi Drafter']);
+    $pieUser = User::factory()->create();
+    $prodUser = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+        'checked_prod_user_id' => $prodUser->id,
+    ]);
+
+    $pieReason = 'Ini alasan pengembalian yang sengaja dibuat panjang untuk lolos validasi';
+    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), ['reason' => $pieReason]);
+
+    Mail::assertSent(TrialLineConfigurationReturnedMail::class, fn ($mail) => $mail->hasTo($reviewer->email)
+        && $mail->drafterName === 'Dedi Drafter'
+        && $mail->returnedByStage === 'Approved (PIE)'
+        && $mail->reason === $pieReason);
+
+    // Re-assign and progress to PROD's stage, then have PROD return it too —
+    // the drafter is emailed again, not the PIE assignee.
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+        'checked_prod_user_id' => $prodUser->id,
+    ]);
+    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
+
+    $prodReason = 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui';
+    $this->actingAs($prodUser)->post(route('trials.line-configuration.return', $trial->id), ['reason' => $prodReason]);
+
+    Mail::assertSent(TrialLineConfigurationReturnedMail::class, fn ($mail) => $mail->hasTo($reviewer->email)
+        && $mail->returnedByStage === 'Checked (PROD)'
+        && $mail->reason === $prodReason);
+    Mail::assertNotSent(TrialLineConfigurationReturnedMail::class, fn ($mail) => $mail->hasTo($pieUser->email) || $mail->hasTo($prodUser->email));
+});
+
 test('after being returned, the maker can edit the new version freely again and sees the return reason', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $pieUser = User::factory()->create();
@@ -427,6 +527,54 @@ test('after being returned, the maker can edit the new version freely again and 
 
     $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
     $page->assertInertia(fn ($p) => $p->where('lineConfigurationReturnNote.reason', 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali'));
+});
+
+test('after being returned, the Approve/Return sign-off buttons are hidden for everyone — including admin — until re-assigned', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $pieUser = User::factory()->create();
+    $admin = User::factory()->role('Admin')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+    ]);
+    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), [
+        'reason' => 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali',
+    ]);
+
+    // The fresh version has no assignee for either stage yet — nobody,
+    // not even an admin, should see an actionable Approve/Return button
+    // for a stage that hasn't been (re-)submitted.
+    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('canApprovePieLineConfigurationReport', false)
+        ->where('canCheckProdLineConfigurationReport', false)
+        ->where('canReturnLineConfigurationReport', false));
+
+    // The original PIE assignee no longer has any assignment on the new
+    // version either, so they lose the ability too.
+    $page = $this->actingAs($pieUser)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('canApprovePieLineConfigurationReport', false)
+        ->where('canReturnLineConfigurationReport', false));
+
+    // Once re-assigned, the buttons become actionable again — for the
+    // newly-assigned user specifically. Admin still gets none of these
+    // three (see the dedicated "personal sign-offs, not an admin override"
+    // test above) since it never bypasses assignment.
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+    ]);
+
+    $page = $this->actingAs($pieUser)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('canApprovePieLineConfigurationReport', true)
+        ->where('canReturnLineConfigurationReport', true));
+
+    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('canApprovePieLineConfigurationReport', false)
+        ->where('canReturnLineConfigurationReport', false));
 });
 
 test('a locked historical version can be downloaded as a PDF but is no longer the editable current report', function () {

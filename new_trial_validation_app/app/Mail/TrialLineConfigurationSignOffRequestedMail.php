@@ -30,7 +30,7 @@ class TrialLineConfigurationSignOffRequestedMail extends Mailable
 
     public function build(): self
     {
-        return $this->subject("Trial {$this->trial->trial_code} — {$this->fieldLabel} Needed on Line Configuration Report")
+        return $this->subject("Line Configuration Report — {$this->fieldLabel} Sign-Off Needed ({$this->trial->trial_code})")
             ->markdown('emails.trial-line-configuration-signoff-requested');
     }
 }

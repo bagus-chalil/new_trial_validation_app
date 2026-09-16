@@ -1,5 +1,6 @@
 import { Form } from '@inertiajs/react';
 import type { ComponentProps, ReactNode } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -33,12 +34,18 @@ export function ConfirmDialog({
     formProps,
     children,
 }: ConfirmDialogProps) {
+    const [open, setOpen] = useState(false);
+
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent>
                 <DialogTitle>{title}</DialogTitle>
-                <Form options={{ preserveScroll: true }} {...formProps}>
+                <Form
+                    options={{ preserveScroll: true }}
+                    {...formProps}
+                    onSuccess={() => setOpen(false)}
+                >
                     {({ processing, errors }) => (
                         <>
                             <DialogDescription>{description}</DialogDescription>

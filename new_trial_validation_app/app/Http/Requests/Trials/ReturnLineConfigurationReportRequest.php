@@ -36,8 +36,8 @@ class ReturnLineConfigurationReportRequest extends FormRequest
                 function (string $attribute, mixed $value, Closure $fail) {
                     $words = preg_split('/\s+/', trim((string) $value)) ?: [];
                     $wordCount = count(array_filter($words));
-                    if ($wordCount < 10) {
-                        $fail('Alasan Return minimal 10 kata.');
+                    if ($wordCount < 5) {
+                        $fail('Alasan Return minimal 5 kata.');
                     }
                 },
             ],

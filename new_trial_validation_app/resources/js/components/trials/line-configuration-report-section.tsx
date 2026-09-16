@@ -92,7 +92,7 @@ const STAGE_FIELDS: { field: StageField; label: string }[] = [
     { field: 'checked_prod', label: 'Checked (PROD)' },
 ];
 
-const MIN_RETURN_REASON_WORDS = 10;
+const MIN_RETURN_REASON_WORDS = 5;
 
 function countWords(value: string): number {
     return value.trim() === ''

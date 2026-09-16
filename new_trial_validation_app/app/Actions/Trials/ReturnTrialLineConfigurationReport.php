@@ -2,12 +2,15 @@
 
 namespace App\Actions\Trials;
 
+use App\Mail\TrialLineConfigurationReturnedMail;
 use App\Models\ActivityLog;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 /**
  * Whoever's turn it currently is in the maker-checker chain (see
@@ -15,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  * a Line Configuration Report back for revision instead of confirming their
  * stage. Unlike the plain edit form, this always stamps the acting user's
  * own name/Carbon::now() and requires a real reason (see
- * ReturnLineConfigurationReportRequest — minimum 10 words).
+ * ReturnLineConfigurationReportRequest — minimum 5 words).
  *
  * Immediately locks the report *as it stood at the point of return* — this
  * is the historical record of exactly what was rejected and why — and
@@ -26,12 +29,23 @@ use Illuminate\Support\Facades\DB;
  * otherwise leave the report immediately re-locked
  * (TrialLineConfigurationReport::isSubmittedForApproval()) with no chance
  * for the maker to actually revise it.
+ *
+ * Also emails the report's drafter (updated_by_user_id — whoever last saved
+ * its content) directly, regardless of whether Approved(PIE) or
+ * Checked(PROD) did the returning — the notice always goes straight to the
+ * drafter, never back through the sign-off chain.
  */
 class ReturnTrialLineConfigurationReport
 {
     public function __invoke(Trial $trial, TrialLineConfigurationReport $report, string $reason, User $user): TrialLineConfigurationReport
     {
-        return DB::transaction(function () use ($trial, $report, $reason, $user) {
+        $returnedByStage = match ($report->currentApprovalStage()) {
+            'approved_pie' => 'Approved (PIE)',
+            'checked_prod' => 'Checked (PROD)',
+            default => null,
+        };
+
+        $next = DB::transaction(function () use ($trial, $report, $reason, $user) {
             $report->return_prod = true;
             $report->return_prod_by = $user->name ?: $user->email;
             $report->return_prod_at = Carbon::now();
@@ -84,5 +98,35 @@ class ReturnTrialLineConfigurationReport
 
             return $next;
         });
+
+        $this->notifyDrafter($trial, $report, $reason, $returnedByStage);
+
+        return $next;
+    }
+
+    /**
+     * Emails must never block the return itself, matching the never-throw
+     * invariant every other notification-sending action in this app relies
+     * on.
+     */
+    private function notifyDrafter(Trial $trial, TrialLineConfigurationReport $report, string $reason, ?string $returnedByStage): void
+    {
+        try {
+            $drafter = $report->updatedBy;
+
+            if (! $drafter || ! $drafter->email) {
+                return;
+            }
+
+            Mail::to($drafter->email)->send(new TrialLineConfigurationReturnedMail(
+                trial: $trial,
+                drafterName: $drafter->name ?: $drafter->email,
+                returnedByStage: $returnedByStage,
+                reason: $reason,
+                reportUrl: route('trials.report.show', $trial->id),
+            ));
+        } catch (Throwable) {
+            // Email delivery must never block the main workflow.
+        }
     }
 }
