@@ -34,6 +34,8 @@ import type { Paginated } from '@/types';
 
 type Summary = {
     total: number;
+    total_mixing: number;
+    total_filling: number;
     draft: number;
     in_review: number;
     ready: number;
@@ -249,16 +251,16 @@ export default function Dashboard({
 
                 <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                     {summaryCards.map((card) => (
-                        <a key={card.key} href={card.href()}>
+                        <a key={card.key} href={card.href()} className="block">
                             <Card
                                 className={
-                                    'gap-2 py-4 transition-colors hover:bg-muted' +
+                                    'h-full gap-2 py-4 transition-colors hover:bg-muted' +
                                     (card.key === 'total'
                                         ? ' border-l-4 border-l-brand'
                                         : '')
                                 }
                             >
-                                <CardContent className="flex items-center justify-between px-4">
+                                <CardContent className="flex h-full items-center justify-between px-4">
                                     <div>
                                         <span className="text-sm text-muted-foreground">
                                             {card.label}
@@ -266,46 +268,51 @@ export default function Dashboard({
                                         <div className="text-2xl font-semibold">
                                             {summary[card.key]}
                                         </div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            {card.key === 'total'
+                                                ? `Mixing: ${summary.total_mixing} · Filling: ${summary.total_filling}`
+                                                : ' '}
+                                        </div>
                                     </div>
-                                    <card.icon className="size-5 text-muted-foreground" />
+                                    <card.icon className="size-5 shrink-0 text-muted-foreground" />
                                 </CardContent>
                             </Card>
                         </a>
                     ))}
                 </section>
 
-                <section className="grid gap-4 lg:grid-cols-2">
-                    <Card>
+                <section className="grid items-stretch gap-4 lg:grid-cols-2">
+                    <Card className="flex h-full flex-col lg:col-span-2">
                         <CardHeader>
                             <CardTitle className="text-base">
                                 Tren Trial Dibuat
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex flex-1 items-center">
                             <TrendChart data={overview.trend} />
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="flex h-full flex-col">
                         <CardHeader>
                             <CardTitle className="text-base">
                                 Distribusi Status
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex flex-1 items-center">
                             <StatusDistributionChart
                                 data={overview.statusBreakdown}
                             />
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="flex h-full flex-col">
                         <CardHeader>
                             <CardTitle className="text-base">
                                 Breakdown per Product Type
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex flex-1 items-center">
                             <CategoryBarChart
                                 data={overview.productTypeBreakdown.map(
                                     (row) => ({
@@ -318,13 +325,13 @@ export default function Dashboard({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="flex h-full flex-col">
                         <CardHeader>
                             <CardTitle className="text-base">
                                 Proporsi Jenis Trial (Product Type)
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex flex-1 items-center">
                             <ProductTypePieChart
                                 data={overview.productTypePie}
                                 emptyMessage="Belum ada trial."
@@ -332,13 +339,13 @@ export default function Dashboard({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="flex h-full flex-col">
                         <CardHeader>
                             <CardTitle className="text-base">
                                 Review Pending per Departemen
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex flex-1 items-center">
                             <CategoryBarChart
                                 data={overview.departmentPending.map((row) => ({
                                     label: row.department,

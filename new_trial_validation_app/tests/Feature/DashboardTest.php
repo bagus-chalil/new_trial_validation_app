@@ -42,9 +42,26 @@ test('the dashboard summary counts match the visible trials', function () {
 
     $response->assertInertia(fn ($page) => $page
         ->where('summary.total', 4)
+        ->where('summary.total_mixing', 0)
+        ->where('summary.total_filling', 4)
         ->where('summary.draft', 1)
         ->where('summary.approved', 2)
         ->where('summary.rejected', 1));
+});
+
+test('the total trials summary splits by product type into mixing and filling', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-MIXING-1', 'product_type' => 'Mixing']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-MIXING-2', 'product_type' => 'Mixing']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-TUBE', 'product_type' => 'Tube']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-BOTTLE', 'product_type' => 'Bottle + Screw Cap']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('summary.total', 4)
+        ->where('summary.total_mixing', 2)
+        ->where('summary.total_filling', 2));
 });
 
 test('the q filter searches trial code and product name', function () {

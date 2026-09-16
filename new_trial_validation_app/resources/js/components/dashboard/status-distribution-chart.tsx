@@ -43,11 +43,16 @@ export function StatusDistributionChart({
     data,
 }: StatusDistributionChartProps) {
     return (
-        <ChartContainer config={chartConfig} className="h-64 w-full">
+        <ChartContainer
+            config={chartConfig}
+            className="w-full"
+            style={{ height: Math.max(224, data.length * 40) }}
+        >
             <BarChart
                 data={data}
                 layout="vertical"
                 margin={{ left: 8, right: 24 }}
+                barCategoryGap="22%"
             >
                 <CartesianGrid horizontal={false} />
                 <XAxis type="number" hide allowDecimals={false} />
@@ -62,7 +67,7 @@ export function StatusDistributionChart({
                     cursor={false}
                     content={<ChartTooltipContent hideLabel />}
                 />
-                <Bar dataKey="count" radius={4} barSize={18}>
+                <Bar dataKey="count" radius={4} barSize={26}>
                     {data.map((row) => (
                         <Cell
                             key={row.status}

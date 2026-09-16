@@ -472,7 +472,7 @@ class Trial extends Model
      * approver-only narrowing, which only the dedicated waiting-approval list
      * page applies.
      *
-     * @return array{total: int, draft: int, in_review: int, ready: int, approved: int, need_revision: int, rejected: int}
+     * @return array{total: int, total_mixing: int, total_filling: int, draft: int, in_review: int, ready: int, approved: int, need_revision: int, rejected: int}
      */
     public static function summaryCounts(User $user): array
     {
@@ -480,6 +480,8 @@ class Trial extends Model
 
         return [
             'total' => $base()->count('trials_header.id'),
+            'total_mixing' => $base()->where('product_type', 'Mixing')->count('trials_header.id'),
+            'total_filling' => $base()->where('product_type', '!=', 'Mixing')->count('trials_header.id'),
             'draft' => $base()->where('progress_status', 'Draft')->count('trials_header.id'),
             'in_review' => $base()->where('progress_status', 'In Review')->count('trials_header.id'),
             'ready' => $base()->where('progress_status', 'Ready for Approval')->count('trials_header.id'),

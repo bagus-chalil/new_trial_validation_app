@@ -48,11 +48,16 @@ export function CategoryBarChart({
     }
 
     return (
-        <ChartContainer config={chartConfig} className="h-64 w-full">
+        <ChartContainer
+            config={chartConfig}
+            className="w-full"
+            style={{ height: Math.max(224, nonZero.length * 40) }}
+        >
             <BarChart
                 data={nonZero}
                 layout="vertical"
                 margin={{ left: 8, right: 24 }}
+                barCategoryGap="22%"
             >
                 <CartesianGrid horizontal={false} />
                 <XAxis type="number" hide />
@@ -71,7 +76,7 @@ export function CategoryBarChart({
                     dataKey="count"
                     fill="var(--color-count)"
                     radius={4}
-                    barSize={18}
+                    barSize={26}
                 >
                     <LabelList
                         dataKey="count"
