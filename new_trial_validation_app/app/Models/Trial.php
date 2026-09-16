@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -117,6 +118,14 @@ class Trial extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(TrialAttachmentFile::class, 'trial_id');
+    }
+
+    /**
+     * @return HasOne<TrialLineConfigurationReport, $this>
+     */
+    public function lineConfigurationReport(): HasOne
+    {
+        return $this->hasOne(TrialLineConfigurationReport::class, 'trial_id');
     }
 
     /**

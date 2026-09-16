@@ -6,6 +6,7 @@ use App\Actions\Trials\CheckTrialCompleteness;
 use App\Actions\Trials\RecordReportPrint;
 use App\Models\Trial;
 use App\Models\TrialAttachmentFile;
+use App\Models\TrialLineConfigurationReport;
 use App\Models\TrialResult;
 use App\Models\TrialReview;
 use App\Models\TrialWeighing;
@@ -94,6 +95,8 @@ class TrialReportController extends Controller
 
         $reviewByDept = $trial->reviewStatusByDepartment();
 
+        $lineConfigurationReport = TrialLineConfigurationReport::where('trial_id', $trial->id)->first();
+
         $approvalBlockedNote = null;
         if ($trial->progress_status === 'Ready for Approval' && ! $canApprove && $user->canApproveTrials()) {
             $approvalBlockedNote = 'Menunggu approval oleh '.($trial->pending_with ?: 'approver lain').', bukan giliran Anda.';
@@ -133,6 +136,8 @@ class TrialReportController extends Controller
             ])->values(),
             'approvalBlockedNote' => $approvalBlockedNote,
             'reviewCompletedNote' => $reviewCompletedNote,
+            'lineConfigurationReport' => $lineConfigurationReport,
+            'canEditLineConfigurationReport' => Gate::allows('manage-line-configuration-report'),
         ]);
     }
 

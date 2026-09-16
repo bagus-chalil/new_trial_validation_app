@@ -146,7 +146,7 @@ class User extends Authenticatable
      */
     public static function approverEligibleRoles(): array
     {
-        return ['Admin', 'Super Admin', 'Manager QAC', 'Team Leader', 'Part Leader', 'Team Leader QA', 'Manager'];
+        return ['Admin', 'Super Admin', 'Manager QAC', 'Team Leader', 'Part Leader', 'Team Leader QA', 'Manager', 'Team Leader Production'];
     }
 
     public function departmentCode(): string

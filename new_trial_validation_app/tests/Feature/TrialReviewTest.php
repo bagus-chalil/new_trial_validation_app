@@ -184,6 +184,22 @@ test('submitting for review creates pending trials_review rows and moves the tri
     Mail::assertSent(TrialReviewRequestedMail::class, fn ($mail) => $mail->hasTo($qacReviewer->email) && $mail->department === 'QAC');
 });
 
+test('a Team Leader Production user can be picked as the approver', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $approver = User::factory()->create(['role' => 'Team Leader Production']);
+    $prodReviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+
+    $response = $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PROD'],
+        'reviewer_user_ids' => ['PROD' => $prodReviewer->id],
+        'approver_user_id' => $approver->id,
+    ]);
+
+    $response->assertRedirect(route('trials.report.show', $trial));
+    expect($trial->fresh()->approver_user_id)->toBe($approver->id);
+});
+
 test('submitting for review is rejected when validation is incomplete and nothing is persisted', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $approver = User::factory()->create(['role' => 'Manager QAC']);

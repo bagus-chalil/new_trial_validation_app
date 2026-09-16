@@ -5,6 +5,8 @@ import TrialReportController from '@/actions/App/Http/Controllers/TrialReportCon
 import { AttachmentImagePreview } from '@/components/attachment-image-preview';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import type { LineConfigurationReportData } from '@/components/trials/line-configuration-report-section';
+import { LineConfigurationReportSection } from '@/components/trials/line-configuration-report-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -121,6 +123,8 @@ type PageProps = {
     editableReviews: EditableReview[];
     approvalBlockedNote: string | null;
     reviewCompletedNote: string | null;
+    lineConfigurationReport: LineConfigurationReportData;
+    canEditLineConfigurationReport: boolean;
 };
 
 const APPROVAL_DECISIONS = [
@@ -161,6 +165,8 @@ export default function TrialReport({
     editableReviews,
     approvalBlockedNote,
     reviewCompletedNote,
+    lineConfigurationReport,
+    canEditLineConfigurationReport,
 }: PageProps) {
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
@@ -685,6 +691,12 @@ export default function TrialReport({
                                 </TableBody>
                             </Table>
                         </div>
+
+                        <LineConfigurationReportSection
+                            trialId={trial.id}
+                            report={lineConfigurationReport}
+                            canEdit={canEditLineConfigurationReport}
+                        />
 
                         {pendingReviews.length > 0 && (
                             <div className="print:hidden">

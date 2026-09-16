@@ -191,8 +191,7 @@ function EditRoleDialog({
                                         Tim review yang boleh ditugaskan
                                         me-review trial dari department ini di
                                         Review & Submit. Pilih &quot;Tidak
-                                        ada&quot; kalau user ini bukan
-                                        reviewer.
+                                        ada&quot; kalau user ini bukan reviewer.
                                     </p>
                                     <InputError message={errors.review_unit} />
                                 </div>
@@ -484,12 +483,12 @@ export default function AdminAccessRightsIndex({
                         <div>
                             <CardTitle>Reviewer Department Master</CardTitle>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Daftar tim/department yang bisa dipilih
-                                sebagai &quot;Review Team&quot; user dan
-                                muncul di daftar department review saat submit
-                                trial baru. 5 baris bawaan sistem selalu aktif
-                                (read-only); tambahkan di sini kalau perlu tim
-                                baru di luar itu.
+                                Daftar tim/department yang bisa dipilih sebagai
+                                &quot;Review Team&quot; user dan muncul di
+                                daftar department review saat submit trial baru.
+                                5 baris bawaan sistem selalu aktif (read-only);
+                                tambahkan di sini kalau perlu tim baru di luar
+                                itu.
                             </p>
                         </div>
                         <Button

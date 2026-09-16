@@ -77,5 +77,13 @@ class AppServiceProvider extends ServiceProvider
         // who may open the approval queue at all (User::canApproveTrials()
         // already existed from the Fase 0 RBAC port, unused until now).
         Gate::define('view-approval-queue', fn (User $user) => $user->canApproveTrials());
+        // Who may fill in/edit a trial's Line Configuration Report — the
+        // PROD review team, plus Admin/Super Admin as a general override
+        // (same "admin can do anything" shape as manage-master/manage-parameters
+        // above). Deliberately not tied to a specific Trial instance or its
+        // status: the report has no lock of any kind, see
+        // TrialLineConfigurationReport's doc comment.
+        Gate::define('manage-line-configuration-report', fn (User $user) => $user->isAdmin()
+            || in_array('PROD', $user->reviewDepartmentsForUser(), true));
     }
 }
