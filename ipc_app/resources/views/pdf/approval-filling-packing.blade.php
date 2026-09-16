@@ -91,14 +91,16 @@
         </table>
 
         <div class="attachment-grid" style="grid-template-columns: repeat(4, 1fr);">
-            <figure class="attachment-tile">
-                @if ($photoUrls['filling']['color'] ?? null)
-                    <img src="{{ $photoUrls['filling']['color'] }}" alt="Color">
-                @else
-                    <div class="placeholder">Belum ada foto</div>
-                @endif
-                <figcaption><strong>Color</strong></figcaption>
-            </figure>
+            @foreach ([['color', 'Color'], ['wo_image', 'WO Image'], ['date_bulk', 'Date Bulk'], ['image_tube', 'Image Tube']] as [$field, $label])
+                <figure class="attachment-tile">
+                    @if ($photoUrls['filling'][$field] ?? null)
+                        <img src="{{ $photoUrls['filling'][$field] }}" alt="{{ $label }}">
+                    @else
+                        <div class="placeholder">Belum ada foto</div>
+                    @endif
+                    <figcaption><strong>{{ $label }}</strong></figcaption>
+                </figure>
+            @endforeach
         </div>
     @else
         <p class="muted">Filling Check belum diisi.</p>

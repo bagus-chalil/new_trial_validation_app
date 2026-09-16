@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\FillingChecks\SaveFillingCheck;
 use App\Http\Requests\SaveFillingCheckRequest;
-use App\Http\Requests\UploadFillingColorPhotoRequest;
+use App\Http\Requests\UploadFillingCheckPhotoRequest;
 use App\Models\FillingCheck;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
@@ -15,6 +15,15 @@ use Inertia\Response;
 
 class FillingCheckController extends Controller
 {
+    /**
+     * Field labels for the camera-only LargeImage columns on this stage. `color` was the
+     * original field (see the "Filling Check" section in CLAUDE.md); `wo_image`/`date_bulk`/
+     * `image_tube` were added 2026-09-16 per direct user request against a real legacy
+     * FILLING CHECK screenshot showing WO_Image, Date_Bulk, and Image_Tube camera fields
+     * alongside Color, none of which existed on this stage yet.
+     */
+    public const PHOTO_FIELDS = ['color', 'wo_image', 'date_bulk', 'image_tube'];
+
     public function edit(IpcBatch $batch): Response
     {
         abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
@@ -30,19 +39,25 @@ class FillingCheckController extends Controller
             'fillingCheck.revisions.user',
         ]);
 
-        $colorPhoto = IpcAttachment::query()
+        $photos = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->where('stage', 'filling')
-            ->where('field_label', 'color')
+            ->whereIn('field_label', self::PHOTO_FIELDS)
             ->latest()
-            ->first();
+            ->get()
+            ->keyBy('field_label');
+
+        $photoUrls = collect(self::PHOTO_FIELDS)
+            ->mapWithKeys(fn (string $field) => [
+                $field => $photos->has($field) ? Storage::disk('public')->url($photos[$field]->file_path) : null,
+            ]);
 
         return Inertia::render('filling-check/edit', [
             'batch' => $batch,
             'fillingCheck' => $batch->fillingCheck,
             'isReadOnly' => (bool) $batch->fillingCheck?->completed_at,
             'decisions' => FillingCheck::DECISIONS,
-            'colorPhotoUrl' => $colorPhoto ? Storage::disk('public')->url($colorPhoto->file_path) : null,
+            'photoUrls' => $photoUrls,
             'startupInspectionSamples' => $batch->startupInspection?->samples ?? [],
         ]);
     }
@@ -63,15 +78,16 @@ class FillingCheckController extends Controller
         return redirect()->route('filling-check.edit', $batch)->with('success', 'Progress tersimpan.');
     }
 
-    public function uploadColorPhoto(UploadFillingColorPhotoRequest $request, IpcBatch $batch): RedirectResponse
+    public function uploadPhoto(UploadFillingCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse
     {
+        abort_unless(in_array($field, self::PHOTO_FIELDS, true), 404);
         abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
         abort_if($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini sudah selesai dan bersifat read-only.');
 
         $existing = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->where('stage', 'filling')
-            ->where('field_label', 'color')
+            ->where('field_label', $field)
             ->get();
 
         $path = $request->file('photo')->store("ipc-attachments/{$batch->id}/filling", 'public');
@@ -79,7 +95,7 @@ class FillingCheckController extends Controller
         IpcAttachment::create([
             'ipc_batch_id' => $batch->id,
             'stage' => 'filling',
-            'field_label' => 'color',
+            'field_label' => $field,
             'file_path' => $path,
             'uploaded_by' => $request->user()->id,
         ]);
@@ -89,6 +105,6 @@ class FillingCheckController extends Controller
             $old->delete();
         }
 
-        return redirect()->route('filling-check.edit', $batch)->with('success', 'Foto warna tersimpan.');
+        return redirect()->route('filling-check.edit', $batch)->with('success', 'Foto tersimpan.');
     }
 }

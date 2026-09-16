@@ -143,7 +143,14 @@ export default function PrintFillingPacking({
                             </div>
                             <ChecklistRow label="Decision" value={fillingCheck.decision} />
                             <InfoField label="Remarks" value={fillingCheck.remarks ?? '—'} full />
-                            <PhotoRow photos={[{ key: 'color', label: 'Color', url: photoUrls.filling?.color ?? null }]} />
+                            <PhotoRow
+                                photos={[
+                                    { key: 'color', label: 'Color', url: photoUrls.filling?.color ?? null },
+                                    { key: 'wo_image', label: 'WO Image', url: photoUrls.filling?.wo_image ?? null },
+                                    { key: 'date_bulk', label: 'Date Bulk', url: photoUrls.filling?.date_bulk ?? null },
+                                    { key: 'image_tube', label: 'Image Tube', url: photoUrls.filling?.image_tube ?? null },
+                                ]}
+                            />
                         </AccordionCard>
                     ) : (
                         <EmptyNote>Filling Check belum diisi.</EmptyNote>

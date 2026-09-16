@@ -90,6 +90,13 @@ const SAMPLE_COUNT = 10;
 const CONFORM_OPTIONS = ['Conform', 'Not Conform'];
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
+const PHOTO_FIELDS: { key: string; label: string }[] = [
+    { key: 'color', label: 'Color' },
+    { key: 'wo_image', label: 'WO Image' },
+    { key: 'date_bulk', label: 'Date Bulk' },
+    { key: 'image_tube', label: 'Image Tube' },
+];
+
 const inputClass =
     'h-[46px] rounded-xl border-[1.5px] border-border bg-background px-3.5 text-[14.5px] font-semibold text-foreground placeholder:text-muted-foreground/50';
 
@@ -110,19 +117,23 @@ export default function FillingCheckEdit({
     fillingCheck,
     isReadOnly,
     decisions,
-    colorPhotoUrl,
+    photoUrls,
     startupInspectionSamples,
 }: {
     readonly batch: Batch;
     readonly fillingCheck: FillingCheckData | null;
     readonly isReadOnly: boolean;
-     readonly decisions: string[];
-    readonly colorPhotoUrl: string | null;
-    readonly startupInspectionSamples: readonly { readonly sample_no: number; readonly volume_weight: string | null; readonly weight_master_box: string | null }[];
+    readonly decisions: string[];
+    readonly photoUrls: Record<string, string | null>;
+    readonly startupInspectionSamples: readonly {
+        readonly sample_no: number;
+        readonly volume_weight: string | null;
+        readonly weight_master_box: string | null;
+    }[];
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
-    const [cameraOpen, setCameraOpen] = useState(false);
+    const [cameraField, setCameraField] = useState<string | null>(null);
     const { message, toast } = useToast();
     const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
 
@@ -166,8 +177,8 @@ export default function FillingCheckEdit({
 
     // When Volume/Weight or Weight Master Box is dynamically updated, let's recalibrate Min & Max if needed
     const updateDynamicMinMax = (updatedSamples: StartupInspectionSampleInput[]) => {
-        const validVols = updatedSamples.map(s => toNumber(s.volume_weight)).filter((v): v is number => v !== null);
-        const validWeights = updatedSamples.map(s => toNumber(s.weight_master_box)).filter((v): v is number => v !== null);
+        const validVols = updatedSamples.map((s) => toNumber(s.volume_weight)).filter((v): v is number => v !== null);
+        const validWeights = updatedSamples.map((s) => toNumber(s.weight_master_box)).filter((v): v is number => v !== null);
 
         if (validVols.length > 0) {
             const minVol = Math.min(...validVols).toString();
@@ -186,7 +197,7 @@ export default function FillingCheckEdit({
 
     const setStartupSampleField = (sampleNo: number, field: 'volume_weight' | 'weight_master_box', value: string) => {
         const updated = data.startup_inspection_samples.map((row) =>
-            row.sample_no === sampleNo ? { ...row, [field]: value === '' ? null : value } : row
+            row.sample_no === sampleNo ? { ...row, [field]: value === '' ? null : value } : row,
         );
         setData('startup_inspection_samples', updated as unknown as StartupInspectionSampleInput[]);
         updateDynamicMinMax(updated as unknown as StartupInspectionSampleInput[]);
@@ -278,8 +289,8 @@ export default function FillingCheckEdit({
         put(`/batches/${batch.id}/filling-check`, { preserveState: true, onSuccess: () => setData(blankForm()) });
     };
 
-    const uploadColorPhoto = (file: File) => {
-        router.post(`/batches/${batch.id}/filling-check/color-photo`, { photo: file }, { forceFormData: true, preserveScroll: true });
+    const uploadPhoto = (field: string, file: File) => {
+        router.post(`/batches/${batch.id}/filling-check/photo/${field}`, { photo: file }, { forceFormData: true, preserveScroll: true });
     };
 
     const inspectorName = fillingCheck?.user?.name ?? props.auth.user.name;
@@ -352,9 +363,9 @@ export default function FillingCheckEdit({
                             <div className="col-span-full">
                                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                                     {/* Volume / Weight Card */}
-                                    <div className="border border-border bg-background flex flex-col gap-3 rounded-2xl p-4">
+                                    <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4">
                                         <div className="flex items-center justify-between border-b pb-2">
-                                            <span className="text-[13.5px] font-bold text-foreground">Volume / Weight (30 Sample)</span>
+                                            <span className="text-foreground text-[13.5px] font-bold">Volume / Weight (30 Sample)</span>
                                             <span className="text-muted-foreground text-xs font-semibold">Opsional — belum bisa ditimbang</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5">
@@ -366,7 +377,7 @@ export default function FillingCheckEdit({
                                                     <Input
                                                         type="number"
                                                         step="0.0001"
-                                                        className="h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold border-border"
+                                                        className="border-border h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold"
                                                         value={row.volume_weight ?? ''}
                                                         onChange={(e) => setStartupSampleField(row.sample_no, 'volume_weight', e.target.value)}
                                                         disabled={isReadOnly}
@@ -378,9 +389,9 @@ export default function FillingCheckEdit({
                                     </div>
 
                                     {/* Weight Master Box Card */}
-                                    <div className="border border-border bg-background flex flex-col gap-3 rounded-2xl p-4">
+                                    <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4">
                                         <div className="flex items-center justify-between border-b pb-2">
-                                            <span className="text-[13.5px] font-bold text-foreground">Weight Master Box (30 Sample)</span>
+                                            <span className="text-foreground text-[13.5px] font-bold">Weight Master Box (30 Sample)</span>
                                             <span className="text-muted-foreground text-xs font-semibold">Opsional — belum bisa ditimbang</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5">
@@ -392,7 +403,7 @@ export default function FillingCheckEdit({
                                                     <Input
                                                         type="number"
                                                         step="0.0001"
-                                                        className="h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold border-border"
+                                                        className="border-border h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold"
                                                         value={row.weight_master_box ?? ''}
                                                         onChange={(e) => setStartupSampleField(row.sample_no, 'weight_master_box', e.target.value)}
                                                         disabled={isReadOnly}
@@ -404,7 +415,8 @@ export default function FillingCheckEdit({
                                     </div>
                                 </div>
                                 <p className="text-muted-foreground mt-3 text-xs">
-                                    Data ini tersimpan ke Start Inspection — bisa dilengkapi dari sini jika belum diisi saat startup. Min Volume dan Max Weight di bawah akan mengadaptasi isi form ini secara interaktif!
+                                    Data ini tersimpan ke Start Inspection — bisa dilengkapi dari sini jika belum diisi saat startup. Min Volume dan
+                                    Max Weight di bawah akan mengadaptasi isi form ini secara interaktif!
                                 </p>
                             </div>
                         </AccordionCard>
@@ -456,6 +468,42 @@ export default function FillingCheckEdit({
                             </div>
                         </AccordionCard>
 
+                        <AccordionCard title="Weight Samples" progress="10 sample">
+                            <div id="samples" className="col-span-full">
+                                <InputError message={(errors as Record<string, string>).samples} className="mb-2" />
+                                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                                    {data.samples.map((row) => {
+                                        const result = liveResult(row.weight_value) ?? resultBySample.get(row.sample_no) ?? null;
+                                        return (
+                                            <div key={row.sample_no} className="flex flex-col gap-1">
+                                                <span className="text-muted-foreground/70 text-center text-[10.5px] font-semibold">
+                                                    #{row.sample_no}
+                                                </span>
+                                                <Input
+                                                    id={`weight-${row.sample_no}`}
+                                                    type="number"
+                                                    step="0.0001"
+                                                    className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-destructive ring-1' : 'border-border'}`}
+                                                    value={row.weight_value ?? ''}
+                                                    onChange={(e) => setWeight(row.sample_no, e.target.value)}
+                                                    disabled={isReadOnly}
+                                                />
+                                                <span className="text-muted-foreground text-center text-[10px]">{result ?? '—'}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="border-border-soft bg-muted/30 mt-3.5 flex items-center justify-between rounded-xl border px-3.5 py-2.5">
+                                    <span className="text-muted-foreground text-xs font-semibold">Average Weight</span>
+                                    <span className="text-[15px] font-bold">{liveAverageWeight() ?? fillingCheck?.average_weight ?? '—'}</span>
+                                </div>
+                                <p className="text-muted-foreground mt-2 text-xs">
+                                    Result per sample dan Average Weight dihitung langsung real-time dari Density & Average of Empty Bottle Weight
+                                    milik Startup Check, sama seperti kalkulasi live di aplikasi lama — tidak perlu disimpan dulu.
+                                </p>
+                            </div>
+                        </AccordionCard>
+
                         <AccordionCard title="Parameter Filling">
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Min Volume (dari Startup Check)</Label>
@@ -469,20 +517,28 @@ export default function FillingCheckEdit({
                                 <Label className="text-muted-foreground text-xs font-semibold">Line Leader (dari Startup Check)</Label>
                                 <div className={readOnlyFieldClass}>{batch.startup_check?.line_leader_name ?? '—'}</div>
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <Label className="text-muted-foreground text-xs font-semibold">Color</Label>
-                                <button
-                                    type="button"
-                                    disabled={isReadOnly}
-                                    onClick={() => setCameraOpen(true)}
-                                    className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    <Camera className="size-4" strokeWidth={2.2} />
-                                    {colorPhotoUrl ? 'Ganti Foto' : 'Ambil Foto'}
-                                </button>
-                                {colorPhotoUrl && (
-                                    <img src={colorPhotoUrl} alt="Foto warna" className="border-border h-24 w-24 rounded-xl border object-cover" />
-                                )}
+                            <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                {PHOTO_FIELDS.map(({ key, label }) => (
+                                    <div key={key} id={key} className="flex flex-col gap-2">
+                                        <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
+                                        <button
+                                            type="button"
+                                            disabled={isReadOnly}
+                                            onClick={() => setCameraField(key)}
+                                            className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <Camera className="size-4" strokeWidth={2.2} />
+                                            {photoUrls[key] ? 'Ganti Foto' : 'Ambil Foto'}
+                                        </button>
+                                        {photoUrls[key] && (
+                                            <img
+                                                src={photoUrls[key]!}
+                                                alt={`Foto ${label}`}
+                                                className="border-border h-24 w-24 rounded-xl border object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                ))}
                             </div>
 
                             <div id="decision" className="col-span-full flex flex-col gap-2">
@@ -527,42 +583,6 @@ export default function FillingCheckEdit({
                             </div>
                         </AccordionCard>
 
-                        <AccordionCard title="Weight Samples" progress="10 sample">
-                            <div id="samples" className="col-span-full">
-                                <InputError message={(errors as Record<string, string>).samples} className="mb-2" />
-                                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                                    {data.samples.map((row) => {
-                                        const result = liveResult(row.weight_value) ?? resultBySample.get(row.sample_no) ?? null;
-                                        return (
-                                            <div key={row.sample_no} className="flex flex-col gap-1">
-                                                <span className="text-muted-foreground/70 text-center text-[10.5px] font-semibold">
-                                                    #{row.sample_no}
-                                                </span>
-                                                <Input
-                                                    id={`weight-${row.sample_no}`}
-                                                    type="number"
-                                                    step="0.0001"
-                                                    className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-destructive ring-1' : 'border-border'}`}
-                                                    value={row.weight_value ?? ''}
-                                                    onChange={(e) => setWeight(row.sample_no, e.target.value)}
-                                                    disabled={isReadOnly}
-                                                />
-                                                <span className="text-muted-foreground text-center text-[10px]">{result ?? '—'}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="border-border-soft bg-muted/30 mt-3.5 flex items-center justify-between rounded-xl border px-3.5 py-2.5">
-                                    <span className="text-muted-foreground text-xs font-semibold">Average Weight</span>
-                                    <span className="text-[15px] font-bold">{liveAverageWeight() ?? fillingCheck?.average_weight ?? '—'}</span>
-                                </div>
-                                <p className="text-muted-foreground mt-2 text-xs">
-                                    Result per sample dan Average Weight dihitung langsung real-time dari Density & Average of Empty Bottle Weight
-                                    milik Startup Check, sama seperti kalkulasi live di aplikasi lama — tidak perlu disimpan dulu.
-                                </p>
-                            </div>
-                        </AccordionCard>
-
                         {revisions.length > 0 && (
                             <AccordionCard title="Riwayat Simpan" progress={`${revisions.length}x disimpan`} defaultOpen={false}>
                                 <div className="col-span-full flex flex-col gap-2.5">
@@ -590,9 +610,9 @@ export default function FillingCheckEdit({
 
                     {!isReadOnly && (
                         <StickySaveBar
-                                label="Selesaikan"
-                                secondaryLabel="Simpan Progress"
-                                onSecondaryClick={saveDraft}
+                            label="Selesaikan"
+                            secondaryLabel="Simpan Progress"
+                            onSecondaryClick={saveDraft}
                             processing={processing}
                             note={hasAnyDraftValue() ? 'Ada perubahan belum disimpan' : 'Semua perubahan tersimpan'}
                         />
@@ -601,10 +621,14 @@ export default function FillingCheckEdit({
             </TwoPane>
 
             <CameraCaptureDialog
-                open={cameraOpen}
-                onOpenChange={setCameraOpen}
-                onCapture={uploadColorPhoto}
-                title="Ambil Foto Warna"
+                open={cameraField !== null}
+                onOpenChange={(open) => {
+                    if (!open) setCameraField(null);
+                }}
+                onCapture={(file) => {
+                    if (cameraField) uploadPhoto(cameraField, file);
+                }}
+                title={`Ambil Foto ${PHOTO_FIELDS.find((f) => f.key === cameraField)?.label ?? ''}`}
             />
         </IpcShell>
     );

@@ -27,7 +27,7 @@ trait BuildsIpcReportPayloads
      */
     private const PHOTOS_BY_STAGE = [
         'startup' => ['im_number', 'color', 'temperature_setting', 'coding'],
-        'filling' => ['color'],
+        'filling' => ['color', 'wo_image', 'date_bulk', 'image_tube'],
         'packing' => ['palletisasi', 'color', 'primary_coding_batch_exp', 'tersier_coding_batch', 'secondary_coding_batch_exp'],
         'finished' => ['wi_number', 'exp_date', 'color'],
     ];

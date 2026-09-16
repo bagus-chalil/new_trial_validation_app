@@ -301,7 +301,7 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $first = UploadedFile::fake()->image('color1.jpg');
-        $this->post("/batches/{$batch->id}/filling-check/color-photo", ['photo' => $first])
+        $this->post("/batches/{$batch->id}/filling-check/photo/color", ['photo' => $first])
             ->assertRedirect("/batches/{$batch->id}/filling-check");
 
         $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
@@ -309,10 +309,35 @@ class FillingCheckTest extends TestCase
         Storage::disk('public')->assertExists($firstPath);
 
         $second = UploadedFile::fake()->image('color2.jpg');
-        $this->post("/batches/{$batch->id}/filling-check/color-photo", ['photo' => $second]);
+        $this->post("/batches/{$batch->id}/filling-check/photo/color", ['photo' => $second]);
 
         $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'color')->count());
         Storage::disk('public')->assertMissing($firstPath);
+    }
+
+    public function test_wo_image_date_bulk_and_image_tube_photos_can_each_be_uploaded(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        foreach (['wo_image', 'date_bulk', 'image_tube'] as $field) {
+            $photo = UploadedFile::fake()->image("{$field}.jpg");
+            $this->post("/batches/{$batch->id}/filling-check/photo/{$field}", ['photo' => $photo])
+                ->assertRedirect("/batches/{$batch->id}/filling-check");
+
+            $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', $field)->count());
+        }
+    }
+
+    public function test_photo_upload_rejects_unknown_field(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $photo = UploadedFile::fake()->image('color.jpg');
+        $this->post("/batches/{$batch->id}/filling-check/photo/unknown", ['photo' => $photo])->assertNotFound();
     }
 
     public function test_color_photo_upload_forbidden_once_filling_check_is_completed(): void
@@ -323,6 +348,6 @@ class FillingCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload());
 
         $photo = UploadedFile::fake()->image('color.jpg');
-        $this->post("/batches/{$batch->id}/filling-check/color-photo", ['photo' => $photo])->assertForbidden();
+        $this->post("/batches/{$batch->id}/filling-check/photo/color", ['photo' => $photo])->assertForbidden();
     }
 }
