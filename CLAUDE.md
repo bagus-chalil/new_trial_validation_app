@@ -141,6 +141,13 @@ Resumed from the checkpoint left by the prior session (see memory `ux_role_centr
 
 **Not yet done:** Fase 4 itself. SSO demo confirmation (point 1) and the `spatie/browsershot` PDF export pass are both now done — see the entries above.
 
+### Wizard-progress checklist + Review & Submit button layout fix (2026-09-18)
+User-reported bug, two parts, both traced to real trial 95 (`TRIAL-20260914-124439-QF1D`) live in the shared DB. Full detail (including the nested-repo-checkout environment gotcha this session hit) in `new_trial_validation_app/CLAUDE.md`'s matching section.
+1. **Attachments step never showed as complete on the wizard step checklist** except on the Review & Submit page itself. Root cause: `resolveTrialCompletedSteps()` (`resources/js/lib/trial-wizard.ts`) only ever read `current_step`, which legacy/this app never advances past `'Attachment'` regardless of how many photos exist (uploads are incremental, not a single step-completing submit) — so every wizard page except Review (which has its own "floor" hack) showed step 5 as unchecked even with real photos attached. Fixed by having the 5 wizard-page controllers (`TrialController`, `TrialValidationController`, `TrialWeighingController`, `TrialAttachmentController`, `TrialReviewController`) plus the two trial-list controllers (`TrialController::index`, `DashboardController::index`/`myWorkData()`'s own-Draft-trials query) add `->withCount('attachments')`, and `resolveTrialCompletedSteps()` now returns step 5 complete once `attachments_count > 0`.
+2. **Review & Submit page's action buttons read as visually stacked/duplicated**: "Submit for Review" (its own right-aligned row inside the department-picker Card) sat directly above a second right-aligned row with "Back"/"Lihat Detail Trial" — two similarly-dark "primary-looking" buttons stacked close together. Fixed by merging all three into one row (Back, Lihat Detail Trial as secondary; Submit for Review as the one primary/black button) when the form is actually submittable, keeping the plain two-button row for the read-only/not-yet-complete cases.
+
+Verified live via an ad-hoc Playwright session (same precedent as prior UX passes) against trial 95 at several viewport widths before and after, not just by code inspection. Full Pest suite (277 tests, 274 passed/3 pre-existing skips), Pint, Larastan, ESLint, Prettier, tsc, `npm run build` all pass.
+
 ### Fase 4 — Decommission
 - [ ] Turn off legacy PHP app
 - [ ] Remove SSO bridge (`/sso/*` routes both sides, `sso_tickets` table)

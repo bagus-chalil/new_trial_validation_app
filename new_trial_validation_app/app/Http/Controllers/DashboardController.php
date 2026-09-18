@@ -38,6 +38,7 @@ class DashboardController extends Controller
         $trials = Trial::query()
             ->visibleTo($user)
             ->search($filters)
+            ->withCount('attachments')
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->paginate(10)
@@ -124,7 +125,7 @@ class DashboardController extends Controller
             ->whereRaw('LOWER(TRIM(created_by)) = ?', [strtolower(trim($user->email))]);
 
         $draftQuery = $ownTrials()->where('progress_status', 'Draft');
-        $draftTrials = (clone $draftQuery)->orderByDesc('updated_at')->limit(5)->get();
+        $draftTrials = (clone $draftQuery)->withCount('attachments')->orderByDesc('updated_at')->limit(5)->get();
         $draftTrialsTotal = (clone $draftQuery)->count();
 
         $needsRevisionQuery = $ownTrials()->where('progress_status', 'Need Revision');

@@ -22,7 +22,7 @@ class TrialWeighingController extends Controller
 {
     public function edit(int $trial, string $section): Response
     {
-        $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
+        $trial = Trial::whereNull('deleted_at')->withCount('attachments')->findOrFail($trial);
 
         Gate::authorize('view', $trial);
 

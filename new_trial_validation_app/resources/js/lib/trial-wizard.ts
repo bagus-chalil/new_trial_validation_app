@@ -25,6 +25,7 @@ export type TrialWizardTrial = {
     id: number;
     current_step: string | null;
     progress_status: string;
+    attachments_count?: number;
 };
 
 /**
@@ -37,6 +38,14 @@ export type TrialWizardTrial = {
  * Mapping ported from the legacy current_step writes in public/index.php and
  * CreateTrial::__invoke() (sets current_step='Validation' immediately on
  * create, i.e. Header is complete the moment a trial exists).
+ *
+ * Attachments is the one step current_step can never signal completion of by
+ * itself: uploads happen incrementally (no submit-to-advance action), so
+ * current_step just stays 'Attachment' whether 0 or 10 photos have been
+ * uploaded. attachments_count is the only way to tell those apart — at least
+ * one photo means the step is done, matching legacy's own completeness check
+ * (CheckTrialCompleteness never requires attachments either, but the wizard
+ * nav should still reflect real progress, not just "not yet advanced").
  */
 export function resolveTrialCompletedSteps(
     trial: TrialWizardTrial | null | undefined,
@@ -57,7 +66,7 @@ export function resolveTrialCompletedSteps(
         case 'WeighingFilling':
             return 3;
         case 'Attachment':
-            return 4;
+            return (trial.attachments_count ?? 0) > 0 ? 5 : 4;
         default:
             return 1;
     }

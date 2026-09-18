@@ -101,7 +101,7 @@ class TrialController extends Controller
 
     public function edit(int $trial): Response
     {
-        $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
+        $trial = Trial::whereNull('deleted_at')->withCount('attachments')->findOrFail($trial);
 
         Gate::authorize('update', $trial);
 
@@ -155,6 +155,7 @@ class TrialController extends Controller
         $trials = Trial::query()
             ->visibleTo($user, $statusGroup)
             ->search($filters)
+            ->withCount('attachments')
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->paginate(10)

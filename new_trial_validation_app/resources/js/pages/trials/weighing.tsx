@@ -22,6 +22,7 @@ type TrialData = {
     id: number;
     trial_code: string;
     current_step: string | null;
+    attachments_count: number;
     progress_status: string;
     final_decision: string | null;
     product_type: string;
@@ -273,6 +274,7 @@ function WeighingForm({
                                             <Checkbox
                                                 id="skip"
                                                 name="skip"
+                                                value="1"
                                                 checked={skip}
                                                 onCheckedChange={(value) =>
                                                     setSkip(value === true)

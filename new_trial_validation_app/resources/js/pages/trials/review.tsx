@@ -28,6 +28,7 @@ type TrialData = {
     id: number;
     trial_code: string;
     current_step: string | null;
+    attachments_count: number;
     progress_status: string;
     final_decision: string | null;
     product_type: string;
@@ -178,24 +179,26 @@ export default function TrialReview({
                     </Card>
                 )}
 
-                {canEdit &&
-                    (completeness.length > 0 ? (
-                        <Alert variant="destructive">
-                            <AlertTitle>Belum siap submit review</AlertTitle>
-                            <AlertDescription>
-                                <ul className="list-inside list-disc">
-                                    {completeness.map((item) => (
-                                        <li key={item}>{item}</li>
-                                    ))}
-                                </ul>
-                            </AlertDescription>
-                        </Alert>
-                    ) : (
-                        <Form
-                            {...TrialReviewController.store.form(trial.id)}
-                            className="space-y-4"
-                        >
-                            {({ processing, errors }) => (
+                {canEdit && completeness.length > 0 && (
+                    <Alert variant="destructive">
+                        <AlertTitle>Belum siap submit review</AlertTitle>
+                        <AlertDescription>
+                            <ul className="list-inside list-disc">
+                                {completeness.map((item) => (
+                                    <li key={item}>{item}</li>
+                                ))}
+                            </ul>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {canEdit && completeness.length === 0 ? (
+                    <Form
+                        {...TrialReviewController.store.form(trial.id)}
+                        className="space-y-4"
+                    >
+                        {({ processing, errors }) => (
+                            <>
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>
@@ -338,36 +341,53 @@ export default function TrialReview({
                                                 value={approverId}
                                             />
                                         </div>
-
-                                        <div className="flex justify-end">
-                                            <Button
-                                                type="submit"
-                                                disabled={
-                                                    processing ||
-                                                    departments.length === 0 ||
-                                                    !allReviewersAssigned ||
-                                                    !approverId
-                                                }
-                                            >
-                                                Submit for Review
-                                            </Button>
-                                        </div>
                                     </CardContent>
                                 </Card>
-                            )}
-                        </Form>
-                    ))}
 
-                <div className="flex justify-end gap-2">
-                    <Button type="button" variant="secondary" asChild>
-                        <Link href={backHref}>Back</Link>
-                    </Button>
-                    <Button type="button" asChild>
-                        <Link href={reportShow(trial.id).url}>
-                            Lihat Detail Trial
-                        </Link>
-                    </Button>
-                </div>
+                                <div className="flex flex-wrap justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        asChild
+                                    >
+                                        <Link href={backHref}>Back</Link>
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        asChild
+                                    >
+                                        <Link href={reportShow(trial.id).url}>
+                                            Lihat Detail Trial
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={
+                                            processing ||
+                                            departments.length === 0 ||
+                                            !allReviewersAssigned ||
+                                            !approverId
+                                        }
+                                    >
+                                        Submit for Review
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </Form>
+                ) : (
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="secondary" asChild>
+                            <Link href={backHref}>Back</Link>
+                        </Button>
+                        <Button type="button" asChild>
+                            <Link href={reportShow(trial.id).url}>
+                                Lihat Detail Trial
+                            </Link>
+                        </Button>
+                    </div>
+                )}
             </div>
         </>
     );

@@ -32,6 +32,7 @@ type TrialData = {
     id: number;
     trial_code: string;
     current_step: string | null;
+    attachments_count: number;
     product_id: number | null;
     product_type: string;
     validation_date: string;
