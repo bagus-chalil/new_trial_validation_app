@@ -86,7 +86,12 @@ class SaveTrialAttachments
             $saved++;
         }
 
-        $trial->current_step = 'Attachment';
+        // See SaveTrialValidation's matching comment: only advance the wizard
+        // pointer while the trial is actually progressing through it (Draft),
+        // not while re-editing during Need Revision/In Review.
+        if ($trial->progress_status === 'Draft') {
+            $trial->current_step = 'Attachment';
+        }
         $trial->save();
 
         if ($saved > 0) {

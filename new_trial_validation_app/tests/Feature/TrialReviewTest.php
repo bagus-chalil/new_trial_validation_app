@@ -263,6 +263,61 @@ test('submitting for review with a non-approver-role user as approver is rejecte
     expect($trial->fresh()->progress_status)->toBe('Draft');
 });
 
+test('a full revision cycle allows a second round of review after Need Revision and resubmit', function () {
+    // Regression test for the KRITIS SIT finding (2026-09-18): final_decision
+    // was never reset to null on resubmit, so TrialReviewPolicy::update()
+    // (which requires final_decision === null) permanently 403'd every
+    // reviewer on round 2 onward, stranding the trial in "In Review" forever.
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $manager = User::factory()->role('Manager QAC')->create();
+    $prodReviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeCompleteTrial(['created_by' => $owner->email]);
+
+    $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PROD'],
+        'reviewer_user_ids' => ['PROD' => $prodReviewer->id],
+        'approver_user_id' => $manager->id,
+    ])->assertRedirect(route('trials.report.show', $trial));
+
+    $round1Review = TrialReview::where('trial_id', $trial->id)->where('review_round', 1)->firstOrFail();
+    $this->actingAs($prodReviewer)->put(route('reviews.update', $round1Review), [
+        'comment' => 'Round 1 looks fine',
+    ])->assertRedirect(route('reviews.index'));
+
+    expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
+
+    $this->actingAs($manager)->post(route('approvals.update', $trial), [
+        'decision' => 'Need Revision',
+        'approval_comment' => 'Please fix the data',
+        'signature_password' => 'password',
+    ])->assertRedirect(route('approvals.index'));
+
+    $trial->refresh();
+    expect($trial->progress_status)->toBe('Need Revision');
+    expect($trial->final_decision)->toBe('Need Revision');
+
+    $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PROD'],
+        'reviewer_user_ids' => ['PROD' => $prodReviewer->id],
+        'approver_user_id' => $manager->id,
+    ])->assertRedirect(route('trials.report.show', $trial));
+
+    $trial->refresh();
+    expect($trial->progress_status)->toBe('In Review');
+    expect($trial->final_decision)->toBeNull();
+    expect($trial->revision_no)->toBe(1);
+
+    $round2Review = TrialReview::where('trial_id', $trial->id)->where('review_round', 2)->firstOrFail();
+
+    $this->actingAs($prodReviewer)->put(route('reviews.update', $round2Review), [
+        'comment' => 'Round 2 looks fine now',
+    ])->assertRedirect(route('reviews.index'));
+
+    $round2Review->refresh();
+    expect($round2Review->status)->toBe('Reviewed');
+    expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
+});
+
 test('a staff member without edit rights is forbidden from submitting for review', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $otherStaff = User::factory()->create(['email' => 'other@local.test']);

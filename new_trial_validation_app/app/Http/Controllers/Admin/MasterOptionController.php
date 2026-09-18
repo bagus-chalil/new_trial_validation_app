@@ -82,18 +82,23 @@ class MasterOptionController extends Controller
         try {
             if ($id) {
                 $option = MasterOption::find($id);
-                if ($option) {
-                    $option->type = $data['type'];
-                    $option->name = $data['name'];
-                    $option->sort_order = $data['sort_order'] ?? 0;
-                    $option->is_active = true;
-                    $option->save();
+                if (! $option) {
+                    return back()->withErrors(['name' => 'Master option tidak ditemukan, mungkin sudah dihapus pihak lain.'])->withInput();
                 }
+                $option->type = $data['type'];
+                $option->name = $data['name'];
+                $option->sort_order = $data['sort_order'] ?? 0;
+                $option->is_active = true;
+                $option->deleted_at = null;
+                $option->deleted_by = null;
+                $option->save();
             } else {
                 $option = MasterOption::where('type', $data['type'])->where('name', $data['name'])->first()
                     ?? new MasterOption(['type' => $data['type'], 'name' => $data['name']]);
                 $option->sort_order = $data['sort_order'] ?? 0;
                 $option->is_active = true;
+                $option->deleted_at = null;
+                $option->deleted_by = null;
                 $option->save();
             }
         } catch (QueryException $e) {

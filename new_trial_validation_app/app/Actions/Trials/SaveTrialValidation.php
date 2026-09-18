@@ -57,7 +57,14 @@ class SaveTrialValidation
                 ['result_value', 'decision', 'remark', 'updated_at'],
             );
 
-            $trial->current_step = 'WeighingPackaging';
+            // Only advance the wizard pointer while the trial is actually
+            // progressing through it (Draft). Re-saving this step while the
+            // trial is Need Revision/In Review must not clobber current_step
+            // back from 'Revision'/'Review' — those are edit windows onto an
+            // already-submitted trial, not wizard progress.
+            if ($trial->progress_status === 'Draft') {
+                $trial->current_step = 'WeighingPackaging';
+            }
             $trial->save();
 
             ActivityLog::create([

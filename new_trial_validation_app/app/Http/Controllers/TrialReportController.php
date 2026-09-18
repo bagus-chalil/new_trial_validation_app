@@ -11,6 +11,7 @@ use App\Models\TrialResult;
 use App\Models\TrialReview;
 use App\Models\TrialWeighing;
 use App\Models\User;
+use App\Models\ValidationParameter;
 use App\Services\Pdf\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -79,19 +80,25 @@ class TrialReportController extends Controller
 
         $core = $this->reportCore($trial);
 
-        $attachments = TrialAttachmentFile::query()
+        // Built via a plain foreach rather than ->groupBy()->map() — nested
+        // Eloquent Collection generics there trip a known PHPStan/Larastan
+        // false positive (TValue on Collection is not covariant), not a real
+        // type error.
+        $attachments = collect();
+        foreach (TrialAttachmentFile::query()
             ->where('trial_id', $trial->id)
             ->whereNull('deleted_at')
             ->orderBy('category')
             ->orderBy('id')
             ->get()
-            ->groupBy('category')
-            ->map(fn ($files) => $files->map(fn (TrialAttachmentFile $file) => [
+            ->groupBy('category') as $category => $files) {
+            $attachments[$category] = $files->map(fn (TrialAttachmentFile $file) => [
                 'id' => $file->id,
                 'file_name' => $file->file_name,
                 'caption' => $file->caption,
                 'url' => route('trials.attachments.show', [$trial->id, $file->id]),
-            ])->values());
+            ])->values();
+        }
 
         $reviewByDept = $trial->reviewStatusByDepartment();
 
@@ -241,18 +248,23 @@ class TrialReportController extends Controller
 
         $core = $this->reportCore($trial);
 
-        $attachments = TrialAttachmentFile::query()
+        // See the matching comment in show() above: built via foreach to
+        // avoid a PHPStan/Larastan false positive on nested Collection
+        // generics from ->groupBy()->map().
+        $attachments = collect();
+        foreach (TrialAttachmentFile::query()
             ->where('trial_id', $trial->id)
             ->whereNull('deleted_at')
             ->orderBy('category')
             ->orderBy('id')
             ->get()
-            ->groupBy('category')
-            ->map(fn ($files) => $files->map(fn (TrialAttachmentFile $file) => [
+            ->groupBy('category') as $category => $files) {
+            $attachments[$category] = $files->map(fn (TrialAttachmentFile $file) => [
                 'file_name' => $file->file_name,
                 'caption' => $file->caption,
                 'src' => $this->attachmentDataUri($file),
-            ])->values());
+            ])->values();
+        }
 
         return $pdf->fromView('pdf.trial-report', [
             'title' => 'Report — '.$trial->trial_code,
@@ -442,8 +454,17 @@ class TrialReportController extends Controller
      */
     private function reportCore(Trial $trial): array
     {
+        // Scoped to the trial's current product_type so a trials_results row
+        // left over from before product_type was changed (rows are never
+        // deleted on change) doesn't surface as a validation result for a
+        // product it no longer belongs to.
+        $currentParameterIds = ValidationParameter::query()
+            ->where('product_type', $trial->product_type)
+            ->pluck('id');
+
         $results = TrialResult::query()
             ->where('trial_id', $trial->id)
+            ->whereIn('parameter_id', $currentParameterIds)
             ->with('parameter')
             ->get()
             ->sortBy(fn (TrialResult $r) => sprintf('%010d-%010d', $r->parameter->sort_order, $r->parameter_id))

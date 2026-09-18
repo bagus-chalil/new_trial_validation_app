@@ -54,17 +54,22 @@ class ProductController extends Controller
         try {
             if ($id) {
                 $product = Product::find($id);
-                if ($product) {
-                    $product->product_name = $data['product_name'];
-                    $product->finish_good_code = $data['finish_good_code'];
-                    $product->is_active = true;
-                    $product->save();
+                if (! $product) {
+                    return back()->withErrors(['product_name' => 'Product tidak ditemukan, mungkin sudah dihapus pihak lain.'])->withInput();
                 }
+                $product->product_name = $data['product_name'];
+                $product->finish_good_code = $data['finish_good_code'];
+                $product->is_active = true;
+                $product->deleted_at = null;
+                $product->deleted_by = null;
+                $product->save();
             } else {
                 $product = Product::where('product_name', $data['product_name'])->first()
                     ?? new Product(['product_name' => $data['product_name']]);
                 $product->finish_good_code = $data['finish_good_code'];
                 $product->is_active = true;
+                $product->deleted_at = null;
+                $product->deleted_by = null;
                 $product->save();
             }
         } catch (QueryException $e) {

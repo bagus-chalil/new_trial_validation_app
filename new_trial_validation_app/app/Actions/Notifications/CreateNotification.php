@@ -86,12 +86,15 @@ class CreateNotification
         $departmentTarget = User::normalizeDepartment($departmentTarget);
 
         if ($roleTarget === 'Reviewer' && $departmentTarget !== '') {
+            // Reviewer membership lives in the decoupled `review_unit` column
+            // (see User::reviewDepartmentsForUser()), not `role`/`department`
+            // — those stay legacy-owned since the 2026-09-14 migration.
+            $codes = User::expandReviewDepartmentAliases([$departmentTarget]);
+            $placeholders = implode(',', array_fill(0, count($codes), '?'));
+
             return array_values(User::query()
                 ->where('is_active', 1)
-                ->where(function ($q) use ($departmentTarget) {
-                    $q->whereRaw('UPPER(TRIM(role)) = ?', [$departmentTarget])
-                        ->orWhereRaw('UPPER(TRIM(department)) = ?', [$departmentTarget]);
-                })
+                ->whereRaw("UPPER(TRIM(review_unit)) IN ({$placeholders})", $codes)
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
                 ->all());

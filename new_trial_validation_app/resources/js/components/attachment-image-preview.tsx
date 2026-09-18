@@ -31,7 +31,7 @@ export function AttachmentImagePreview({
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const dragStart = useRef({ x: 0, y: 0 });
     const startPosition = useRef({ x: 0, y: 0 });
-    const isDragging = useRef(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     function resetPreview() {
         setZoom(1);
@@ -58,14 +58,14 @@ export function AttachmentImagePreview({
             return;
         }
 
-        isDragging.current = true;
+        setIsDragging(true);
         dragStart.current = { x: event.clientX, y: event.clientY };
         startPosition.current = position;
         event.currentTarget.setPointerCapture(event.pointerId);
     }
 
     function dragImage(event: React.PointerEvent<HTMLDivElement>) {
-        if (!isDragging.current) {
+        if (!isDragging) {
             return;
         }
 
@@ -76,7 +76,7 @@ export function AttachmentImagePreview({
     }
 
     function stopDragging(event: React.PointerEvent<HTMLDivElement>) {
-        isDragging.current = false;
+        setIsDragging(false);
         event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
 
@@ -135,7 +135,7 @@ export function AttachmentImagePreview({
                         className="max-h-full max-w-full rounded object-contain select-none"
                         style={{
                             transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                            transition: isDragging.current
+                            transition: isDragging
                                 ? 'none'
                                 : 'transform 150ms ease-out',
                         }}

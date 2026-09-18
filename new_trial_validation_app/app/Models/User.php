@@ -205,14 +205,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Department codes eligible to be a per-department reviewer, i.e. the
-     * hardcoded defaults plus anything added via master_options
-     * (type=reviewer_department). Falls back to defaults if that table
-     * can't be queried (matches legacy bootstrap.php behavior).
-     *
-     * @return list<string>
-     */
-    /**
      * The hardcoded default review-team codes, i.e. what's available even
      * with zero `master_options` (type=reviewer_department) rows. Exposed
      * separately from reviewerDepartmentCodes() so the Access Rights screen
@@ -226,6 +218,14 @@ class User extends Authenticatable
         return ['PROD', 'RNI', 'QAC', 'PRNI', 'PI'];
     }
 
+    /**
+     * Department codes eligible to be a per-department reviewer, i.e. the
+     * hardcoded defaults plus anything added via master_options
+     * (type=reviewer_department). Falls back to defaults if that table
+     * can't be queried (matches legacy bootstrap.php behavior).
+     *
+     * @return list<string>
+     */
     public static function reviewerDepartmentCodes(): array
     {
         $defaults = self::defaultReviewerDepartmentCodes();

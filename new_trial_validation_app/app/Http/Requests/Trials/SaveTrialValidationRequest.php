@@ -28,9 +28,24 @@ class SaveTrialValidationRequest extends FormRequest
      */
     public function rules(): array
     {
+        $trial = Trial::whereNull('deleted_at')->where('id', $this->route('trial'))->first();
+
         return [
             'results' => ['required', 'array', 'min:1'],
-            'results.*.parameter_id' => ['required', 'integer'],
+            'results.*.parameter_id' => [
+                'required',
+                'integer',
+                // Scoped to the trial's own product_type — otherwise a
+                // tampered request could insert a parameter belonging to a
+                // different product_type into trials_results (it would then
+                // persist and surface in reports/PDF/Excel as an irrelevant
+                // validation result).
+                Rule::exists('validation_parameters', 'id')->where(function ($query) use ($trial) {
+                    $query->where('is_active', 1)
+                        ->whereNull('deleted_at')
+                        ->where('product_type', $trial?->product_type);
+                }),
+            ],
             'results.*.decision' => ['required', 'string', Rule::in(['OK', 'NOT OK', 'N/A'])],
             'results.*.result' => ['nullable', 'string'],
             'results.*.remark' => ['nullable', 'string'],

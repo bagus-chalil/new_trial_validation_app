@@ -143,6 +143,7 @@ class DashboardController extends Controller
             $reviewQuery = TrialReview::query()
                 ->join('trials_header as h', 'h.id', '=', 'trials_review.trial_id')
                 ->where('h.progress_status', 'In Review')
+                ->whereNull('h.deleted_at')
                 ->whereRaw('trials_review.review_round = h.revision_no + 1')
                 ->where('trials_review.status', 'Pending')
                 ->visibleToReviewer($user);
@@ -181,6 +182,7 @@ class DashboardController extends Controller
             $recentlyDecided = Trial::query()
                 ->where('approver_user_id', $user->id)
                 ->whereNotNull('final_decision')
+                ->whereNull('deleted_at')
                 ->orderByDesc('updated_at')
                 ->limit(3)
                 ->get(['id', 'trial_code', 'product_name', 'final_decision', 'updated_at']);

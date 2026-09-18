@@ -50,7 +50,7 @@ class TrialPolicy
         }
 
         if ($user->isReviewer()) {
-            $departments = $user->reviewDepartmentsForUser();
+            $departments = User::expandReviewDepartmentAliases($user->reviewDepartmentsForUser());
             $round = $trial->currentReviewRound();
 
             return TrialReview::query()

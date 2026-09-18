@@ -69,6 +69,8 @@ class ParameterController extends Controller
         $parameter->specification = $data['specification'] ?? null;
         $parameter->sort_order = $data['sort_order'] ?? 0;
         $parameter->is_active = true;
+        $parameter->deleted_at = null;
+        $parameter->deleted_by = null;
         $parameter->save();
 
         Inertia::flash('toast', [

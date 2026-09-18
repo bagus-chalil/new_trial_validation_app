@@ -278,18 +278,18 @@ class ReportController extends Controller
         ];
     }
 
-    public function auditPrintLog(): Response
+    public function auditPrintLog(Request $request): Response
     {
-        $items = $this->auditPrintLogQuery()->paginate(10)->withQueryString();
+        $items = $this->auditPrintLogQuery($request)->paginate(10)->withQueryString();
 
         return Inertia::render('reports/audit-print-log', [
             'items' => $items,
         ]);
     }
 
-    public function auditPrintLogPdf(PdfService $pdf): HttpResponse
+    public function auditPrintLogPdf(Request $request, PdfService $pdf): HttpResponse
     {
-        $items = $this->auditPrintLogQuery()->get()->map(fn (AuditLog $log) => [
+        $items = $this->auditPrintLogQuery($request)->get()->map(fn (AuditLog $log) => [
             'trial_code' => $log->trial?->trial_code,
             'user_email' => $log->user_email,
             'created_at' => $log->created_at?->toDateTimeString(),
@@ -305,10 +305,13 @@ class ReportController extends Controller
     /**
      * @return Builder<AuditLog>
      */
-    private function auditPrintLogQuery(): Builder
+    private function auditPrintLogQuery(Request $request): Builder
     {
+        $visibleTrialIds = Trial::query()->visibleTo($request->user())->pluck('trials_header.id');
+
         return AuditLog::query()
             ->where('action', 'report_printed')
+            ->whereIn('trial_id', $visibleTrialIds)
             ->with('trial:id,trial_code')
             ->orderByDesc('created_at');
     }

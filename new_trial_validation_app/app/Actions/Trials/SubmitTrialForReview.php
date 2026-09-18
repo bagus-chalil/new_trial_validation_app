@@ -55,6 +55,11 @@ class SubmitTrialForReview
             $trial->current_step = 'Review';
             $trial->pending_with = implode(',', $departments);
             $trial->approver_user_id = $approver->id;
+            // Cleared here so TrialReviewPolicy::update() (which requires
+            // final_decision === null) allows review on a resubmitted round —
+            // SaveApprovalDecision sets this on Need Revision/Rejected and it
+            // must not still be set once a new review round has been opened.
+            $trial->final_decision = null;
             $trial->save();
 
             ActivityLog::create([

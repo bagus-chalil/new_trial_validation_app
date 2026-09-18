@@ -247,7 +247,7 @@ class Trial extends Model
     public function scopeVisibleTo(Builder $query, User $user, ?string $statusGroup = null): Builder
     {
         if ($user->isReviewer() && ! $user->isStaff() && ! $user->canApproveTrials()) {
-            $departments = $user->reviewDepartmentsForUser();
+            $departments = User::expandReviewDepartmentAliases($user->reviewDepartmentsForUser());
 
             $query->join('trials_review as tr_scope', 'tr_scope.trial_id', '=', 'trials_header.id')
                 ->whereIn(DB::raw('UPPER(TRIM(tr_scope.department))'), $departments)
@@ -302,8 +302,15 @@ class Trial extends Model
         // status) must keep applying to just the Ready for Approval slice
         // of the merged 'tracking' group — an In Review row is never
         // touched by it, matching legacy's per-status behavior exactly.
+        // Matches scopeAwaitingApprovalFor()'s canSeeAll list — a Team
+        // Leader/Part Leader/Team Leader QA not specifically assigned as
+        // approver_user_id would otherwise disappear from this general list
+        // while still seeing the same trial in their Approval Queue.
+        $approverCanSeeAllRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
+        $canSeeAllApprovals = $user->isAdmin() || $user->isManagerQac() || in_array($user->role, $approverCanSeeAllRoles, true);
+
         if (in_array($statusGroup, ['waiting', 'tracking'], true)) {
-            if (! $user->isAdmin() && ! $user->isManagerQac()) {
+            if (! $canSeeAllApprovals) {
                 $query->where(function (Builder $q) use ($user, $statusGroup) {
                     if ($statusGroup === 'tracking') {
                         $q->where('trials_header.progress_status', '!=', 'Ready for Approval')
