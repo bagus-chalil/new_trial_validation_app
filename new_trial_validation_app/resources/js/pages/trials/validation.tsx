@@ -83,8 +83,10 @@ function ValidationParameterRow({
 
         if (value === 'N/A') {
             setResult('N/A');
-        } else if (value === 'OK' && result.trim() === '') {
+        } else if (value === 'OK') {
             setResult('Conform');
+        } else if (value === 'NOT OK') {
+            setResult('');
         }
     }
 
