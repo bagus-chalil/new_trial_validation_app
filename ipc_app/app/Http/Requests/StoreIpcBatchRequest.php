@@ -24,6 +24,7 @@ class StoreIpcBatchRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
+            'no_batch' => ['required', 'string', 'max:100'],
         ];
     }
 }

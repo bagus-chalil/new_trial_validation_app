@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { MasterImportDialog } from '@/components/ipc/master-import-dialog';
 import { MasterSearchBar } from '@/components/ipc/master-search-bar';
 import { PaginationFooter } from '@/components/ipc/pagination-footer';
 import { Badge } from '@/components/ui/badge';
@@ -75,6 +76,13 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
                     baseUrl={route('master-lines.index')}
                     initialQ={filters.q ?? ''}
                     placeholder="Cari kategori / area / kode / nama..."
+                />
+
+                <MasterImportDialog
+                    templateHref={route('master-lines.template')}
+                    importAction={route('master-lines.import')}
+                    title="Import Master Line"
+                    description="Upload file Excel (.xlsx) hasil isian dari template. Semua kolom wajib diisi. Line dengan Kode Line yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
                 />
 
                 <div className="flex flex-col gap-3">

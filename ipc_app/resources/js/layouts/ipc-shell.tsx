@@ -59,6 +59,12 @@ export function IpcShell({
                     </div>
                 )}
 
+                {props.flash?.error && (
+                    <div className="mx-5 mb-1 shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-800 md:mx-6">
+                        {props.flash.error}
+                    </div>
+                )}
+
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-16 md:pb-0">{children}</div>
             </div>
 

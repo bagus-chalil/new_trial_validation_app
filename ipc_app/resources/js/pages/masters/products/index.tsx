@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { MasterImportDialog } from '@/components/ipc/master-import-dialog';
 import { MasterSearchBar } from '@/components/ipc/master-search-bar';
 import { PaginationFooter } from '@/components/ipc/pagination-footer';
 import { Badge } from '@/components/ui/badge';
@@ -189,6 +190,13 @@ export default function MasterProductsIndex({ products, filters }: { products: P
                     baseUrl={route('master-products.index')}
                     initialQ={filters.q ?? ''}
                     placeholder="Cari FG code / nama produk / bulk code..."
+                />
+
+                <MasterImportDialog
+                    templateHref={route('master-products.template')}
+                    importAction={route('master-products.import')}
+                    title="Import Master Produk"
+                    description="Upload file Excel (.xlsx) hasil isian dari template. Kolom FG Code, Nama Produk wajib diisi; Bulk Code & No Batch boleh dikosongkan. Data dengan FG Code / Bulk Code yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
                 />
 
                 <div className="flex flex-col gap-3">

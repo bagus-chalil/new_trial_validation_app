@@ -25,9 +25,14 @@
         margin-bottom: 12px;
     }
     .report-header .brand {
-        font-size: 13px;
-        font-weight: 800;
-        color: #1f55b5;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .report-header .brand img {
+        height: 42px;
+        width: auto;
+        display: block;
     }
     .report-header .title {
         text-align: center;
@@ -158,8 +163,18 @@
 </style>
 </head>
 <body>
+    @php
+        $logoPath = resource_path('js/assets/cosmax-idn-logo.jpg');
+        $logoDataUri = is_file($logoPath)
+            ? 'data:image/jpeg;base64,'.base64_encode(file_get_contents($logoPath))
+            : null;
+    @endphp
     <div class="report-header">
-        <div class="brand">Cosmax<br><span style="font-weight:400;font-size:8px;">Trial Validation System</span></div>
+        <div class="brand">
+            @if ($logoDataUri)
+                <img src="{{ $logoDataUri }}" alt="Cosmax">
+            @endif
+        </div>
         <div class="title">{{ $title ?? 'Report' }}</div>
         <div class="meta">
             <div class="form-number">FR.QSE.074.04</div>

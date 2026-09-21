@@ -107,7 +107,7 @@ class IpcBatchController extends Controller
         $batch = IpcBatch::create([
             'master_product_id' => $request->validated('master_product_id'),
             'master_product_bulk_code_id' => $bulkCode->id,
-            'no_batch' => $bulkCode->no_batch,
+            'no_batch' => $request->validated('no_batch'),
             'bulk_code' => $bulkCode->bulk_code,
             'master_line_id' => $request->validated('master_line_id'),
             'created_by' => $request->user()->id,

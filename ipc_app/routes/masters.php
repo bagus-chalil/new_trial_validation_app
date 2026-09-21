@@ -9,10 +9,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->prefix('masters')->group(function () {
     Route::get('lines', [MasterLineController::class, 'index'])->name('master-lines.index');
+    Route::get('lines/template', [MasterLineController::class, 'template'])->name('master-lines.template');
+    Route::post('lines/import', [MasterLineController::class, 'import'])->name('master-lines.import');
     Route::post('lines', [MasterLineController::class, 'store'])->name('master-lines.store');
     Route::delete('lines/{masterLine}', [MasterLineController::class, 'destroy'])->name('master-lines.destroy');
 
     Route::get('products', [MasterProductController::class, 'index'])->name('master-products.index');
+    Route::get('products/template', [MasterProductController::class, 'template'])->name('master-products.template');
+    Route::post('products/import', [MasterProductController::class, 'import'])->name('master-products.import');
     Route::post('products', [MasterProductController::class, 'store'])->name('master-products.store');
     Route::delete('products/{masterProduct}', [MasterProductController::class, 'destroy'])->name('master-products.destroy');
 

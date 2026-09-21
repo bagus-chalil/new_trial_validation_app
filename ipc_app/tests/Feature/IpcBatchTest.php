@@ -43,6 +43,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_id' => $bulkCode->id,
             'master_line_id' => $line->id,
+            'no_batch' => 'BATCH-001',
         ]);
 
         $batch = IpcBatch::firstOrFail();
@@ -52,6 +53,52 @@ class IpcBatchTest extends TestCase
         $this->assertSame('BULK-1', $batch->bulk_code);
         $this->assertSame($bulkCode->id, $batch->master_product_bulk_code_id);
         $this->assertSame(IpcBatch::STAGE_STARTUP, $batch->current_stage);
+    }
+
+    public function test_no_batch_is_required_even_when_the_selected_bulk_code_has_none(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create([
+            'master_product_id' => $product->id,
+            'bulk_code' => 'BULK-1',
+            'no_batch' => null,
+            'is_active' => true,
+        ]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_id' => $bulkCode->id,
+            'master_line_id' => $line->id,
+        ])->assertSessionHasErrors('no_batch');
+
+        $this->assertSame(0, IpcBatch::count());
+    }
+
+    public function test_no_batch_typed_on_the_form_can_override_the_bulk_codes_own_value(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create([
+            'master_product_id' => $product->id,
+            'bulk_code' => 'BULK-1',
+            'no_batch' => 'BATCH-FROM-MASTER',
+            'is_active' => true,
+        ]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_id' => $bulkCode->id,
+            'master_line_id' => $line->id,
+            'no_batch' => 'BATCH-TYPED-BY-USER',
+        ]);
+
+        $batch = IpcBatch::firstOrFail();
+        $this->assertSame('BATCH-TYPED-BY-USER', $batch->no_batch);
     }
 
     public function test_bulk_code_from_a_different_product_is_rejected(): void

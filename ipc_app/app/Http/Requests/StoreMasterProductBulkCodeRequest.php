@@ -26,7 +26,7 @@ class StoreMasterProductBulkCodeRequest extends FormRequest
                     ->where('master_product_id', $masterProduct->id)
                     ->ignore($this->input('id')),
             ],
-            'no_batch' => ['required', 'string', 'max:100'],
+            'no_batch' => ['nullable', 'string', 'max:100'],
             'is_active' => ['boolean'],
         ];
     }

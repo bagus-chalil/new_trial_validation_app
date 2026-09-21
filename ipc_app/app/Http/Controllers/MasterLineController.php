@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\MasterLinesTemplateExport;
+use App\Http\Requests\ImportMasterLinesRequest;
 use App\Http\Requests\StoreMasterLineRequest;
+use App\Imports\MasterLinesImport;
 use App\Models\MasterLine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class MasterLineController extends Controller
 {
@@ -52,5 +57,29 @@ class MasterLineController extends Controller
         $masterLine->delete();
 
         return back()->with('success', 'Line dihapus.');
+    }
+
+    public function template(): BinaryFileResponse
+    {
+        return Excel::download(new MasterLinesTemplateExport, 'template-master-line.xlsx');
+    }
+
+    public function import(ImportMasterLinesRequest $request): RedirectResponse
+    {
+        $import = new MasterLinesImport;
+        Excel::import($import, $request->file('file'));
+
+        if ($import->rowErrors === []) {
+            return back()->with('success', "Import selesai. {$import->summary()}");
+        }
+
+        $errorList = implode(' | ', array_slice($import->rowErrors, 0, 10));
+        if (count($import->rowErrors) > 10) {
+            $errorList .= ' | dan '.(count($import->rowErrors) - 10).' baris lainnya';
+        }
+
+        return back()
+            ->with('success', $import->hasChanges() ? "Sebagian baris berhasil diimpor. {$import->summary()}" : null)
+            ->with('error', "Baris berikut dilewati karena tidak valid: {$errorList}");
     }
 }
