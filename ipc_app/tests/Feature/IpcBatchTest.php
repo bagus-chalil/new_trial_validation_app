@@ -44,15 +44,40 @@ class IpcBatchTest extends TestCase
             'master_product_bulk_code_id' => $bulkCode->id,
             'master_line_id' => $line->id,
             'no_batch' => 'BATCH-001',
+            'mixing_date' => '2026-09-20',
         ]);
 
         $batch = IpcBatch::firstOrFail();
         $response->assertRedirect("/batches/{$batch->id}/startup-check");
 
         $this->assertSame('BATCH-001', $batch->no_batch);
+        $this->assertSame('2026-09-20', $batch->mixing_date->toDateString());
         $this->assertSame('BULK-1', $batch->bulk_code);
         $this->assertSame($bulkCode->id, $batch->master_product_bulk_code_id);
         $this->assertSame(IpcBatch::STAGE_STARTUP, $batch->current_stage);
+    }
+
+    public function test_mixing_date_is_required(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create([
+            'master_product_id' => $product->id,
+            'bulk_code' => 'BULK-1',
+            'no_batch' => 'BATCH-001',
+            'is_active' => true,
+        ]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_id' => $bulkCode->id,
+            'master_line_id' => $line->id,
+            'no_batch' => 'BATCH-001',
+        ])->assertSessionHasErrors('mixing_date');
+
+        $this->assertSame(0, IpcBatch::count());
     }
 
     public function test_no_batch_is_required_even_when_the_selected_bulk_code_has_none(): void
@@ -95,6 +120,7 @@ class IpcBatchTest extends TestCase
             'master_product_bulk_code_id' => $bulkCode->id,
             'master_line_id' => $line->id,
             'no_batch' => 'BATCH-TYPED-BY-USER',
+            'mixing_date' => '2026-09-20',
         ]);
 
         $batch = IpcBatch::firstOrFail();

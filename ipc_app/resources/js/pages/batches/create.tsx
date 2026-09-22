@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler, useEffect, useMemo, useRef } from 'react';
+import { FormEventHandler, useMemo } from 'react';
 
 interface BulkCodeOption {
     id: number;
@@ -45,6 +45,7 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
         master_product_bulk_code_id: '',
         master_line_id: '',
         no_batch: '',
+        mixing_date: '',
     });
 
     const selectedProduct = useMemo(
@@ -54,29 +55,14 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
 
     const bulkCodeOptions = selectedProduct?.bulk_codes ?? [];
 
-    const selectedBulkCode = useMemo(
-        () => bulkCodeOptions.find((bulkCode) => String(bulkCode.id) === data.master_product_bulk_code_id),
-        [bulkCodeOptions, data.master_product_bulk_code_id],
-    );
-
-    // No Batch is pre-filled from the selected bulk code's master data (when set), but stays
-    // editable — bulk code's own no_batch is optional, and operators may not have updated the
-    // master data in time, so they can type/override it directly here.
-    const lastAutoFilledBulkCodeId = useRef<string | null>(null);
-    useEffect(() => {
-        if (data.master_product_bulk_code_id === lastAutoFilledBulkCodeId.current) return;
-        lastAutoFilledBulkCodeId.current = data.master_product_bulk_code_id;
-        setData('no_batch', selectedBulkCode?.no_batch ?? '');
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data.master_product_bulk_code_id, selectedBulkCode]);
-
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty: string[] = [];
         if (!data.master_product_id) empty.push('FG Code / Produk');
         if (!data.master_product_bulk_code_id) empty.push('Bulk Code');
         if (!data.master_line_id) empty.push('Line');
-        if (!data.no_batch.trim()) empty.push('No Batch');
+        if (!data.no_batch.trim()) empty.push('No Batch FG');
+        if (!data.mixing_date) empty.push('Mixing Date');
         if (empty.length) {
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
             return;
@@ -154,15 +140,27 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="no_batch">No Batch</Label>
+                                    <Label htmlFor="no_batch">No Batch FG</Label>
                                     <Input
                                         id="no_batch"
                                         className={`min-h-11 ${!data.no_batch.trim() && message ? errorBorder : ''}`}
                                         value={data.no_batch}
                                         onChange={(e) => setData('no_batch', e.target.value)}
-                                        placeholder="Masukkan no batch"
+                                        placeholder="Masukkan no batch FG"
                                     />
                                     <InputError message={errors.no_batch} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="mixing_date">Mixing Date</Label>
+                                    <Input
+                                        id="mixing_date"
+                                        type="date"
+                                        className={`min-h-11 ${!data.mixing_date && message ? errorBorder : ''}`}
+                                        value={data.mixing_date}
+                                        onChange={(e) => setData('mixing_date', e.target.value)}
+                                    />
+                                    <InputError message={errors.mixing_date} />
                                 </div>
 
                                 <div className="grid gap-2">

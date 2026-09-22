@@ -25,6 +25,7 @@ class StoreIpcBatchRequest extends FormRequest
             ],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'no_batch' => ['required', 'string', 'max:100'],
+            'mixing_date' => ['required', 'date'],
         ];
     }
 }

@@ -108,6 +108,7 @@ class IpcBatchController extends Controller
             'master_product_id' => $request->validated('master_product_id'),
             'master_product_bulk_code_id' => $bulkCode->id,
             'no_batch' => $request->validated('no_batch'),
+            'mixing_date' => $request->validated('mixing_date'),
             'bulk_code' => $bulkCode->bulk_code,
             'master_line_id' => $request->validated('master_line_id'),
             'created_by' => $request->user()->id,
