@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GrantDraftPermissionRequest;
 use App\Http\Requests\Admin\StoreReviewerDepartmentRequest;
+use App\Http\Requests\Admin\UpdateReviewerDepartmentRequest;
 use App\Http\Requests\Admin\UpdateUserRoleRequest;
 use App\Models\MasterOption;
 use App\Models\Trial;
@@ -61,7 +62,7 @@ class AccessRightController extends Controller
             ->where('is_active', 1)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'sort_order']);
+            ->get(['id', 'name', 'sort_order', 'is_active']);
 
         $draftTrials = Trial::query()
             ->where('progress_status', 'Draft')
@@ -93,8 +94,6 @@ class AccessRightController extends Controller
             'filters' => ['q' => $search],
             'editUser' => $editUser,
             'roleCategories' => User::roleCategories(),
-            'reviewUnitOptions' => User::reviewerDepartmentCodes(),
-            'defaultReviewUnits' => User::defaultReviewerDepartmentCodes(),
             'reviewerDepartments' => $reviewerDepartments,
             'draftTrials' => $draftTrials,
             'staffUsers' => $staffUsers,
@@ -120,7 +119,22 @@ class AccessRightController extends Controller
         // it, so it's left completely untouched here rather than derived
         // from Role like it used to be.
         $user->role = $role;
-        $user->review_unit = $data['review_unit'] ?? null;
+
+        // Phase 1 of the RBAC/Team-master redesign (see memory
+        // rbac_team_lane_redesign_2026_09_22): the Review Team picker now
+        // posts review_team_id (a master_options row id). review_unit — the
+        // old free-text column — is kept in sync going forward (set to the
+        // resolved row's normalized name, or null) purely for backward
+        // compatibility, since several places still query it directly
+        // (raw `UPPER(TRIM(review_unit))` lookups in TrialReportController,
+        // CreateNotification, SubmitTrialForReviewRequest, etc.) rather than
+        // going through reviewDepartmentsForUser().
+        $reviewTeamId = $data['review_team_id'] ?? null;
+        $user->review_team_id = $reviewTeamId;
+        $user->review_unit = $reviewTeamId !== null
+            ? User::normalizeDepartment(MasterOption::query()->whereKey($reviewTeamId)->value('name'))
+            : null;
+
         $user->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Hak akses user berhasil diperbarui.']);
@@ -146,6 +160,31 @@ class AccessRightController extends Controller
         $option->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori reviewer berhasil disimpan.']);
+
+        return to_route('admin.access-rights.index');
+    }
+
+    public function updateReviewerDepartment(UpdateReviewerDepartmentRequest $request, MasterOption $reviewerDepartment): RedirectResponse
+    {
+        abort_if($reviewerDepartment->type !== 'reviewer_department', 404);
+
+        $data = $request->validated();
+
+        // Renaming this row in place is exactly what makes review_team_id
+        // (Phase 1 of the RBAC/Team-master redesign) safe: every user who
+        // references this master_options row by id automatically picks up
+        // the new name, while anything that already snapshotted the old
+        // name as plain text (e.g. trials_review.department) is unaffected.
+        $reviewerDepartment->name = User::normalizeDepartment($data['name']);
+        if (array_key_exists('sort_order', $data) && $data['sort_order'] !== null) {
+            $reviewerDepartment->sort_order = (int) $data['sort_order'];
+        }
+        if (array_key_exists('is_active', $data) && $data['is_active'] !== null) {
+            $reviewerDepartment->is_active = (bool) $data['is_active'];
+        }
+        $reviewerDepartment->save();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori reviewer berhasil diperbarui.']);
 
         return to_route('admin.access-rights.index');
     }

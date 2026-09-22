@@ -39,6 +39,7 @@ type ReviewerDepartment = {
     id: number;
     name: string;
     sort_order: number;
+    is_active: boolean;
 };
 
 type DraftTrial = {
@@ -72,8 +73,6 @@ type PageProps = {
     users: Paginated<User>;
     filters: { q: string };
     roleCategories: string[];
-    reviewUnitOptions: string[];
-    defaultReviewUnits: string[];
     reviewerDepartments: ReviewerDepartment[];
     draftTrials: DraftTrial[];
     staffUsers: StaffUser[];
@@ -85,13 +84,13 @@ function EditRoleDialog({
     onOpenChange,
     editingUser,
     roleCategories,
-    reviewUnitOptions,
+    reviewerDepartments,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     editingUser: User | null;
     roleCategories: string[];
-    reviewUnitOptions: string[];
+    reviewerDepartments: ReviewerDepartment[];
 }) {
     // An existing user's role may hold a value no longer offered here (e.g.
     // a review-team code from before review_unit existed) — keep it
@@ -161,30 +160,38 @@ function EditRoleDialog({
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="review_unit">
+                                    <Label htmlFor="review_team_id">
                                         Review Team
                                     </Label>
                                     <Select
-                                        name="review_unit"
+                                        name="review_team_id"
                                         defaultValue={
-                                            editingUser.review_unit ?? '__none'
+                                            editingUser.review_team_id != null
+                                                ? String(
+                                                      editingUser.review_team_id,
+                                                  )
+                                                : '__none'
                                         }
                                     >
-                                        <SelectTrigger id="review_unit">
+                                        <SelectTrigger id="review_team_id">
                                             <SelectValue placeholder="Tidak ada" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="__none">
                                                 Tidak ada
                                             </SelectItem>
-                                            {reviewUnitOptions.map((unit) => (
-                                                <SelectItem
-                                                    key={unit}
-                                                    value={unit}
-                                                >
-                                                    {unit}
-                                                </SelectItem>
-                                            ))}
+                                            {reviewerDepartments.map(
+                                                (department) => (
+                                                    <SelectItem
+                                                        key={department.id}
+                                                        value={String(
+                                                            department.id,
+                                                        )}
+                                                    >
+                                                        {department.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
@@ -193,7 +200,9 @@ function EditRoleDialog({
                                         Review & Submit. Pilih &quot;Tidak
                                         ada&quot; kalau user ini bukan reviewer.
                                     </p>
-                                    <InputError message={errors.review_unit} />
+                                    <InputError
+                                        message={errors.review_team_id}
+                                    />
                                 </div>
 
                                 <DialogFooter>
@@ -257,6 +266,84 @@ function ReviewerDepartmentFormDialog({
                         </>
                     )}
                 </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function ReviewerDepartmentEditDialog({
+    open,
+    onOpenChange,
+    editingDepartment,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    editingDepartment: ReviewerDepartment | null;
+}) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Rename Reviewer Department</DialogTitle>
+                </DialogHeader>
+                {editingDepartment && (
+                    <Form
+                        {...AccessRightController.updateReviewerDepartment.form(
+                            editingDepartment.id,
+                        )}
+                        options={{ preserveScroll: true }}
+                        onSuccess={() => onOpenChange(false)}
+                        className="grid gap-4"
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="edit_name">
+                                        Nama Department
+                                    </Label>
+                                    <Input
+                                        id="edit_name"
+                                        name="name"
+                                        required
+                                        defaultValue={editingDepartment.name}
+                                    />
+                                    <InputError message={errors.name} />
+                                    <p className="text-xs text-muted-foreground">
+                                        Mengganti nama tidak mengubah data
+                                        trial yang sudah pernah dicatat dengan
+                                        nama lama (mis. riwayat review) — hanya
+                                        assignment/pilihan baru yang memakai
+                                        nama baru ini.
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="edit_sort_order">
+                                        Sort
+                                    </Label>
+                                    <Input
+                                        id="edit_sort_order"
+                                        name="sort_order"
+                                        type="number"
+                                        defaultValue={
+                                            editingDepartment.sort_order
+                                        }
+                                    />
+                                    <InputError message={errors.sort_order} />
+                                </div>
+
+                                <DialogFooter>
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                    >
+                                        Save Changes
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                        )}
+                    </Form>
+                )}
             </DialogContent>
         </Dialog>
     );
@@ -346,8 +433,6 @@ export default function AdminAccessRightsIndex({
     users,
     filters,
     roleCategories,
-    reviewUnitOptions,
-    defaultReviewUnits,
     reviewerDepartments,
     draftTrials,
     staffUsers,
@@ -356,6 +441,8 @@ export default function AdminAccessRightsIndex({
     const [search, setSearch] = useState(filters.q);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
+    const [editingDepartment, setEditingDepartment] =
+        useState<ReviewerDepartment | null>(null);
     const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
 
     function submitSearch(e: FormEvent) {
@@ -386,7 +473,7 @@ export default function AdminAccessRightsIndex({
                     }}
                     editingUser={editingUser}
                     roleCategories={roleCategories}
-                    reviewUnitOptions={reviewUnitOptions}
+                    reviewerDepartments={reviewerDepartments}
                 />
 
                 <Card>
@@ -478,17 +565,27 @@ export default function AdminAccessRightsIndex({
                     onOpenChange={setDepartmentDialogOpen}
                 />
 
+                <ReviewerDepartmentEditDialog
+                    open={editingDepartment !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setEditingDepartment(null);
+                        }
+                    }}
+                    editingDepartment={editingDepartment}
+                />
+
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
                         <div>
                             <CardTitle>Reviewer Department Master</CardTitle>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Daftar tim/department yang bisa dipilih sebagai
-                                &quot;Review Team&quot; user dan muncul di
-                                daftar department review saat submit trial baru.
-                                5 baris bawaan sistem selalu aktif (read-only);
-                                tambahkan di sini kalau perlu tim baru di luar
-                                itu.
+                                Daftar tim/department (&quot;Team&quot;) yang
+                                bisa dipilih sebagai &quot;Review Team&quot;
+                                user dan muncul di daftar department review
+                                saat submit trial baru. Rename aman dipakai —
+                                trial yang sudah pernah disubmit tetap
+                                menyimpan nama lama di riwayatnya.
                             </p>
                         </div>
                         <Button
@@ -508,19 +605,6 @@ export default function AdminAccessRightsIndex({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {defaultReviewUnits.map((code) => (
-                                    <TableRow key={`default-${code}`}>
-                                        <TableCell>{code}</TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            —
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="text-xs text-muted-foreground">
-                                                Bawaan sistem
-                                            </span>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
                                 {reviewerDepartments.map((department) => (
                                     <TableRow key={department.id}>
                                         <TableCell>{department.name}</TableCell>
@@ -528,22 +612,35 @@ export default function AdminAccessRightsIndex({
                                             {department.sort_order}
                                         </TableCell>
                                         <TableCell>
-                                            <ConfirmDialog
-                                                trigger={
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                }
-                                                title="Delete this reviewer department?"
-                                                description={`${department.name} will be removed from the reviewer department list.`}
-                                                confirmLabel="Delete"
-                                                formProps={AccessRightController.destroyReviewerDepartment.form(
-                                                    department.id,
-                                                )}
-                                            />
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setEditingDepartment(
+                                                            department,
+                                                        )
+                                                    }
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <ConfirmDialog
+                                                    trigger={
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="sm"
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    }
+                                                    title="Delete this reviewer department?"
+                                                    description={`${department.name} will be removed from the reviewer department list.`}
+                                                    confirmLabel="Delete"
+                                                    formProps={AccessRightController.destroyReviewerDepartment.form(
+                                                        department.id,
+                                                    )}
+                                                />
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}

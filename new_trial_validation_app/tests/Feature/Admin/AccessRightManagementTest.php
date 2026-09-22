@@ -67,29 +67,36 @@ test('super admin can reassign another user role, legacy department is left unto
 test('super admin can assign a review team independently of role/department', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
     $target = User::factory()->create(['role' => 'Staff', 'department' => 'Ops']);
+    $team = MasterOption::where('type', 'reviewer_department')->where('name', 'PROD')->firstOrFail();
 
     $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
         'role' => 'Staff',
-        'review_unit' => 'PROD',
+        'review_team_id' => $team->id,
     ]);
 
     $target->refresh();
     expect($target->role)->toBe('Staff');
     expect($target->department)->toBe('Ops');
+    expect($target->review_team_id)->toBe($team->id);
+    // review_unit (the legacy free-text column) is kept in sync for backward
+    // compatibility, since some code still queries it directly.
     expect($target->review_unit)->toBe('PROD');
 });
 
 test('review team can be cleared back to none via the __none sentinel', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    $target = User::factory()->create(['role' => 'Staff', 'review_unit' => 'PROD']);
+    $team = MasterOption::where('type', 'reviewer_department')->where('name', 'PROD')->firstOrFail();
+    $target = User::factory()->create(['role' => 'Staff', 'review_team_id' => $team->id, 'review_unit' => 'PROD']);
 
     $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
         'role' => 'Staff',
         'department' => '',
-        'review_unit' => '__none',
+        'review_team_id' => '__none',
     ]);
 
-    expect($target->refresh()->review_unit)->toBeNull();
+    $target->refresh();
+    expect($target->review_team_id)->toBeNull();
+    expect($target->review_unit)->toBeNull();
 });
 
 test('an unknown review team value is rejected', function () {
@@ -99,10 +106,10 @@ test('an unknown review team value is rejected', function () {
     $response = $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
         'role' => 'Staff',
         'department' => '',
-        'review_unit' => 'BOGUS',
+        'review_team_id' => 999999,
     ]);
 
-    $response->assertSessionHasErrors('review_unit');
+    $response->assertSessionHasErrors('review_team_id');
 });
 
 test('reassigning to an unknown role is rejected', function () {
@@ -177,6 +184,71 @@ test('super admin can soft delete and re-add a reviewer department', function ()
     expect($option->is_active)->toBeTrue();
     expect($option->deleted_at)->toBeNull();
     expect($option->sort_order)->toBe(5);
+});
+
+test('super admin can rename a reviewer department', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 1, 'is_active' => true]);
+    $user = User::factory()->create(['role' => 'Staff', 'review_team_id' => $option->id]);
+
+    $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
+        'name' => 'PIE',
+        'sort_order' => 2,
+    ])->assertRedirect(route('admin.access-rights.index'));
+
+    $option->refresh();
+    expect($option->name)->toBe('PIE');
+    expect($option->sort_order)->toBe(2);
+
+    // The rename is instantly visible to anything referencing the team by
+    // id — the whole point of Phase 1 (RBAC/Team-master redesign).
+    expect($user->fresh()->reviewTeam->name)->toBe('PIE');
+    expect($user->fresh()->reviewDepartmentsForUser())->toBe(['PIE']);
+});
+
+test('renaming a reviewer department to a name already used by another active row is rejected', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    MasterOption::create(['type' => 'reviewer_department', 'name' => 'QAC', 'sort_order' => 1, 'is_active' => true]);
+    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 2, 'is_active' => true]);
+
+    $response = $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
+        'name' => 'qac',
+    ]);
+
+    $response->assertSessionHasErrors('name');
+    expect($option->refresh()->name)->toBe('PI');
+});
+
+test('renaming a reviewer department to its own current name is allowed', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 1, 'is_active' => true]);
+
+    $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
+        'name' => 'pi',
+        'sort_order' => 7,
+    ])->assertRedirect(route('admin.access-rights.index'));
+
+    expect($option->refresh()->sort_order)->toBe(7);
+});
+
+test('admin (non-super-admin) cannot rename a reviewer department', function () {
+    $admin = User::factory()->create(['role' => 'Admin']);
+    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 1, 'is_active' => true]);
+
+    $this->actingAs($admin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
+        'name' => 'PIE',
+    ])->assertForbidden();
+
+    expect($option->refresh()->name)->toBe('PI');
+});
+
+test('renaming a reviewer department requires it to actually be one', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    $option = MasterOption::create(['type' => 'product_type', 'name' => 'Tube', 'sort_order' => 1, 'is_active' => true]);
+
+    $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
+        'name' => 'Not A Team',
+    ])->assertNotFound();
 });
 
 test('deleting a reviewer department requires it to actually be one', function () {
@@ -281,4 +353,28 @@ test('re-granting a revoked permission reactivates the same row', function () {
     $permission->refresh();
     expect($permission->can_edit)->toBeTrue();
     expect($permission->revoked_at)->toBeNull();
+});
+
+test('reviewDepartmentsForUser() sources the team name from review_team_id when set', function () {
+    $team = MasterOption::where('type', 'reviewer_department')->where('name', 'QAC')->firstOrFail();
+    $user = User::factory()->create(['role' => 'Staff', 'review_team_id' => $team->id, 'review_unit' => null]);
+
+    expect($user->reviewDepartmentsForUser())->toBe(['QAC']);
+});
+
+test('reviewDepartmentsForUser() falls back to the legacy review_unit column when review_team_id is null', function () {
+    $user = User::factory()->create(['role' => 'Staff', 'review_team_id' => null, 'review_unit' => 'RNI']);
+
+    expect($user->reviewDepartmentsForUser())->toBe(['RNI']);
+});
+
+test('reviewDepartmentsForUser() reflects a team rename immediately via review_team_id, unlike the review_unit fallback', function () {
+    $team = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
+    $byId = User::factory()->create(['role' => 'Staff', 'review_team_id' => $team->id, 'review_unit' => 'PI']);
+    $byUnit = User::factory()->create(['role' => 'Staff', 'review_team_id' => null, 'review_unit' => 'PI']);
+
+    $team->update(['name' => 'PIE']);
+
+    expect($byId->fresh()->reviewDepartmentsForUser())->toBe(['PIE']);
+    expect($byUnit->fresh()->reviewDepartmentsForUser())->toBe(['PI']);
 });

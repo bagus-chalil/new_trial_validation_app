@@ -6,6 +6,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -29,12 +30,13 @@ use Illuminate\Support\Carbon;
  * @property string $role
  * @property string|null $department
  * @property string|null $review_unit
+ * @property int|null $review_team_id
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $deleted_at
  * @property int|null $deleted_by
  */
-#[Fillable(['name', 'email', 'role', 'department', 'review_unit'])]
+#[Fillable(['name', 'email', 'role', 'department', 'review_unit', 'review_team_id'])]
 #[Hidden(['password_hash'])]
 class User extends Authenticatable
 {
@@ -205,6 +207,45 @@ class User extends Authenticatable
     }
 
     /**
+     * Phase 1 of the RBAC/Team-master redesign (see memory
+     * rbac_team_lane_redesign_2026_09_22): `review_team_id` points at a
+     * `master_options` row (type=reviewer_department) — the same shared
+     * table the legacy app and the Access Rights "Reviewer Department
+     * Master" panel already read/write. No DB-level FK (matches this app's
+     * established no-FK-on-shared-tables convention).
+     *
+     * @return BelongsTo<MasterOption, $this>
+     */
+    public function reviewTeam(): BelongsTo
+    {
+        return $this->belongsTo(MasterOption::class, 'review_team_id');
+    }
+
+    /**
+     * Active review teams (`master_options`, type=reviewer_department) as
+     * id+name+sort_order rows, for id-based pickers (Access Rights' Review
+     * Team select, and any future Lane Configuration picker per Phase 3 of
+     * the RBAC/Team-master redesign) — as opposed to reviewerDepartmentCodes(),
+     * which only returns the normalized name strings.
+     *
+     * @return \Illuminate\Support\Collection<int, array{id: int, name: string, sort_order: int}>
+     */
+    public static function reviewTeams(): \Illuminate\Support\Collection
+    {
+        return MasterOption::query()
+            ->where('type', 'reviewer_department')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'sort_order'])
+            ->map(fn (MasterOption $option) => [
+                'id' => $option->id,
+                'name' => $option->name,
+                'sort_order' => $option->sort_order,
+            ]);
+    }
+
+    /**
      * The hardcoded default review-team codes, i.e. what's available even
      * with zero `master_options` (type=reviewer_department) rows. Exposed
      * separately from reviewerDepartmentCodes() so the Access Rights screen
@@ -253,15 +294,36 @@ class User extends Authenticatable
     }
 
     /**
-     * Review-team codes this user is a reviewer for, sourced from the
-     * decoupled `review_unit` column (not `role`/`department` — those stay
-     * legacy-owned, see the 2026-09-14 migration doc comment).
+     * Review-team codes this user is a reviewer for. Prefers the ID-backed
+     * `review_team_id` (Phase 1 of the RBAC/Team-master redesign — see
+     * memory rbac_team_lane_redesign_2026_09_22) when set, resolving it to
+     * its `master_options` row's name; falls back to the legacy free-text
+     * `review_unit` column when `review_team_id` is null, so users not yet
+     * backfilled/migrated to the new column still work. Same return shape
+     * (list of team name strings) as before this phase, so every existing
+     * call site (Rule::in() validations, TrialReviewPolicy,
+     * Trial::reviewStatusByDepartment(), the manage-line-configuration-report
+     * Gate, etc.) keeps working unmodified.
      *
      * @return list<string>
      */
     public function reviewDepartmentsForUser(): array
     {
         $codes = self::reviewerDepartmentCodes();
+
+        if ($this->review_team_id !== null) {
+            $name = MasterOption::query()
+                ->where('id', $this->review_team_id)
+                ->where('type', 'reviewer_department')
+                ->value('name');
+
+            if ($name !== null) {
+                $code = self::normalizeDepartment($name);
+
+                return in_array($code, $codes, true) ? [$code] : [];
+            }
+        }
+
         $unit = $this->reviewUnitCode();
 
         return in_array($unit, $codes, true) ? [$unit] : [];

@@ -100,6 +100,37 @@ function countWords(value: string): number {
         : value.trim().split(/\s+/).filter(Boolean).length;
 }
 
+/**
+ * Total/Setting/PASS/NG are free text in the source Excel (e.g. "General
+ * Pcs"), not real numbers — this pulls out the leading numeric portion so NG
+ * can still be auto-computed whenever all three actually contain one.
+ */
+function parseLeadingNumber(value: string): number | null {
+    const match = value.match(/-?\d+(\.\d+)?/);
+
+    return match ? parseFloat(match[0]) : null;
+}
+
+/** Ports the source Excel's NG formula: `=(Total-Setting-PASS)&" Pcs ("&TEXT((Total-Setting-PASS)/Total,"0%")&")"`. */
+function computeNgQty(
+    total: string,
+    setting: string,
+    pass: string,
+): string | null {
+    const t = parseLeadingNumber(total);
+    const s = parseLeadingNumber(setting);
+    const p = parseLeadingNumber(pass);
+
+    if (t === null || s === null || p === null) {
+        return null;
+    }
+
+    const ng = t - s - p;
+    const pct = t !== 0 ? Math.round((ng / t) * 100) : 0;
+
+    return `${ng} Pcs (${pct}%)`;
+}
+
 type KeyedRow<T> = { key: number; row: T };
 
 function toKeyedRows<T>(
@@ -356,6 +387,19 @@ function EditableLineConfigurationReport({
         report?.checked_prod_user_id ? String(report.checked_prod_user_id) : '',
     );
 
+    const [totalQty, setTotalQty] = useState(report?.total_qty ?? '');
+    const [settingQty, setSettingQty] = useState(report?.setting_qty ?? '');
+    const [passQty, setPassQty] = useState(report?.pass_qty ?? '');
+    const [ngQty, setNgQty] = useState(report?.ng_qty ?? '');
+
+    function recalcNgQty(total: string, setting: string, pass: string) {
+        const computed = computeNgQty(total, setting, pass);
+
+        if (computed !== null) {
+            setNgQty(computed);
+        }
+    }
+
     return (
         <Form
             {...TrialLineConfigurationReportController.update.form(trialId)}
@@ -485,7 +529,15 @@ function EditableLineConfigurationReport({
                                 id="lcr_total_qty"
                                 name="total_qty"
                                 placeholder="100 Pcs"
-                                defaultValue={report?.total_qty ?? ''}
+                                value={totalQty}
+                                onChange={(e) => {
+                                    setTotalQty(e.target.value);
+                                    recalcNgQty(
+                                        e.target.value,
+                                        settingQty,
+                                        passQty,
+                                    );
+                                }}
                             />
                         </div>
                         <div className="grid gap-2">
@@ -494,7 +546,15 @@ function EditableLineConfigurationReport({
                                 id="lcr_setting_qty"
                                 name="setting_qty"
                                 placeholder="20 Pcs"
-                                defaultValue={report?.setting_qty ?? ''}
+                                value={settingQty}
+                                onChange={(e) => {
+                                    setSettingQty(e.target.value);
+                                    recalcNgQty(
+                                        totalQty,
+                                        e.target.value,
+                                        passQty,
+                                    );
+                                }}
                             />
                         </div>
                         <div className="grid gap-2">
@@ -503,7 +563,15 @@ function EditableLineConfigurationReport({
                                 id="lcr_pass_qty"
                                 name="pass_qty"
                                 placeholder="70 Pcs"
-                                defaultValue={report?.pass_qty ?? ''}
+                                value={passQty}
+                                onChange={(e) => {
+                                    setPassQty(e.target.value);
+                                    recalcNgQty(
+                                        totalQty,
+                                        settingQty,
+                                        e.target.value,
+                                    );
+                                }}
                             />
                         </div>
                         <div className="grid gap-2">
@@ -512,8 +580,13 @@ function EditableLineConfigurationReport({
                                 id="lcr_ng_qty"
                                 name="ng_qty"
                                 placeholder="10 Pcs (14%)"
-                                defaultValue={report?.ng_qty ?? ''}
+                                value={ngQty}
+                                onChange={(e) => setNgQty(e.target.value)}
                             />
+                            <p className="text-xs text-muted-foreground">
+                                Otomatis dihitung dari Total − Setting − PASS
+                                (bisa diedit manual bila perlu).
+                            </p>
                         </div>
                     </div>
 

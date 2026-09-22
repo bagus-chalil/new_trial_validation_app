@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\User;
+use App\Models\MasterOption;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,8 +21,8 @@ class UpdateUserRoleRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        if ($this->input('review_unit') === '__none') {
-            $this->merge(['review_unit' => null]);
+        if ($this->input('review_team_id') === '__none') {
+            $this->merge(['review_team_id' => null]);
         }
     }
 
@@ -33,7 +33,16 @@ class UpdateUserRoleRequest extends FormRequest
     {
         return [
             'role' => ['required', 'string', 'max:50'],
-            'review_unit' => ['nullable', Rule::in(User::reviewerDepartmentCodes())],
+            'review_team_id' => [
+                'nullable',
+                Rule::in(
+                    MasterOption::query()
+                        ->where('type', 'reviewer_department')
+                        ->where('is_active', 1)
+                        ->pluck('id')
+                        ->all()
+                ),
+            ],
         ];
     }
 }

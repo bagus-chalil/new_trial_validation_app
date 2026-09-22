@@ -30,6 +30,7 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::get('access-rights', [AccessRightController::class, 'index'])->name('access-rights.index');
     Route::post('access-rights/users/{user}/role', [AccessRightController::class, 'updateRole'])->name('access-rights.users.role');
     Route::post('access-rights/reviewer-departments', [AccessRightController::class, 'storeReviewerDepartment'])->name('access-rights.reviewer-departments.store');
+    Route::put('access-rights/reviewer-departments/{reviewerDepartment}', [AccessRightController::class, 'updateReviewerDepartment'])->name('access-rights.reviewer-departments.update');
     Route::delete('access-rights/reviewer-departments/{reviewerDepartment}', [AccessRightController::class, 'destroyReviewerDepartment'])->name('access-rights.reviewer-departments.destroy');
     Route::post('access-rights/draft-permissions', [AccessRightController::class, 'grantPermission'])->name('access-rights.draft-permissions.store');
     Route::post('access-rights/draft-permissions/{permission}/revoke', [AccessRightController::class, 'revokePermission'])->name('access-rights.draft-permissions.revoke');
