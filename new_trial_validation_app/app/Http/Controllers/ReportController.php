@@ -83,7 +83,7 @@ class ReportController extends Controller
     {
         return Trial::query()
             ->visibleTo($request->user(), 'approved')
-            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id');
     }
 
@@ -129,7 +129,7 @@ class ReportController extends Controller
     {
         return Trial::query()
             ->visibleTo($request->user(), 'rejected')
-            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id');
     }
 
@@ -200,7 +200,7 @@ class ReportController extends Controller
         return Trial::query()
             ->visibleTo($request->user())
             ->trialSummaryFilters($filters)
-            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id');
     }
 
@@ -251,7 +251,7 @@ class ReportController extends Controller
     {
         return Trial::query()
             ->visibleTo($request->user())
-            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id');
     }
 

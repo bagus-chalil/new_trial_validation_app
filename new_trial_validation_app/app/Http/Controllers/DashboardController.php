@@ -39,7 +39,7 @@ class DashboardController extends Controller
             ->visibleTo($user)
             ->search($filters)
             ->withCount('attachments')
-            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();

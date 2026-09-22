@@ -156,7 +156,7 @@ class TrialController extends Controller
             ->visibleTo($user, $statusGroup)
             ->search($filters)
             ->withCount('attachments')
-            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();
