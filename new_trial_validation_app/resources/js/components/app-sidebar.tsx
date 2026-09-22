@@ -14,6 +14,7 @@ import {
     ListTree,
     Package,
     Printer,
+    Route as RouteIcon,
     Search,
     Trash2,
     Users,
@@ -34,6 +35,7 @@ import {
 import { dashboard } from '@/routes';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
+import { index as laneConfigurationIndex } from '@/routes/admin/lane-configuration';
 import { index as mastersIndex } from '@/routes/admin/masters';
 import { index as notificationsIndex } from '@/routes/admin/notifications';
 import { index as parametersIndex } from '@/routes/admin/parameters';
@@ -170,6 +172,11 @@ export function AppSidebar() {
                               title: 'Access Rights',
                               href: accessRightsIndex(),
                               icon: KeyRound,
+                          },
+                          {
+                              title: 'Lane Configuration',
+                              href: laneConfigurationIndex(),
+                              icon: RouteIcon,
                           },
                       ]
                     : []),

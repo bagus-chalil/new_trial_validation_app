@@ -4,6 +4,7 @@ namespace App\Actions\Trials;
 
 use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
+use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
@@ -80,7 +81,7 @@ class MarkTrialLineConfigurationReportSignOff
             Mail::to($assignee->email)->send(new TrialLineConfigurationSignOffRequestedMail(
                 trial: $trial,
                 assigneeName: $assignee->name ?: $assignee->email,
-                fieldLabel: 'Checked (PROD)',
+                fieldLabel: LineConfigurationLane::label('checked_prod', 'Checked (PROD)'),
                 reportUrl: route('trials.report.show', $trial->id),
             ));
         } catch (Throwable) {

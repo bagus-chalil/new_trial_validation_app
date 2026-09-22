@@ -1,9 +1,15 @@
 @extends('pdf.layout')
 
 @php
+    // approved_pie_label/checked_prod_label are this locked version's own
+    // frozen snapshot (Phase 3 of the RBAC/Team-master redesign — see
+    // LineConfigurationLane) — a later admin rename of the live lane must
+    // never change how an already-locked historical PDF reads, so this
+    // never falls back to the live config, only to the hardcoded default
+    // for rows saved before this column existed.
     $signOffFields = [
-        ['field' => 'approved_pie', 'label' => 'Approved (PIE)'],
-        ['field' => 'checked_prod', 'label' => 'Checked (PROD)'],
+        ['field' => 'approved_pie', 'label' => $report->approved_pie_label ?: 'Approved (PIE)'],
+        ['field' => 'checked_prod', 'label' => $report->checked_prod_label ?: 'Checked (PROD)'],
         ['field' => 'return_prod', 'label' => 'Return (PROD)'],
     ];
 @endphp

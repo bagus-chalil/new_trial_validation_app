@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccessRightController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\LaneConfigurationController;
 use App\Http\Controllers\Admin\MasterOptionController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ParameterController;
@@ -34,6 +35,9 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::delete('access-rights/reviewer-departments/{reviewerDepartment}', [AccessRightController::class, 'destroyReviewerDepartment'])->name('access-rights.reviewer-departments.destroy');
     Route::post('access-rights/draft-permissions', [AccessRightController::class, 'grantPermission'])->name('access-rights.draft-permissions.store');
     Route::post('access-rights/draft-permissions/{permission}/revoke', [AccessRightController::class, 'revokePermission'])->name('access-rights.draft-permissions.revoke');
+
+    Route::get('lane-configuration', [LaneConfigurationController::class, 'index'])->name('lane-configuration.index');
+    Route::put('lane-configuration/{lane}', [LaneConfigurationController::class, 'update'])->name('lane-configuration.update');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Trials;
 
+use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,7 +14,8 @@ use Illuminate\Validation\Rule;
  * differently from every other wizard-step FormRequest in this app (which
  * all gate on `update`, i.e. the trial's own edit-rights window): this form
  * has no lock tied to the *trial's* status, so it's gated purely on
- * `manage-line-configuration-report` (PROD review team / Admin) plus basic
+ * `manage-line-configuration-report` (the 'checked_prod' lane's required
+ * team, admin-configurable — see LineConfigurationLane — / Admin) plus basic
  * view access, so a soft-deleted/inaccessible trial still 404s or 403s
  * appropriately — **plus** two further narrowings once a report already has
  * a recorded drafter: (1) only that drafter (updated_by_user_id — see
@@ -78,19 +80,21 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             // Approve/Checked button can set them (see
             // MarkTrialLineConfigurationReportSignOff), so this form only
             // ever picks *who* is assigned, not the done/by/at values
-            // themselves. Approved(PIE) has no coded team in this system's
-            // master data, so any active user is eligible; Checked(PROD)
-            // must be someone on the PROD review team specifically —
-            // enforced here (not just filtered in the UI's Combobox
-            // options), so a direct POST can't assign an arbitrary user.
+            // themselves. Which team (if any) each stage requires is now
+            // admin-configurable (Phase 3 of the RBAC/Team-master redesign —
+            // see LineConfigurationLane) instead of a hardcoded 'PROD'
+            // literal — enforced here (not just filtered in the UI's
+            // Combobox options), so a direct POST can't assign an
+            // ineligible user.
             'approved_pie_user_id' => [
                 'nullable', 'integer',
-                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at'),
+                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
+                    ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'approved_pie')),
             ],
             'checked_prod_user_id' => [
                 'nullable', 'integer',
                 Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
-                    ->where(fn ($query) => $query->whereRaw('UPPER(TRIM(review_unit)) = ?', ['PROD'])),
+                    ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'checked_prod')),
             ],
 
             // Return is its own dedicated, auto-stamped action now (see

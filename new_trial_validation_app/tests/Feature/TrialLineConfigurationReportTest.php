@@ -3,6 +3,8 @@
 use App\Mail\TrialLineConfigurationReturnedMail;
 use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
+use App\Models\LineConfigurationLane;
+use App\Models\MasterOption;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
@@ -183,6 +185,74 @@ test('the report page only offers PROD-team users for the Checked(PROD) assignme
         expect($prodIds)->toContain($reviewer->id);
         expect($prodIds)->not->toContain($qacUser->id);
     });
+});
+
+test('changing the checked_prod lane\'s required team (Lane Configuration) changes who may edit/be assigned, without touching code', function () {
+    $prodUser = User::factory()->reviewUnit('PROD')->create();
+    $qacTeam = MasterOption::firstWhere(['type' => 'reviewer_department', 'name' => 'QAC']);
+    $qacUser = User::factory()->create(['review_team_id' => $qacTeam->id]);
+    $trial = makeLcrTrial();
+
+    // Before reconfiguring: the PROD user may edit, but only a PROD-team
+    // user may be assigned as checked_prod_user_id.
+    $this->actingAs($prodUser)
+        ->put(route('trials.line-configuration.update', $trial->id), ['checked_prod_user_id' => $qacUser->id])
+        ->assertInvalid(['checked_prod_user_id']);
+
+    // A Super Admin repoints the 'checked_prod' lane at QAC instead of PROD
+    // (Phase 3 of the RBAC/Team-master redesign — Lane Configuration). Both
+    // general edit rights (manage-line-configuration-report follows this
+    // lane) and the checked_prod_user_id assignment rule follow the new
+    // team — same code path, driven purely by the admin-editable config.
+    $lane = LineConfigurationLane::where('stage_key', 'checked_prod')->firstOrFail();
+    $lane->required_team_id = $qacTeam->id;
+    $lane->save();
+
+    // The PROD user has lost general edit rights on this report entirely —
+    // that right now belongs to the QAC team.
+    $this->actingAs($prodUser)
+        ->put(route('trials.line-configuration.update', $trial->id), ['client_name' => 'Nope'])
+        ->assertForbidden();
+
+    // The QAC user can edit, and the PROD user is no longer assignable as
+    // checked_prod_user_id — checked first, while the report is still
+    // unsubmitted, since assigning a valid user locks it from further edits.
+    $this->actingAs($qacUser)
+        ->put(route('trials.line-configuration.update', $trial->id), ['checked_prod_user_id' => $prodUser->id])
+        ->assertInvalid(['checked_prod_user_id']);
+
+    // A fellow QAC user is assignable.
+    $this->actingAs($qacUser)
+        ->put(route('trials.line-configuration.update', $trial->id), ['checked_prod_user_id' => $qacUser->id])
+        ->assertRedirect(route('trials.report.show', $trial->id));
+});
+
+test('a locked historical version keeps its own frozen label even after the live lane is later renamed', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $pieUser = User::factory()->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'client_name' => 'Client V1',
+        'approved_pie_user_id' => $pieUser->id,
+    ]);
+
+    $v1BeforeRename = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('version', 1)->firstOrFail();
+    expect($v1BeforeRename->checked_prod_label)->toBe('Checked (PROD)');
+
+    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), [
+        'reason' => 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali',
+    ]);
+
+    // Rename the live lane after the version above was already locked.
+    LineConfigurationLane::where('stage_key', 'checked_prod')->update(['label' => 'Checked (Line Head)']);
+
+    $lockedV1 = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('version', 1)->firstOrFail();
+    expect($lockedV1->is_locked)->toBeTrue();
+    expect($lockedV1->checked_prod_label)->toBe('Checked (PROD)');
+
+    // The live config (and the new, still-editable v2) reflect the rename.
+    expect(LineConfigurationLane::label('checked_prod', '?'))->toBe('Checked (Line Head)');
 });
 
 test('once an approver is assigned, the report is locked for the maker until an admin overrides or it is returned', function () {

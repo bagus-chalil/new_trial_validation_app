@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Trials\CheckTrialCompleteness;
 use App\Actions\Trials\RecordReportPrint;
+use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialAttachmentFile;
 use App\Models\TrialLineConfigurationReport;
@@ -107,24 +108,14 @@ class TrialReportController extends Controller
             ->where('is_locked', true)
             ->orderByDesc('version')
             ->get(['id', 'version', 'locked_at', 'return_prod', 'return_reason']);
-        $lineConfigurationApprovers = User::query()
-            ->where('is_active', 1)
-            ->whereNull('deleted_at')
-            ->orderBy('name')
-            ->get(['id', 'name', 'email'])
-            ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
-            ->values();
-        // Checked(PROD) may only be assigned to someone on the PROD review
-        // team — unlike Approved(PIE), which has no coded team in this
-        // system's master data and so stays open to any active user.
-        $lineConfigurationProdApprovers = User::query()
-            ->where('is_active', 1)
-            ->whereNull('deleted_at')
-            ->whereRaw('UPPER(TRIM(review_unit)) = ?', ['PROD'])
-            ->orderBy('name')
-            ->get(['id', 'name', 'email'])
-            ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
-            ->values();
+        $lineConfigurationApprovers = $this->approversForLane('approved_pie');
+        // Checked(PROD) may only be assigned to someone on the team
+        // currently configured for the 'checked_prod' lane (Phase 3 of the
+        // RBAC/Team-master redesign — admin-editable via Lane Configuration,
+        // no longer a hardcoded 'PROD' literal) — unlike Approved(PIE),
+        // which has no required team configured by default and so stays
+        // open to any active user.
+        $lineConfigurationProdApprovers = $this->approversForLane('checked_prod');
 
         // Once Returned, the maker needs to actually see why when they
         // reopen the (now-unlocked) form — look at the version immediately
@@ -213,6 +204,7 @@ class TrialReportController extends Controller
             ])->values(),
             'lineConfigurationApprovers' => $lineConfigurationApprovers,
             'lineConfigurationProdApprovers' => $lineConfigurationProdApprovers,
+            'lineConfigurationLanes' => LineConfigurationLane::labels(),
             'canApprovePieLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('approvePie', $lineConfigurationReport) : false,
             'canCheckProdLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('checkProd', $lineConfigurationReport) : false,
             'canReturnLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('returnReport', $lineConfigurationReport) : false,
@@ -526,5 +518,27 @@ class TrialReportController extends Controller
         $mime = $disk->mimeType($path) ?: 'application/octet-stream';
 
         return 'data:'.$mime.';base64,'.base64_encode($disk->get($path));
+    }
+
+    /**
+     * Active users eligible to be assigned to a Line Configuration Report
+     * sign-off stage — constrained to the team currently configured for
+     * that lane (Phase 3 of the RBAC/Team-master redesign — see
+     * LineConfigurationLane), or every active user if the lane has no
+     * required team configured.
+     *
+     * @return array<int, array{id: int, label: string}>
+     */
+    private function approversForLane(string $stageKey): array
+    {
+        return LineConfigurationLane::constrainToStage(
+            User::query()->where('is_active', 1)->whereNull('deleted_at'),
+            $stageKey,
+        )
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
+            ->values()
+            ->all();
     }
 }

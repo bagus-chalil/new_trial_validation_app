@@ -4,6 +4,7 @@ namespace App\Actions\Trials;
 
 use App\Mail\TrialLineConfigurationReturnedMail;
 use App\Models\ActivityLog;
+use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
@@ -40,8 +41,8 @@ class ReturnTrialLineConfigurationReport
     public function __invoke(Trial $trial, TrialLineConfigurationReport $report, string $reason, User $user): TrialLineConfigurationReport
     {
         $returnedByStage = match ($report->currentApprovalStage()) {
-            'approved_pie' => 'Approved (PIE)',
-            'checked_prod' => 'Checked (PROD)',
+            'approved_pie' => LineConfigurationLane::label('approved_pie', 'Approved (PIE)'),
+            'checked_prod' => LineConfigurationLane::label('checked_prod', 'Checked (PROD)'),
             default => null,
         };
 

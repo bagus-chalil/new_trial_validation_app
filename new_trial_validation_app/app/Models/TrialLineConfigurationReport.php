@@ -60,10 +60,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $approved_pie_by
  * @property Carbon|null $approved_pie_at
  * @property int|null $approved_pie_user_id
+ * @property string|null $approved_pie_label
  * @property bool $checked_prod
  * @property string|null $checked_prod_by
  * @property Carbon|null $checked_prod_at
  * @property int|null $checked_prod_user_id
+ * @property string|null $checked_prod_label
  * @property bool $return_prod
  * @property string|null $return_prod_by
  * @property Carbon|null $return_prod_at
@@ -92,10 +94,12 @@ use Illuminate\Support\Carbon;
     'approved_pie_by',
     'approved_pie_at',
     'approved_pie_user_id',
+    'approved_pie_label',
     'checked_prod',
     'checked_prod_by',
     'checked_prod_at',
     'checked_prod_user_id',
+    'checked_prod_label',
     'return_prod',
     'return_prod_by',
     'return_prod_at',

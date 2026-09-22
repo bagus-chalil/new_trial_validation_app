@@ -87,10 +87,34 @@ export type LineConfigurationReturnNote = {
 
 type StageField = 'approved_pie' | 'checked_prod';
 
-const STAGE_FIELDS: { field: StageField; label: string }[] = [
-    { field: 'approved_pie', label: 'Approved (PIE)' },
-    { field: 'checked_prod', label: 'Checked (PROD)' },
-];
+/**
+ * Display labels for the two sign-off stages — admin-editable via the Lane
+ * Configuration screen (Phase 3 of the RBAC/Team-master redesign) instead of
+ * hardcoded JSX strings, so a renamed lane ("Approved (PIE)" →
+ * "Approved (Line Head)") shows up here immediately. Always reflects the
+ * *live* config, since this section only ever renders the current/editable
+ * report — a locked historical version is a download-only PDF that reads
+ * its own frozen label snapshot instead (see
+ * resources/views/pdf/line-configuration-report-version.blade.php).
+ */
+export type LineConfigurationLanes = {
+    approved_pie: string;
+    checked_prod: string;
+};
+
+const DEFAULT_LANES: LineConfigurationLanes = {
+    approved_pie: 'Approved (PIE)',
+    checked_prod: 'Checked (PROD)',
+};
+
+function stageFields(
+    lanes: LineConfigurationLanes,
+): { field: StageField; label: string }[] {
+    return [
+        { field: 'approved_pie', label: lanes.approved_pie },
+        { field: 'checked_prod', label: lanes.checked_prod },
+    ];
+}
 
 const MIN_RETURN_REASON_WORDS = 5;
 
@@ -168,6 +192,7 @@ export function LineConfigurationReportSection({
     versions,
     approvers,
     prodApprovers,
+    lanes = DEFAULT_LANES,
     canApprovePie,
     canCheckProd,
     canReturn,
@@ -178,10 +203,12 @@ export function LineConfigurationReportSection({
     locked: boolean;
     returnNote: LineConfigurationReturnNote;
     versions: LineConfigurationReportVersion[];
-    /** Any active user — offered for Approved(PIE), which has no coded team. */
+    /** Eligible for the 'approved_pie' stage per its current lane config. */
     approvers: LineConfigurationApproverOption[];
-    /** Only users on the PROD review team — offered for Checked(PROD). */
+    /** Eligible for the 'checked_prod' stage per its current lane config. */
     prodApprovers: LineConfigurationApproverOption[];
+    /** Current, admin-editable display labels for the two stages. */
+    lanes?: LineConfigurationLanes;
     canApprovePie: boolean;
     canCheckProd: boolean;
     canReturn: boolean;
@@ -240,6 +267,7 @@ export function LineConfigurationReportSection({
                     <ReadOnlyLineConfigurationReport
                         trialId={trialId}
                         report={report}
+                        lanes={lanes}
                         canApprovePie={canApprovePie}
                         canCheckProd={canCheckProd}
                         canReturn={canReturn}
@@ -340,6 +368,7 @@ export function LineConfigurationReportSection({
                             report={report}
                             approvers={approvers}
                             prodApprovers={prodApprovers}
+                            lanes={lanes}
                             onSaved={() => setDialogOpen(false)}
                         />
                     </DialogContent>
@@ -354,12 +383,14 @@ function EditableLineConfigurationReport({
     report,
     approvers,
     prodApprovers,
+    lanes,
     onSaved,
 }: {
     trialId: number;
     report: LineConfigurationReportData;
     approvers: LineConfigurationApproverOption[];
     prodApprovers: LineConfigurationApproverOption[];
+    lanes: LineConfigurationLanes;
     onSaved: () => void;
 }) {
     const standardCounter = useRef(report?.production_standard?.length ?? 2);
@@ -429,7 +460,7 @@ function EditableLineConfigurationReport({
                         <h4 className="text-sm font-semibold">Sign-off</h4>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-2">
-                                <Label>Approved (PIE)</Label>
+                                <Label>{lanes.approved_pie}</Label>
                                 <Combobox
                                     options={approverOptions}
                                     value={approvedPieUserId}
@@ -448,18 +479,19 @@ function EditableLineConfigurationReport({
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label>Checked (PROD)</Label>
+                                <Label>{lanes.checked_prod}</Label>
                                 {prodApproverOptions.length === 0 ? (
                                     <p className="text-xs text-destructive">
-                                        Belum ada user dengan review team PROD.
-                                        Atur di Access Rights.
+                                        Belum ada user yang memenuhi tim untuk{' '}
+                                        {lanes.checked_prod}. Atur di Access
+                                        Rights / Lane Configuration.
                                     </p>
                                 ) : (
                                     <Combobox
                                         options={prodApproverOptions}
                                         value={checkedProdUserId}
                                         onChange={setCheckedProdUserId}
-                                        placeholder="Pilih user PROD..."
+                                        placeholder="Pilih user..."
                                         searchPlaceholder="Cari user..."
                                     />
                                 )}
@@ -476,11 +508,12 @@ function EditableLineConfigurationReport({
                         </div>
                         <p className="text-xs text-muted-foreground">
                             User yang dipilih akan menerima email, lalu
-                            approve/checked sendiri di halaman ini (berjenjang —
-                            Checked (PROD) baru bisa setelah Approved (PIE)
-                            selesai) — tanggal tercatat otomatis saat itu.
-                            Begitu salah satu di-assign, form ini terkunci
-                            (tidak bisa diedit lagi) sampai di-Return.
+                            approve/checked sendiri di halaman ini (berjenjang —{' '}
+                            {lanes.checked_prod} baru bisa setelah{' '}
+                            {lanes.approved_pie} selesai) — tanggal tercatat
+                            otomatis saat itu. Begitu salah satu di-assign, form
+                            ini terkunci (tidak bisa diedit lagi) sampai
+                            di-Return.
                         </p>
                     </div>
 
@@ -882,12 +915,14 @@ function SignOffStatusHint({
 function ReadOnlyLineConfigurationReport({
     trialId,
     report,
+    lanes,
     canApprovePie,
     canCheckProd,
     canReturn,
 }: {
     trialId: number;
     report: LineConfigurationReportData;
+    lanes: LineConfigurationLanes;
     canApprovePie: boolean;
     canCheckProd: boolean;
     canReturn: boolean;
@@ -909,6 +944,7 @@ function ReadOnlyLineConfigurationReport({
                 <SignOffSummaryTable
                     trialId={trialId}
                     report={report}
+                    lanes={lanes}
                     canApprovePie={canApprovePie}
                     canCheckProd={canCheckProd}
                     canReturn={canReturn}
@@ -1073,16 +1109,20 @@ function ReadOnlyLineConfigurationReport({
 function SignOffSummaryTable({
     trialId,
     report,
+    lanes,
     canApprovePie,
     canCheckProd,
     canReturn,
 }: {
     trialId: number;
     report: NonNullable<LineConfigurationReportData>;
+    lanes: LineConfigurationLanes;
     canApprovePie: boolean;
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
+    const fields = stageFields(lanes);
+
     return (
         <div className="inline-block overflow-x-auto rounded-md border">
             <Table>
@@ -1091,7 +1131,7 @@ function SignOffSummaryTable({
                         <TableHead className="text-center whitespace-nowrap">
                             Prepared (PIE)
                         </TableHead>
-                        {STAGE_FIELDS.map(({ field, label }) => (
+                        {fields.map(({ field, label }) => (
                             <TableHead
                                 key={field}
                                 className="text-center whitespace-nowrap"
@@ -1106,7 +1146,7 @@ function SignOffSummaryTable({
                         <TableCell className="text-center align-top">
                             {report.pic || '-'}
                         </TableCell>
-                        {STAGE_FIELDS.map(({ field }) => {
+                        {fields.map(({ field }) => {
                             const by = report[`${field}_by`] ?? null;
                             const at = report[`${field}_at`] ?? null;
                             const done = report[field] ?? false;
@@ -1126,7 +1166,7 @@ function SignOffSummaryTable({
                                         className="text-center align-top"
                                     >
                                         <span className="text-xs text-muted-foreground">
-                                            Menunggu Approved (PIE)
+                                            Menunggu {lanes.approved_pie}
                                         </span>
                                     </TableCell>
                                 );

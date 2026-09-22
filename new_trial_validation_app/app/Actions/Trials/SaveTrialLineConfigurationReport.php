@@ -4,6 +4,7 @@ namespace App\Actions\Trials;
 
 use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
+use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
@@ -47,7 +48,19 @@ class SaveTrialLineConfigurationReport
         $previousCheckedProdUserId = $existing?->checked_prod_user_id;
 
         $report = $existing ?? new TrialLineConfigurationReport(['trial_id' => $trial->id, 'version' => 1]);
-        $report->fill([...$data, 'updated_by_user_id' => $user->id]);
+        $labels = LineConfigurationLane::labels();
+        $report->fill([
+            ...$data,
+            'updated_by_user_id' => $user->id,
+            // Snapshot the lane's current label on every save while this
+            // row is still the editable/current one — once it's later
+            // locked (Return), this stamped value freezes with it, so a
+            // subsequent lane rename never silently relabels an already-
+            // locked historical version (Phase 3 of the RBAC/Team-master
+            // redesign — see LineConfigurationLane).
+            'approved_pie_label' => $labels['approved_pie'],
+            'checked_prod_label' => $labels['checked_prod'],
+        ]);
         $report->save();
 
         ActivityLog::create([
@@ -62,9 +75,9 @@ class SaveTrialLineConfigurationReport
             'new_data' => json_encode($data),
         ]);
 
-        $this->notifyIfNewlyAssigned($trial, $report, 'approved_pie_user_id', $previousApprovedPieUserId, 'Approved (PIE)');
+        $this->notifyIfNewlyAssigned($trial, $report, 'approved_pie_user_id', $previousApprovedPieUserId, $labels['approved_pie']);
         if ($report->approved_pie) {
-            $this->notifyIfNewlyAssigned($trial, $report, 'checked_prod_user_id', $previousCheckedProdUserId, 'Checked (PROD)');
+            $this->notifyIfNewlyAssigned($trial, $report, 'checked_prod_user_id', $previousCheckedProdUserId, $labels['checked_prod']);
         }
 
         return $report;

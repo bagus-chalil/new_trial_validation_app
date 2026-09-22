@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\LineConfigurationLane;
 use App\Models\User;
 use App\Services\Pdf\BrowsershotPdfRenderer;
 use App\Services\Pdf\PdfRenderer;
@@ -82,12 +83,15 @@ class AppServiceProvider extends ServiceProvider
         // already existed from the Fase 0 RBAC port, unused until now).
         Gate::define('view-approval-queue', fn (User $user) => $user->canApproveTrials());
         // Who may fill in/edit a trial's Line Configuration Report — the
-        // PROD review team, plus Admin/Super Admin as a general override
-        // (same "admin can do anything" shape as manage-master/manage-parameters
-        // above). Deliberately not tied to a specific Trial instance or its
-        // status: the report has no lock of any kind, see
+        // team currently configured for the 'checked_prod' stage (Phase 3 of
+        // the RBAC/Team-master redesign — admin-editable via Lane
+        // Configuration, no longer a hardcoded 'PROD' literal), plus
+        // Admin/Super Admin as a general override (same "admin can do
+        // anything" shape as manage-master/manage-parameters above).
+        // Deliberately not tied to a specific Trial instance or its status:
+        // the report has no lock of any kind, see
         // TrialLineConfigurationReport's doc comment.
         Gate::define('manage-line-configuration-report', fn (User $user) => $user->isAdmin()
-            || in_array('PROD', $user->reviewDepartmentsForUser(), true));
+            || LineConfigurationLane::userEligibleForStage($user, 'checked_prod'));
     }
 }

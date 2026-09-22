@@ -7,6 +7,7 @@ use App\Actions\Trials\ReturnTrialLineConfigurationReport;
 use App\Actions\Trials\SaveTrialLineConfigurationReport;
 use App\Http\Requests\Trials\ReturnLineConfigurationReportRequest;
 use App\Http\Requests\Trials\SaveTrialLineConfigurationReportRequest;
+use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Services\Pdf\PdfService;
@@ -75,7 +76,7 @@ class TrialLineConfigurationReportController extends Controller
 
         $action($trial, $report, $field, $request->user());
 
-        $label = $field === 'approved_pie' ? 'Approved (PIE)' : 'Checked (PROD)';
+        $label = LineConfigurationLane::label($field, $field === 'approved_pie' ? 'Approved (PIE)' : 'Checked (PROD)');
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$label} berhasil dikonfirmasi."]);
 
         return to_route('trials.report.show', $trial->id);

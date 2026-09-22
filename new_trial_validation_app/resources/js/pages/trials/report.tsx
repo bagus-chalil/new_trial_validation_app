@@ -135,6 +135,7 @@ type PageProps = {
     lineConfigurationReportVersions: LineConfigurationReportVersion[];
     lineConfigurationApprovers: LineConfigurationApproverOption[];
     lineConfigurationProdApprovers: LineConfigurationApproverOption[];
+    lineConfigurationLanes: { approved_pie: string; checked_prod: string };
     canApprovePieLineConfigurationReport: boolean;
     canCheckProdLineConfigurationReport: boolean;
     canReturnLineConfigurationReport: boolean;
@@ -185,6 +186,7 @@ export default function TrialReport({
     lineConfigurationReportVersions,
     lineConfigurationApprovers,
     lineConfigurationProdApprovers,
+    lineConfigurationLanes,
     canApprovePieLineConfigurationReport,
     canCheckProdLineConfigurationReport,
     canReturnLineConfigurationReport,
@@ -990,6 +992,7 @@ export default function TrialReport({
                             versions={lineConfigurationReportVersions}
                             approvers={lineConfigurationApprovers}
                             prodApprovers={lineConfigurationProdApprovers}
+                            lanes={lineConfigurationLanes}
                             canApprovePie={canApprovePieLineConfigurationReport}
                             canCheckProd={canCheckProdLineConfigurationReport}
                             canReturn={canReturnLineConfigurationReport}
