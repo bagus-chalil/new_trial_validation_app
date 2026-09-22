@@ -42,7 +42,9 @@ class TrialLineConfigurationReportController extends Controller
 
         $data = $request->validated();
         $data['production_standard'] = $this->dropBlankRows($data['production_standard'] ?? []);
-        $data['line_configuration'] = $this->dropBlankRows($data['line_configuration'] ?? []);
+        $data['line_configuration'] = $this->renumberRows(
+            $this->dropBlankRows($data['line_configuration'] ?? [], ['no']),
+        );
 
         $action($trial, $data, $request->user());
 
@@ -116,15 +118,22 @@ class TrialLineConfigurationReportController extends Controller
     /**
      * Drops any row whose fields are all blank — the frontend always renders
      * a handful of empty rows by default, and there's no reason to persist
-     * rows the reviewer never actually filled in.
+     * rows the reviewer never actually filled in. `$ignoreKeys` excludes
+     * fields that are always populated regardless of user input (e.g. the
+     * Line Configuration table's auto-numbered `no` column) from that check.
      *
      * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<int, string>  $ignoreKeys
      * @return array<int, array<string, mixed>>
      */
-    private function dropBlankRows(array $rows): array
+    private function dropBlankRows(array $rows, array $ignoreKeys = []): array
     {
-        return array_values(array_filter($rows, function (array $row) {
-            foreach ($row as $value) {
+        return array_values(array_filter($rows, function (array $row) use ($ignoreKeys) {
+            foreach ($row as $key => $value) {
+                if (in_array($key, $ignoreKeys, true)) {
+                    continue;
+                }
+
                 if (trim((string) $value) !== '') {
                     return true;
                 }
@@ -132,5 +141,24 @@ class TrialLineConfigurationReportController extends Controller
 
             return false;
         }));
+    }
+
+    /**
+     * Renumbers the Line Configuration table's `no` column to match each
+     * row's final position (1-based) after blank rows are dropped — the
+     * frontend no longer submits this field at all (see
+     * line-configuration-report-section.tsx), it's purely a display sequence
+     * ported from the source Excel's numbered rows.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function renumberRows(array $rows): array
+    {
+        return array_map(
+            fn (array $row, int $index): array => [...$row, 'no' => (string) ($index + 1)],
+            $rows,
+            array_keys($rows),
+        );
     }
 }

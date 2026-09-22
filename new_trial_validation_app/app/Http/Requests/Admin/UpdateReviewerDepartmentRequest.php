@@ -44,7 +44,7 @@ class UpdateReviewerDepartmentRequest extends FormRequest
             }
 
             $current = $this->route('reviewerDepartment');
-            $currentId = is_object($current) ? $current->id : $current;
+            $currentId = $current instanceof MasterOption ? $current->id : $current;
 
             $duplicate = MasterOption::query()
                 ->where('type', 'reviewer_department')

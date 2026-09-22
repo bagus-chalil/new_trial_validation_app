@@ -309,9 +309,9 @@ function ReviewerDepartmentEditDialog({
                                     />
                                     <InputError message={errors.name} />
                                     <p className="text-xs text-muted-foreground">
-                                        Mengganti nama tidak mengubah data
-                                        trial yang sudah pernah dicatat dengan
-                                        nama lama (mis. riwayat review) — hanya
+                                        Mengganti nama tidak mengubah data trial
+                                        yang sudah pernah dicatat dengan nama
+                                        lama (mis. riwayat review) — hanya
                                         assignment/pilihan baru yang memakai
                                         nama baru ini.
                                     </p>
@@ -333,10 +333,7 @@ function ReviewerDepartmentEditDialog({
                                 </div>
 
                                 <DialogFooter>
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         Save Changes
                                     </Button>
                                 </DialogFooter>
@@ -582,10 +579,10 @@ export default function AdminAccessRightsIndex({
                             <p className="mt-1 text-sm text-muted-foreground">
                                 Daftar tim/department (&quot;Team&quot;) yang
                                 bisa dipilih sebagai &quot;Review Team&quot;
-                                user dan muncul di daftar department review
-                                saat submit trial baru. Rename aman dipakai —
-                                trial yang sudah pernah disubmit tetap
-                                menyimpan nama lama di riwayatnya.
+                                user dan muncul di daftar department review saat
+                                submit trial baru. Rename aman dipakai — trial
+                                yang sudah pernah disubmit tetap menyimpan nama
+                                lama di riwayatnya.
                             </p>
                         </div>
                         <Button

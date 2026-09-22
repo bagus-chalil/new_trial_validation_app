@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Maps onto the legacy `users` table, shared with the old PHP app (see
@@ -228,9 +229,9 @@ class User extends Authenticatable
      * the RBAC/Team-master redesign) — as opposed to reviewerDepartmentCodes(),
      * which only returns the normalized name strings.
      *
-     * @return \Illuminate\Support\Collection<int, array{id: int, name: string, sort_order: int}>
+     * @return Collection<int, array{id: int, name: string, sort_order: int}>
      */
-    public static function reviewTeams(): \Illuminate\Support\Collection
+    public static function reviewTeams(): Collection
     {
         return MasterOption::query()
             ->where('type', 'reviewer_department')

@@ -159,7 +159,10 @@ test('saving a reviewer department with the same name updates it instead of dupl
         'sort_order' => 9,
     ])->assertRedirect(route('admin.access-rights.index'));
 
-    expect(MasterOption::where('type', 'reviewer_department')->count())->toBe(1);
+    // Not an exact-1 count: the Phase 1 migration seeds the 5 hardcoded
+    // default codes (PROD/RNI/QAC/PRNI/PI) as real master_options rows too,
+    // so 'DEPT X' specifically must stay a single row, not the whole table.
+    expect(MasterOption::where('type', 'reviewer_department')->where('name', 'DEPT X')->count())->toBe(1);
     expect($existing->refresh()->sort_order)->toBe(9);
 });
 
@@ -180,7 +183,10 @@ test('super admin can soft delete and re-add a reviewer department', function ()
     ]);
 
     $option->refresh();
-    expect(MasterOption::where('type', 'reviewer_department')->count())->toBe(1);
+    // Not an exact-1 count: the Phase 1 migration seeds the 5 hardcoded
+    // default codes (PROD/RNI/QAC/PRNI/PI) as real master_options rows too,
+    // so 'DEPT Y' specifically must stay a single row, not the whole table.
+    expect(MasterOption::where('type', 'reviewer_department')->where('name', 'DEPT Y')->count())->toBe(1);
     expect($option->is_active)->toBeTrue();
     expect($option->deleted_at)->toBeNull();
     expect($option->sort_order)->toBe(5);
@@ -188,7 +194,11 @@ test('super admin can soft delete and re-add a reviewer department', function ()
 
 test('super admin can rename a reviewer department', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 1, 'is_active' => true]);
+    // Reuse one of the 5 default codes the Phase 1 migration seeds into
+    // master_options (rather than creating a fresh 'PI' row, which would
+    // collide with the unique(type,name) index) — this is also the exact
+    // real-world PI -> PIE rename scenario from the approved plan.
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
     $user = User::factory()->create(['role' => 'Staff', 'review_team_id' => $option->id]);
 
     $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
@@ -208,8 +218,7 @@ test('super admin can rename a reviewer department', function () {
 
 test('renaming a reviewer department to a name already used by another active row is rejected', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    MasterOption::create(['type' => 'reviewer_department', 'name' => 'QAC', 'sort_order' => 1, 'is_active' => true]);
-    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 2, 'is_active' => true]);
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
 
     $response = $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
         'name' => 'qac',
@@ -221,7 +230,7 @@ test('renaming a reviewer department to a name already used by another active ro
 
 test('renaming a reviewer department to its own current name is allowed', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 1, 'is_active' => true]);
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
 
     $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
         'name' => 'pi',
@@ -233,7 +242,7 @@ test('renaming a reviewer department to its own current name is allowed', functi
 
 test('admin (non-super-admin) cannot rename a reviewer department', function () {
     $admin = User::factory()->create(['role' => 'Admin']);
-    $option = MasterOption::create(['type' => 'reviewer_department', 'name' => 'PI', 'sort_order' => 1, 'is_active' => true]);
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
 
     $this->actingAs($admin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
         'name' => 'PIE',

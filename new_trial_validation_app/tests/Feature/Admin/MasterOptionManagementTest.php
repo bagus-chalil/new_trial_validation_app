@@ -67,7 +67,10 @@ test('saving by id updates that master option instead of creating a new one', fu
         'sort_order' => 5,
     ])->assertRedirect(route('admin.masters.index'));
 
-    expect(MasterOption::count())->toBe(1);
+    // Not MasterOption::count(): the Phase 1 RBAC/Team-master migration
+    // seeds 5 reviewer_department rows into every environment (including
+    // this sqlite test DB) too, so scope the count to this test's own type.
+    expect(MasterOption::where('type', 'validation_scope')->count())->toBe(1);
     $existing->refresh();
     expect($existing->type)->toBe('validation_scope');
     expect($existing->name)->toBe('Updated Name');
@@ -84,7 +87,10 @@ test('saving without an id upserts by type and name', function () {
         'sort_order' => 9,
     ])->assertRedirect(route('admin.masters.index'));
 
-    expect(MasterOption::count())->toBe(1);
+    // Not MasterOption::count(): the Phase 1 RBAC/Team-master migration
+    // seeds 5 reviewer_department rows into every environment (including
+    // this sqlite test DB) too, so scope the count to this test's own type.
+    expect(MasterOption::where('type', 'machine_used')->count())->toBe(1);
     $existing->refresh();
     expect($existing->sort_order)->toBe(9);
 });
@@ -167,7 +173,11 @@ test('deleted master options do not appear in the list', function () {
 
 test('admin cannot delete a privileged type master option', function () {
     $admin = User::factory()->create(['role' => 'Admin']);
-    $option = makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC']);
+    // Not 'QAC': the Phase 1 RBAC/Team-master migration seeds that as a real
+    // reviewer_department row (unique(type,name)) in every environment
+    // including this sqlite test DB, so a fresh row here needs a name of
+    // its own.
+    $option = makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC CUSTOM']);
 
     $this->actingAs($admin)
         ->delete(route('admin.masters.destroy', $option))
@@ -179,7 +189,7 @@ test('admin cannot delete a privileged type master option', function () {
 
 test('super admin can delete a privileged type master option', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    $option = makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC']);
+    $option = makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC CUSTOM']);
 
     $this->actingAs($superAdmin)
         ->delete(route('admin.masters.destroy', $option))
@@ -191,23 +201,23 @@ test('super admin can delete a privileged type master option', function () {
 
 test('privileged type master options are hidden from non-super-admins in the list', function () {
     $admin = User::factory()->create(['role' => 'Admin']);
-    makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC']);
+    makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC CUSTOM']);
     makeMasterOption(['type' => 'machine_used', 'name' => 'Visible Machine']);
 
     $response = $this->actingAs($admin)->get(route('admin.masters.index'));
 
     $response->assertInertia(fn ($page) => $page
         ->where('options.data', fn ($data) => collect($data)->pluck('name')->contains('Visible Machine')
-            && ! collect($data)->pluck('name')->contains('QAC'))
+            && ! collect($data)->pluck('name')->contains('QAC CUSTOM'))
     );
 });
 
 test('privileged type master options are visible to super admins in the list', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC']);
+    makeMasterOption(['type' => 'reviewer_department', 'name' => 'QAC CUSTOM']);
 
     $response = $this->actingAs($superAdmin)->get(route('admin.masters.index'));
 
     $response->assertInertia(fn ($page) => $page
-        ->where('options.data', fn ($data) => collect($data)->pluck('name')->contains('QAC')));
+        ->where('options.data', fn ($data) => collect($data)->pluck('name')->contains('QAC CUSTOM')));
 });

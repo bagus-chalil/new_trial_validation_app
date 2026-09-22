@@ -372,6 +372,24 @@ function EditableLineConfigurationReport({
         KeyedRow<LineConfigurationRow>[]
     >(() => toKeyedRows(report?.line_configuration, 3, blankConfigRow));
 
+    /**
+     * Tracked alongside (not instead of) each row's uncontrolled `worker`
+     * Input, purely to compute the live "Total Workers" footer — the input
+     * itself stays uncontrolled (defaultValue), matching every other
+     * array-of-rows field in this form.
+     */
+    const [workerValues, setWorkerValues] = useState<Record<number, string>>(
+        () =>
+            Object.fromEntries(
+                configRows.map(({ key, row }) => [key, row.worker ?? '']),
+            ),
+    );
+    const totalWorkers = Object.values(workerValues).reduce((sum, value) => {
+        const n = parseLeadingNumber(value);
+
+        return n !== null ? sum + n : sum;
+    }, 0);
+
     const approverOptions = approvers.map((a) => ({
         value: String(a.id),
         label: a.label,
@@ -688,15 +706,17 @@ function EditableLineConfigurationReport({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() =>
+                                onClick={() => {
+                                    const key = configCounter.current++;
                                     setConfigRows((prev) => [
                                         ...prev,
-                                        {
-                                            key: configCounter.current++,
-                                            row: blankConfigRow(),
-                                        },
-                                    ])
-                                }
+                                        { key, row: blankConfigRow() },
+                                    ]);
+                                    setWorkerValues((prev) => ({
+                                        ...prev,
+                                        [key]: '',
+                                    }));
+                                }}
                             >
                                 Tambah Baris
                             </Button>
@@ -704,7 +724,9 @@ function EditableLineConfigurationReport({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-14">No</TableHead>
+                                    <TableHead className="w-14 text-center">
+                                        No
+                                    </TableHead>
                                     <TableHead>Equipment</TableHead>
                                     <TableHead>Process</TableHead>
                                     <TableHead>Worker</TableHead>
@@ -716,13 +738,8 @@ function EditableLineConfigurationReport({
                             <TableBody>
                                 {configRows.map(({ key, row }, index) => (
                                     <TableRow key={key}>
-                                        <TableCell>
-                                            <Input
-                                                name={`line_configuration[${index}][no]`}
-                                                defaultValue={
-                                                    row.no ?? String(index + 1)
-                                                }
-                                            />
+                                        <TableCell className="text-center text-muted-foreground">
+                                            {index + 1}
                                         </TableCell>
                                         <TableCell>
                                             <Input
@@ -742,6 +759,12 @@ function EditableLineConfigurationReport({
                                             <Input
                                                 name={`line_configuration[${index}][worker]`}
                                                 defaultValue={row.worker ?? ''}
+                                                onChange={(e) =>
+                                                    setWorkerValues((prev) => ({
+                                                        ...prev,
+                                                        [key]: e.target.value,
+                                                    }))
+                                                }
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -764,20 +787,42 @@ function EditableLineConfigurationReport({
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                onClick={() =>
+                                                onClick={() => {
                                                     setConfigRows((prev) =>
                                                         prev.filter(
                                                             (r) =>
                                                                 r.key !== key,
                                                         ),
-                                                    )
-                                                }
+                                                    );
+                                                    setWorkerValues((prev) => {
+                                                        const next = {
+                                                            ...prev,
+                                                        };
+                                                        delete next[key];
+
+                                                        return next;
+                                                    });
+                                                }}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {configRows.length > 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={3}
+                                            className="text-right font-semibold"
+                                        >
+                                            Total Workers
+                                        </TableCell>
+                                        <TableCell className="font-semibold">
+                                            {totalWorkers}
+                                        </TableCell>
+                                        <TableCell colSpan={3} />
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                         {errors.line_configuration && (
@@ -939,7 +984,7 @@ function ReadOnlyLineConfigurationReport({
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>No</TableHead>
+                            <TableHead className="text-center">No</TableHead>
                             <TableHead>Equipment</TableHead>
                             <TableHead>Process</TableHead>
                             <TableHead>Worker</TableHead>
@@ -950,7 +995,9 @@ function ReadOnlyLineConfigurationReport({
                     <TableBody>
                         {(report.line_configuration ?? []).map((row, i) => (
                             <TableRow key={i}>
-                                <TableCell>{row.no ?? i + 1}</TableCell>
+                                <TableCell className="text-center text-muted-foreground">
+                                    {i + 1}
+                                </TableCell>
                                 <TableCell>{row.equipment ?? '-'}</TableCell>
                                 <TableCell>{row.process ?? '-'}</TableCell>
                                 <TableCell>{row.worker ?? '-'}</TableCell>
@@ -966,6 +1013,29 @@ function ReadOnlyLineConfigurationReport({
                                 >
                                     Tidak ada data.
                                 </TableCell>
+                            </TableRow>
+                        )}
+                        {(report.line_configuration ?? []).length > 0 && (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={3}
+                                    className="text-right font-semibold"
+                                >
+                                    Total Workers
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                    {(report.line_configuration ?? []).reduce(
+                                        (sum, row) => {
+                                            const n = parseLeadingNumber(
+                                                row.worker ?? '',
+                                            );
+
+                                            return n !== null ? sum + n : sum;
+                                        },
+                                        0,
+                                    )}
+                                </TableCell>
+                                <TableCell colSpan={2} />
                             </TableRow>
                         )}
                     </TableBody>
