@@ -4,6 +4,7 @@ export type User = {
     email: string;
     avatar?: string;
     role: string;
+    app_role: string | null;
     department: string | null;
     review_unit: string | null;
     review_team_id: number | null;

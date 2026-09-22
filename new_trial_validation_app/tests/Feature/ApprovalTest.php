@@ -96,13 +96,22 @@ test('a Team Leader can see but not approve a trial assigned to someone else', f
     expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
 });
 
-test('Manager QAC can approve any trial regardless of approver_user_id', function () {
-    $manager = User::factory()->role('Manager QAC')->create();
+// 2026-09-22 (Phase 2 of the RBAC/Team-master redesign): legacy's blanket
+// "Manager QAC can approve any trial regardless of approver_user_id" bypass
+// is deliberately dropped for this app — only Admin/Super Admin keep an
+// unconditional bypass now (see TrialPolicy::approve()); a Manager-tier user
+// (Manager QAC, Team Leader, etc. — User::effectiveRole()) can only approve
+// a trial specifically assigned to them via approver_user_id, same as any
+// other non-Admin role. Coverage for that narrower rule already exists below
+// ('a Team Leader can see but not approve a trial assigned to someone
+// else'), so this test now exercises the bypass that's still true: Admin.
+test('an Admin can approve any trial regardless of approver_user_id', function () {
+    $admin = User::factory()->role('Admin')->create();
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $other = User::factory()->create();
     $trial = makeApprovableTrial(['created_by' => $owner->email, 'approver_user_id' => $other->id]);
 
-    $response = $this->actingAs($manager)->post(route('approvals.update', $trial), [
+    $response = $this->actingAs($admin)->post(route('approvals.update', $trial), [
         'decision' => 'Approved',
         'approval_comment' => 'Looks fine',
         'signature_password' => 'password',
@@ -114,7 +123,7 @@ test('Manager QAC can approve any trial regardless of approver_user_id', functio
     expect($trial->progress_status)->toBe('Approved');
     expect($trial->final_decision)->toBe('Approved');
     expect($trial->pending_with)->toBe('');
-    expect($trial->approved_by)->toBe($manager->name);
+    expect($trial->approved_by)->toBe($admin->name);
     expect($trial->approved_at)->not->toBeNull();
     expect($trial->approval_comment)->toBe('Looks fine');
 
@@ -127,7 +136,7 @@ test('Manager QAC can approve any trial regardless of approver_user_id', functio
 
 test('a decision with the wrong e-signature password is rejected and nothing changes', function () {
     $manager = User::factory()->role('Manager QAC')->create();
-    $trial = makeApprovableTrial();
+    $trial = makeApprovableTrial(['approver_user_id' => $manager->id]);
 
     $response = $this->actingAs($manager)->post(route('approvals.update', $trial), [
         'decision' => 'Approved',
@@ -142,7 +151,7 @@ test('a decision with the wrong e-signature password is rejected and nothing cha
 test('Need Revision sends the trial back to Staff and bumps revision_no', function () {
     $manager = User::factory()->role('Manager QAC')->create();
     $owner = User::factory()->create(['email' => 'owner@local.test']);
-    $trial = makeApprovableTrial(['created_by' => $owner->email, 'revision_no' => 0]);
+    $trial = makeApprovableTrial(['created_by' => $owner->email, 'revision_no' => 0, 'approver_user_id' => $manager->id]);
 
     $response = $this->actingAs($manager)->post(route('approvals.update', $trial), [
         'decision' => 'Need Revision',
@@ -166,7 +175,7 @@ test('Need Revision sends the trial back to Staff and bumps revision_no', functi
 test('Rejected is a final state', function () {
     $manager = User::factory()->role('Manager QAC')->create();
     $owner = User::factory()->create(['email' => 'owner@local.test']);
-    $trial = makeApprovableTrial(['created_by' => $owner->email]);
+    $trial = makeApprovableTrial(['created_by' => $owner->email, 'approver_user_id' => $manager->id]);
 
     $response = $this->actingAs($manager)->post(route('approvals.update', $trial), [
         'decision' => 'Rejected',
@@ -187,7 +196,7 @@ test('Rejected is a final state', function () {
 
 test('a decision on a trial that is not Ready for Approval is rejected', function () {
     $manager = User::factory()->role('Manager QAC')->create();
-    $trial = makeApprovableTrial(['progress_status' => 'In Review']);
+    $trial = makeApprovableTrial(['progress_status' => 'In Review', 'approver_user_id' => $manager->id]);
 
     $response = $this->actingAs($manager)->post(route('approvals.update', $trial), [
         'decision' => 'Approved',
@@ -201,7 +210,7 @@ test('a decision on a trial that is not Ready for Approval is rejected', functio
 
 test('a soft-deleted trial 404s on the approval decision route', function () {
     $manager = User::factory()->role('Manager QAC')->create();
-    $trial = makeApprovableTrial();
+    $trial = makeApprovableTrial(['approver_user_id' => $manager->id]);
     $trial->deleted_at = Carbon::now();
     $trial->save();
 

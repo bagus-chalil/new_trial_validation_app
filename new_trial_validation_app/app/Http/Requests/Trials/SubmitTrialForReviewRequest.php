@@ -41,7 +41,7 @@ class SubmitTrialForReviewRequest extends FormRequest
                 Rule::exists('users', 'id')
                     ->where('is_active', 1)
                     ->whereNull('deleted_at')
-                    ->whereIn('role', User::approverEligibleRoles()),
+                    ->where(fn ($query) => User::applyEffectiveRoleIn($query, User::approverEligibleRoles())),
             ],
         ];
     }

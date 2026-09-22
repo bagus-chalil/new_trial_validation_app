@@ -64,10 +64,14 @@ class AppServiceProvider extends ServiceProvider
     protected function configureGates(): void
     {
         Gate::define('manage-settings', fn (User $user) => $user->isAdmin());
-        Gate::define('manage-master', fn (User $user) => $user->isAdmin() || $user->role === 'Staff');
-        Gate::define('manage-parameters', fn (User $user) => $user->isAdmin() || $user->role === 'Staff');
-        Gate::define('view-products-template', fn (User $user) => $user->isAdmin() || $user->role === 'Staff');
-        Gate::define('manage-templates', fn (User $user) => $user->isAdmin() || $user->role === 'Staff');
+        // isStaff() covers isAdmin() too and is now effectiveRole()-aware
+        // (Phase 2 of the RBAC/Team-master redesign) — equivalent to the
+        // previous isAdmin() || role==='Staff', just correct for a user
+        // whose app_role diverges from the legacy-shared `role` column.
+        Gate::define('manage-master', fn (User $user) => $user->isStaff());
+        Gate::define('manage-parameters', fn (User $user) => $user->isStaff());
+        Gate::define('view-products-template', fn (User $user) => $user->isStaff());
+        Gate::define('manage-templates', fn (User $user) => $user->isStaff());
         // Port of the `is_super_admin()` check guarding legacy's
         // /admin/access-rights screen (role/department reassignment,
         // reviewer-department master, draft-trial edit-permission

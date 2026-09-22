@@ -92,12 +92,18 @@ function EditRoleDialog({
     roleCategories: string[];
     reviewerDepartments: ReviewerDepartment[];
 }) {
-    // An existing user's role may hold a value no longer offered here (e.g.
-    // a review-team code from before review_unit existed) — keep it
-    // selectable so saving without touching Role doesn't blank it out.
+    // Phase 2 of the RBAC/Team-master redesign: this app's authoritative
+    // role tier lives in `app_role`, not the legacy-shared `role` column
+    // (see User::effectiveRole()) — fall back to `role` only for a user
+    // never yet saved through this screen (app_role still null).
+    const currentAppRole = editingUser?.app_role ?? editingUser?.role ?? '';
+
+    // An existing user's effective role may hold a value no longer offered
+    // here — keep it selectable so saving without touching Role doesn't
+    // change it to something unintended.
     const roleOptions =
-        editingUser && !roleCategories.includes(editingUser.role)
-            ? [editingUser.role, ...roleCategories]
+        currentAppRole && !roleCategories.includes(currentAppRole)
+            ? [currentAppRole, ...roleCategories]
             : roleCategories;
 
     return (
@@ -130,15 +136,22 @@ function EditRoleDialog({
                                             Lama.
                                         </p>
                                     )}
+                                    <p className="text-xs text-muted-foreground">
+                                        Role (legacy): {editingUser.role} —
+                                        nilai kolom asli yang dibaca Aplikasi
+                                        Lama, tidak diubah dari sini. Role
+                                        efektif di aplikasi ini diatur terpisah
+                                        di bawah.
+                                    </p>
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="role">Role</Label>
+                                    <Label htmlFor="app_role">Role</Label>
                                     <Select
-                                        name="role"
-                                        defaultValue={editingUser.role}
+                                        name="app_role"
+                                        defaultValue={currentAppRole}
                                     >
-                                        <SelectTrigger id="role">
+                                        <SelectTrigger id="app_role">
                                             <SelectValue placeholder="Role" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -154,9 +167,9 @@ function EditRoleDialog({
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
                                         Menentukan hak akses user di aplikasi
-                                        ini (Staff/Admin/dsb).
+                                        ini (Staff/Manager/Admin/dsb).
                                     </p>
-                                    <InputError message={errors.role} />
+                                    <InputError message={errors.app_role} />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -511,7 +524,9 @@ export default function AdminAccessRightsIndex({
                                     <TableRow key={usr.id}>
                                         <TableCell>{usr.name}</TableCell>
                                         <TableCell>{usr.email}</TableCell>
-                                        <TableCell>{usr.role}</TableCell>
+                                        <TableCell>
+                                            {usr.app_role ?? usr.role}
+                                        </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {usr.department ?? '-'}
                                         </TableCell>

@@ -43,7 +43,7 @@ class UserController extends Controller
             ->withQueryString();
 
         $roleCategories = User::roleCategories();
-        $hasSuperAdmin = User::where('role', 'Super Admin')->where('is_active', 1)->whereNull('deleted_at')->exists();
+        $hasSuperAdmin = self::hasActiveSuperAdmin();
         if (! $request->user()->isSuperAdmin() && $hasSuperAdmin) {
             $roleCategories = array_values(array_filter($roleCategories, fn ($role) => $role !== 'Super Admin'));
         }
@@ -60,8 +60,7 @@ class UserController extends Controller
         $data = $request->validated();
         $role = $data['role'];
 
-        $hasSuperAdmin = User::where('role', 'Super Admin')->where('is_active', 1)->whereNull('deleted_at')->exists();
-        if ($role === 'Super Admin' && ! $request->user()->isSuperAdmin() && $hasSuperAdmin) {
+        if ($role === 'Super Admin' && ! $request->user()->isSuperAdmin() && self::hasActiveSuperAdmin()) {
             return back()->withErrors(['role' => 'Hanya Super Admin yang bisa membuat atau memberikan role Super Admin.'])->withInput();
         }
 
@@ -118,5 +117,20 @@ class UserController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'User berhasil dinonaktifkan.']);
 
         return to_route('admin.users.index');
+    }
+
+    /**
+     * Whether an active Super Admin currently exists — checked against each
+     * user's *effective* role (User::applyEffectiveRoleIn(), Phase 2 of the
+     * RBAC/Team-master redesign), not just the legacy-shared `role` column,
+     * since a Super Admin promoted via Access Rights only ever has that
+     * reflected in `app_role`.
+     */
+    private static function hasActiveSuperAdmin(): bool
+    {
+        $query = User::where('is_active', 1)->whereNull('deleted_at');
+        User::applyEffectiveRoleIn($query, ['Super Admin']);
+
+        return $query->exists();
     }
 }

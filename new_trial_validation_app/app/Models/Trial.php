@@ -302,12 +302,12 @@ class Trial extends Model
         // status) must keep applying to just the Ready for Approval slice
         // of the merged 'tracking' group — an In Review row is never
         // touched by it, matching legacy's per-status behavior exactly.
-        // Matches scopeAwaitingApprovalFor()'s canSeeAll list — a Team
-        // Leader/Part Leader/Team Leader QA not specifically assigned as
-        // approver_user_id would otherwise disappear from this general list
-        // while still seeing the same trial in their Approval Queue.
-        $approverCanSeeAllRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
-        $canSeeAllApprovals = $user->isAdmin() || $user->isManagerQac() || in_array($user->role, $approverCanSeeAllRoles, true);
+        // Matches scopeAwaitingApprovalFor()'s canSeeAll list — a
+        // Manager-tier user (User::approverEligibleRoles(), via
+        // effectiveRole()) not specifically assigned as approver_user_id
+        // would otherwise disappear from this general list while still
+        // seeing the same trial in their Approval Queue.
+        $canSeeAllApprovals = $user->isAdmin() || in_array($user->effectiveRole(), User::approverEligibleRoles(), true);
 
         if (in_array($statusGroup, ['waiting', 'tracking'], true)) {
             if (! $canSeeAllApprovals) {
@@ -340,9 +340,9 @@ class Trial extends Model
      * Port of the /approvals queue query (public/index.php:859-880). Distinct
      * from TrialPolicy::approve() — this decides who sees which trials in the
      * approval *queue list*, not who may actually submit a decision for one.
-     * Admin, Manager QAC, and Team Leader/Part Leader/Team Leader QA see every
-     * Ready-for-Approval trial; anyone else only sees trials specifically
-     * assigned to them via approver_user_id.
+     * Admin and every Manager-tier role (User::approverEligibleRoles(), via
+     * effectiveRole()) see every Ready-for-Approval trial; anyone else only
+     * sees trials specifically assigned to them via approver_user_id.
      *
      * @param  Builder<Trial>  $query
      * @return Builder<Trial>
@@ -352,8 +352,7 @@ class Trial extends Model
         $query->where('trials_header.progress_status', 'Ready for Approval')
             ->whereNull('trials_header.deleted_at');
 
-        $approverRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
-        $canSeeAll = $user->isAdmin() || $user->isManagerQac() || in_array($user->role, $approverRoles, true);
+        $canSeeAll = $user->isAdmin() || in_array($user->effectiveRole(), User::approverEligibleRoles(), true);
 
         if (! $canSeeAll) {
             $query->where('trials_header.approver_user_id', $user->id);

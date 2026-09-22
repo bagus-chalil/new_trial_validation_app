@@ -72,10 +72,11 @@ class AccessRightController extends Controller
             ->limit(100)
             ->get(['id', 'trial_code', 'product_name', 'created_by', 'created_at']);
 
-        $staffUsers = User::query()
-            ->where('role', 'Staff')
+        $staffUsersQuery = User::query()
             ->where('is_active', 1)
-            ->whereNull('deleted_at')
+            ->whereNull('deleted_at');
+        User::applyEffectiveRoleIn($staffUsersQuery, ['Staff']);
+        $staffUsers = $staffUsersQuery
             ->orderBy('name')
             ->orderBy('email')
             ->get(['id', 'name', 'email']);
@@ -104,21 +105,29 @@ class AccessRightController extends Controller
     public function updateRole(UpdateUserRoleRequest $request, User $user): RedirectResponse
     {
         if ($user->id === $request->user()->id) {
-            return back()->withErrors(['role' => 'Tidak bisa mengubah hak akses akun sendiri dari halaman ini.']);
+            return back()->withErrors(['app_role' => 'Tidak bisa mengubah hak akses akun sendiri dari halaman ini.']);
         }
 
         $data = $request->validated();
-        $role = trim($data['role']);
+        $appRole = trim($data['app_role']);
 
-        if (! in_array($role, User::roleCategories(), true)) {
-            return back()->withErrors(['role' => 'Kategori hak akses tidak valid.']);
+        if (! in_array($appRole, User::roleCategories(), true)) {
+            return back()->withErrors(['app_role' => 'Kategori hak akses tidak valid.']);
         }
 
         // `department` is a legacy-shared attribute (see the 2026-09-14
         // review_unit migration doc comment) — this screen no longer edits
         // it, so it's left completely untouched here rather than derived
         // from Role like it used to be.
-        $user->role = $role;
+        //
+        // Phase 2 of the RBAC/Team-master redesign (see memory
+        // rbac_team_lane_redesign_2026_09_22): this writes the this-app-owned
+        // `app_role` column, never the legacy-shared `role` column — legacy
+        // hardcodes literal checks against role strings like 'Manager QAC'
+        // (../app/bootstrap.php), which this screen must never rewrite.
+        // User::effectiveRole() reads app_role first, falling back to a
+        // mapped `role` only while app_role is still unset.
+        $user->app_role = $appRole;
 
         // Phase 1 of the RBAC/Team-master redesign (see memory
         // rbac_team_lane_redesign_2026_09_22): the Review Team picker now
@@ -214,12 +223,12 @@ class AccessRightController extends Controller
             ->whereNull('deleted_at')
             ->first();
 
-        $targetUser = User::query()
+        $targetUserQuery = User::query()
             ->where('id', $data['user_id'])
-            ->where('role', 'Staff')
             ->where('is_active', 1)
-            ->whereNull('deleted_at')
-            ->first();
+            ->whereNull('deleted_at');
+        User::applyEffectiveRoleIn($targetUserQuery, ['Staff']);
+        $targetUser = $targetUserQuery->first();
 
         if (! $trial || ! $targetUser) {
             return back()->withErrors(['trial_id' => 'Draft report atau user Staff tidak valid.']);

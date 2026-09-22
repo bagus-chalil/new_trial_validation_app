@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,7 @@ use Illuminate\Support\Collection;
  * @property string $email
  * @property string $password_hash
  * @property string $role
+ * @property string|null $app_role
  * @property string|null $department
  * @property string|null $review_unit
  * @property int|null $review_team_id
@@ -37,7 +39,7 @@ use Illuminate\Support\Collection;
  * @property Carbon|null $deleted_at
  * @property int|null $deleted_by
  */
-#[Fillable(['name', 'email', 'role', 'department', 'review_unit', 'review_team_id'])]
+#[Fillable(['name', 'email', 'role', 'app_role', 'department', 'review_unit', 'review_team_id'])]
 #[Hidden(['password_hash'])]
 class User extends Authenticatable
 {
@@ -111,29 +113,101 @@ class User extends Authenticatable
         return preg_replace('/\s+/', ' ', $dept) ?? '';
     }
 
+    /**
+     * Legacy `role` values that bake a department into the role name
+     * (bootstrap.php hardcodes literal checks against these — see
+     * effectiveRole()) — mapped onto the generic 'Manager' tier for this
+     * app's own authorization, without ever touching the shared `role`
+     * column those legacy checks still rely on.
+     */
+    private const LEGACY_ROLE_TO_GENERIC = [
+        'Manager QAC' => 'Manager',
+        'Team Leader' => 'Manager',
+        'Part Leader' => 'Manager',
+        'Team Leader QA' => 'Manager',
+        'Team Leader Production' => 'Manager',
+    ];
+
+    /**
+     * Phase 2 of the RBAC/Team-master redesign (see memory
+     * rbac_team_lane_redesign_2026_09_22): this app's authoritative role
+     * tier. Prefers the this-app-owned `app_role` column when set; falls
+     * back to mapping the legacy-shared `role` column through
+     * LEGACY_ROLE_TO_GENERIC otherwise, so a user created (by either app)
+     * before ever being touched in Access Rights still resolves correctly.
+     * The legacy-shared `role` column itself is never mutated by this app's
+     * Access Rights screen going forward — only `app_role` is.
+     */
+    public function effectiveRole(): string
+    {
+        $appRole = trim((string) $this->app_role);
+        if ($appRole !== '') {
+            return $appRole;
+        }
+
+        return self::mapLegacyRoleToGeneric($this->role);
+    }
+
+    public static function mapLegacyRoleToGeneric(?string $role): string
+    {
+        $role = trim((string) $role);
+
+        return self::LEGACY_ROLE_TO_GENERIC[$role] ?? $role;
+    }
+
+    /**
+     * Applies an "effective role is one of $roles" constraint to a query
+     * builder (Eloquent or plain, both support where()/whereIn()/orWhere())
+     * — the DB-level counterpart of effectiveRole(), for queries that can't
+     * load every row into memory first (approver pickers, Rule::exists()
+     * checks). Every existing user has `app_role` backfilled by the Phase 2
+     * migration, so the `role`-based fallback branch only ever matters for
+     * a user created after that migration ran and never yet saved through
+     * Access Rights.
+     *
+     * @param  \Illuminate\Database\Query\Builder|Builder<User>  $query
+     * @param  list<string>  $roles
+     */
+    public static function applyEffectiveRoleIn($query, array $roles): void
+    {
+        // The app_role-is-null fallback branch must match effectiveRole()'s
+        // own fallback exactly: a legacy role string maps through
+        // LEGACY_ROLE_TO_GENERIC first, so e.g. a not-yet-migrated
+        // 'Manager QAC' row (app_role still null) matches a search for
+        // 'Manager', not just a literal 'Manager' string in `role`.
+        $rawRoleMatches = $roles;
+        foreach (self::LEGACY_ROLE_TO_GENERIC as $legacyRole => $genericRole) {
+            if (in_array($genericRole, $roles, true) && ! in_array($legacyRole, $rawRoleMatches, true)) {
+                $rawRoleMatches[] = $legacyRole;
+            }
+        }
+
+        $query->where(function ($q) use ($roles, $rawRoleMatches) {
+            $q->whereIn('app_role', $roles)
+                ->orWhere(function ($q2) use ($rawRoleMatches) {
+                    $q2->whereNull('app_role')->whereIn('role', $rawRoleMatches);
+                });
+        });
+    }
+
     public function isSuperAdmin(): bool
     {
-        return $this->role === 'Super Admin';
+        return $this->effectiveRole() === 'Super Admin';
     }
 
     public function isAdmin(): bool
     {
-        return $this->role === 'Admin' || $this->isSuperAdmin();
+        return $this->effectiveRole() === 'Admin' || $this->isSuperAdmin();
     }
 
     public function isStaff(): bool
     {
-        return $this->role === 'Staff' || $this->isAdmin();
-    }
-
-    public function isManagerQac(): bool
-    {
-        return $this->role === 'Manager QAC';
+        return $this->effectiveRole() === 'Staff' || $this->isAdmin();
     }
 
     public function isViewer(): bool
     {
-        return $this->role === 'Viewer';
+        return $this->effectiveRole() === 'Viewer';
     }
 
     /**
@@ -145,11 +219,19 @@ class User extends Authenticatable
      * "Need Approval" sidebar entry on this same role set, plus an existing
      * assignment — see canApproveTrials() below).
      *
+     * Narrowed 2026-09-22 (Phase 2 of the RBAC/Team-master redesign) from
+     * the previous 8-entry legacy-role-string list to the 3 generic tiers
+     * structurally eligible to hold final approval authority — every
+     * legacy department-coupled role string (Manager QAC, Team Leader,
+     * Part Leader, Team Leader QA, Team Leader Production) now maps onto
+     * 'Manager' via effectiveRole()/applyEffectiveRoleIn(), so this list
+     * stays exhaustive without needing to enumerate them here too.
+     *
      * @return list<string>
      */
     public static function approverEligibleRoles(): array
     {
-        return ['Admin', 'Super Admin', 'Manager QAC', 'Team Leader', 'Part Leader', 'Team Leader QA', 'Manager', 'Team Leader Production'];
+        return ['Manager', 'Admin', 'Super Admin'];
     }
 
     public function departmentCode(): string
@@ -330,9 +412,18 @@ class User extends Authenticatable
         return in_array($unit, $codes, true) ? [$unit] : [];
     }
 
+    /**
+     * Port of legacy's is_reviewer() (!is_manager_qac() && ...) — the
+     * exclusion is deliberately kept scoped to the exact legacy role string
+     * 'Manager QAC', not the broader 'Manager' tier it now maps onto via
+     * effectiveRole(): legacy only excludes this one role from also
+     * counting as a per-department reviewer (its department is already
+     * implied by the role name itself), while a Team Leader/Part Leader
+     * with a review_unit set has always still counted as a reviewer.
+     */
     public function isReviewer(): bool
     {
-        return ! $this->isManagerQac() && count($this->reviewDepartmentsForUser()) > 0;
+        return $this->role !== 'Manager QAC' && count($this->reviewDepartmentsForUser()) > 0;
     }
 
     /**
@@ -348,7 +439,12 @@ class User extends Authenticatable
      */
     public static function roleCategories(): array
     {
-        $roles = ['Staff', 'Viewer', 'Manager QAC', 'Admin', 'Super Admin'];
+        // Trimmed 2026-09-22 (Phase 2 of the RBAC/Team-master redesign) from
+        // ['Staff','Viewer','Manager QAC','Admin','Super Admin'] to generic,
+        // department-free tiers — 'Manager QAC' baked a department into the
+        // role name; which team a Manager belongs to is now handled purely
+        // via review_team_id (Access Rights' "Review Team" field) instead.
+        $roles = ['Staff', 'Viewer', 'Manager', 'Admin', 'Super Admin'];
 
         try {
             $names = MasterOption::query()
@@ -379,7 +475,7 @@ class User extends Authenticatable
         if ($this->isAdmin()) {
             return 'Admin';
         }
-        if ($this->role === 'Staff') {
+        if ($this->effectiveRole() === 'Staff') {
             return 'Staff Trial';
         }
         if ($this->isViewer()) {
@@ -388,10 +484,12 @@ class User extends Authenticatable
         if ($this->isReviewer()) {
             return 'Reviewer';
         }
-        if ($this->isManagerQac()) {
-            return 'Manager QAC';
-        }
 
+        // No explicit 'Manager QAC'/'Manager' branch needed here: a
+        // Manager-tier user without a review department falls through to
+        // the raw `role` column below, which already reads e.g. 'Manager
+        // QAC' or 'Team Leader' for a not-yet-migrated legacy account, or
+        // the effective 'Manager' for one whose role was set via this app.
         return $this->role;
     }
 
@@ -431,15 +529,8 @@ class User extends Authenticatable
      */
     public function canApproveTrials(): bool
     {
-        if ($this->isAdmin() || $this->isManagerQac()) {
-            return true;
-        }
-
-        $approverRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
-        if (in_array($this->role, $approverRoles, true)) {
-            return true;
-        }
-
-        return $this->hasAssignedApproval();
+        return $this->isAdmin()
+            || in_array($this->effectiveRole(), self::approverEligibleRoles(), true)
+            || $this->hasAssignedApproval();
     }
 }

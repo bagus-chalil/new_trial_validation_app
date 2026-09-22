@@ -44,8 +44,7 @@ class TrialPolicy
             return true;
         }
 
-        $approverRoles = ['Manager QAC', 'Team Leader', 'Part Leader', 'Team Leader QA'];
-        if ($user->isStaff() || in_array($user->role, $approverRoles, true)) {
+        if ($user->isStaff() || in_array($user->effectiveRole(), User::approverEligibleRoles(), true)) {
             return true;
         }
 
@@ -122,14 +121,23 @@ class TrialPolicy
      * Port of the authorization checks inline in legacy's POST
      * /trials/{id}/approval handler (public/index.php:884-898). Note this is
      * narrower than the approval *queue's* visibility (see
-     * Trial::scopeAwaitingApprovalFor()): Team Leader/Part Leader/Team Leader
-     * QA can *see* every Ready-for-Approval trial in the queue, but — same as
-     * every other non-Admin/Manager-QAC role — can only actually approve one
-     * that's specifically assigned to them via approver_user_id.
+     * Trial::scopeAwaitingApprovalFor()): every Manager-tier role (Manager
+     * QAC, Team Leader, Part Leader, Team Leader QA, Team Leader Production
+     * — see User::effectiveRole()) can *see* every Ready-for-Approval trial
+     * in the queue, but can only actually approve one that's specifically
+     * assigned to them via approver_user_id.
+     *
+     * The blanket "Manager QAC can approve any trial" bypass legacy grants
+     * is deliberately dropped for this app (2026-09-22, Phase 2 of the
+     * RBAC/Team-master redesign) — only Admin/Super Admin keep an
+     * unconditional bypass here. This only affects this Laravel app's own
+     * authorization; legacy's own can_approve_trial() is separate PHP code
+     * reading the untouched `role` column, so legacy's behavior for these
+     * users is completely unchanged.
      */
     public function approve(User $user, Trial $trial): bool
     {
-        if ($user->isAdmin() || $user->isManagerQac()) {
+        if ($user->isAdmin()) {
             return true;
         }
 

@@ -27,7 +27,7 @@ class UserPolicy
             return false;
         }
 
-        return $target->role !== 'Super Admin' || $user->isSuperAdmin();
+        return $target->effectiveRole() !== 'Super Admin' || $user->isSuperAdmin();
     }
 
     public function delete(User $user, User $target): bool
@@ -36,6 +36,6 @@ class UserPolicy
             return false;
         }
 
-        return $target->role !== 'Super Admin' || $user->isSuperAdmin();
+        return $target->effectiveRole() !== 'Super Admin' || $user->isSuperAdmin();
     }
 }

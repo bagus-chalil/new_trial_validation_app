@@ -35,13 +35,14 @@ class TrialReviewController extends Controller
 
         $reviews = $trial->reviews()->with('reviewer:id,name,email')->orderBy('review_round')->orderBy('department')->get();
 
-        $approvers = User::query()
+        $approversQuery = User::query()
             ->where('is_active', 1)
-            ->whereNull('deleted_at')
-            ->whereIn('role', User::approverEligibleRoles())
+            ->whereNull('deleted_at');
+        User::applyEffectiveRoleIn($approversQuery, User::approverEligibleRoles());
+        $approvers = $approversQuery
             ->orderBy('role')
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'role']);
+            ->get(['id', 'name', 'email', 'role', 'app_role']);
 
         $reviewerDepartments = User::reviewerDepartmentCodes();
 
@@ -75,7 +76,7 @@ class TrialReviewController extends Controller
             ]),
             'approvers' => $approvers->map(fn (User $u) => [
                 'id' => $u->id,
-                'label' => trim((string) ($u->name ?: $u->email)).' - '.$u->role,
+                'label' => trim((string) ($u->name ?: $u->email)).' - '.$u->effectiveRole(),
             ]),
             'selectedApproverId' => $trial->approver_user_id,
             'completeness' => (new CheckTrialCompleteness)($trial),
@@ -86,10 +87,9 @@ class TrialReviewController extends Controller
     public function store(SubmitTrialForReviewRequest $request, int $trial, SubmitTrialForReview $action): RedirectResponse
     {
         $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
-        $approver = User::where('is_active', 1)
-            ->whereNull('deleted_at')
-            ->whereIn('role', User::approverEligibleRoles())
-            ->findOrFail($request->integer('approver_user_id'));
+        $approverQuery = User::where('is_active', 1)->whereNull('deleted_at');
+        User::applyEffectiveRoleIn($approverQuery, User::approverEligibleRoles());
+        $approver = $approverQuery->findOrFail($request->integer('approver_user_id'));
 
         $action($trial, $request->departments(), $request->reviewerUserIds(), $approver, $request->user());
 

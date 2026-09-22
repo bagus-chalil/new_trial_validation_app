@@ -38,29 +38,33 @@ test('super admin cannot change their own role from this screen', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
 
     $response = $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $superAdmin), [
-        'role' => 'Admin',
+        'app_role' => 'Admin',
         'department' => '',
     ]);
 
-    $response->assertSessionHasErrors('role');
+    $response->assertSessionHasErrors('app_role');
     expect($superAdmin->refresh()->role)->toBe('Super Admin');
+    expect($superAdmin->app_role)->toBeNull();
 });
 
-test('super admin can reassign another user role, legacy department is left untouched', function () {
+test('super admin can reassign another user\'s app_role; the legacy role/department columns are left untouched', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
     $target = User::factory()->create(['role' => 'Viewer', 'department' => null]);
 
-    // This screen no longer edits `department` (a legacy-shared attribute) —
-    // even if a stray 'department' key were submitted, it must have no
-    // effect, since the field was removed from the form on purpose.
+    // This screen writes app_role, never the legacy-shared `role` column
+    // (Phase 2 of the RBAC/Team-master redesign — legacy hardcodes literal
+    // checks against role strings it must keep reading unchanged) — and no
+    // longer edits `department` either, even if a stray 'department' key
+    // were submitted, since that field was removed from the form on purpose.
     $response = $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
-        'role' => 'Staff',
+        'app_role' => 'Staff',
         'department' => 'ops',
     ]);
 
     $response->assertRedirect(route('admin.access-rights.index'));
     $target->refresh();
-    expect($target->role)->toBe('Staff');
+    expect($target->app_role)->toBe('Staff');
+    expect($target->role)->toBe('Viewer');
     expect($target->department)->toBeNull();
 });
 
@@ -70,12 +74,12 @@ test('super admin can assign a review team independently of role/department', fu
     $team = MasterOption::where('type', 'reviewer_department')->where('name', 'PROD')->firstOrFail();
 
     $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
-        'role' => 'Staff',
+        'app_role' => 'Staff',
         'review_team_id' => $team->id,
     ]);
 
     $target->refresh();
-    expect($target->role)->toBe('Staff');
+    expect($target->app_role)->toBe('Staff');
     expect($target->department)->toBe('Ops');
     expect($target->review_team_id)->toBe($team->id);
     // review_unit (the legacy free-text column) is kept in sync for backward
@@ -89,7 +93,7 @@ test('review team can be cleared back to none via the __none sentinel', function
     $target = User::factory()->create(['role' => 'Staff', 'review_team_id' => $team->id, 'review_unit' => 'PROD']);
 
     $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
-        'role' => 'Staff',
+        'app_role' => 'Staff',
         'department' => '',
         'review_team_id' => '__none',
     ]);
@@ -104,7 +108,7 @@ test('an unknown review team value is rejected', function () {
     $target = User::factory()->create(['role' => 'Staff']);
 
     $response = $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
-        'role' => 'Staff',
+        'app_role' => 'Staff',
         'department' => '',
         'review_team_id' => 999999,
     ]);
@@ -117,12 +121,13 @@ test('reassigning to an unknown role is rejected', function () {
     $target = User::factory()->create(['role' => 'Viewer']);
 
     $response = $this->actingAs($superAdmin)->post(route('admin.access-rights.users.role', $target), [
-        'role' => 'Not A Real Role',
+        'app_role' => 'Not A Real Role',
         'department' => '',
     ]);
 
-    $response->assertSessionHasErrors('role');
+    $response->assertSessionHasErrors('app_role');
     expect($target->refresh()->role)->toBe('Viewer');
+    expect($target->app_role)->toBeNull();
 });
 
 test('admin cannot reassign roles', function () {
@@ -130,7 +135,7 @@ test('admin cannot reassign roles', function () {
     $target = User::factory()->create(['role' => 'Viewer']);
 
     $this->actingAs($admin)->post(route('admin.access-rights.users.role', $target), [
-        'role' => 'Staff',
+        'app_role' => 'Staff',
     ])->assertForbidden();
 
     expect($target->refresh()->role)->toBe('Viewer');

@@ -32,7 +32,7 @@ class UpdateUserRoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => ['required', 'string', 'max:50'],
+            'app_role' => ['required', 'string', 'max:50'],
             'review_team_id' => [
                 'nullable',
                 Rule::in(
