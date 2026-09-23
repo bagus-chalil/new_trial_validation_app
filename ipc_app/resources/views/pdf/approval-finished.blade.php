@@ -123,8 +123,26 @@
         @endif
 
         <div class="sign-grid">
-            <div><span>QC FG Inspector</span></div>
-            <div><span>QC Staff</span></div>
+            <div>
+                <span>QC FG Inspector</span>
+                <strong>{{ $finishedCheck->user->name ?? '—' }}</strong>
+            </div>
+            <div>
+                <span>QC Staff</span>
+                @if ($finishedApproval)
+                    <strong>{{ $finishedApproval->approver->name ?? '—' }}</strong>
+                    <small class="sign-date">{{ optional($finishedApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+                @endif
+            </div>
+            <div class="qr-box">
+                <span>Verifikasi</span>
+                @if ($finishedApproval)
+                    <div class="qr-code">{!! $verificationQr !!}</div>
+                    <small>{{ $finishedApproval->decision }}</small>
+                @else
+                    <small class="muted">Belum disetujui</small>
+                @endif
+            </div>
         </div>
     @else
         <p class="muted">Finished Check belum diisi.</p>

@@ -78,6 +78,7 @@ class ApprovalController extends Controller
             'packingCheck.user',
             'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'packingCheck.revisions.user',
+            'approvals.approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -102,6 +103,7 @@ class ApprovalController extends Controller
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'finishedCheck.revisions.user',
             'finishedCheck.revisions.samples',
+            'approvals.approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -153,12 +155,19 @@ class ApprovalController extends Controller
     {
         $approvals = $batch->approvals->keyBy('stage');
 
-        return collect(IpcApproval::STAGES)->map(fn (string $stage) => [
-            'stage' => $stage,
-            'label' => IpcApproval::STAGE_LABELS[$stage],
-            'ready' => IpcApproval::stageReady($batch, $stage),
-            'approval' => $approvals->get($stage),
-        ])->values()->all();
+        // Startup is deliberately hidden from the Approval overview per direct user request
+        // (2026-09-23) — its own detail/decision page (`approval.startup`) is left in place and
+        // still reachable directly, this only removes its card from this list. Print's own
+        // overview (PrintController::stagesSummary(), a separate method) is untouched — the user
+        // scoped this to Approval only.
+        return collect(IpcApproval::STAGES)
+            ->reject(fn (string $stage) => $stage === IpcApproval::STAGE_STARTUP)
+            ->map(fn (string $stage) => [
+                'stage' => $stage,
+                'label' => IpcApproval::STAGE_LABELS[$stage],
+                'ready' => IpcApproval::stageReady($batch, $stage),
+                'approval' => $approvals->get($stage),
+            ])->values()->all();
     }
 
     /**

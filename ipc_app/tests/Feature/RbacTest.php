@@ -13,6 +13,7 @@ use App\Models\StartupCheck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class RbacTest extends TestCase
@@ -288,5 +289,233 @@ class RbacTest extends TestCase
             ->assertSessionHasErrors('role');
 
         $this->assertSame(User::ROLE_STAFF, $target->fresh()->role);
+    }
+
+    // --- Admin-driven user creation (no public registration) ---
+
+    public function test_registration_page_no_longer_exists(): void
+    {
+        $this->get('/register')->assertNotFound();
+        $this->post('/register', [])->assertNotFound();
+    }
+
+    public function test_staff_is_forbidden_from_creating_a_user(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->post('/users', [
+                'name' => 'New Guy',
+                'email' => 'newguy@example.com',
+                'password' => 'password',
+                'password_confirmation' => 'password',
+                'role' => User::ROLE_STAFF,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_create_a_user_with_a_role(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post('/users', [
+                'name' => 'New Guy',
+                'email' => 'newguy@example.com',
+                'password' => 'password',
+                'password_confirmation' => 'password',
+                'role' => User::ROLE_APPROVER,
+            ])
+            ->assertRedirect();
+
+        $created = User::where('email', 'newguy@example.com')->firstOrFail();
+        $this->assertSame('New Guy', $created->name);
+        $this->assertSame(User::ROLE_APPROVER, $created->role);
+        $this->assertTrue(Hash::check('password', $created->password));
+    }
+
+    public function test_user_creation_rejects_a_duplicate_email(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $existing = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->post('/users', [
+                'name' => 'Duplicate',
+                'email' => $existing->email,
+                'password' => 'password',
+                'password_confirmation' => 'password',
+                'role' => User::ROLE_STAFF,
+            ])
+            ->assertSessionHasErrors('email');
+    }
+
+    public function test_user_creation_rejects_a_mismatched_password_confirmation(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post('/users', [
+                'name' => 'New Guy',
+                'email' => 'newguy2@example.com',
+                'password' => 'password',
+                'password_confirmation' => 'nope',
+                'role' => User::ROLE_STAFF,
+            ])
+            ->assertSessionHasErrors('password');
+
+        $this->assertDatabaseMissing('users', ['email' => 'newguy2@example.com']);
+    }
+
+    // --- Admin-driven full user edit ---
+
+    public function test_staff_is_forbidden_from_editing_a_user(): void
+    {
+        $target = User::factory()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->patch("/users/{$target->id}", [
+                'name' => 'Renamed',
+                'email' => $target->email,
+                'role' => User::ROLE_STAFF,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_edit_a_users_name_email_and_role(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->patch("/users/{$target->id}", [
+                'name' => 'Renamed User',
+                'email' => 'renamed@example.com',
+                'role' => User::ROLE_APPROVER,
+            ])
+            ->assertRedirect();
+
+        $target->refresh();
+        $this->assertSame('Renamed User', $target->name);
+        $this->assertSame('renamed@example.com', $target->email);
+        $this->assertSame(User::ROLE_APPROVER, $target->role);
+    }
+
+    public function test_user_edit_rejects_a_duplicate_email(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = User::factory()->create()->fresh();
+        $other = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->patch("/users/{$target->id}", [
+                'name' => $target->name,
+                'email' => $other->email,
+                'role' => $target->role,
+            ])
+            ->assertSessionHasErrors('email');
+    }
+
+    public function test_editing_a_user_without_a_password_leaves_it_unchanged(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = User::factory()->create()->fresh();
+        $originalHash = $target->password;
+
+        $this->actingAs($admin)
+            ->patch("/users/{$target->id}", [
+                'name' => $target->name,
+                'email' => $target->email,
+                'role' => $target->role,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame($originalHash, $target->fresh()->password);
+    }
+
+    public function test_admin_can_reset_a_users_password_via_edit(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = User::factory()->create()->fresh();
+
+        $this->actingAs($admin)
+            ->patch("/users/{$target->id}", [
+                'name' => $target->name,
+                'email' => $target->email,
+                'role' => $target->role,
+                'password' => 'new-password',
+                'password_confirmation' => 'new-password',
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue(Hash::check('new-password', $target->fresh()->password));
+    }
+
+    public function test_password_reset_via_edit_rejects_a_mismatched_confirmation(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = User::factory()->create()->fresh();
+        $originalHash = $target->password;
+
+        $this->actingAs($admin)
+            ->patch("/users/{$target->id}", [
+                'name' => $target->name,
+                'email' => $target->email,
+                'role' => $target->role,
+                'password' => 'new-password',
+                'password_confirmation' => 'nope',
+            ])
+            ->assertSessionHasErrors('password');
+
+        $this->assertSame($originalHash, $target->fresh()->password);
+    }
+
+    // --- Active/inactive toggle (soft delete) ---
+
+    public function test_new_user_defaults_to_active(): void
+    {
+        $user = User::factory()->create()->fresh();
+
+        $this->assertTrue($user->is_active);
+    }
+
+    public function test_admin_can_deactivate_and_reactivate_a_user(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = User::factory()->create();
+
+        $this->actingAs($admin)->patch("/users/{$target->id}/status")->assertRedirect();
+        $this->assertFalse($target->fresh()->is_active);
+
+        $this->actingAs($admin)->patch("/users/{$target->id}/status")->assertRedirect();
+        $this->assertTrue($target->fresh()->is_active);
+    }
+
+    public function test_admin_cannot_deactivate_their_own_account(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->patch("/users/{$admin->id}/status")->assertRedirect();
+
+        $this->assertTrue($admin->fresh()->is_active);
+    }
+
+    public function test_staff_is_forbidden_from_toggling_user_status(): void
+    {
+        $target = User::factory()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->patch("/users/{$target->id}/status")
+            ->assertForbidden();
+    }
+
+    public function test_deactivated_user_cannot_log_in(): void
+    {
+        $user = User::factory()->create(['is_active' => false]);
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
     }
 }

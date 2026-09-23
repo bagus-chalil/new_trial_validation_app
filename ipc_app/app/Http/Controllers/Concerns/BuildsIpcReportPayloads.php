@@ -10,6 +10,7 @@ use App\Models\MasterTestType;
 use App\Models\PackingCheck;
 use App\Models\StartupCheck;
 use App\Models\StartupInspectionItem;
+use App\Services\Verification\VerificationQrCode;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -187,6 +188,9 @@ trait BuildsIpcReportPayloads
             'packingCheck' => $batch->packingCheck,
             'photoUrls' => $photoUrls,
             'packingChecklistGroups' => PackingCheck::checklistGroups(),
+            'fillingPackingApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FILLING_PACKING),
+            'verificationUrl' => VerificationQrCode::url($batch, IpcApproval::STAGE_FILLING_PACKING),
+            'verificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_FILLING_PACKING),
         ];
     }
 
@@ -199,6 +203,9 @@ trait BuildsIpcReportPayloads
             'finishedCheck' => $batch->finishedCheck,
             'photoUrls' => $photoUrls,
             'finishedSampleGroups' => FinishedCheckSample::sampleGroups(),
+            'finishedApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
+            'verificationUrl' => VerificationQrCode::url($batch, IpcApproval::STAGE_FINISHED),
+            'verificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_FINISHED),
         ];
     }
 
@@ -237,6 +244,7 @@ trait BuildsIpcReportPayloads
                         'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'packingCheck.revisions.user',
                         'packingCheck.revisions.photos',
+                        'approvals.approver',
                     ]);
 
                     return [
@@ -255,6 +263,7 @@ trait BuildsIpcReportPayloads
                         'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'finishedCheck.revisions.user',
                         'finishedCheck.revisions.samples',
+                        'approvals.approver',
                     ]);
 
                     return $this->finishedPayload($batch, $this->photoDataUris($batch, ['finished']));

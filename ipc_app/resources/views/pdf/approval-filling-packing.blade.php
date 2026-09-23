@@ -308,6 +308,21 @@
 
     <div class="sign-grid">
         <div><span>Issued By (QC Filling / Packing)</span></div>
-        <div><span>Review By (QC IPC Coordinator)</span></div>
+        <div>
+            <span>Review By (QC IPC Coordinator)</span>
+            @if ($fillingPackingApproval)
+                <strong>{{ $fillingPackingApproval->approver->name ?? '—' }}</strong>
+                <small class="sign-date">{{ optional($fillingPackingApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+            @endif
+        </div>
+        <div class="qr-box">
+            <span>Verifikasi</span>
+            @if ($fillingPackingApproval)
+                <div class="qr-code">{!! $verificationQr !!}</div>
+                <small>{{ $fillingPackingApproval->decision }}</small>
+            @else
+                <small class="muted">Belum disetujui</small>
+            @endif
+        </div>
     </div>
 @endsection

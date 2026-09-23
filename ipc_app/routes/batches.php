@@ -9,8 +9,16 @@ use App\Http\Controllers\PackingCheckController;
 use App\Http\Controllers\PrintController;
 use App\Http\Controllers\StartupCheckController;
 use App\Http\Controllers\StartupInspectionController;
+use App\Http\Controllers\VerificationController;
 use App\Models\IpcApproval;
 use Illuminate\Support\Facades\Route;
+
+// Public — deliberately outside the `auth` group. This is what a printed report's verification
+// QR code links to (see App\Services\Verification\VerificationQrCode), so it must be reachable
+// without a login.
+Route::get('verify/{batch}/{stage}', [VerificationController::class, 'show'])
+    ->whereIn('stage', IpcApproval::STAGES)
+    ->name('verify.show');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('batches', [IpcBatchController::class, 'index'])->name('batches.index');

@@ -116,7 +116,7 @@ export default function ApprovalOverview({ batch, stages }: { batch: Batch; stag
                         Pilih salah satu tahap untuk melihat detail lengkap, memutuskan Approve/Reject, dan preview cetak.
                     </p>
 
-                    <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-3.5 sm:grid-cols-2">
                         {stages.map((stage) => (
                             <StageCard key={stage.stage} batchId={batch.id} stage={stage} />
                         ))}

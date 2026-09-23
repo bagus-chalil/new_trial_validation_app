@@ -31,11 +31,7 @@ class ApprovalQueueController extends Controller
             ])
             ->latest('id')->get()
             ->map(function (IpcBatch $batch) {
-                $approvals = $batch->approvals->keyBy('stage');
-                $pending = collect(IpcApproval::STAGES)->filter(
-                    fn (string $stage) => IpcApproval::stageReady($batch, $stage)
-                        && optional($approvals->get($stage))->decision !== IpcApproval::DECISION_APPROVED
-                );
+                $pending = IpcApproval::pendingStagesFor($batch);
 
                 if ($pending->isEmpty()) {
                     return null;

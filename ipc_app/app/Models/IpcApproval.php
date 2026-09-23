@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class IpcApproval extends Model
 {
@@ -82,5 +83,19 @@ class IpcApproval extends Model
             self::STAGE_FINISHED => (bool) $batch->finishedCheck?->completed_at,
             default => false,
         };
+    }
+
+    /**
+     * Which of the 3 approval stages are ready to decide but not yet Approved for this batch.
+     * Requires `approvals` to already be eager-loaded on $batch to avoid N+1 queries.
+     */
+    public static function pendingStagesFor(IpcBatch $batch): Collection
+    {
+        $approvals = $batch->approvals->keyBy('stage');
+
+        return collect(self::STAGES)->filter(
+            fn (string $stage) => self::stageReady($batch, $stage)
+                && optional($approvals->get($stage))->decision !== self::DECISION_APPROVED
+        )->values();
     }
 }

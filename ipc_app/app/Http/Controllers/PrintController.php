@@ -76,6 +76,7 @@ class PrintController extends Controller
             'packingCheck.user',
             'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'packingCheck.revisions.user',
+            'approvals.approver',
         ]);
 
         return Inertia::render('print/filling-packing', [
@@ -97,6 +98,7 @@ class PrintController extends Controller
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'finishedCheck.revisions.user',
             'finishedCheck.revisions.samples',
+            'approvals.approver',
         ]);
 
         return Inertia::render('print/finished', [

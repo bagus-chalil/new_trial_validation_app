@@ -60,8 +60,11 @@ class ApprovalTest extends TestCase
         $this->actingAs($user)->get("/batches/{$batch->id}/approval")->assertForbidden();
     }
 
-    public function test_edit_shows_all_three_stages_ready(): void
+    public function test_edit_shows_filling_packing_and_finished_stages_ready_but_hides_startup(): void
     {
+        // Startup is deliberately excluded from the Approval overview per direct user request
+        // (2026-09-23) — only Filling & Packing and Finished are meant to surface here. Its own
+        // detail page (tested separately below) still exists and is still reachable directly.
         $batch = $this->makeBatchAtApprovalStage();
 
         $response = $this->actingAs(User::factory()->approver()->create())->get("/batches/{$batch->id}/approval");
@@ -69,12 +72,11 @@ class ApprovalTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('approval/index')
-            ->where('stages.0.stage', 'startup')
+            ->has('stages', 2)
+            ->where('stages.0.stage', 'filling_packing')
             ->where('stages.0.ready', true)
-            ->where('stages.1.stage', 'filling_packing')
+            ->where('stages.1.stage', 'finished')
             ->where('stages.1.ready', true)
-            ->where('stages.2.stage', 'finished')
-            ->where('stages.2.ready', true)
         );
     }
 
@@ -142,6 +144,44 @@ class ApprovalTest extends TestCase
             $response->assertOk();
             $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
         }
+    }
+
+    public function test_print_shows_verification_qr_and_approver_once_a_stage_is_approved(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->approver()->create();
+        $approver = User::factory()->create(['name' => 'Approver Cetak']);
+
+        foreach ([IpcApproval::STAGE_FILLING_PACKING, IpcApproval::STAGE_FINISHED] as $stage) {
+            IpcApproval::create([
+                'ipc_batch_id' => $batch->id,
+                'stage' => $stage,
+                'decision' => IpcApproval::DECISION_APPROVED,
+                'approver_user_id' => $approver->id,
+                'approved_at' => now(),
+            ]);
+        }
+
+        foreach ([IpcApproval::STAGE_FILLING_PACKING, IpcApproval::STAGE_FINISHED] as $stage) {
+            $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/{$stage}/print");
+            $response->assertOk();
+            $response->assertSee('Approver Cetak');
+            // The QR encodes the verification URL as a scannable bitmap, not as visible text — the
+            // <svg> itself, plus the approver name/decision text beside it, is what's assertable here.
+            $response->assertSee('<svg xmlns', false);
+        }
+    }
+
+    public function test_print_shows_not_yet_approved_placeholder_without_a_qr(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->approver()->create();
+
+        $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/finished/print");
+
+        $response->assertOk();
+        $response->assertSee('Belum disetujui');
+        $response->assertDontSee('<svg xmlns', false);
     }
 
     public function test_print_route_is_forbidden_before_finished_check_is_completed(): void

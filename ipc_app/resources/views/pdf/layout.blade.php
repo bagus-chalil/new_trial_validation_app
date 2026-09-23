@@ -256,6 +256,15 @@
     .sign-grid strong { display: block; margin-top: 10px; font-size: 9px; }
     .sign-grid .sign-date { display: block; margin-top: 2px; font-size: 7.5px; color: #6b7280; }
 
+    /* Verified-QR sign-off box — a scannable stamp linking to the public verification page
+       (App\Services\Verification\VerificationQrCode / VerificationController), sitting alongside
+       the plain sign-off boxes above. Own class (not a plain .sign-grid div) since it centers an
+       <svg> instead of text. */
+    .sign-grid .qr-box { display: flex; flex-direction: column; align-items: center; padding-bottom: 6px; }
+    .sign-grid .qr-box span { text-align: center; }
+    .sign-grid .qr-box .qr-code svg { width: 52px; height: 52px; display: block; margin: 4px 0 2px; }
+    .sign-grid .qr-box small { font-size: 7px; color: #6b7280; text-align: center; }
+
     /* Nested sub-table for a checklist row that groups several sub-items (e.g. "Check Detection
        Machine" bundling 5 individual machine checks) — sits inside a single <td>, no outer border
        of its own since the parent cell already has one. */
