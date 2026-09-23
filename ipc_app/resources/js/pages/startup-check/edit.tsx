@@ -19,6 +19,7 @@ interface Batch {
     id: number;
     no_batch: string;
     bulk_code: string;
+    mixing_date: string | null;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string };
@@ -40,6 +41,11 @@ const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
 
 function formatDateTime(value: string): string {
     return new Date(value).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDate(value: string | null): string {
+    if (!value) return '—';
+    return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 interface ChecklistGroup {
@@ -176,6 +182,7 @@ export default function StartupCheckEdit({
                             <InfoField label="FG Code" value={batch.master_product.fg_code} />
                             <InfoField label="No. Batch" value={batch.no_batch} />
                             <InfoField label="Bulk Code" value={batch.bulk_code} />
+                            <InfoField label="Mixing Date" value={formatDate(batch.mixing_date)} />
                             <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
