@@ -7,7 +7,7 @@ use App\Http\Controllers\MasterTestTypeController;
 use App\Http\Controllers\RecycleBinController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->prefix('masters')->group(function () {
+Route::middleware(['auth', 'can:manage-master'])->prefix('masters')->group(function () {
     Route::get('lines', [MasterLineController::class, 'index'])->name('master-lines.index');
     Route::get('lines/template', [MasterLineController::class, 'template'])->name('master-lines.template');
     Route::post('lines/import', [MasterLineController::class, 'import'])->name('master-lines.import');

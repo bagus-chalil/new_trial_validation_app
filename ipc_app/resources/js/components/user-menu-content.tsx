@@ -2,9 +2,9 @@ import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSep
 import { UserInfo } from '@/components/user-info';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
-import { type User } from '@/types';
-import { Link } from '@inertiajs/react';
-import { FlaskConical, LogOut, MapPin, Moon, Package, Settings, Sun } from 'lucide-react';
+import { type SharedData, type User } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
+import { FlaskConical, LogOut, MapPin, Moon, Package, Settings, Sun, Users } from 'lucide-react';
 
 interface UserMenuContentProps {
     user: User;
@@ -14,6 +14,7 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
     const cleanup = useMobileNavigation();
     const { appearance, updateAppearance } = useAppearance();
     const isDark = appearance === 'dark';
+    const { props } = usePage<SharedData>();
 
     return (
         <>
@@ -35,28 +36,38 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     </Link>
                 </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-muted-foreground px-2 py-1.5 text-xs font-semibold">Master Data</DropdownMenuLabel>
-            <DropdownMenuGroup>
-                <DropdownMenuItem asChild>
-                    <Link className="block w-full" href={route('master-lines.index')} as="button" prefetch onClick={cleanup}>
-                        <MapPin className="mr-2" />
-                        Master Line
-                    </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                    <Link className="block w-full" href={route('master-products.index')} as="button" prefetch onClick={cleanup}>
-                        <Package className="mr-2" />
-                        Master Produk
-                    </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                    <Link className="block w-full" href={route('master-test-types.index')} as="button" prefetch onClick={cleanup}>
-                        <FlaskConical className="mr-2" />
-                        Master Test Type
-                    </Link>
-                </DropdownMenuItem>
-            </DropdownMenuGroup>
+            {props.canManageMaster && (
+                <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-muted-foreground px-2 py-1.5 text-xs font-semibold">Master Data</DropdownMenuLabel>
+                    <DropdownMenuGroup>
+                        <DropdownMenuItem asChild>
+                            <Link className="block w-full" href={route('master-lines.index')} as="button" prefetch onClick={cleanup}>
+                                <MapPin className="mr-2" />
+                                Master Line
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link className="block w-full" href={route('master-products.index')} as="button" prefetch onClick={cleanup}>
+                                <Package className="mr-2" />
+                                Master Produk
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link className="block w-full" href={route('master-test-types.index')} as="button" prefetch onClick={cleanup}>
+                                <FlaskConical className="mr-2" />
+                                Master Test Type
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link className="block w-full" href={route('users.index')} as="button" prefetch onClick={cleanup}>
+                                <Users className="mr-2" />
+                                Manajemen User
+                            </Link>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
                 <Link className="block w-full" method="post" href={route('logout')} as="button" onClick={cleanup}>

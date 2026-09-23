@@ -18,7 +18,9 @@ class FillingCheckTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeBatchWithCompletedStartupCheck(): IpcBatch
+    // Defaults to the currently-acted-as user so every pre-existing test keeps meaning "owner
+    // edits their own batch"; pass an explicit id to build a not-the-owner (403) case instead.
+    private function makeBatchWithCompletedStartupCheck(?int $createdBy = null): IpcBatch
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
@@ -27,7 +29,7 @@ class FillingCheckTest extends TestCase
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-001',
             'master_line_id' => $line->id,
-            'created_by' => User::factory()->create()->id,
+            'created_by' => $createdBy ?? auth()->id() ?? User::factory()->create()->id,
             'current_stage' => IpcBatch::STAGE_FILLING,
         ]);
 

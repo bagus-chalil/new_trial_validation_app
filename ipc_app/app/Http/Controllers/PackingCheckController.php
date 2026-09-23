@@ -9,6 +9,7 @@ use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\PackingCheck;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -59,7 +60,7 @@ class PackingCheckController extends Controller
         return Inertia::render('packing-check/edit', [
             'batch' => $batch,
             'packingCheck' => $batch->packingCheck,
-            'isReadOnly' => (bool) $batch->packingCheck?->completed_at,
+            'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->packingCheck?->completed_at,
             'checklistGroups' => PackingCheck::checklistGroups(),
             'decisions' => PackingCheck::DECISIONS,
             'photoUrls' => $photoUrls,

@@ -50,6 +50,7 @@ class ApprovalController extends Controller
             'startupInspection.items',
             'startupInspection.samples',
             'startupInspection.testResults.testType',
+            'approvals.approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);

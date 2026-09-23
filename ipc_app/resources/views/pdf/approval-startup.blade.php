@@ -264,10 +264,21 @@
             @endforeach
         </p>
 
-        <div class="sign-grid">
-            <div><span>Prepared By</span><small class="role">Line Leader Production</small></div>
-            <div><span>Review By</span><small class="role">QC IPC</small></div>
-            <div><span>Verification By</span><small class="role">QC Coordinator</small></div>
+        @php
+            $startupApproved = $startupApproval && $startupApproval->decision === \App\Models\IpcApproval::DECISION_APPROVED;
+        @endphp
+        <div class="sign-grid sign-grid--cols-2">
+            <div>
+                <span>Review By</span>
+                <strong>{{ $startupInspection->user->name ?? '—' }}</strong>
+                <small class="sign-date">{{ optional($startupInspection->completed_at ?? $startupInspection->created_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+                <small class="role">QC IPC</small>
+            </div>
+            <div>
+                <span>Verification By</span>
+                <strong>{{ $startupApproved ? optional($startupApproval->approved_at)->translatedFormat('d/m/Y H:i') : '—' }}</strong>
+                <small class="role">QC Coordinator</small>
+            </div>
         </div>
     @else
         <p class="muted">Start Inspection belum diisi (opsional).</p>

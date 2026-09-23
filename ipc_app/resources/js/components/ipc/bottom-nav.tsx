@@ -1,7 +1,8 @@
 import { AppsDrawer } from '@/components/ipc/apps-drawer';
 import { cn } from '@/lib/utils';
+import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { ClipboardList, LayoutGrid, Plus, Grid2X2 } from 'lucide-react';
+import { ClipboardCheck, ClipboardList, Grid2X2, LayoutGrid, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 function TabLink({ href, icon: Icon, label, active }: { href: string; icon: React.ElementType; label: string; active: boolean }) {
@@ -20,17 +21,19 @@ function TabLink({ href, icon: Icon, label, active }: { href: string; icon: Reac
 }
 
 export function BottomNav() {
-    const { url } = usePage();
+    const { url, props } = usePage<SharedData>();
     const [drawerOpen, setDrawerOpen] = useState(false);
 
     const isDashboard = url === '/dashboard';
     const isBatches = url.startsWith('/batches') && url !== '/batches/create';
+    const isApprovals = url.startsWith('/approvals');
 
     return (
         <>
             <nav className="border-border-soft bg-card fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t px-6 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))] md:hidden">
                 <TabLink href="/dashboard" icon={LayoutGrid} label="Home" active={isDashboard} />
                 <TabLink href="/batches" icon={ClipboardList} label="Batch" active={isBatches} />
+                {props.canApproveIpc && <TabLink href="/approvals" icon={ClipboardCheck} label="Approval" active={isApprovals} />}
 
                 <div className="flex flex-1 items-center justify-center">
                     <Link

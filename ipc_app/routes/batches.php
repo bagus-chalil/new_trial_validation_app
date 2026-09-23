@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\ApprovalQueueController;
 use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
@@ -18,48 +19,68 @@ Route::middleware(['auth'])->group(function () {
     Route::get('batches/{batch}', [IpcBatchController::class, 'show'])->name('batches.show');
 
     Route::get('batches/{batch}/startup-check', [StartupCheckController::class, 'edit'])->name('startup-check.edit');
-    Route::put('batches/{batch}/startup-check', [StartupCheckController::class, 'update'])->name('startup-check.update');
+    Route::put('batches/{batch}/startup-check', [StartupCheckController::class, 'update'])
+        ->middleware('can:update,batch')
+        ->name('startup-check.update');
     Route::post('batches/{batch}/startup-check/photo/{field}', [StartupCheckController::class, 'uploadPhoto'])
         ->whereIn('field', StartupCheckController::PHOTO_FIELDS)
+        ->middleware('can:update,batch')
         ->name('startup-check.photo');
     Route::delete('batches/{batch}/startup-check/photo/{attachment}', [StartupCheckController::class, 'deletePhoto'])
         ->whereNumber('attachment')
+        ->middleware('can:update,batch')
         ->name('startup-check.photo.delete');
 
     Route::get('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'edit'])->name('startup-inspection.edit');
-    Route::put('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'update'])->name('startup-inspection.update');
+    Route::put('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'update'])
+        ->middleware('can:update,batch')
+        ->name('startup-inspection.update');
 
     Route::get('batches/{batch}/filling-check', [FillingCheckController::class, 'edit'])->name('filling-check.edit');
-    Route::put('batches/{batch}/filling-check', [FillingCheckController::class, 'update'])->name('filling-check.update');
+    Route::put('batches/{batch}/filling-check', [FillingCheckController::class, 'update'])
+        ->middleware('can:update,batch')
+        ->name('filling-check.update');
     Route::post('batches/{batch}/filling-check/photo/{field}', [FillingCheckController::class, 'uploadPhoto'])
         ->whereIn('field', FillingCheckController::PHOTO_FIELDS)
+        ->middleware('can:update,batch')
         ->name('filling-check.photo');
 
     Route::get('batches/{batch}/packing-check', [PackingCheckController::class, 'edit'])->name('packing-check.edit');
-    Route::put('batches/{batch}/packing-check', [PackingCheckController::class, 'update'])->name('packing-check.update');
+    Route::put('batches/{batch}/packing-check', [PackingCheckController::class, 'update'])
+        ->middleware('can:update,batch')
+        ->name('packing-check.update');
     Route::post('batches/{batch}/packing-check/photo/{field}', [PackingCheckController::class, 'uploadPhoto'])
         ->whereIn('field', PackingCheckController::PHOTO_FIELDS)
+        ->middleware('can:update,batch')
         ->name('packing-check.photo');
 
     Route::get('batches/{batch}/finished-check', [FinishedCheckController::class, 'edit'])->name('finished-check.edit');
-    Route::put('batches/{batch}/finished-check', [FinishedCheckController::class, 'update'])->name('finished-check.update');
+    Route::put('batches/{batch}/finished-check', [FinishedCheckController::class, 'update'])
+        ->middleware('can:update,batch')
+        ->name('finished-check.update');
     Route::post('batches/{batch}/finished-check/photo/{field}', [FinishedCheckController::class, 'uploadPhoto'])
         ->whereIn('field', FinishedCheckController::PHOTO_FIELDS)
+        ->middleware('can:update,batch')
         ->name('finished-check.photo');
     Route::delete('batches/{batch}/finished-check/photo/{attachment}', [FinishedCheckController::class, 'deletePhoto'])
         ->whereNumber('attachment')
+        ->middleware('can:update,batch')
         ->name('finished-check.photo.delete');
 
-    Route::get('batches/{batch}/approval', [ApprovalController::class, 'edit'])->name('approval.edit');
-    Route::get('batches/{batch}/approval/startup', [ApprovalController::class, 'startup'])->name('approval.startup');
-    Route::get('batches/{batch}/approval/filling-packing', [ApprovalController::class, 'fillingPacking'])->name('approval.filling-packing');
-    Route::get('batches/{batch}/approval/finished', [ApprovalController::class, 'finished'])->name('approval.finished');
-    Route::put('batches/{batch}/approval/{stage}', [ApprovalController::class, 'update'])
-        ->whereIn('stage', IpcApproval::STAGES)
-        ->name('approval.update');
-    Route::get('batches/{batch}/approval/{stage}/print', [ApprovalController::class, 'print'])
-        ->whereIn('stage', IpcApproval::STAGES)
-        ->name('approval.print');
+    Route::middleware('can:approve-ipc')->group(function () {
+        Route::get('approvals', [ApprovalQueueController::class, 'index'])->name('approvals.index');
+
+        Route::get('batches/{batch}/approval', [ApprovalController::class, 'edit'])->name('approval.edit');
+        Route::get('batches/{batch}/approval/startup', [ApprovalController::class, 'startup'])->name('approval.startup');
+        Route::get('batches/{batch}/approval/filling-packing', [ApprovalController::class, 'fillingPacking'])->name('approval.filling-packing');
+        Route::get('batches/{batch}/approval/finished', [ApprovalController::class, 'finished'])->name('approval.finished');
+        Route::put('batches/{batch}/approval/{stage}', [ApprovalController::class, 'update'])
+            ->whereIn('stage', IpcApproval::STAGES)
+            ->name('approval.update');
+        Route::get('batches/{batch}/approval/{stage}/print', [ApprovalController::class, 'print'])
+            ->whereIn('stage', IpcApproval::STAGES)
+            ->name('approval.print');
+    });
 
     Route::get('batches/{batch}/print', [PrintController::class, 'edit'])->name('print.edit');
     Route::get('batches/{batch}/print/startup', [PrintController::class, 'startup'])->name('print.startup');

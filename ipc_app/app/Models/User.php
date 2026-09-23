@@ -18,10 +18,25 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    public const ROLE_STAFF = 'staff';
+
+    public const ROLE_APPROVER = 'approver';
+
+    public const ROLE_ADMIN = 'admin';
+
+    public const ROLES = [self::ROLE_STAFF, self::ROLE_APPROVER, self::ROLE_ADMIN];
+
+    public const ROLE_LABELS = [
+        self::ROLE_STAFF => 'Staff',
+        self::ROLE_APPROVER => 'Approver',
+        self::ROLE_ADMIN => 'Admin',
+    ];
+
     protected $fillable = [
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -45,5 +60,16 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    /** Admin bypasses every workflow-role check, matching the sibling app's own convention. */
+    public function isApprover(): bool
+    {
+        return $this->role === self::ROLE_APPROVER || $this->isAdmin();
     }
 }

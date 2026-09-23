@@ -35,6 +35,8 @@ export interface SharedData {
     auth: Auth;
     recentBatches: RecentBatch[];
     flash?: { success?: string; error?: string };
+    canApproveIpc: boolean;
+    canManageMaster: boolean;
     [key: string]: unknown;
 }
 
@@ -43,6 +45,7 @@ export interface User {
     name: string;
     email: string;
     avatar?: string;
+    role: string;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;

@@ -9,6 +9,7 @@ use App\Models\FillingCheck;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -55,7 +56,7 @@ class FillingCheckController extends Controller
         return Inertia::render('filling-check/edit', [
             'batch' => $batch,
             'fillingCheck' => $batch->fillingCheck,
-            'isReadOnly' => (bool) $batch->fillingCheck?->completed_at,
+            'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->fillingCheck?->completed_at,
             'decisions' => FillingCheck::DECISIONS,
             'photoUrls' => $photoUrls,
             'startupInspectionSamples' => $batch->startupInspection?->samples ?? [],

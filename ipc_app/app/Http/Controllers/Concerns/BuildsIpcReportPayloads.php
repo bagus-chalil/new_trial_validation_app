@@ -164,6 +164,7 @@ trait BuildsIpcReportPayloads
         return [
             'startupCheck' => $batch->startupCheck,
             'startupInspection' => $batch->startupInspection,
+            'startupApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_STARTUP),
             'photoUrls' => $photoUrls,
             'startupChecklistGroups' => StartupCheck::checklistGroups(),
             'startupInspectionParameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
@@ -216,7 +217,7 @@ trait BuildsIpcReportPayloads
             IpcApproval::STAGE_STARTUP => [
                 'pdf.approval-startup',
                 (function () use ($batch) {
-                    $batch->load(['startupCheck.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults.testType']);
+                    $batch->load(['startupCheck.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults.testType', 'approvals.approver']);
 
                     return $this->startupPayload($batch, $this->photoDataUris($batch, ['startup']));
                 })(),

@@ -52,7 +52,7 @@ class MasterDataTest extends TestCase
     {
         MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->get('/masters/lines')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('masters/lines/index')->has('lines.data', 1));
@@ -60,7 +60,7 @@ class MasterDataTest extends TestCase
 
     public function test_line_can_be_created(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/lines', ['category' => 'Filling', 'area' => 'Filling Room', 'code' => 'FL 01', 'name' => 'Filling 01', 'is_active' => true])
             ->assertRedirect();
 
@@ -71,7 +71,7 @@ class MasterDataTest extends TestCase
     {
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/lines', ['id' => $line->id, 'category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Renamed', 'is_active' => false])
             ->assertRedirect();
 
@@ -81,7 +81,7 @@ class MasterDataTest extends TestCase
     public function test_line_can_be_soft_deleted(): void
     {
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $this->actingAs($user)->delete("/masters/lines/{$line->id}")->assertRedirect();
 
@@ -91,7 +91,7 @@ class MasterDataTest extends TestCase
 
     public function test_line_requires_all_fields(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/lines', [])
             ->assertSessionHasErrors(['category', 'area', 'code', 'name']);
     }
@@ -103,7 +103,7 @@ class MasterDataTest extends TestCase
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BC-1', 'is_active' => true]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->get('/masters/products')
             ->assertOk()
             ->assertInertia(
@@ -115,7 +115,7 @@ class MasterDataTest extends TestCase
 
     public function test_product_can_be_created(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/products', ['fg_code' => 'FG-2', 'product_name' => 'Product 2', 'is_active' => true])
             ->assertRedirect();
 
@@ -126,7 +126,7 @@ class MasterDataTest extends TestCase
     {
         MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/products', ['fg_code' => 'FG-1', 'product_name' => 'Duplicate', 'is_active' => true])
             ->assertSessionHasErrors('fg_code');
     }
@@ -134,7 +134,7 @@ class MasterDataTest extends TestCase
     public function test_product_can_be_soft_deleted(): void
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $this->actingAs($user)->delete("/masters/products/{$product->id}")->assertRedirect();
 
@@ -145,7 +145,7 @@ class MasterDataTest extends TestCase
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post("/masters/products/{$product->id}/bulk-codes", ['bulk_code' => 'BC-1', 'is_active' => true])
             ->assertRedirect();
 
@@ -158,7 +158,7 @@ class MasterDataTest extends TestCase
         $productB = MasterProduct::create(['fg_code' => 'FG-B', 'product_name' => 'Product B', 'is_active' => true]);
         MasterProductBulkCode::create(['master_product_id' => $productA->id, 'bulk_code' => 'BC-1', 'is_active' => true]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $this->actingAs($user)
             ->post("/masters/products/{$productA->id}/bulk-codes", ['bulk_code' => 'BC-1', 'is_active' => true])
@@ -176,7 +176,7 @@ class MasterDataTest extends TestCase
         $productB = MasterProduct::create(['fg_code' => 'FG-B', 'product_name' => 'Product B', 'is_active' => true]);
         $bulkCode = MasterProductBulkCode::create(['master_product_id' => $productA->id, 'bulk_code' => 'BC-1', 'is_active' => true]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $this->actingAs($user)->delete("/masters/products/{$productB->id}/bulk-codes/{$bulkCode->id}")->assertNotFound();
         $this->assertDatabaseHas('master_product_bulk_codes', ['id' => $bulkCode->id, 'deleted_at' => null]);
@@ -191,7 +191,7 @@ class MasterDataTest extends TestCase
     {
         MasterTestType::create(['name' => 'Leak Test', 'category' => MasterTestType::CATEGORY_LEAKAGE, 'is_active' => true]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->get('/masters/test-types')
             ->assertOk()
             ->assertInertia(
@@ -203,7 +203,7 @@ class MasterDataTest extends TestCase
 
     public function test_test_type_can_be_created(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/test-types', ['name' => 'Functional Test', 'category' => MasterTestType::CATEGORY_FUNCTIONAL, 'is_active' => true])
             ->assertRedirect();
 
@@ -212,7 +212,7 @@ class MasterDataTest extends TestCase
 
     public function test_test_type_category_must_be_a_known_value(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/test-types', ['name' => 'Bogus', 'category' => 'NotACategory', 'is_active' => true])
             ->assertSessionHasErrors('category');
     }
@@ -220,7 +220,7 @@ class MasterDataTest extends TestCase
     public function test_test_type_can_be_soft_deleted(): void
     {
         $testType = MasterTestType::create(['name' => 'Leak Test', 'category' => MasterTestType::CATEGORY_LEAKAGE, 'is_active' => true]);
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $this->actingAs($user)->delete("/masters/test-types/{$testType->id}")->assertRedirect();
 
@@ -231,7 +231,7 @@ class MasterDataTest extends TestCase
 
     public function test_products_template_can_be_downloaded(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->get('/masters/products/template')
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -250,7 +250,7 @@ class MasterDataTest extends TestCase
             ],
         );
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/products/import', ['file' => $file])
             ->assertRedirect()
             ->assertSessionHas('success')
@@ -272,7 +272,7 @@ class MasterDataTest extends TestCase
             ],
         );
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/products/import', ['file' => $file])
             ->assertRedirect()
             ->assertSessionHas('success', 'Import selesai. 1 produk baru, 0 produk diperbarui. 2 bulk code baru, 0 bulk code diperbarui.');
@@ -287,7 +287,7 @@ class MasterDataTest extends TestCase
             [['FG-3', 'No Bulk Code Product', '']],
         );
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/products/import', ['file' => $file])
             ->assertRedirect()
             ->assertSessionHas('success')
@@ -299,7 +299,7 @@ class MasterDataTest extends TestCase
 
     public function test_products_import_rejects_a_non_spreadsheet_file(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/products/import', ['file' => UploadedFile::fake()->create('notes.txt', 10, 'text/plain')])
             ->assertSessionHasErrors('file');
     }
@@ -308,7 +308,7 @@ class MasterDataTest extends TestCase
 
     public function test_lines_template_can_be_downloaded(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->get('/masters/lines/template')
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -327,7 +327,7 @@ class MasterDataTest extends TestCase
             ],
         );
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/lines/import', ['file' => $file])
             ->assertRedirect()
             ->assertSessionHas('success')
@@ -340,7 +340,7 @@ class MasterDataTest extends TestCase
 
     public function test_lines_import_rejects_a_non_spreadsheet_file(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->admin()->create())
             ->post('/masters/lines/import', ['file' => UploadedFile::fake()->create('notes.txt', 10, 'text/plain')])
             ->assertSessionHasErrors('file');
     }

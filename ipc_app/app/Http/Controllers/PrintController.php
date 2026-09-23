@@ -51,6 +51,7 @@ class PrintController extends Controller
             'startupInspection.items',
             'startupInspection.samples',
             'startupInspection.testResults.testType',
+            'approvals.approver',
         ]);
 
         return Inertia::render('print/startup', [

@@ -57,6 +57,8 @@ class HandleInertiaRequests extends Middleware
                     ->limit(20)
                     ->get(['id', 'no_batch', 'current_stage', 'master_product_id', 'master_line_id'])
                 : [],
+            'canApproveIpc' => fn () => (bool) $request->user()?->isApprover(),
+            'canManageMaster' => fn () => (bool) $request->user()?->isAdmin(),
         ]);
     }
 }

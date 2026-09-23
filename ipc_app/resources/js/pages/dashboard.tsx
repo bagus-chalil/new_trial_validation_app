@@ -49,16 +49,15 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                <Link
-                    href="/masters/recycle-bin"
-                    className="border-border-soft bg-card flex items-center gap-3 rounded-[18px] border px-4 py-3"
-                >
-                    <div className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500">
-                        <Trash2 className="size-[18px]" strokeWidth={2} />
-                    </div>
-                    <span className="flex-1 text-[14px] font-semibold">Tempat Sampah</span>
-                    <ChevronRight className="text-muted-foreground/60 size-[18px] shrink-0" strokeWidth={2} />
-                </Link>
+                {props.canManageMaster && (
+                    <Link href="/masters/recycle-bin" className="border-border-soft bg-card flex items-center gap-3 rounded-[18px] border px-4 py-3">
+                        <div className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500">
+                            <Trash2 className="size-[18px]" strokeWidth={2} />
+                        </div>
+                        <span className="flex-1 text-[14px] font-semibold">Tempat Sampah</span>
+                        <ChevronRight className="text-muted-foreground/60 size-[18px] shrink-0" strokeWidth={2} />
+                    </Link>
+                )}
 
                 <div className="flex flex-col gap-2.5">
                     <div className="flex items-center justify-between">

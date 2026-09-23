@@ -249,6 +249,12 @@
     .startup-layout { display: grid; grid-template-columns: 74% 24%; gap: 10px; align-items: start; }
     .startup-side { display: flex; flex-direction: column; gap: 8px; }
     .sign-grid--stack { grid-template-columns: 1fr; gap: 6px; margin: 0; }
+    .sign-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+    /* Sign-off box's actual signer value (a name, or a decision date) — distinct from the plain
+       label (<span>) above it and the role caption (<small class="role">) pinned to the bottom. */
+    .sign-grid strong { display: block; margin-top: 10px; font-size: 9px; }
+    .sign-grid .sign-date { display: block; margin-top: 2px; font-size: 7.5px; color: #6b7280; }
 
     /* Nested sub-table for a checklist row that groups several sub-items (e.g. "Check Detection
        Machine" bundling 5 individual machine checks) — sits inside a single <td>, no outer border

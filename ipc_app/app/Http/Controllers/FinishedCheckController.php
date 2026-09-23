@@ -10,6 +10,7 @@ use App\Models\FinishedCheckSample;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -74,7 +75,7 @@ class FinishedCheckController extends Controller
             'batch' => $batch,
             'finishedCheck' => $batch->finishedCheck,
             'samples' => $samples,
-            'isReadOnly' => (bool) $batch->finishedCheck?->completed_at,
+            'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->finishedCheck?->completed_at,
             'sampleGroups' => FinishedCheckSample::sampleGroups(),
             'dispositions' => FinishedCheck::DISPOSITIONS,
             'photoUrls' => $photoUrls,

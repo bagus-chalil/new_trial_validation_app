@@ -8,6 +8,7 @@ use App\Models\IpcBatch;
 use App\Models\MasterTestType;
 use App\Models\StartupInspectionItem;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,7 +29,7 @@ class StartupInspectionController extends Controller
         return Inertia::render('startup-inspection/edit', [
             'batch' => $batch,
             'startupInspection' => $inspection,
-            'isReadOnly' => (bool) $inspection?->completed_at,
+            'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $inspection?->completed_at,
             'parameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
             'statusOptions' => [
                 StartupInspectionItem::STATUS_OK,

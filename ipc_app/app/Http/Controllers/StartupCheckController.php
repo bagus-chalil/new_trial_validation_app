@@ -10,6 +10,7 @@ use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\StartupCheck;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,7 +50,7 @@ class StartupCheckController extends Controller
         return Inertia::render('startup-check/edit', [
             'batch' => $batch,
             'startupCheck' => $batch->startupCheck,
-            'isReadOnly' => (bool) $batch->startupCheck?->completed_at,
+            'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->startupCheck?->completed_at,
             'startupInspectionComplete' => (bool) $batch->startupInspection?->completed_at,
             'checklistGroups' => StartupCheck::checklistGroups(),
             'validationReportOptions' => StartupCheck::VALIDATION_REPORT_OPTIONS,

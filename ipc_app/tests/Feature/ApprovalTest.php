@@ -26,7 +26,7 @@ class ApprovalTest extends TestCase
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
@@ -46,7 +46,7 @@ class ApprovalTest extends TestCase
 
     public function test_edit_is_forbidden_before_finished_check_is_completed(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
@@ -64,7 +64,7 @@ class ApprovalTest extends TestCase
     {
         $batch = $this->makeBatchAtApprovalStage();
 
-        $response = $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/approval");
+        $response = $this->actingAs(User::factory()->approver()->create())->get("/batches/{$batch->id}/approval");
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
@@ -81,7 +81,7 @@ class ApprovalTest extends TestCase
     public function test_each_stage_has_its_own_detail_page(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $this->actingAs($user)->get("/batches/{$batch->id}/approval/startup")
             ->assertOk()
@@ -98,7 +98,7 @@ class ApprovalTest extends TestCase
 
     public function test_detail_pages_are_forbidden_before_finished_check_is_completed(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
@@ -117,7 +117,7 @@ class ApprovalTest extends TestCase
     public function test_update_redirects_back_to_the_stage_detail_page(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $this->actingAs($user)
             ->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved'])
@@ -135,7 +135,7 @@ class ApprovalTest extends TestCase
     public function test_print_route_streams_a_pdf_per_stage(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         foreach (['startup', 'filling_packing', 'finished'] as $stage) {
             $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/{$stage}/print");
@@ -146,7 +146,7 @@ class ApprovalTest extends TestCase
 
     public function test_print_route_is_forbidden_before_finished_check_is_completed(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
@@ -163,7 +163,7 @@ class ApprovalTest extends TestCase
     public function test_approving_one_stage_does_not_advance_batch_alone(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $this->actingAs($user)
             ->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved', 'remarks' => 'OK'])
@@ -182,7 +182,7 @@ class ApprovalTest extends TestCase
     public function test_approving_all_three_stages_advances_batch_to_print(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         foreach (IpcApproval::STAGES as $stage) {
             $this->actingAs($user)
@@ -196,7 +196,7 @@ class ApprovalTest extends TestCase
     public function test_rejecting_one_stage_keeps_batch_at_approval_even_if_others_approved(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved']);
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/filling_packing", ['decision' => 'Rejected', 'remarks' => 'Cacat produksi']);
@@ -209,7 +209,7 @@ class ApprovalTest extends TestCase
     {
         $batch = $this->makeBatchAtApprovalStage();
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->approver()->create())
             ->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Maybe'])
             ->assertSessionHasErrors('decision');
     }
@@ -218,7 +218,7 @@ class ApprovalTest extends TestCase
     {
         $batch = $this->makeBatchAtApprovalStage();
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->approver()->create())
             ->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Rejected'])
             ->assertSessionHasErrors('remarks');
     }
@@ -226,7 +226,7 @@ class ApprovalTest extends TestCase
     public function test_resubmitting_a_decision_updates_the_existing_row_not_a_duplicate(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Rejected', 'remarks' => 'Awal salah']);
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved']);
@@ -242,7 +242,7 @@ class ApprovalTest extends TestCase
     public function test_redeciding_a_stage_preserves_the_earlier_decision_as_a_revision(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Rejected', 'remarks' => 'Awal salah']);
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved']);
@@ -270,7 +270,7 @@ class ApprovalTest extends TestCase
     public function test_approval_detail_page_shows_decision_revision_history(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Rejected', 'remarks' => 'Awal salah']);
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved']);
@@ -291,7 +291,7 @@ class ApprovalTest extends TestCase
         // trusted from the always-gated real workflow.
         $batch->packingCheck->update(['completed_at' => null]);
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->approver()->create())
             ->put("/batches/{$batch->id}/approval/filling_packing", ['decision' => 'Approved'])
             ->assertForbidden();
     }
@@ -299,7 +299,7 @@ class ApprovalTest extends TestCase
     public function test_filling_packing_detail_page_shows_save_history_with_timestamps(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         FillingCheckRevision::create([
             'filling_check_id' => $batch->fillingCheck->id,
@@ -349,7 +349,7 @@ class ApprovalTest extends TestCase
     public function test_finished_detail_page_shows_save_history_with_timestamps(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        $user = User::factory()->create();
+        $user = User::factory()->approver()->create();
 
         FinishedCheckRevision::create([
             'finished_check_id' => $batch->finishedCheck->id,
@@ -378,7 +378,7 @@ class ApprovalTest extends TestCase
     {
         $batch = $this->makeBatchAtApprovalStage();
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(User::factory()->approver()->create())
             ->put("/batches/{$batch->id}/approval/bogus-stage", ['decision' => 'Approved'])
             ->assertNotFound();
     }
