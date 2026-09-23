@@ -31,7 +31,7 @@ interface Batch {
     current_stage: string;
     created_at: string;
     master_product: MasterProduct;
-    master_line: MasterLine;
+    master_line: MasterLine | null;
     creator: { name: string };
     startup_check: StageCheck | null;
     filling_check: StageCheck | null;
@@ -84,7 +84,7 @@ function BatchCard({ batch }: { batch: Batch }) {
 
             <div className="text-muted-foreground/70 flex items-center gap-1.5 text-[12.5px] font-medium">
                 <ClipboardList className="size-3.5" strokeWidth={2} />
-                {batch.master_line.name} &middot; dibuat oleh {batch.creator.name}
+                {batch.master_line?.name ?? '—'} &middot; dibuat oleh {batch.creator.name}
             </div>
 
             <div className="bg-border-soft h-px" />

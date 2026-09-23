@@ -8,6 +8,7 @@ import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
@@ -20,9 +21,18 @@ interface Batch {
     no_batch: string;
     bulk_code: string;
     mixing_date: string | null;
+    master_line_id: number | null;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
-    master_line: { name: string; code: string };
+    master_line: { name: string; code: string } | null;
+}
+
+interface MasterLine {
+    id: number;
+    category: string;
+    area: string;
+    code: string;
+    name: string;
 }
 
 interface StartupCheckData {
@@ -41,11 +51,6 @@ const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
 
 function formatDateTime(value: string): string {
     return new Date(value).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDate(value: string | null): string {
-    if (!value) return '—';
-    return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 interface ChecklistGroup {
@@ -74,6 +79,7 @@ export default function StartupCheckEdit({
     isReadOnly,
     checklistGroups,
     validationReportOptions,
+    lines,
     photoUrls,
     startupInspectionComplete,
 }: {
@@ -82,6 +88,7 @@ export default function StartupCheckEdit({
     isReadOnly: boolean;
     checklistGroups: ChecklistGroup[];
     validationReportOptions: string[];
+    lines: MasterLine[];
     photoUrls: Record<string, string | null | { id: number; url: string }[]>;
     startupInspectionComplete: boolean;
 }) {
@@ -110,6 +117,8 @@ export default function StartupCheckEdit({
 
     const { data, setData, put, processing, errors } = useForm<Record<string, string | null>>({
         ...initialChecklistValues,
+        mixing_date: batch.mixing_date ? batch.mixing_date.slice(0, 10) : '',
+        master_line_id: batch.master_line_id ? String(batch.master_line_id) : '',
         validation_report_status: (startupCheck?.validation_report_status as string) ?? '',
         filling_range_min: (startupCheck?.filling_range_min as string) ?? '',
         filling_range_max: (startupCheck?.filling_range_max as string) ?? '',
@@ -125,14 +134,19 @@ export default function StartupCheckEdit({
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
     const progressPct = allChecklistKeys.length > 0 ? Math.round((answeredCount / allChecklistKeys.length) * 100) : 0;
 
-    // Only the two fields SaveStartupCheckRequest actually requires — used to decide whether
+    // Only the fields SaveStartupCheckRequest actually requires — used to decide whether
     // this card can safely default to collapsed without hiding an unfilled required field.
     const parameterFillingComplete =
-        Boolean(data.average_of_empty_bottle_weight?.toString().trim()) && Boolean(data.validation_report_status?.trim());
+        Boolean(data.mixing_date?.trim()) &&
+        Boolean(data.master_line_id?.trim()) &&
+        Boolean(data.average_of_empty_bottle_weight?.toString().trim()) &&
+        Boolean(data.validation_report_status?.trim());
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty = new Set<string>();
+        if (!data.mixing_date?.trim()) empty.add('mixing_date');
+        if (!data.master_line_id?.trim()) empty.add('master_line_id');
         if (!data.validation_report_status?.trim()) empty.add('validation_report_status');
         if (!data.average_of_empty_bottle_weight?.toString().trim()) empty.add('average_of_empty_bottle_weight');
         allChecklistKeys.forEach((key) => {
@@ -182,8 +196,6 @@ export default function StartupCheckEdit({
                             <InfoField label="FG Code" value={batch.master_product.fg_code} />
                             <InfoField label="No. Batch" value={batch.no_batch} />
                             <InfoField label="Bulk Code" value={batch.bulk_code} />
-                            <InfoField label="Mixing Date" value={formatDate(batch.mixing_date)} />
-                            <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
@@ -331,6 +343,38 @@ export default function StartupCheckEdit({
                                 <InputError message={errors.heating} />
                             </div>
                             <div className="flex flex-col gap-2">
+                                <Label htmlFor="master_line_id" className="text-muted-foreground text-xs font-semibold">
+                                    Line
+                                </Label>
+                                <Select
+                                    value={data.master_line_id ?? ''}
+                                    onValueChange={(value) => {
+                                        setData('master_line_id', value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('master_line_id');
+                                            return n;
+                                        });
+                                    }}
+                                    disabled={isReadOnly}
+                                >
+                                    <SelectTrigger
+                                        id="master_line_id"
+                                        className={`${inputClass} ${errorFields.has('master_line_id') ? errorBorder : ''}`}
+                                    >
+                                        <SelectValue placeholder="Pilih line" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {lines.map((line) => (
+                                            <SelectItem key={line.id} value={String(line.id)}>
+                                                {line.code} — {line.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.master_line_id} />
+                            </div>
+                            <div className="flex flex-col gap-2">
                                 <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
                                     Line Leader
                                 </Label>
@@ -355,6 +399,27 @@ export default function StartupCheckEdit({
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.operator_name} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="mixing_date" className="text-muted-foreground text-xs font-semibold">
+                                    Mixing Date
+                                </Label>
+                                <Input
+                                    id="mixing_date"
+                                    type="date"
+                                    className={`${inputClass} ${errorFields.has('mixing_date') ? errorBorder : ''}`}
+                                    value={data.mixing_date ?? ''}
+                                    onChange={(e) => {
+                                        setData('mixing_date', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('mixing_date');
+                                            return n;
+                                        });
+                                    }}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.mixing_date} />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Validation Report</Label>

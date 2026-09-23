@@ -51,11 +51,11 @@ class MasterDataSeeder extends Seeder
 
         MasterProductBulkCode::firstOrCreate(
             ['master_product_id' => $productA->id, 'bulk_code' => 'BULK-0001'],
-            ['no_batch' => 'BATCH-0001', 'is_active' => true],
+            ['is_active' => true],
         );
         MasterProductBulkCode::firstOrCreate(
             ['master_product_id' => $productB->id, 'bulk_code' => 'BULK-0002'],
-            ['no_batch' => 'BATCH-0002', 'is_active' => true],
+            ['is_active' => true],
         );
 
         $testTypes = [

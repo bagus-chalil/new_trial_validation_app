@@ -12,6 +12,13 @@ class StoreIpcBatchRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('no_batch')) {
+            $this->merge(['no_batch' => strtoupper((string) $this->input('no_batch'))]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -23,9 +30,7 @@ class StoreIpcBatchRequest extends FormRequest
                     ->where('is_active', true)
                     ->whereNull('deleted_at'),
             ],
-            'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'no_batch' => ['required', 'string', 'max:100'],
-            'mixing_date' => ['required', 'date'],
         ];
     }
 }

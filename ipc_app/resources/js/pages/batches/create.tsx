@@ -15,7 +15,6 @@ import { FormEventHandler, useMemo } from 'react';
 interface BulkCodeOption {
     id: number;
     bulk_code: string;
-    no_batch: string | null;
 }
 
 interface MasterProduct {
@@ -25,17 +24,9 @@ interface MasterProduct {
     bulk_codes: BulkCodeOption[];
 }
 
-interface MasterLine {
-    id: number;
-    category: string;
-    area: string;
-    code: string;
-    name: string;
-}
-
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
-export default function BatchesCreate({ products, lines }: { products: MasterProduct[]; lines: MasterLine[] }) {
+export default function BatchesCreate({ products }: { products: MasterProduct[] }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const { message, toast } = useToast();
@@ -43,9 +34,7 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
     const { data, setData, post, processing, errors, reset } = useForm({
         master_product_id: '',
         master_product_bulk_code_id: '',
-        master_line_id: '',
         no_batch: '',
-        mixing_date: '',
     });
 
     const selectedProduct = useMemo(
@@ -60,9 +49,7 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
         const empty: string[] = [];
         if (!data.master_product_id) empty.push('FG Code / Produk');
         if (!data.master_product_bulk_code_id) empty.push('Bulk Code');
-        if (!data.master_line_id) empty.push('Line');
         if (!data.no_batch.trim()) empty.push('No Batch FG');
-        if (!data.mixing_date) empty.push('Mixing Date');
         if (empty.length) {
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
             return;
@@ -145,42 +132,10 @@ export default function BatchesCreate({ products, lines }: { products: MasterPro
                                         id="no_batch"
                                         className={`min-h-11 ${!data.no_batch.trim() && message ? errorBorder : ''}`}
                                         value={data.no_batch}
-                                        onChange={(e) => setData('no_batch', e.target.value)}
+                                        onChange={(e) => setData('no_batch', e.target.value.toUpperCase())}
                                         placeholder="Masukkan no batch FG"
                                     />
                                     <InputError message={errors.no_batch} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="mixing_date">Mixing Date</Label>
-                                    <Input
-                                        id="mixing_date"
-                                        type="date"
-                                        className={`min-h-11 ${!data.mixing_date && message ? errorBorder : ''}`}
-                                        value={data.mixing_date}
-                                        onChange={(e) => setData('mixing_date', e.target.value)}
-                                    />
-                                    <InputError message={errors.mixing_date} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="master_line_id">Line</Label>
-                                    <Select value={data.master_line_id} onValueChange={(value) => setData('master_line_id', value)}>
-                                        <SelectTrigger
-                                            id="master_line_id"
-                                            className={`min-h-11 ${!data.master_line_id && message ? errorBorder : ''}`}
-                                        >
-                                            <SelectValue placeholder="Pilih line" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {lines.map((line) => (
-                                                <SelectItem key={line.id} value={String(line.id)}>
-                                                    {line.code} — {line.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <InputError message={errors.master_line_id} />
                                 </div>
 
                                 <Button type="submit" disabled={processing} size="lg" className="w-full sm:w-auto">

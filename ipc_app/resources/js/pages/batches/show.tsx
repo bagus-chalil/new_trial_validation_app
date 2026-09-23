@@ -15,7 +15,7 @@ interface Batch {
     current_stage: string;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
-    master_line: { name: string; code: string };
+    master_line: { name: string; code: string } | null;
     creator: { name: string };
     startup_check: { completed_at: string | null } | null;
     filling_check: { completed_at: string | null } | null;
@@ -51,7 +51,8 @@ export default function BatchesShow({ batch, stages }: { batch: Batch; stages: S
                             <div>
                                 <p className="text-[20px] font-bold tracking-tight md:text-[26px]">{batch.no_batch}</p>
                                 <p className="text-muted-foreground mt-0.5 text-[13.5px] font-medium md:text-sm">
-                                    {batch.master_product.product_name} &middot; {batch.master_product.fg_code} &middot; {batch.master_line.name}
+                                    {batch.master_product.product_name} &middot; {batch.master_product.fg_code} &middot;{' '}
+                                    {batch.master_line?.name ?? '—'}
                                 </p>
                             </div>
                             <span
@@ -67,7 +68,7 @@ export default function BatchesShow({ batch, stages }: { batch: Batch; stages: S
                         <div className="grid grid-cols-2 gap-3.5 md:flex md:gap-6">
                             <div>
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Line</p>
-                                <p className="mt-0.5 text-[13.5px] font-semibold">{batch.master_line.name}</p>
+                                <p className="mt-0.5 text-[13.5px] font-semibold">{batch.master_line?.name ?? '—'}</p>
                             </div>
                             <div className="md:text-right">
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Dibuat oleh</p>

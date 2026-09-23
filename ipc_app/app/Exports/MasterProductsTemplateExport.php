@@ -11,15 +11,15 @@ class MasterProductsTemplateExport implements FromArray, WithHeadings, WithTitle
     public function array(): array
     {
         return [
-            ['FG-0001', 'Sample Product A', 'Aktif', 'BLK-0001', 'BATCH-0001', 'Aktif'],
-            ['FG-0001', 'Sample Product A', 'Aktif', 'BLK-0002', '', 'Aktif'],
-            ['FG-0002', 'Sample Product B', 'Aktif', 'BLK-0003', '', 'Aktif'],
+            ['FG-0001', 'Sample Product A', 'BLK-0001'],
+            ['FG-0001', 'Sample Product A', 'BLK-0002'],
+            ['FG-0002', 'Sample Product B', 'BLK-0003'],
         ];
     }
 
     public function headings(): array
     {
-        return ['FG Code', 'Nama Produk', 'Status Produk', 'Bulk Code', 'No Batch', 'Status Bulk Code'];
+        return ['FG Code', 'Nama Produk', 'Bulk Code'];
     }
 
     public function title(): string

@@ -12,8 +12,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 /**
  * Upserts master_products by fg_code and, when a row also carries a bulk_code,
  * upserts that product's master_product_bulk_codes by (product, bulk_code).
- * A row with a blank bulk_code only touches the product — no_batch is optional
- * on the bulk code itself, matching the master-data screen's own validation.
+ * A row with a blank bulk_code only touches the product.
  */
 class MasterProductsImport implements ToCollection, WithHeadingRow
 {
@@ -40,19 +39,17 @@ class MasterProductsImport implements ToCollection, WithHeadingRow
             $fgCode = trim((string) ($row['fg_code'] ?? ''));
             $productName = trim((string) ($row['nama_produk'] ?? ''));
             $bulkCode = trim((string) ($row['bulk_code'] ?? ''));
-            $noBatch = trim((string) ($row['no_batch'] ?? ''));
 
             if ($fgCode === '' && $productName === '' && $bulkCode === '') {
                 continue;
             }
 
             $validator = Validator::make(
-                ['fg_code' => $fgCode, 'nama_produk' => $productName, 'bulk_code' => $bulkCode, 'no_batch' => $noBatch],
+                ['fg_code' => $fgCode, 'nama_produk' => $productName, 'bulk_code' => $bulkCode],
                 [
                     'fg_code' => ['required', 'string', 'max:100'],
                     'nama_produk' => ['required', 'string', 'max:150'],
                     'bulk_code' => ['nullable', 'string', 'max:100'],
-                    'no_batch' => ['nullable', 'string', 'max:100'],
                 ],
             );
 
@@ -64,9 +61,8 @@ class MasterProductsImport implements ToCollection, WithHeadingRow
 
             $product = MasterProduct::where('fg_code', $fgCode)->first();
             $isNewProduct = $product === null;
-            $product ??= new MasterProduct(['fg_code' => $fgCode]);
+            $product ??= new MasterProduct(['fg_code' => $fgCode, 'is_active' => true]);
             $product->product_name = $productName;
-            $product->is_active = $this->parseActive($row['status_produk'] ?? null);
             $product->save();
 
             if (! isset($this->touchedProductIds[$product->id])) {
@@ -85,24 +81,12 @@ class MasterProductsImport implements ToCollection, WithHeadingRow
             $bulkCodeRow ??= new MasterProductBulkCode([
                 'master_product_id' => $product->id,
                 'bulk_code' => $bulkCode,
+                'is_active' => true,
             ]);
-            $bulkCodeRow->no_batch = $noBatch !== '' ? $noBatch : null;
-            $bulkCodeRow->is_active = $this->parseActive($row['status_bulk_code'] ?? null);
             $bulkCodeRow->save();
 
             $isNewBulkCode ? $this->bulkCodesCreated++ : $this->bulkCodesUpdated++;
         }
-    }
-
-    private function parseActive(mixed $value): bool
-    {
-        if ($value === null || trim((string) $value) === '') {
-            return true;
-        }
-
-        $normalized = mb_strtolower(trim((string) $value));
-
-        return ! in_array($normalized, ['nonaktif', 'non aktif', 'tidak aktif', 'n', 'no', 'false', '0'], true);
     }
 
     public function summary(): string

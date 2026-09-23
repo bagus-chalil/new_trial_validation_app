@@ -17,15 +17,18 @@ class StartupCheckTest extends TestCase
 {
     use RefreshDatabase;
 
+    private MasterLine $line;
+
     private function makeBatch(): IpcBatch
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
-        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+        $this->line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
+        // Line and Mixing Date are no longer set at batch creation — they're chosen on this
+        // very form, so a freshly-created batch starts with both null (see IpcBatchController).
         return IpcBatch::create([
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-001',
-            'master_line_id' => $line->id,
             'created_by' => User::factory()->create()->id,
             'current_stage' => IpcBatch::STAGE_STARTUP,
         ]);
@@ -40,6 +43,8 @@ class StartupCheckTest extends TestCase
 
         return [
             ...$checklist,
+            'mixing_date' => '2026-09-20',
+            'master_line_id' => $this->line->id,
             'validation_report_status' => StartupCheck::VALIDATION_REPORT_READY,
             'filling_range_min' => 10,
             'filling_range_max' => 12,
@@ -86,11 +91,43 @@ class StartupCheckTest extends TestCase
 
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FILLING, $batch->current_stage);
+        $this->assertSame('2026-09-20', $batch->mixing_date->toDateString());
+        $this->assertSame($this->line->id, $batch->master_line_id);
 
         $startupCheck = $batch->startupCheck()->first();
         $this->assertNotNull($startupCheck->completed_at);
         $this->assertSame(StartupCheck::STATUS_AVAILABLE, $startupCheck->product_standard_status);
         $this->assertEquals(21.5, (float) $startupCheck->average_of_empty_bottle_weight);
+    }
+
+    public function test_missing_mixing_date_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        unset($payload['mixing_date']);
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)
+            ->assertSessionHasErrors('mixing_date');
+
+        $this->assertNull($batch->fresh()->startupCheck);
+        $this->assertNull($batch->fresh()->mixing_date);
+    }
+
+    public function test_missing_master_line_id_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        unset($payload['master_line_id']);
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)
+            ->assertSessionHasErrors('master_line_id');
+
+        $this->assertNull($batch->fresh()->startupCheck);
+        $this->assertNull($batch->fresh()->master_line_id);
     }
 
     public function test_missing_checklist_status_is_rejected(): void

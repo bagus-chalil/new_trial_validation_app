@@ -12,7 +12,6 @@ class MasterProductBulkCode extends Model
     protected $fillable = [
         'master_product_id',
         'bulk_code',
-        'no_batch',
         'is_active',
     ];
 

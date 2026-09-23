@@ -16,7 +16,6 @@ import { FormEventHandler, useState } from 'react';
 interface BulkCode {
     id: number;
     bulk_code: string;
-    no_batch: string | null;
     is_active: boolean;
 }
 
@@ -38,7 +37,7 @@ interface Paginated<T> {
 }
 
 const emptyProductForm = { id: null as number | null, fg_code: '', product_name: '', is_active: true };
-const emptyBulkCodeForm = { id: null as number | null, bulk_code: '', no_batch: '', is_active: true };
+const emptyBulkCodeForm = { id: null as number | null, bulk_code: '', is_active: true };
 
 function BulkCodeManager({ product, open, onOpenChange }: { product: MasterProduct | null; open: boolean; onOpenChange: (open: boolean) => void }) {
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm(emptyBulkCodeForm);
@@ -50,7 +49,7 @@ function BulkCodeManager({ product, open, onOpenChange }: { product: MasterProdu
 
     const startEdit = (bulkCode: BulkCode) => {
         clearErrors();
-        setData({ id: bulkCode.id, bulk_code: bulkCode.bulk_code, no_batch: bulkCode.no_batch ?? '', is_active: bulkCode.is_active });
+        setData({ id: bulkCode.id, bulk_code: bulkCode.bulk_code, is_active: bulkCode.is_active });
     };
 
     const submit: FormEventHandler = (e) => {
@@ -90,7 +89,6 @@ function BulkCodeManager({ product, open, onOpenChange }: { product: MasterProdu
                                         {bulkCode.is_active ? 'Aktif' : 'Nonaktif'}
                                     </Badge>
                                 </div>
-                                <p className="text-muted-foreground mt-0.5 text-[12.5px]">No Batch: {bulkCode.no_batch ?? '-'}</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
                                 <Button type="button" variant="outline" size="icon" className="size-9" onClick={() => startEdit(bulkCode)}>
@@ -112,17 +110,10 @@ function BulkCodeManager({ product, open, onOpenChange }: { product: MasterProdu
 
                 <form onSubmit={submit} className="space-y-3">
                     <p className="text-[13px] font-bold">{data.id ? 'Edit Bulk Code' : 'Tambah Bulk Code'}</p>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="bulk_code">Bulk Code</Label>
-                            <Input id="bulk_code" value={data.bulk_code} onChange={(e) => setData('bulk_code', e.target.value)} />
-                            <InputError message={errors.bulk_code} />
-                        </div>
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="no_batch">No Batch</Label>
-                            <Input id="no_batch" value={data.no_batch} onChange={(e) => setData('no_batch', e.target.value)} />
-                            <InputError message={errors.no_batch} />
-                        </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="bulk_code">Bulk Code</Label>
+                        <Input id="bulk_code" value={data.bulk_code} onChange={(e) => setData('bulk_code', e.target.value)} />
+                        <InputError message={errors.bulk_code} />
                     </div>
                     <div className="flex items-center gap-2">
                         <Checkbox id="bc_is_active" checked={data.is_active} onCheckedChange={(checked) => setData('is_active', checked === true)} />
@@ -196,7 +187,7 @@ export default function MasterProductsIndex({ products, filters }: { products: P
                     templateHref={route('master-products.template')}
                     importAction={route('master-products.import')}
                     title="Import Master Produk"
-                    description="Upload file Excel (.xlsx) hasil isian dari template. Kolom FG Code, Nama Produk wajib diisi; Bulk Code & No Batch boleh dikosongkan. Data dengan FG Code / Bulk Code yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
+                    description="Upload file Excel (.xlsx) hasil isian dari template. Kolom FG Code dan Nama Produk wajib diisi; Bulk Code boleh dikosongkan. Data dengan FG Code / Bulk Code yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
                 />
 
                 <div className="flex flex-col gap-3">

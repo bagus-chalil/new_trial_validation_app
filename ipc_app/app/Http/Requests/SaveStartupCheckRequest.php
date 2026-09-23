@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\StartupCheck;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SaveStartupCheckRequest extends FormRequest
 {
@@ -15,6 +16,8 @@ class SaveStartupCheckRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
+            'mixing_date' => ['required', 'date'],
+            'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],
             'filling_range_min' => ['nullable', 'numeric'],
             'filling_range_max' => ['nullable', 'numeric'],

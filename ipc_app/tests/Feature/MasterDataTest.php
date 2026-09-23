@@ -101,7 +101,7 @@ class MasterDataTest extends TestCase
     public function test_authenticated_user_can_list_products_with_bulk_code_counts(): void
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
-        MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BC-1', 'no_batch' => 'NB-1', 'is_active' => true]);
+        MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BC-1', 'is_active' => true]);
 
         $this->actingAs(User::factory()->create())
             ->get('/masters/products')
@@ -146,47 +146,35 @@ class MasterDataTest extends TestCase
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
 
         $this->actingAs(User::factory()->create())
-            ->post("/masters/products/{$product->id}/bulk-codes", ['bulk_code' => 'BC-1', 'no_batch' => 'NB-1', 'is_active' => true])
+            ->post("/masters/products/{$product->id}/bulk-codes", ['bulk_code' => 'BC-1', 'is_active' => true])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('master_product_bulk_codes', ['master_product_id' => $product->id, 'bulk_code' => 'BC-1', 'no_batch' => 'NB-1']);
+        $this->assertDatabaseHas('master_product_bulk_codes', ['master_product_id' => $product->id, 'bulk_code' => 'BC-1']);
     }
 
     public function test_bulk_code_must_be_unique_per_product_but_not_globally(): void
     {
         $productA = MasterProduct::create(['fg_code' => 'FG-A', 'product_name' => 'Product A', 'is_active' => true]);
         $productB = MasterProduct::create(['fg_code' => 'FG-B', 'product_name' => 'Product B', 'is_active' => true]);
-        MasterProductBulkCode::create(['master_product_id' => $productA->id, 'bulk_code' => 'BC-1', 'no_batch' => 'NB-1', 'is_active' => true]);
+        MasterProductBulkCode::create(['master_product_id' => $productA->id, 'bulk_code' => 'BC-1', 'is_active' => true]);
 
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->post("/masters/products/{$productA->id}/bulk-codes", ['bulk_code' => 'BC-1', 'no_batch' => 'NB-2', 'is_active' => true])
+            ->post("/masters/products/{$productA->id}/bulk-codes", ['bulk_code' => 'BC-1', 'is_active' => true])
             ->assertSessionHasErrors('bulk_code');
 
         $this->actingAs($user)
-            ->post("/masters/products/{$productB->id}/bulk-codes", ['bulk_code' => 'BC-1', 'no_batch' => 'NB-2', 'is_active' => true])
+            ->post("/masters/products/{$productB->id}/bulk-codes", ['bulk_code' => 'BC-1', 'is_active' => true])
             ->assertRedirect()
             ->assertSessionDoesntHaveErrors();
-    }
-
-    public function test_bulk_code_no_batch_is_optional(): void
-    {
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
-
-        $this->actingAs(User::factory()->create())
-            ->post("/masters/products/{$product->id}/bulk-codes", ['bulk_code' => 'BC-1', 'is_active' => true])
-            ->assertRedirect()
-            ->assertSessionDoesntHaveErrors();
-
-        $this->assertDatabaseHas('master_product_bulk_codes', ['master_product_id' => $product->id, 'bulk_code' => 'BC-1', 'no_batch' => null]);
     }
 
     public function test_bulk_code_can_be_deleted_only_through_its_own_product(): void
     {
         $productA = MasterProduct::create(['fg_code' => 'FG-A', 'product_name' => 'Product A', 'is_active' => true]);
         $productB = MasterProduct::create(['fg_code' => 'FG-B', 'product_name' => 'Product B', 'is_active' => true]);
-        $bulkCode = MasterProductBulkCode::create(['master_product_id' => $productA->id, 'bulk_code' => 'BC-1', 'no_batch' => 'NB-1', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create(['master_product_id' => $productA->id, 'bulk_code' => 'BC-1', 'is_active' => true]);
 
         $user = User::factory()->create();
 
@@ -254,11 +242,11 @@ class MasterDataTest extends TestCase
         $existing = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Old Name', 'is_active' => true]);
 
         $file = $this->fakeExcelUpload(
-            ['FG Code', 'Nama Produk', 'Status Produk', 'Bulk Code', 'No Batch', 'Status Bulk Code'],
+            ['FG Code', 'Nama Produk', 'Bulk Code'],
             [
-                ['FG-1', 'Updated Name', 'Aktif', 'BLK-1', 'BATCH-1', 'Aktif'],
-                ['FG-2', 'Brand New Product', 'Aktif', '', '', 'Aktif'],
-                ['', '', '', 'BLK-ORPHAN', '', ''],
+                ['FG-1', 'Updated Name', 'BLK-1'],
+                ['FG-2', 'Brand New Product', ''],
+                ['', '', 'BLK-ORPHAN'],
             ],
         );
 
@@ -269,7 +257,7 @@ class MasterDataTest extends TestCase
             ->assertSessionHas('error');
 
         $this->assertDatabaseHas('master_products', ['id' => $existing->id, 'product_name' => 'Updated Name']);
-        $this->assertDatabaseHas('master_product_bulk_codes', ['master_product_id' => $existing->id, 'bulk_code' => 'BLK-1', 'no_batch' => 'BATCH-1']);
+        $this->assertDatabaseHas('master_product_bulk_codes', ['master_product_id' => $existing->id, 'bulk_code' => 'BLK-1']);
         $this->assertDatabaseHas('master_products', ['fg_code' => 'FG-2', 'product_name' => 'Brand New Product']);
         $this->assertDatabaseMissing('master_product_bulk_codes', ['bulk_code' => 'BLK-ORPHAN']);
     }
@@ -277,10 +265,10 @@ class MasterDataTest extends TestCase
     public function test_products_import_counts_a_product_repeated_across_rows_only_once(): void
     {
         $file = $this->fakeExcelUpload(
-            ['FG Code', 'Nama Produk', 'Status Produk', 'Bulk Code', 'No Batch', 'Status Bulk Code'],
+            ['FG Code', 'Nama Produk', 'Bulk Code'],
             [
-                ['FG-4', 'Multi Bulk Product', 'Aktif', 'BLK-A', '', 'Aktif'],
-                ['FG-4', 'Multi Bulk Product', 'Aktif', 'BLK-B', '', 'Aktif'],
+                ['FG-4', 'Multi Bulk Product', 'BLK-A'],
+                ['FG-4', 'Multi Bulk Product', 'BLK-B'],
             ],
         );
 
@@ -295,8 +283,8 @@ class MasterDataTest extends TestCase
     public function test_products_import_can_leave_bulk_code_blank(): void
     {
         $file = $this->fakeExcelUpload(
-            ['FG Code', 'Nama Produk', 'Status Produk', 'Bulk Code', 'No Batch', 'Status Bulk Code'],
-            [['FG-3', 'No Bulk Code Product', 'Aktif', '', '', '']],
+            ['FG Code', 'Nama Produk', 'Bulk Code'],
+            [['FG-3', 'No Bulk Code Product', '']],
         );
 
         $this->actingAs(User::factory()->create())

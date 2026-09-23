@@ -34,30 +34,28 @@ class IpcBatchTest extends TestCase
         $bulkCode = MasterProductBulkCode::create([
             'master_product_id' => $product->id,
             'bulk_code' => 'BULK-1',
-            'no_batch' => 'BATCH-001',
             'is_active' => true,
         ]);
-        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         $response = $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_id' => $bulkCode->id,
-            'master_line_id' => $line->id,
             'no_batch' => 'BATCH-001',
-            'mixing_date' => '2026-09-20',
         ]);
 
         $batch = IpcBatch::firstOrFail();
         $response->assertRedirect("/batches/{$batch->id}/startup-check");
 
         $this->assertSame('BATCH-001', $batch->no_batch);
-        $this->assertSame('2026-09-20', $batch->mixing_date->toDateString());
+        // Mixing Date and Line are chosen later, on the Startup Check form — see StartupCheckTest.
+        $this->assertNull($batch->mixing_date);
+        $this->assertNull($batch->master_line_id);
         $this->assertSame('BULK-1', $batch->bulk_code);
         $this->assertSame($bulkCode->id, $batch->master_product_bulk_code_id);
         $this->assertSame(IpcBatch::STAGE_STARTUP, $batch->current_stage);
     }
 
-    public function test_mixing_date_is_required(): void
+    public function test_no_batch_is_uppercased(): void
     {
         $this->actingAs(User::factory()->create());
 
@@ -65,22 +63,19 @@ class IpcBatchTest extends TestCase
         $bulkCode = MasterProductBulkCode::create([
             'master_product_id' => $product->id,
             'bulk_code' => 'BULK-1',
-            'no_batch' => 'BATCH-001',
             'is_active' => true,
         ]);
-        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_id' => $bulkCode->id,
-            'master_line_id' => $line->id,
-            'no_batch' => 'BATCH-001',
-        ])->assertSessionHasErrors('mixing_date');
+            'no_batch' => 'batch-typed-lowercase',
+        ]);
 
-        $this->assertSame(0, IpcBatch::count());
+        $this->assertSame('BATCH-TYPED-LOWERCASE', IpcBatch::firstOrFail()->no_batch);
     }
 
-    public function test_no_batch_is_required_even_when_the_selected_bulk_code_has_none(): void
+    public function test_no_batch_is_required_to_create_a_batch(): void
     {
         $this->actingAs(User::factory()->create());
 
@@ -88,43 +83,15 @@ class IpcBatchTest extends TestCase
         $bulkCode = MasterProductBulkCode::create([
             'master_product_id' => $product->id,
             'bulk_code' => 'BULK-1',
-            'no_batch' => null,
             'is_active' => true,
         ]);
-        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_id' => $bulkCode->id,
-            'master_line_id' => $line->id,
         ])->assertSessionHasErrors('no_batch');
 
         $this->assertSame(0, IpcBatch::count());
-    }
-
-    public function test_no_batch_typed_on_the_form_can_override_the_bulk_codes_own_value(): void
-    {
-        $this->actingAs(User::factory()->create());
-
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
-        $bulkCode = MasterProductBulkCode::create([
-            'master_product_id' => $product->id,
-            'bulk_code' => 'BULK-1',
-            'no_batch' => 'BATCH-FROM-MASTER',
-            'is_active' => true,
-        ]);
-        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
-
-        $this->post('/batches', [
-            'master_product_id' => $product->id,
-            'master_product_bulk_code_id' => $bulkCode->id,
-            'master_line_id' => $line->id,
-            'no_batch' => 'BATCH-TYPED-BY-USER',
-            'mixing_date' => '2026-09-20',
-        ]);
-
-        $batch = IpcBatch::firstOrFail();
-        $this->assertSame('BATCH-TYPED-BY-USER', $batch->no_batch);
     }
 
     public function test_bulk_code_from_a_different_product_is_rejected(): void
@@ -136,15 +103,12 @@ class IpcBatchTest extends TestCase
         $otherBulkCode = MasterProductBulkCode::create([
             'master_product_id' => $otherProduct->id,
             'bulk_code' => 'BULK-2',
-            'no_batch' => 'BATCH-002',
             'is_active' => true,
         ]);
-        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_id' => $otherBulkCode->id,
-            'master_line_id' => $line->id,
         ])->assertSessionHasErrors('master_product_bulk_code_id');
     }
 
@@ -183,15 +147,11 @@ class IpcBatchTest extends TestCase
         $bulkCode = MasterProductBulkCode::create([
             'master_product_id' => $product->id,
             'bulk_code' => 'BULK-1',
-            'no_batch' => 'BATCH-001',
             'is_active' => true,
         ]);
-        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
-
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_id' => $bulkCode->id,
-            'master_line_id' => $line->id,
         ])->assertSessionHasErrors('master_product_id');
     }
 }

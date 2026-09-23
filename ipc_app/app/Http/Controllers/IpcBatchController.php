@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
-use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
 use Illuminate\Http\RedirectResponse;
@@ -96,7 +95,6 @@ class IpcBatchController extends Controller
                 ->with(['bulkCodes' => fn ($query) => $query->where('is_active', true)->orderBy('bulk_code')])
                 ->orderBy('product_name')
                 ->get(['id', 'fg_code', 'product_name']),
-            'lines' => MasterLine::query()->where('is_active', true)->orderBy('name')->get(['id', 'category', 'area', 'code', 'name']),
         ]);
     }
 
@@ -108,9 +106,7 @@ class IpcBatchController extends Controller
             'master_product_id' => $request->validated('master_product_id'),
             'master_product_bulk_code_id' => $bulkCode->id,
             'no_batch' => $request->validated('no_batch'),
-            'mixing_date' => $request->validated('mixing_date'),
             'bulk_code' => $bulkCode->bulk_code,
-            'master_line_id' => $request->validated('master_line_id'),
             'created_by' => $request->user()->id,
             'current_stage' => IpcBatch::STAGE_STARTUP,
         ]);

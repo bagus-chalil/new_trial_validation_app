@@ -7,6 +7,7 @@ use App\Http\Requests\SaveStartupCheckRequest;
 use App\Http\Requests\UploadStartupCheckPhotoRequest;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
+use App\Models\MasterLine;
 use App\Models\StartupCheck;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -52,6 +53,7 @@ class StartupCheckController extends Controller
             'startupInspectionComplete' => (bool) $batch->startupInspection?->completed_at,
             'checklistGroups' => StartupCheck::checklistGroups(),
             'validationReportOptions' => StartupCheck::VALIDATION_REPORT_OPTIONS,
+            'lines' => MasterLine::query()->where('is_active', true)->orderBy('name')->get(['id', 'category', 'area', 'code', 'name']),
             'photoUrls' => $photoUrls,
         ]);
     }
