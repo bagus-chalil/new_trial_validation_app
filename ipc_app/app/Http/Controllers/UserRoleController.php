@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateUserRoleRequest;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class UserRoleController extends Controller
     public function index(Request $request): Response
     {
         $users = User::query()
+            ->with('roleRecord')
             ->when($request->string('q')->toString(), function ($query, $q) {
                 $query->where(function ($query) use ($q) {
                     $query->where('name', 'like', "%{$q}%")
@@ -27,11 +29,13 @@ class UserRoleController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $roles = Role::orderBy('id')->get(['code', 'label']);
+
         return Inertia::render('users/index', [
             'users' => $users,
             'filters' => $request->only('q'),
-            'roles' => User::ROLES,
-            'roleLabels' => User::ROLE_LABELS,
+            'roles' => $roles->pluck('code'),
+            'roleLabels' => $roles->pluck('label', 'code'),
         ]);
     }
 
