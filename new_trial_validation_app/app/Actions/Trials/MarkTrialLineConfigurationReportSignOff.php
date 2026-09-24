@@ -29,17 +29,22 @@ use Throwable;
  * Approved(PIE) is confirmed — rather than firing immediately at assignment
  * time (SaveTrialLineConfigurationReport only ever emails the Approved(PIE)
  * assignee immediately, since that stage is always first).
+ *
+ * `$comment` (added 2026-09-24, user request) is optional and freely typed
+ * by the confirming user alongside the same click — unlike Return's
+ * mandatory reason, this is just a note, not a revision request.
  */
 class MarkTrialLineConfigurationReportSignOff
 {
     /**
      * @param  'approved_pie'|'checked_prod'  $field
      */
-    public function __invoke(Trial $trial, TrialLineConfigurationReport $report, string $field, User $user): TrialLineConfigurationReport
+    public function __invoke(Trial $trial, TrialLineConfigurationReport $report, string $field, User $user, ?string $comment = null): TrialLineConfigurationReport
     {
         $report->{$field} = true;
         $report->{"{$field}_by"} = $user->name ?: $user->email;
         $report->{"{$field}_at"} = Carbon::now();
+        $report->{"{$field}_comment"} = $comment;
         $report->save();
 
         ActivityLog::create([
@@ -51,7 +56,7 @@ class MarkTrialLineConfigurationReportSignOff
             'record_id' => (string) $report->id,
             'record_label' => $trial->trial_code.' Line Configuration Report',
             'old_data' => null,
-            'new_data' => json_encode([$field => true]),
+            'new_data' => json_encode([$field => true, 'comment' => $comment]),
         ]);
 
         if ($field === 'approved_pie') {

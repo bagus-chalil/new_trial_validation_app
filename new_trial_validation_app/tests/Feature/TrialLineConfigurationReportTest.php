@@ -449,6 +449,48 @@ test('the assigned Checked(PROD) user can confirm checked once Approved(PIE) is 
     expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'CHECK_PROD')->exists())->toBeTrue();
 });
 
+test('Approved(PIE) and Checked(PROD) can each be confirmed with an optional comment, and it is shown on the report page', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $pieUser = User::factory()->create(['name' => 'Fauzi PIE']);
+    $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+        'checked_prod_user_id' => $prodUser->id,
+    ]);
+
+    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id), [
+        'comment' => 'Sudah sesuai standar produksi',
+    ]);
+    $this->actingAs($prodUser)->post(route('trials.line-configuration.check-prod', $trial->id), [
+        'comment' => 'Checked, semua line sesuai',
+    ]);
+
+    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
+    expect($report->approved_pie_comment)->toBe('Sudah sesuai standar produksi');
+    expect($report->checked_prod_comment)->toBe('Checked, semua line sesuai');
+
+    $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('lineConfigurationReport.approved_pie_comment', 'Sudah sesuai standar produksi')
+        ->where('lineConfigurationReport.checked_prod_comment', 'Checked, semua line sesuai'));
+});
+
+test('confirming Approved(PIE) with no comment leaves it null', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $pieUser = User::factory()->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+    ]);
+
+    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
+
+    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail()->approved_pie_comment)->toBeNull();
+});
+
 test('returning requires a reason of at least 5 words', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $pieUser = User::factory()->create();
@@ -665,4 +707,22 @@ test('a locked historical version can be downloaded as a PDF but is no longer th
 
     $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
     $page->assertInertia(fn ($p) => $p->where('lineConfigurationReport.version', 2));
+});
+
+test('the report page exposes the assigned approver and checker names, not just the done flag', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $pieUser = User::factory()->create(['name' => 'Fauzi PIE']);
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), [
+        'approved_pie_user_id' => $pieUser->id,
+    ]);
+
+    // Someone other than the assigned approver — e.g. the drafter checking
+    // back on the locked report — should still be able to see *who* it's
+    // waiting on, not just that Approved(PIE) is blank.
+    $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
+    $page->assertInertia(fn ($p) => $p
+        ->where('lineConfigurationReport.approved_pie_user.name', 'Fauzi PIE')
+        ->where('lineConfigurationReport.checked_prod_user', null));
 });

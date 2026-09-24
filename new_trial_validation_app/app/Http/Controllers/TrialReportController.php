@@ -103,7 +103,10 @@ class TrialReportController extends Controller
 
         $reviewByDept = $trial->reviewStatusByDepartment();
 
-        $lineConfigurationReport = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('is_locked', false)->first();
+        $lineConfigurationReport = TrialLineConfigurationReport::where('trial_id', $trial->id)
+            ->where('is_locked', false)
+            ->with(['approvedPieUser:id,name', 'checkedProdUser:id,name'])
+            ->first();
         $lineConfigurationReportVersions = TrialLineConfigurationReport::where('trial_id', $trial->id)
             ->where('is_locked', true)
             ->orderByDesc('version')

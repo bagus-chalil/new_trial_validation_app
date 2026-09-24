@@ -50,6 +50,9 @@
                             @if ($report->{$f['field'].'_at'})
                                 <br><span class="muted">{{ $report->{$f['field'].'_at'}->format('d M Y') }}</span>
                             @endif
+                            @if (in_array($f['field'], ['approved_pie', 'checked_prod']) && $report->{$f['field'].'_comment'})
+                                <br><span class="muted">&ldquo;{{ $report->{$f['field'].'_comment'} }}&rdquo;</span>
+                            @endif
                         @else
                             -
                         @endif

@@ -3,7 +3,6 @@ import { Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import TrialLineConfigurationReportController from '@/actions/App/Http/Controllers/TrialLineConfigurationReportController';
 import { Combobox } from '@/components/combobox';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn, formatDate } from '@/lib/utils';
+
+const TRIAL_STATUS_OPTIONS = ['Pass', 'No Trial'] as const;
 
 export type ProductionStandardRow = {
     line?: string | null;
@@ -63,10 +65,14 @@ export type LineConfigurationReportData = {
     approved_pie_by: string | null;
     approved_pie_at: string | null;
     approved_pie_user_id: number | null;
+    approved_pie_comment: string | null;
     checked_prod: boolean;
     checked_prod_by: string | null;
     checked_prod_at: string | null;
     checked_prod_user_id: number | null;
+    checked_prod_comment: string | null;
+    approved_pie_user: { id: number; name: string } | null;
+    checked_prod_user: { id: number; name: string } | null;
 } | null;
 
 export type LineConfigurationApproverOption = { id: number; label: string };
@@ -421,6 +427,32 @@ function EditableLineConfigurationReport({
         return n !== null ? sum + n : sum;
     }, 0);
 
+    /**
+     * Controlled per-row state for the Trial column's Pass/No Trial toggle
+     * (replacing free text — legacy placeholder was already "Pass / No
+     * Trial", just never enforced). Always one of the two real option
+     * strings, never '' — a Radix single-select ToggleGroup deselects
+     * (falls back to '') when you click its *already-active* item, so if ''
+     * were only ever visually papered over as "No Trial" via a `|| 'No
+     * Trial'` display fallback, clicking the already-highlighted "No Trial"
+     * button would toggle it off and immediately re-collapse back to the
+     * same-looking fallback — reading as completely unresponsive. Keeping
+     * the real value always resolved avoids that dead click entirely. The
+     * controller's dropBlankRows() is told to ignore this key (alongside
+     * `no`) so an otherwise fully-empty "Tambah Baris" row still gets
+     * dropped despite always carrying a non-blank default here.
+     */
+    const [trialStatusValues, setTrialStatusValues] = useState<
+        Record<number, string>
+    >(() =>
+        Object.fromEntries(
+            configRows.map(({ key, row }) => [
+                key,
+                row.trial_status || 'No Trial',
+            ]),
+        ),
+    );
+
     const approverOptions = approvers.map((a) => ({
         value: String(a.id),
         label: a.label,
@@ -565,7 +597,7 @@ function EditableLineConfigurationReport({
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_capacity_label">
-                                Label Kapasitas/Speed
+                                Label Speed
                             </Label>
                             <Input
                                 id="lcr_capacity_label"
@@ -684,6 +716,10 @@ function EditableLineConfigurationReport({
                                         </TableCell>
                                         <TableCell>
                                             <Input
+                                                type="number"
+                                                inputMode="numeric"
+                                                min={0}
+                                                step={1}
                                                 name={`production_standard[${index}][workers]`}
                                                 defaultValue={row.workers ?? ''}
                                             />
@@ -749,6 +785,10 @@ function EditableLineConfigurationReport({
                                         ...prev,
                                         [key]: '',
                                     }));
+                                    setTrialStatusValues((prev) => ({
+                                        ...prev,
+                                        [key]: 'No Trial',
+                                    }));
                                 }}
                             >
                                 Tambah Baris
@@ -790,6 +830,10 @@ function EditableLineConfigurationReport({
                                         </TableCell>
                                         <TableCell>
                                             <Input
+                                                type="number"
+                                                inputMode="numeric"
+                                                min={0}
+                                                step={1}
                                                 name={`line_configuration[${index}][worker]`}
                                                 defaultValue={row.worker ?? ''}
                                                 onChange={(e) =>
@@ -801,12 +845,60 @@ function EditableLineConfigurationReport({
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <Input
+                                            <ToggleGroup
+                                                type="single"
+                                                variant="outline"
+                                                size="sm"
+                                                value={trialStatusValues[key]}
+                                                onValueChange={(value) => {
+                                                    // Radix reports '' when
+                                                    // the *already-active*
+                                                    // item is clicked again
+                                                    // (its deselect
+                                                    // behavior) — ignored so
+                                                    // exactly one of the two
+                                                    // options always stays
+                                                    // selected, matching
+                                                    // radio-button semantics
+                                                    // rather than leaving
+                                                    // the row's Trial status
+                                                    // unset.
+                                                    if (!value) {
+                                                        return;
+                                                    }
+
+                                                    setTrialStatusValues(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            [key]: value,
+                                                        }),
+                                                    );
+                                                }}
+                                            >
+                                                {TRIAL_STATUS_OPTIONS.map(
+                                                    (option) => (
+                                                        <ToggleGroupItem
+                                                            key={option}
+                                                            value={option}
+                                                            className={cn(
+                                                                'text-xs font-medium',
+                                                                option ===
+                                                                    'Pass' &&
+                                                                    'data-[state=on]:border-emerald-600 data-[state=on]:bg-emerald-600 data-[state=on]:text-white dark:data-[state=on]:border-emerald-500 dark:data-[state=on]:bg-emerald-500',
+                                                                option ===
+                                                                    'No Trial' &&
+                                                                    'data-[state=on]:border-slate-600 data-[state=on]:bg-slate-600 data-[state=on]:text-white dark:data-[state=on]:border-slate-500 dark:data-[state=on]:bg-slate-500',
+                                                            )}
+                                                        >
+                                                            {option}
+                                                        </ToggleGroupItem>
+                                                    ),
+                                                )}
+                                            </ToggleGroup>
+                                            <input
+                                                type="hidden"
                                                 name={`line_configuration[${index}][trial_status]`}
-                                                placeholder="Pass / No Trial"
-                                                defaultValue={
-                                                    row.trial_status ?? ''
-                                                }
+                                                value={trialStatusValues[key]}
                                             />
                                         </TableCell>
                                         <TableCell>
@@ -835,6 +927,16 @@ function EditableLineConfigurationReport({
 
                                                         return next;
                                                     });
+                                                    setTrialStatusValues(
+                                                        (prev) => {
+                                                            const next = {
+                                                                ...prev,
+                                                            };
+                                                            delete next[key];
+
+                                                            return next;
+                                                        },
+                                                    );
                                                 }}
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -937,11 +1039,20 @@ function ReadOnlyLineConfigurationReport({
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col items-end gap-2">
-                <span className="text-xs text-muted-foreground">
-                    Versi {report.version}
-                </span>
-                <SignOffSummaryTable
+            <div className="space-y-3">
+                <div className="flex flex-col items-end gap-2">
+                    <span className="text-xs text-muted-foreground">
+                        Versi {report.version}
+                    </span>
+                    <SignOffSummaryTable
+                        report={report}
+                        lanes={lanes}
+                        canApprovePie={canApprovePie}
+                        canCheckProd={canCheckProd}
+                        canReturn={canReturn}
+                    />
+                </div>
+                <SignOffActionPanel
                     trialId={trialId}
                     report={report}
                     lanes={lanes}
@@ -1037,7 +1148,17 @@ function ReadOnlyLineConfigurationReport({
                                 <TableCell>{row.equipment ?? '-'}</TableCell>
                                 <TableCell>{row.process ?? '-'}</TableCell>
                                 <TableCell>{row.worker ?? '-'}</TableCell>
-                                <TableCell>{row.trial_status ?? '-'}</TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={
+                                            row.trial_status === 'Pass'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                    >
+                                        {row.trial_status || 'No Trial'}
+                                    </Badge>
+                                </TableCell>
                                 <TableCell>{row.remark ?? '-'}</TableCell>
                             </TableRow>
                         ))}
@@ -1099,22 +1220,23 @@ function ReadOnlyLineConfigurationReport({
  * see App\Policies\TrialLineConfigurationReportPolicy): Checked(PROD) shows
  * a muted "Menunggu Approved (PIE)" placeholder instead of a dash while
  * that's still pending, rather than looking actionable when it isn't yet.
- * A cell shows Approve/Tandai Checked + Return buttons only when the viewer
- * is specifically authorized for that action right now (canApprovePie/
- * canCheckProd/canReturn, all pre-computed server-side) — clicking Approve/
- * Checked stamps the acting user's own name and Carbon::now() server-side
- * (see MarkTrialLineConfigurationReportSignOff), never a value typed into a
- * form field.
+ * A cell shows a "Tindakan diperlukan" badge only when the viewer is
+ * specifically authorized for that action right now (canApprovePie/
+ * canCheckProd/canReturn, all pre-computed server-side) — the actual
+ * Approve/Tandai Checked/Return controls live in the wider SignOffActionPanel
+ * below, not in this table (a fixed-width per-stage cell left no real room
+ * to type a comment). Clicking Approve/Checked stamps the acting user's own
+ * name and Carbon::now() server-side (see
+ * MarkTrialLineConfigurationReportSignOff), never a value typed into a form
+ * field.
  */
 function SignOffSummaryTable({
-    trialId,
     report,
     lanes,
     canApprovePie,
     canCheckProd,
     canReturn,
 }: {
-    trialId: number;
     report: NonNullable<LineConfigurationReportData>;
     lanes: LineConfigurationLanes;
     canApprovePie: boolean;
@@ -1150,6 +1272,8 @@ function SignOffSummaryTable({
                             const by = report[`${field}_by`] ?? null;
                             const at = report[`${field}_at`] ?? null;
                             const done = report[field] ?? false;
+                            const assignedUser =
+                                report[`${field}_user`] ?? null;
                             const canConfirm =
                                 field === 'approved_pie'
                                     ? canApprovePie
@@ -1172,46 +1296,26 @@ function SignOffSummaryTable({
                                 );
                             }
 
+                            // The actual Approve/Tandai Checked/Return
+                            // controls live below in SignOffActionPanel —
+                            // cramming a Textarea + two buttons into this
+                            // compact per-stage table cell (fixed-width by
+                            // the 3-column layout) left no room to type a
+                            // real comment. This table stays a pure status
+                            // overview; a "action needed" badge here just
+                            // points the viewer at the panel underneath.
                             if (!done && (canConfirm || canReturn)) {
-                                const confirmFormProps =
-                                    field === 'approved_pie'
-                                        ? TrialLineConfigurationReportController.approvePie.form(
-                                              trialId,
-                                          )
-                                        : TrialLineConfigurationReportController.checkProd.form(
-                                              trialId,
-                                          );
-
                                 return (
                                     <TableCell
                                         key={field}
                                         className="text-center align-top"
                                     >
-                                        <div className="flex flex-col items-center gap-1.5">
-                                            {canConfirm && (
-                                                <Form {...confirmFormProps}>
-                                                    {({ processing }) => (
-                                                        <Button
-                                                            type="submit"
-                                                            size="sm"
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            {field ===
-                                                            'approved_pie'
-                                                                ? 'Approve'
-                                                                : 'Tandai Checked'}
-                                                        </Button>
-                                                    )}
-                                                </Form>
-                                            )}
-                                            {canReturn && (
-                                                <ReturnDialog
-                                                    trialId={trialId}
-                                                />
-                                            )}
-                                        </div>
+                                        <Badge
+                                            variant="outline"
+                                            className="text-amber-600"
+                                        >
+                                            Tindakan diperlukan
+                                        </Badge>
                                     </TableCell>
                                 );
                             }
@@ -1229,10 +1333,21 @@ function SignOffSummaryTable({
                                                     {formatDate(at)}
                                                 </div>
                                             )}
+                                            {report[`${field}_comment`] && (
+                                                <div className="mt-1 max-w-40 text-left text-[10px] font-normal wrap-break-word text-muted-foreground italic">
+                                                    “
+                                                    {report[`${field}_comment`]}
+                                                    ”
+                                                </div>
+                                            )}
                                         </div>
+                                    ) : assignedUser ? (
+                                        <span className="text-xs text-muted-foreground">
+                                            Menunggu {assignedUser.name}
+                                        </span>
                                     ) : (
                                         <span className="text-muted-foreground">
-                                            -
+                                            Belum ditentukan
                                         </span>
                                     )}
                                 </TableCell>
@@ -1246,73 +1361,146 @@ function SignOffSummaryTable({
 }
 
 /**
- * Send-back-for-revision action, available to whoever's turn it currently
- * is (canReturn, pre-resolved server-side via
- * TrialLineConfigurationReportPolicy::returnReport() — never gated
- * per-field on the frontend, since only one stage is ever active at once).
- * Requires a reason of at least MIN_RETURN_REASON_WORDS words, enforced both
- * client-side (live counter, disables Submit) and server-side (the
- * authoritative check).
+ * The spacious counterpart to SignOffSummaryTable's compact "Tindakan
+ * diperlukan" badge — a full-width Card with a real-sized comment Textarea
+ * and the actual Approve/Tandai Checked + Return controls, rendered right
+ * below the table. Resolves to at most one stage at a time (the two are
+ * sequential — see TrialLineConfigurationReport::currentApprovalStage() —
+ * and canApprovePie/canCheckProd/canReturn are all pre-scoped server-side to
+ * whichever stage is currently active for *this* viewer), so there's never
+ * a question of which stage's controls are showing. Renders nothing once
+ * neither stage is actionable for the current viewer (report fully signed
+ * off, or the viewer isn't the assignee).
+ *
+ * The comment box is a *single* shared field, not two separate ones — its
+ * text becomes the optional Approve/Tandai Checked `comment` if you submit
+ * that button, or the Return `reason` if you submit Return instead (each
+ * button belongs to its own real `<Form>`, posting to its own route — the
+ * Textarea itself sits outside both and is mirrored into each via a hidden
+ * input, so there's exactly one visible box, not an unexplained duplicate).
+ * Return has no confirmation popup — per the user's explicit ask, it's just
+ * the second submit button in this same panel, gated by the same
+ * MIN_RETURN_REASON_WORDS-word minimum the standalone dialog used to
+ * enforce (client-side: the button stays disabled below that; server-side:
+ * ReturnLineConfigurationReportRequest is still the authoritative check).
  */
-function ReturnDialog({ trialId }: { trialId: number }) {
-    const [reason, setReason] = useState('');
-    const wordCount = countWords(reason);
+function SignOffActionPanel({
+    trialId,
+    report,
+    lanes,
+    canApprovePie,
+    canCheckProd,
+    canReturn,
+}: {
+    trialId: number;
+    report: NonNullable<LineConfigurationReportData>;
+    lanes: LineConfigurationLanes;
+    canApprovePie: boolean;
+    canCheckProd: boolean;
+    canReturn: boolean;
+}) {
+    const [note, setNote] = useState('');
+    const wordCount = countWords(note);
     const reasonOk = wordCount >= MIN_RETURN_REASON_WORDS;
 
+    const field: StageField | null =
+        canApprovePie && !report.approved_pie
+            ? 'approved_pie'
+            : canCheckProd && !report.checked_prod
+              ? 'checked_prod'
+              : null;
+
+    if (!field) {
+        return null;
+    }
+
+    const label = lanes[field];
+    const confirmLabel =
+        field === 'approved_pie' ? 'Approve' : 'Tandai Checked';
+    const confirmFormProps =
+        field === 'approved_pie'
+            ? TrialLineConfigurationReportController.approvePie.form(trialId)
+            : TrialLineConfigurationReportController.checkProd.form(trialId);
+    const returnFormProps =
+        TrialLineConfigurationReportController.returnReport.form(trialId);
+
     return (
-        <ConfirmDialog
-            trigger={
-                <Button type="button" size="sm" variant="destructive">
-                    Return
-                </Button>
-            }
-            title="Return Line Configuration Report"
-            description="Kembalikan Line Configuration Report ini untuk direvisi. Versi saat ini akan terkunci sebagai riwayat, dan versi baru akan dibuka untuk revisi."
-            confirmLabel="Return"
-            confirmVariant="destructive"
-            formProps={TrialLineConfigurationReportController.returnReport.form(
-                trialId,
-            )}
-        >
-            {({ errors, processing }) => (
-                <div className="space-y-2">
-                    <Label htmlFor="lcr_return_reason">
-                        Alasan Return (minimal {MIN_RETURN_REASON_WORDS} kata)
-                    </Label>
+        <Card className="border-amber-600/40">
+            <CardContent className="space-y-3 pt-6">
+                <div>
+                    <h4 className="text-sm font-semibold">
+                        Tindakan Diperlukan: {label}
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                        Konfirmasi {label} untuk Line Configuration Report ini,
+                        atau kembalikan untuk revisi.
+                    </p>
+                </div>
+
+                <div className="grid gap-2">
+                    <Label htmlFor="lcr_sign_off_comment">Komentar</Label>
                     <Textarea
-                        id="lcr_return_reason"
-                        name="reason"
+                        id="lcr_sign_off_comment"
                         rows={4}
-                        required
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        placeholder="Jelaskan apa yang perlu direvisi..."
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder="Tambahkan komentar bila perlu..."
                     />
                     <p
                         className={cn(
                             'text-xs',
                             reasonOk
                                 ? 'text-muted-foreground'
-                                : 'text-destructive',
+                                : 'text-amber-600',
                         )}
                     >
-                        {wordCount} / {MIN_RETURN_REASON_WORDS} kata
+                        Opsional untuk {confirmLabel}. Untuk Return, wajib diisi
+                        — {wordCount} / {MIN_RETURN_REASON_WORDS} kata minimal.
                     </p>
-                    {errors.reason && (
-                        <p className="text-sm text-destructive">
-                            {errors.reason}
-                        </p>
-                    )}
-                    {/* Extra guard beyond the live counter above — a real
-                        submit is still blocked server-side either way. */}
-                    <input
-                        type="hidden"
-                        name="_client_reason_ok"
-                        value={reasonOk ? '1' : ''}
-                        disabled={processing}
-                    />
                 </div>
-            )}
-        </ConfirmDialog>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    <Form {...confirmFormProps}>
+                        {({ processing }) => (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="comment"
+                                    value={note}
+                                />
+                                <Button type="submit" disabled={processing}>
+                                    {confirmLabel}
+                                </Button>
+                            </>
+                        )}
+                    </Form>
+                    {canReturn && (
+                        <Form {...returnFormProps}>
+                            {({ processing, errors }) => (
+                                <div className="flex flex-col gap-1">
+                                    <input
+                                        type="hidden"
+                                        name="reason"
+                                        value={note}
+                                    />
+                                    <Button
+                                        type="submit"
+                                        variant="destructive"
+                                        disabled={processing || !reasonOk}
+                                    >
+                                        Return
+                                    </Button>
+                                    {errors.reason && (
+                                        <p className="text-xs text-destructive">
+                                            {errors.reason}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </Form>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }

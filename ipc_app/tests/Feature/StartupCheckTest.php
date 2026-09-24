@@ -46,6 +46,7 @@ class StartupCheckTest extends TestCase
         return [
             ...$checklist,
             'mixing_date' => '2026-09-20',
+            'exp_date' => '2028-09-20',
             'master_line_id' => $this->line->id,
             'validation_report_status' => StartupCheck::VALIDATION_REPORT_READY,
             'filling_range_min' => 10,
@@ -94,6 +95,7 @@ class StartupCheckTest extends TestCase
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FILLING, $batch->current_stage);
         $this->assertSame('2026-09-20', $batch->mixing_date->toDateString());
+        $this->assertSame('2028-09-20', $batch->exp_date->toDateString());
         $this->assertSame($this->line->id, $batch->master_line_id);
 
         $startupCheck = $batch->startupCheck()->first();
@@ -115,6 +117,21 @@ class StartupCheckTest extends TestCase
 
         $this->assertNull($batch->fresh()->startupCheck);
         $this->assertNull($batch->fresh()->mixing_date);
+    }
+
+    public function test_missing_exp_date_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        unset($payload['exp_date']);
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)
+            ->assertSessionHasErrors('exp_date');
+
+        $this->assertNull($batch->fresh()->startupCheck);
+        $this->assertNull($batch->fresh()->exp_date);
     }
 
     public function test_missing_master_line_id_is_rejected(): void

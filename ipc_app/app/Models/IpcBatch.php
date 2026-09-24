@@ -38,6 +38,7 @@ class IpcBatch extends Model
         'master_product_bulk_code_id',
         'no_batch',
         'mixing_date',
+        'exp_date',
         'bulk_code',
         'master_line_id',
         'created_by',
@@ -46,6 +47,7 @@ class IpcBatch extends Model
 
     protected $casts = [
         'mixing_date' => 'date',
+        'exp_date' => 'date',
     ];
 
     public function masterProduct()

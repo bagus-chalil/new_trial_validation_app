@@ -44,7 +44,11 @@ class TrialLineConfigurationReportController extends Controller
         $data = $request->validated();
         $data['production_standard'] = $this->dropBlankRows($data['production_standard'] ?? []);
         $data['line_configuration'] = $this->renumberRows(
-            $this->dropBlankRows($data['line_configuration'] ?? [], ['no']),
+            // 'trial_status' is ignored the same way 'no' already is: the
+            // frontend's Pass/No Trial toggle always submits a real value
+            // (defaulting to 'No Trial'), so it alone must never keep an
+            // otherwise fully-empty "Tambah Baris" row from being dropped.
+            $this->dropBlankRows($data['line_configuration'] ?? [], ['no', 'trial_status']),
         );
 
         $action($trial, $data, $request->user());
@@ -74,7 +78,14 @@ class TrialLineConfigurationReportController extends Controller
 
         Gate::authorize($field === 'approved_pie' ? 'approvePie' : 'checkProd', $report);
 
-        $action($trial, $report, $field, $request->user());
+        // Optional note submitted alongside the same Approve/Tandai Checked
+        // click — unlike Return's mandatory reason, this has no dedicated
+        // FormRequest since it's the only field this action ever takes.
+        $comment = $request->validate([
+            'comment' => ['nullable', 'string', 'max:2000'],
+        ])['comment'] ?? null;
+
+        $action($trial, $report, $field, $request->user(), $comment);
 
         $label = LineConfigurationLane::label($field, $field === 'approved_pie' ? 'Approved (PIE)' : 'Checked (PROD)');
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$label} berhasil dikonfirmasi."]);

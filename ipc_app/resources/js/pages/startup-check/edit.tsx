@@ -21,6 +21,7 @@ interface Batch {
     no_batch: string;
     bulk_code: string;
     mixing_date: string | null;
+    exp_date: string | null;
     master_line_id: number | null;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
@@ -118,6 +119,7 @@ export default function StartupCheckEdit({
     const { data, setData, put, processing, errors } = useForm<Record<string, string | null>>({
         ...initialChecklistValues,
         mixing_date: batch.mixing_date ? batch.mixing_date.slice(0, 10) : '',
+        exp_date: batch.exp_date ? batch.exp_date.slice(0, 10) : '',
         master_line_id: batch.master_line_id ? String(batch.master_line_id) : '',
         validation_report_status: (startupCheck?.validation_report_status as string) ?? '',
         filling_range_min: (startupCheck?.filling_range_min as string) ?? '',
@@ -138,6 +140,7 @@ export default function StartupCheckEdit({
     // this card can safely default to collapsed without hiding an unfilled required field.
     const parameterFillingComplete =
         Boolean(data.mixing_date?.trim()) &&
+        Boolean(data.exp_date?.trim()) &&
         Boolean(data.master_line_id?.trim()) &&
         Boolean(data.average_of_empty_bottle_weight?.toString().trim()) &&
         Boolean(data.validation_report_status?.trim());
@@ -146,6 +149,7 @@ export default function StartupCheckEdit({
         e.preventDefault();
         const empty = new Set<string>();
         if (!data.mixing_date?.trim()) empty.add('mixing_date');
+        if (!data.exp_date?.trim()) empty.add('exp_date');
         if (!data.master_line_id?.trim()) empty.add('master_line_id');
         if (!data.validation_report_status?.trim()) empty.add('validation_report_status');
         if (!data.average_of_empty_bottle_weight?.toString().trim()) empty.add('average_of_empty_bottle_weight');
@@ -420,6 +424,27 @@ export default function StartupCheckEdit({
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.mixing_date} />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="exp_date" className="text-muted-foreground text-xs font-semibold">
+                                    Exp Date
+                                </Label>
+                                <Input
+                                    id="exp_date"
+                                    type="date"
+                                    className={`${inputClass} ${errorFields.has('exp_date') ? errorBorder : ''}`}
+                                    value={data.exp_date ?? ''}
+                                    onChange={(e) => {
+                                        setData('exp_date', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('exp_date');
+                                            return n;
+                                        });
+                                    }}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError message={errors.exp_date} />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Validation Report</Label>

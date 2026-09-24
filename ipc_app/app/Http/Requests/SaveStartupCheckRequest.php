@@ -17,6 +17,7 @@ class SaveStartupCheckRequest extends FormRequest
     {
         $rules = [
             'mixing_date' => ['required', 'date'],
+            'exp_date' => ['required', 'date'],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],
             'filling_range_min' => ['nullable', 'numeric'],
