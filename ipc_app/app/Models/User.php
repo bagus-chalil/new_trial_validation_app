@@ -79,6 +79,12 @@ class User extends Authenticatable
         return $this->role === self::ROLE_APPROVER || $this->isAdmin();
     }
 
+    /** Admin bypasses every workflow-role check, matching the sibling app's own convention. */
+    public function isStaff(): bool
+    {
+        return $this->role === self::ROLE_STAFF || $this->isAdmin();
+    }
+
     public function roleRecord(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');

@@ -14,6 +14,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class RbacTest extends TestCase
@@ -67,20 +68,26 @@ class RbacTest extends TestCase
     }
 
     // --- Batch ownership (update) ---
+    // Batches are shift-worked, not owned: any Staff (or Admin) can continue a batch a different
+    // Staff started, so a batch started in shift A/B can be finished by shift C. Approver is the
+    // one role excluded from editing batch stage data — it only approves (see the Approval
+    // routes tests below).
 
-    public function test_non_creator_staff_is_forbidden_from_updating_a_batch(): void
+    public function test_non_creator_staff_can_update_a_batch_someone_else_started(): void
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
         $batch = $this->makeBatch($owner->id);
 
         $this->actingAs($other)
-            ->put("/batches/{$batch->id}/filling-check", ['finalize' => false])
-            ->assertForbidden();
+            ->get("/batches/{$batch->id}/filling-check")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('isReadOnly', false));
     }
 
-    public function test_non_creator_staff_is_forbidden_from_uploading_a_photo(): void
+    public function test_non_creator_staff_can_upload_a_photo_to_a_batch_someone_else_started(): void
     {
+        Storage::fake('public');
         $owner = User::factory()->create();
         $other = User::factory()->create();
         $batch = $this->makeBatch($owner->id);
@@ -88,7 +95,7 @@ class RbacTest extends TestCase
         $photo = UploadedFile::fake()->image('color.jpg');
         $this->actingAs($other)
             ->post("/batches/{$batch->id}/filling-check/photo/color", ['photo' => $photo])
-            ->assertForbidden();
+            ->assertRedirect("/batches/{$batch->id}/filling-check");
     }
 
     public function test_creator_can_update_their_own_batch(): void
@@ -112,6 +119,30 @@ class RbacTest extends TestCase
             ->get("/batches/{$batch->id}/filling-check")
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('isReadOnly', false));
+    }
+
+    public function test_approver_is_forbidden_from_updating_a_batch(): void
+    {
+        $owner = User::factory()->create();
+        $approver = User::factory()->approver()->create();
+        $batch = $this->makeBatch($owner->id);
+
+        $this->actingAs($approver)
+            ->put("/batches/{$batch->id}/filling-check", ['finalize' => false])
+            ->assertForbidden();
+    }
+
+    public function test_approver_is_forbidden_from_creating_a_batch(): void
+    {
+        $product = MasterProduct::create(['fg_code' => 'FG-3', 'product_name' => 'Product 3', 'is_active' => true]);
+
+        $this->actingAs(User::factory()->approver()->create())
+            ->post('/batches', [
+                'master_product_id' => $product->id,
+                'master_product_bulk_code_id' => 1,
+                'no_batch' => 'BATCH-003',
+            ])
+            ->assertForbidden();
     }
 
     // --- Approval routes ---

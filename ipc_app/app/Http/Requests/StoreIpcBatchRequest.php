@@ -9,7 +9,7 @@ class StoreIpcBatchRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->isStaff();
     }
 
     protected function prepareForValidation(): void

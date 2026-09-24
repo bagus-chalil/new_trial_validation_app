@@ -306,8 +306,7 @@
 
     <p class="muted" style="margin-top: 6px;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
 
-    <div class="sign-grid">
-        <div><span>Issued By (QC Filling / Packing)</span></div>
+    <div class="sign-grid sign-grid--cols-2">
         <div>
             <span>Review By (QC IPC Coordinator)</span>
             @if ($fillingPackingApproval)
