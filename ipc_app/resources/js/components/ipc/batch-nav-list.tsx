@@ -31,7 +31,7 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 pb-3.5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3.5">
                 <div className="flex flex-col gap-2">
                     {filtered.map((batch) => {
                         const active = activeId === batch.id;

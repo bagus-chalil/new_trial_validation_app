@@ -3,7 +3,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, Palette, Sun, Trash2, UserRound, Users } from 'lucide-react';
+import { FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, Sun, Trash2, UserRound, Users } from 'lucide-react';
 
 interface AppItem {
     label: string;
@@ -87,7 +87,6 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                     bg: isDark ? '#fffbeb' : '#f3f4f6',
                     onClick: () => updateAppearance(isDark ? 'light' : 'dark'),
                 },
-                { label: 'Tampilan', icon: Palette, color: '#db2777', bg: '#fdf2f8', href: route('appearance') },
             ],
         },
     ];

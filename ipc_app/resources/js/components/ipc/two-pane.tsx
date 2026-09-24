@@ -14,7 +14,7 @@ export function TwoPane({
         <div className="flex min-h-0 flex-1">
             <aside
                 className={cn(
-                    'bg-card w-full shrink-0 flex-col overflow-y-auto border-r md:flex md:w-[280px] lg:w-[336px]',
+                    'bg-card w-full min-h-0 shrink-0 flex-col overflow-hidden border-r md:flex md:w-[280px] lg:w-[336px]',
                     mobilePrimary === 'list' ? 'flex' : 'hidden',
                 )}
             >
