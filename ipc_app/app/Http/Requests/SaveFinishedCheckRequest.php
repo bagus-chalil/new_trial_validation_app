@@ -46,24 +46,28 @@ class SaveFinishedCheckRequest extends FormRequest
             'quantity_wi' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
             'masterbox' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
             'no_pallet_qty' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
-            'quantity_sampling_aql' => [$required, 'integer', 'min:0'],
-            'quantity_sample_aql_cd' => [$required, 'integer', 'min:0'],
-            'quantity_sample_aql_md' => [$required, 'integer', 'min:0'],
-            'quantity_sample_aql_mnd' => [$required, 'integer', 'min:0'],
-            'quantity_special_inspection' => [$required, 'integer', 'min:0'],
-            'quantity_special_inspection_cd' => [$required, 'integer', 'min:0'],
-            'quantity_special_inspection_md' => [$required, 'integer', 'min:0'],
-            'quantity_special_inspection_mnd' => [$required, 'integer', 'min:0'],
+            // max:4294967295 matches the unsignedInteger column type of every AQL quantity field
+            // below (finished_checks + finished_check_samples) — same crash class as the decimal
+            // fields above: 'integer'/'min:0' alone lets an out-of-range value reach a raw SQL
+            // "out of range" error instead of a clean validation message.
+            'quantity_sampling_aql' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_sample_aql_cd' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_sample_aql_md' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_sample_aql_mnd' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection_cd' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection_md' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection_mnd' => [$required, 'integer', 'min:0', 'max:4294967295'],
             'disposition' => [$required, 'in:'.implode(',', FinishedCheck::DISPOSITIONS)],
             'remarks' => [$required, 'string'],
             'samples' => ['nullable', 'array'],
         ];
 
         foreach (FinishedCheckSample::PARAMETER_KEYS as $key) {
-            $rules["samples.{$key}.ac"] = ['nullable', 'integer', 'min:0'];
-            $rules["samples.{$key}.cd"] = ['nullable', 'integer', 'min:0'];
-            $rules["samples.{$key}.md"] = ['nullable', 'integer', 'min:0'];
-            $rules["samples.{$key}.mnd"] = ['nullable', 'integer', 'min:0'];
+            $rules["samples.{$key}.ac"] = ['nullable', 'integer', 'min:0', 'max:4294967295'];
+            $rules["samples.{$key}.cd"] = ['nullable', 'integer', 'min:0', 'max:4294967295'];
+            $rules["samples.{$key}.md"] = ['nullable', 'integer', 'min:0', 'max:4294967295'];
+            $rules["samples.{$key}.mnd"] = ['nullable', 'integer', 'min:0', 'max:4294967295'];
             $rules["samples.{$key}.remark"] = ['nullable', 'string'];
         }
 

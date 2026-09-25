@@ -219,6 +219,40 @@ class FinishedCheckTest extends TestCase
         $this->assertNull($tersierAppearance->mnd);
     }
 
+    /**
+     * Regression test: the AQL quantity fields are unsignedInteger columns (max 4294967295) but
+     * only had 'integer'/'min:0' rules with no upper bound — a value above that would pass
+     * validation and then crash with a raw SQL "out of range" error, the same crash class already
+     * fixed for quantity_wi/masterbox/no_pallet_qty (see SaveFinishedCheckRequest's max:4294967295
+     * comment). Covers one header field and one per-row sample field.
+     */
+    public function test_finalize_rejects_an_out_of_range_aql_quantity(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $this->seedFinishedCheckPhotos($batch);
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['quantity_sampling_aql' => 4294967296]))
+            ->assertSessionHasErrors(['quantity_sampling_aql']);
+
+        $this->assertNull($batch->fresh()->finishedCheck);
+    }
+
+    public function test_finalize_rejects_an_out_of_range_sample_ac(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $this->seedFinishedCheckPhotos($batch);
+
+        $samples = $this->validSamples();
+        $samples['tersier_appearance']['ac'] = 4294967296;
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['samples' => $samples]))
+            ->assertSessionHasErrors(['samples.tersier_appearance.ac']);
+
+        $this->assertNull($batch->fresh()->finishedCheck);
+    }
+
     public function test_finalize_persists_header_and_samples_and_advances_stage(): void
     {
         $this->actingAs(User::factory()->create());

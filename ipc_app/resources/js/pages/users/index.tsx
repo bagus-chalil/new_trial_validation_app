@@ -11,7 +11,7 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Pencil, Plus, Power, PowerOff, Users } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useEffect, useState } from 'react';
 
 interface UserRow {
     id: number;
@@ -148,6 +148,19 @@ function EditUserDialog({
         password_confirmation: '',
     });
 
+    // Radix's Dialog only fires onOpenChange for internal interactions (Escape, overlay
+    // click, etc.) — not when the `open` prop itself is flipped externally by the parent
+    // (as setEditUser(user) does here). So the prefill must react to `user` changing, not
+    // to onOpenChange — see masters/products/index.tsx's openEdit() for the same pattern.
+    useEffect(() => {
+        if (!user) return;
+        clearErrors();
+        const defaults = { name: user.name, email: user.email, role: user.role, password: '', password_confirmation: '' };
+        setDefaults(defaults);
+        setData(defaults);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!user) return;
@@ -157,18 +170,7 @@ function EditUserDialog({
     if (!user) return null;
 
     return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => {
-                if (next) {
-                    clearErrors();
-                    const defaults = { name: user.name, email: user.email, role: user.role, password: '', password_confirmation: '' };
-                    setDefaults(defaults);
-                    setData(defaults);
-                }
-                onOpenChange(next);
-            }}
-        >
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Edit User</DialogTitle>
