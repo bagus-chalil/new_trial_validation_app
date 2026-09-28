@@ -214,6 +214,7 @@ class Trial extends Model
 
         $reviews = $this->reviews()
             ->where('review_round', $round)
+            ->with('reviewer:id,name,email')
             ->get()
             ->keyBy(fn (TrialReview $r) => User::normalizeReviewDepartment($r->department));
 

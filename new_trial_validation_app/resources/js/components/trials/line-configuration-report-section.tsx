@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import { Trash2 } from 'lucide-react';
+import { MessageSquare, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import TrialLineConfigurationReportController from '@/actions/App/Http/Controllers/TrialLineConfigurationReportController';
 import { Combobox } from '@/components/combobox';
@@ -602,7 +602,7 @@ function EditableLineConfigurationReport({
                             <Input
                                 id="lcr_capacity_label"
                                 name="capacity_label"
-                                placeholder="Capa / PRD Speed (pcs/min)"
+                                placeholder="Capa / PRD (pcs/min)"
                                 defaultValue={report?.capacity_label ?? ''}
                             />
                         </div>
@@ -1052,6 +1052,7 @@ function ReadOnlyLineConfigurationReport({
                         canReturn={canReturn}
                     />
                 </div>
+                <SignOffComments report={report} lanes={lanes} />
                 <SignOffActionPanel
                     trialId={trialId}
                     report={report}
@@ -1334,10 +1335,9 @@ function SignOffSummaryTable({
                                                 </div>
                                             )}
                                             {report[`${field}_comment`] && (
-                                                <div className="mt-1 max-w-40 text-left text-[10px] font-normal wrap-break-word text-muted-foreground italic">
-                                                    “
-                                                    {report[`${field}_comment`]}
-                                                    ”
+                                                <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
+                                                    <MessageSquare className="size-3" />
+                                                    Ada komentar
                                                 </div>
                                             )}
                                         </div>
@@ -1356,6 +1356,72 @@ function SignOffSummaryTable({
                     </TableRow>
                 </TableBody>
             </Table>
+        </div>
+    );
+}
+
+/**
+ * Full-width list of the optional comments left on Approve/Tandai Checked.
+ * These used to render inside SignOffSummaryTable's cells, but a table cell
+ * is `whitespace-nowrap` and sized by its header, so any real sentence either
+ * bled into the neighbouring column or forced a horizontal scrollbar. The
+ * table now only shows an "Ada komentar" marker; the text itself lives here.
+ */
+function SignOffComments({
+    report,
+    lanes,
+}: {
+    report: NonNullable<LineConfigurationReportData>;
+    lanes: LineConfigurationLanes;
+}) {
+    const comments = stageFields(lanes).flatMap(({ field, label }) => {
+        const comment = report[`${field}_comment`];
+
+        if (!report[field] || !comment) {
+            return [];
+        }
+
+        return [
+            {
+                field,
+                label,
+                comment,
+                by: report[`${field}_by`] ?? null,
+                at: report[`${field}_at`] ?? null,
+            },
+        ];
+    });
+
+    if (comments.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="rounded-md border bg-muted/30 p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <MessageSquare className="size-3.5" />
+                Catatan Sign-off
+            </div>
+            <ul className="space-y-3">
+                {comments.map(({ field, label, comment, by, at }) => (
+                    <li
+                        key={field}
+                        className="border-l-2 border-green-500/60 pl-3"
+                    >
+                        <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                            <span className="font-medium">{label}</span>
+                            <span className="text-muted-foreground">
+                                {[by, at && formatDate(at)]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                            </span>
+                        </div>
+                        <p className="mt-0.5 text-sm wrap-break-word whitespace-pre-line">
+                            {comment}
+                        </p>
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }

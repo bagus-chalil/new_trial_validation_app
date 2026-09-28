@@ -354,7 +354,7 @@ class TrialReportController extends Controller
         $this->writeTableSheet($spreadsheet->createSheet(), 'Review Department', [
             'Round', 'Department', 'Status', 'Reviewer', 'Direview Pada', 'Komentar',
         ], $core['reviews']->map(fn (array $r) => [
-            $r['review_round'], $r['department'], $r['status'], $r['reviewer_name'], $r['reviewed_at'], $r['comment'],
+            $r['review_round'], $r['department'], $r['status'], $r['reviewer_name'] ?? ($r['assigned_to'] ? $r['assigned_to'].' (ditugaskan)' : null), $r['reviewed_at'], $r['comment'],
         ])->all());
 
         $managerDecision = $trial->final_decision ?? $trial->progress_status;
@@ -496,6 +496,9 @@ class TrialReportController extends Controller
                 'review_round' => $trial->currentReviewRound(),
                 'status' => $entry['status'],
                 'reviewer_name' => $entry['review']?->reviewer_name ? User::displayName($entry['review']->reviewer_name) : null,
+                // reviewer_name is only stamped once the review is actually
+                // submitted; until then show who it's assigned to.
+                'assigned_to' => $entry['review']?->reviewer ? trim((string) ($entry['review']->reviewer->name ?: $entry['review']->reviewer->email)) : null,
                 'reviewed_at' => $entry['review']?->reviewed_at?->toDateTimeString(),
                 'comment' => $entry['review']?->comment,
             ])->values(),

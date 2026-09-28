@@ -97,6 +97,7 @@ type ReviewItem = {
     review_round: number;
     status: string;
     reviewer_name: string | null;
+    assigned_to: string | null;
     reviewed_at: string | null;
     comment: string | null;
 };
@@ -701,7 +702,17 @@ export default function TrialReport({
                                             </TableCell>
                                             <TableCell>{r.status}</TableCell>
                                             <TableCell>
-                                                {r.reviewer_name ?? '-'}
+                                                {r.reviewer_name ??
+                                                    (r.assigned_to ? (
+                                                        <span>
+                                                            {r.assigned_to}{' '}
+                                                            <span className="text-xs text-muted-foreground">
+                                                                (ditugaskan)
+                                                            </span>
+                                                        </span>
+                                                    ) : (
+                                                        '-'
+                                                    ))}
                                             </TableCell>
                                             <TableCell>
                                                 {formatDate(r.reviewed_at)}

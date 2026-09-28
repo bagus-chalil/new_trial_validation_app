@@ -199,7 +199,7 @@
                     <td>{{ $r['review_round'] }}</td>
                     <td>{{ $r['department'] }}</td>
                     <td>{{ $r['status'] }}</td>
-                    <td>{{ $r['reviewer_name'] ?? '-' }}</td>
+                    <td>{{ $r['reviewer_name'] ?? ($r['assigned_to'] ? $r['assigned_to'].' (ditugaskan)' : '-') }}</td>
                     <td>{{ $r['reviewed_at'] ?? '-' }}</td>
                     <td>{{ $r['comment'] ?? '-' }}</td>
                 </tr>
