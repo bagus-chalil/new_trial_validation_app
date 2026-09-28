@@ -174,7 +174,7 @@ export function AppSidebar() {
                               icon: KeyRound,
                           },
                           {
-                              title: 'Lane Configuration',
+                              title: 'Line Configuration',
                               href: laneConfigurationIndex(),
                               icon: RouteIcon,
                           },

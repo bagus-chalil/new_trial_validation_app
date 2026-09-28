@@ -48,7 +48,7 @@ class LaneConfigurationController extends Controller
         $lane->required_team_id = $data['required_team_id'] ?? null;
         $lane->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Lane Configuration berhasil diperbarui.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Line Configuration berhasil diperbarui.']);
 
         return to_route('admin.lane-configuration.index');
     }
