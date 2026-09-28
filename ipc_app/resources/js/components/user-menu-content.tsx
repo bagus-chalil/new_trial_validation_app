@@ -4,7 +4,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type SharedData, type User } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { FlaskConical, LogOut, MapPin, Moon, Package, Settings, Sun, Users } from 'lucide-react';
+import { FlaskConical, LogOut, MapPin, Moon, Package, ScanText, Settings, Sun, Users } from 'lucide-react';
 
 interface UserMenuContentProps {
     user: User;
@@ -63,6 +63,19 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                             <Link className="block w-full" href={route('users.index')} as="button" prefetch onClick={cleanup}>
                                 <Users className="mr-2" />
                                 Manajemen User
+                            </Link>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                </>
+            )}
+            {props.canUseVisionTest && (
+                <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                        <DropdownMenuItem asChild>
+                            <Link className="block w-full" href={route('vision-test.index')} as="button" prefetch onClick={cleanup}>
+                                <ScanText className="mr-2" />
+                                OCR Test Product
                             </Link>
                         </DropdownMenuItem>
                     </DropdownMenuGroup>

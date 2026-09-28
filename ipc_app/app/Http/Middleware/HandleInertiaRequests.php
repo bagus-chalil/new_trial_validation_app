@@ -59,6 +59,7 @@ class HandleInertiaRequests extends Middleware
                 : [],
             'canApproveIpc' => fn () => (bool) $request->user()?->isApprover(),
             'canManageMaster' => fn () => (bool) $request->user()?->isAdmin(),
+            'canUseVisionTest' => fn () => (bool) $request->user()?->can('use-vision-test'),
         ]);
     }
 }

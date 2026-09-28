@@ -12,6 +12,7 @@ class MasterProduct extends Model
     protected $fillable = [
         'fg_code',
         'product_name',
+        'shelf_life_months',
         'is_active',
     ];
 
@@ -19,6 +20,7 @@ class MasterProduct extends Model
     {
         return [
             'is_active' => 'boolean',
+            'shelf_life_months' => 'integer',
         ];
     }
 

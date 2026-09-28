@@ -37,6 +37,7 @@ export interface SharedData {
     flash?: { success?: string; error?: string };
     canApproveIpc: boolean;
     canManageMaster: boolean;
+    canUseVisionTest: boolean;
     [key: string]: unknown;
 }
 

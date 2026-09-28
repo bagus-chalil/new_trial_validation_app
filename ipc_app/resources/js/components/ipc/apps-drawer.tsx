@@ -3,7 +3,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, Sun, Trash2, UserRound, Users } from 'lucide-react';
+import { FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, ScanText, Sun, Trash2, UserRound, Users } from 'lucide-react';
 
 interface AppItem {
     label: string;
@@ -45,7 +45,7 @@ function AppIcon({ item, onClose }: { item: AppItem; onClose: () => void }) {
 }
 
 export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-    const { auth, canManageMaster } = usePage<SharedData>().props;
+    const { auth, canManageMaster, canUseVisionTest } = usePage<SharedData>().props;
     const cleanup = useMobileNavigation();
     const { appearance, updateAppearance } = useAppearance();
     const isDark = appearance === 'dark';
@@ -72,6 +72,14 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                           { label: 'Master Test Type', icon: FlaskConical, color: '#9333ea', bg: '#faf5ff', href: route('master-test-types.index') },
                           { label: 'Manajemen User', icon: Users, color: '#0d9488', bg: '#f0fdfa', href: route('users.index') },
                       ],
+                  },
+              ]
+            : []),
+        ...(canUseVisionTest
+            ? [
+                  {
+                      title: 'Alat',
+                      items: [{ label: 'OCR Test Product', icon: ScanText, color: '#e11d48', bg: '#fff1f2', href: route('vision-test.index') }],
                   },
               ]
             : []),
