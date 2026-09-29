@@ -635,24 +635,41 @@ sudo visudo -c
 
 # 4. Jalankan sekali manual untuk memastikan
 sudo /usr/local/sbin/qac-ensure-cert
+
+# 5. Cek harian, supaya perpanjangan cert server tidak bergantung pada deploy
+echo '17 3 * * * root /usr/local/sbin/qac-ensure-cert >> /var/log/qac-ensure-cert.log 2>&1'   | sudo tee /etc/cron.d/qac-ensure-cert
+sudo chmod 0644 /etc/cron.d/qac-ensure-cert
 ```
+
+Langkah 5 penting: tanpa cron, cert server hanya diperpanjang saat ada deploy.
+Kalau selama 30 hari terakhir sebelum kedaluwarsa tidak ada deploy sama
+sekali, cert-nya habis dan semua user melihat peringatan lagi. Script-nya
+idempotent, jadi menjalankannya tiap hari aman: kalau tidak ada yang perlu
+diperbarui, tidak ada file yang diubah dan nginx tidak di-reload.
 
 Kalau nanti `deploy/qac-ensure-cert.sh` di repo diubah, CI akan mencetak
 `WARNING: ... differs from deploy/qac-ensure-cert.sh`. Ulangi langkah 1 untuk
 memperbarui salinan root-nya. CI sengaja tidak memperbaruinya sendiri,
 dengan alasan yang sama seperti di atas.
 
-**Backup `/etc/nginx/ssl/qac/ca/qac-root-ca.key`** ke tempat aman (offline).
-Kalau file itu hilang, script akan membuat CA baru, dan semua perangkat
-harus memasang ulang sertifikat. Key itu juga **jangan pernah** dibagikan:
-siapa pun yang memegangnya bisa membuat cert yang dipercaya semua perangkat
-kantor.
+**Backup folder `/etc/nginx/ssl/qac/ca/`** (`qac-root-ca.key`,
+`qac-root-ca.crt`, `qac-root-ca.srl`) ke tempat aman dan offline, misalnya
+flashdisk terenkripsi yang disimpan IT. Kalau key-nya hilang, semua perangkat
+harus memasang ulang sertifikat (lihat bagian f). Key itu juga **jangan
+pernah** dibagikan: siapa pun yang memegangnya bisa membuat cert yang
+dipercaya semua perangkat kantor.
+
+```bash
+sudo tar -C /etc/nginx/ssl/qac -czf /root/qac-ca-backup-$(date +%F).tar.gz ca
+# lalu salin file .tar.gz itu ke media offline dan hapus dari server
+```
 
 ### c. Cek manual cert yang sedang dipakai
 
 ```bash
 openssl x509 -noout -issuer -ext subjectAltName -enddate -in /etc/nginx/ssl/qac/qac-server.crt
 grep -H ssl_certificate /etc/nginx/sites-available/trial-validation*.conf
+openssl x509 -noout -subject -serial -enddate -in /etc/nginx/ssl/qac/ca/qac-root-ca.crt  # root CA
 ```
 
 ### d. Pasang root CA di perangkat user (dikerjakan IT)
@@ -661,11 +678,18 @@ Yang dibagikan cuma **`qac-root-ca.crt`** (bukan `.key`). User bisa
 mengunduhnya sendiri dari `https://100.100.160.23/sertifikat.html`, yang juga
 berisi panduan per OS. Link-nya ada di footer portal.
 
-- **Windows (laptop kantor):** lebih baik lewat GPO (Computer Configuration →
-  Windows Settings → Security Settings → Public Key Policies → Trusted Root
-  Certification Authorities → Import). Cara manual: klik dua kali file `.crt`
-  → Install Certificate → Local Machine → "Trusted Root Certification
-  Authorities". Chrome/Edge memakai store Windows ini.
+- **Windows:** klik **Setup Otomatis** di portal atau di `sertifikat.html`.
+  Tombol ini mengunduh `setup-sertifikat-qac.cmd` yang menjalankan
+  `certutil -user -addstore Root` (tanpa admin, user klik "Yes" sekali).
+  Sudah dicoba berhasil di laptop kantor (2026-09-29). Cara manual: klik dua
+  kali file `.crt` → Install Certificate → Current User → **"Place all
+  certificates in the following store" → Trusted Root Certification
+  Authorities**. Jangan pilih "Automatically select the certificate store",
+  karena sertifikatnya akan masuk ke Intermediate Certification Authorities
+  dan Chrome tetap menampilkan "Tidak aman". Kalau suatu saat IT punya akses
+  GPO, distribusi lewat Computer Configuration → Windows Settings → Security
+  Settings → Public Key Policies → Trusted Root Certification Authorities
+  jauh lebih praktis.
 - **Android:** Settings → Security → Encryption & credentials → Install a
   certificate → **CA certificate**.
 - **iOS/iPadOS:** kirim file `.crt` (AirDrop/email/Safari), buka Settings →
@@ -686,6 +710,74 @@ di luar scope PWA (Chrome menampilkan bar URL kecil di atas atau membuka tab
 browser). Kalau nanti mau semuanya terasa seperti satu aplikasi, opsinya
 menyatukan semua app di satu port dengan path berbeda (`/tv`, `/ipc`) lewat
 reverse proxy. Ini belum dikerjakan.
+
+### f. Kalau cert kedaluwarsa, key hilang, atau key bocor
+
+Ada dua sertifikat yang berbeda. Yang ada di perangkat user hanya root CA,
+jadi hanya masalah pada root CA yang membuat user harus memasang ulang.
+
+| | Cert server (`qac-server.crt`) | Root CA (`qac-root-ca.crt`) |
+|---|---|---|
+| Masa berlaku | 825 hari (batas maksimum yang diterima iOS) | 10 tahun |
+| Ada di | server saja | server **dan** semua perangkat user |
+
+**1. Cert server hampir atau sudah kedaluwarsa.** Tidak perlu tindakan dan
+user tidak terdampak. Script menerbitkan ulang otomatis kalau sisa masa
+berlakunya < 30 hari, lewat cron harian (bagian b langkah 5) atau deploy
+berikutnya. Kalau sudah terlanjur habis, jalankan
+`sudo /usr/local/sbin/qac-ensure-cert` sekali.
+
+**2. Key cert server hilang atau rusak.** User tidak terdampak.
+
+```bash
+sudo rm /etc/nginx/ssl/qac/qac-server.key /etc/nginx/ssl/qac/qac-server.crt
+sudo /usr/local/sbin/qac-ensure-cert
+```
+
+**3. Key root CA hilang, tapi ada backup.** User tidak terdampak. Kembalikan
+isi backup ke `/etc/nginx/ssl/qac/ca/` (key `0600`, crt `0644`, milik root),
+lalu jalankan `sudo /usr/local/sbin/qac-ensure-cert`.
+
+**4. Key root CA hilang dan tidak ada backup.** Perbaikan di server cepat,
+tapi **semua perangkat harus memasang ulang sertifikat**. Kalau hanya `.key`
+yang hilang, script sengaja berhenti dengan error "only one of ... exists;
+refusing to guess" (dan job deploy gagal), supaya CA tidak pernah diganti
+tanpa sengaja. Pindahkan CA lama dulu, baru buat yang baru:
+
+```bash
+sudo mkdir -p /root/qac-ca-old
+sudo mv /etc/nginx/ssl/qac/ca/qac-root-ca.* /root/qac-ca-old/
+sudo /usr/local/sbin/qac-ensure-cert   # buat CA baru + terbitkan ulang cert server + reload nginx
+# publikasikan CA baru ke portal sekarang juga (deploy berikutnya juga akan menyalinnya):
+sudo cp /etc/nginx/ssl/qac/ca/qac-root-ca.crt /var/www/trial_validation_app/portal/
+sudo cp /etc/nginx/ssl/qac/ca/qac-root-ca.crt /var/www/trial_validation_app-development/portal/
+```
+
+Setelah itu semua perangkat melihat "Tidak aman" lagi, dan banner di portal
+otomatis muncul. User mengulang langkah di bagian d (Windows: Setup Otomatis
+lagi). CA lama yang masih terpasang di perangkat tidak mengganggu. Langsung
+backup CA yang baru.
+
+**5. Key root CA bocor ke orang lain.** Ini kasus paling serius, karena
+pemegang key bisa membuat sertifikat palsu untuk situs apa pun yang
+dipercaya perangkat kantor. Lakukan langkah kasus 4, lalu **hapus CA lama
+dari setiap perangkat**. CA lama dan baru bernama sama, jadi hapus
+berdasarkan serial number (lihat
+`openssl x509 -noout -serial -in /root/qac-ca-old/qac-root-ca.crt`):
+
+- **Windows:** `certutil -user -delstore Root <serial-lama>`
+  (tambahan `-user` sesuai cara Setup Otomatis memasangnya).
+- **Android:** Settings → Encryption & credentials → Trusted credentials →
+  tab **User** → pilih QAC Internal Root CA yang lama → Remove.
+- **iPad/iPhone:** Settings → General → VPN & Device Management → profil QAC
+  lama → Remove Profile.
+
+**6. Root CA mendekati kedaluwarsa (10 tahun dari pembuatannya, cek
+dengan perintah di bagian c).** Mulai sekitar setahun sebelumnya: buat CA
+baru dengan nama berbeda (misalnya tambahkan tahun ke CN), bagikan ke
+perangkat bersama CA lama, dan baru pindahkan server ke CA baru setelah
+sebagian besar perangkat memasangnya. Script belum mendukung dua CA
+sekaligus, jadi rotasi ini dikerjakan manual pada waktunya.
 
 ## Catatan keamanan
 
