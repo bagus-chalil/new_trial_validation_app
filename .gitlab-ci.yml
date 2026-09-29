@@ -32,6 +32,7 @@ stages:
       --exclude='storage/sessions/'
       --exclude='public/uploads/'
       --exclude='portal/config.js'
+      --exclude='portal/qac-root-ca.crt'
       --exclude='new_trial_validation_app/.env'
       --exclude='new_trial_validation_app/storage/'
       --exclude='new_trial_validation_app/bootstrap/cache/'
@@ -68,6 +69,19 @@ stages:
       --exclude='ipc_app/npm-debug.log'
       "$CI_PROJECT_DIR/" "$DEPLOY_PATH/"
     - echo "Deployed $CI_COMMIT_SHORT_SHA to $DEPLOY_PATH ($CI_ENVIRONMENT_NAME)"
+    # Trusted HTTPS via the QAC internal CA (needed for the portal PWA), see
+    # deploy/README.md section 10. Runs the ROOT-OWNED copy in /usr/local/sbin,
+    # never the repo copy, via a sudoers rule scoped to that one path. Until
+    # that one-time server setup is done this only warns, so deploys keep
+    # working.
+    - |
+      if sudo -n -l /usr/local/sbin/qac-ensure-cert >/dev/null 2>&1; then
+        sudo -n /usr/local/sbin/qac-ensure-cert
+        cmp -s "$CI_PROJECT_DIR/deploy/qac-ensure-cert.sh" /usr/local/sbin/qac-ensure-cert           || echo "WARNING: /usr/local/sbin/qac-ensure-cert differs from deploy/qac-ensure-cert.sh - reinstall it (deploy/README.md section 10)"
+        cp /etc/nginx/ssl/qac/ca/qac-root-ca.crt "$DEPLOY_PATH/portal/qac-root-ca.crt"
+      else
+        echo "WARNING: qac-ensure-cert not installed/allowed for $(whoami), skipping internal CA step (deploy/README.md section 10)"
+      fi
 
 deploy_legacy_production:
   extends: .deploy_legacy

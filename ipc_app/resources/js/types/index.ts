@@ -31,6 +31,7 @@ export interface RecentBatch {
 
 export interface SharedData {
     name: string;
+    portalUrl: string;
     quote: { message: string; author: string };
     auth: Auth;
     recentBatches: RecentBatch[];

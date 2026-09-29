@@ -1,4 +1,6 @@
 <div class="login">
+  <a class="login-portal-link" href="<?= h($portalUrl) ?>">&larr; Kembali ke Portal</a>
+
   <div class="login-brand">
     <img src="/assets/cosmax-idn-logo.jpg" alt="COSMAX Indonesia">
     <h1>QAC Trial Validation</h1>
@@ -23,6 +25,17 @@
 </div>
 
 <style>
+.login-portal-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #6b7280;
+  text-decoration: none;
+}
+.login-portal-link:hover {
+  color: #111827;
+  text-decoration: underline;
+}
 .login-brand img {
   width: 110px;      /* ukuran logo */
   height: auto;      /* menjaga proporsi */

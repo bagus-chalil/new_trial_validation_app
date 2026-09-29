@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QAC Super Apps</title>
+<meta name="theme-color" content="#EA1D22">
+<meta name="description" content="Portal internal QAC: Trial Validation dan IPC.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QAC Apps">
 <style>
   :root {
     --brand: #EA1D22;
@@ -323,12 +331,26 @@
 
   <footer>
     QAC Super Apps &mdash; portal internal Quality Assurance &amp; Compliance
+    <br>
+    <a href="sertifikat.html" id="cert-link">Muncul "Tidak aman"? Pasang sertifikat QAC</a>
   </footer>
 
   <script src="config.js"></script>
   <script>
     document.getElementById('link-trial-validation').href = window.PORTAL_CONFIG.trialValidationUrl;
     document.getElementById('link-ipc').href = window.PORTAL_CONFIG.ipcUrl;
+
+    // PWA: registration only succeeds on a trusted HTTPS origin (or localhost);
+    // on a self-signed/untrusted cert the browser rejects it and the portal
+    // simply keeps working as a normal page.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').then(function () {
+          // Registered = trusted HTTPS, so the certificate hint is not needed.
+          document.getElementById('cert-link').hidden = true;
+        }).catch(function () {});
+      });
+    }
   </script>
 </body>
 </html>

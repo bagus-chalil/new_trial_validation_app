@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pasang Sertifikat QAC</title>
+<meta name="theme-color" content="#EA1D22">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<style>
+  :root {
+    --brand: #EA1D22;
+    --bg: #f4f5f7;
+    --card-bg: #ffffff;
+    --text: #16181d;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101114;
+      --card-bg: #17181c;
+      --text: #f2f3f5;
+      --muted: #9aa0ab;
+      --border: #2a2c31;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 16px 48px;
+  }
+
+  .back {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-decoration: none;
+  }
+
+  .back:hover { color: var(--text); text-decoration: underline; }
+
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+
+  .lead { color: var(--muted); margin: 0 0 24px; }
+
+  .download {
+    display: inline-block;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 999px;
+    text-decoration: none;
+    margin-bottom: 28px;
+  }
+
+  .download:hover { filter: brightness(0.92); }
+
+  section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+
+  h2 { font-size: 1.05rem; margin: 0 0 8px; }
+
+  ol { margin: 0; padding-left: 20px; }
+
+  li + li { margin-top: 4px; }
+
+  .note { color: var(--muted); font-size: 0.9rem; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <a class="back" href="./">&larr; Kembali ke Portal</a>
+
+    <h1>Pasang sertifikat QAC</h1>
+    <p class="lead">Cukup sekali per perangkat. Setelah terpasang, peringatan "Tidak aman" hilang dari semua aplikasi QAC, dan portal bisa diinstal sebagai aplikasi di desktop maupun HP.</p>
+
+    <a class="download" href="qac-root-ca.crt" download>Unduh sertifikat (qac-root-ca.crt)</a>
+
+    <section>
+      <h2>Windows (Chrome / Edge)</h2>
+      <ol>
+        <li>Buka file <b>qac-root-ca.crt</b> yang diunduh, lalu klik <b>Install Certificate</b>.</li>
+        <li>Pilih <b>Local Machine</b> (atau Current User kalau tidak punya akses admin).</li>
+        <li>Pilih <b>Place all certificates in the following store</b> → Browse → <b>Trusted Root Certification Authorities</b>.</li>
+        <li>Selesaikan wizard, lalu tutup dan buka lagi browser.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Android</h2>
+      <ol>
+        <li>Unduh file sertifikat di atas.</li>
+        <li>Buka <b>Settings → Security → Encryption &amp; credentials → Install a certificate → CA certificate</b>. Nama menu bisa sedikit berbeda antar merek HP.</li>
+        <li>Pilih file <b>qac-root-ca.crt</b>, lalu konfirmasi.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>iPhone / iPad</h2>
+      <ol>
+        <li>Buka halaman ini di <b>Safari</b>, lalu unduh sertifikat. Pilih <b>Allow</b>.</li>
+        <li>Buka <b>Settings → Profile Downloaded → Install</b>.</li>
+        <li>Wajib: buka <b>Settings → General → About → Certificate Trust Settings</b>, lalu aktifkan <b>QAC Internal Root CA</b>.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Setelah itu: instal portal sebagai aplikasi</h2>
+      <ol>
+        <li><b>Chrome / Edge desktop:</b> klik ikon Install di ujung kanan address bar.</li>
+        <li><b>Android Chrome:</b> menu ⋮ → <b>Install app</b> / <b>Add to Home screen</b>.</li>
+        <li><b>iPhone Safari:</b> tombol Share → <b>Add to Home Screen</b>.</li>
+      </ol>
+    </section>
+
+    <p class="note">Sertifikat ini hanya berlaku untuk server internal QAC. Kalau ada kendala saat memasang, hubungi tim IT.</p>
+  </div>
+</body>
+</html>

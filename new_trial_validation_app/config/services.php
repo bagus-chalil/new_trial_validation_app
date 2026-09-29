@@ -39,4 +39,11 @@ return [
         'url' => env('OLD_APP_URL', 'http://localhost:8000'),
     ],
 
+    // QAC Super Apps portal (static chooser in portal/). Null = derive it from
+    // the current request's scheme+host on the default port, which is where
+    // the portal lives in production (https://<server-ip>).
+    'portal' => [
+        'url' => env('PORTAL_URL'),
+    ],
+
 ];

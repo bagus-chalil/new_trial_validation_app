@@ -550,6 +550,135 @@ kedua URL di bawah harus eksplisit sebut port-nya:
 | Production | `https://100.100.160.23:9011` | `https://100.100.160.23:9001` |
 | Development | `https://100.100.160.23:9013` | `https://100.100.160.23:9003` |
 
+**Link "Kembali ke Portal" di halaman login (ketiga app).** Kalau tidak di-set,
+link-nya otomatis ke host yang sama di port default (`https://100.100.160.23`),
+yang **sudah benar untuk production**. Untuk **development** (portal di `:8443`)
+harus di-set eksplisit:
+
+| Environment | `new_trial_validation_app/.env` & `ipc_app/.env` | legacy `config/sso.php` |
+|---|---|---|
+| Production | `PORTAL_URL=` (kosong / tidak perlu) | tidak perlu `portal_url` |
+| Development | `PORTAL_URL=https://100.100.160.23:8443` | `'portal_url' => 'https://100.100.160.23:8443'` |
+
+Setelah edit `.env`, jalankan `php artisan config:clear` (atau
+`optimize:clear`) di app itu.
+
+## 10. HTTPS terpercaya (CA internal) — syarat Portal bisa diinstal sebagai PWA
+
+Portal sudah punya `manifest.webmanifest` + `sw.js`, tapi browser **hanya
+mau menginstal PWA di HTTPS yang dipercaya**. Cert yang sekarang
+**self-signed** (di Certificate Viewer, "Diterbitkan Untuk" dan "Diterbitkan
+Oleh" sama-sama `100.100.160.23`), jadi browser tetap menandai "Tidak aman"
+walau koneksinya terenkripsi. Tidak ada pihak yang dipercaya perangkat yang
+menjamin cert itu, dan cert-nya juga tidak punya `subjectAltName`. Akibatnya
+service worker ditolak dan tombol "Install" tidak muncul. Portal tetap jalan
+normal sebagai halaman biasa.
+
+Let's Encrypt tidak bisa dipakai (akses lewat IP, bukan domain publik), jadi
+solusinya **CA internal**: satu root CA milik kita sendiri, dipasang sekali
+di perangkat user, lalu semua cert server ditandatangani CA itu.
+
+### a. Otomatis lewat CI/CD: `deploy/qac-ensure-cert.sh`
+
+Setiap deploy ke `production`/`development`, job `deploy_legacy_*` memanggil
+`sudo -n /usr/local/sbin/qac-ensure-cert`. Script ini idempotent:
+
+1. **Root CA** (`/etc/nginx/ssl/qac/ca/qac-root-ca.{key,crt}`): dibuat
+   **sekali** kalau belum ada, dan **tidak pernah ditimpa**. Kalau ditimpa,
+   CA yang sudah terpasang di semua perangkat user jadi tidak berlaku.
+2. **Cert server** (`/etc/nginx/ssl/qac/qac-server.{key,crt}`, SAN
+   `IP:100.100.160.23`): diterbitkan ulang hanya kalau belum ada, bukan dari
+   CA ini, ada IP yang belum masuk SAN, atau sisa masa berlakunya < 30 hari.
+   Perpanjangan cert jadi otomatis selama masih ada deploy rutin.
+3. **Vhost**: `ssl_certificate`/`ssl_certificate_key` di semua
+   `/etc/nginx/sites-available/trial-validation*.conf` diarahkan ke cert di
+   atas. Setiap file di-backup dulu, dan kalau `nginx -t` gagal semuanya
+   dikembalikan dan job gagal.
+4. `systemctl reload nginx`, hanya kalau ada yang berubah.
+
+Setelah itu CI menyalin `qac-root-ca.crt` (bagian publik saja, bukan key) ke
+`portal/qac-root-ca.crt`, supaya user bisa mengunduhnya dari halaman
+`https://100.100.160.23/sertifikat.html`.
+
+Selama setup satu kali di bawah belum dikerjakan, CI hanya mencetak
+`WARNING: qac-ensure-cert not installed...` dan deploy tetap jalan normal.
+
+### b. Setup satu kali di server (butuh sudo, dikerjakan manual)
+
+Script-nya **sengaja dijalankan dari salinan milik root di
+`/usr/local/sbin`, bukan dari folder repo**. Folder repo bisa ditulis
+`gitlab-runner`, jadi kalau sudoers menunjuk ke sana, siapa pun yang bisa
+push ke `production` otomatis bisa menjalankan apa saja sebagai root.
+
+```bash
+# 1. Pasang script (dari hasil deploy terakhir)
+sudo install -o root -g root -m 0755 \
+  /var/www/trial_validation_app/deploy/qac-ensure-cert.sh /usr/local/sbin/qac-ensure-cert
+
+# 2. (Opsional) Konfigurasi, kalau IP-nya lebih dari satu / beda
+echo 'SERVER_IPS="100.100.160.23"' | sudo tee /etc/default/qac-cert
+sudo chmod 0644 /etc/default/qac-cert
+
+# 3. Izinkan gitlab-runner menjalankan PERSIS script itu saja
+echo 'gitlab-runner ALL=(root) NOPASSWD: /usr/local/sbin/qac-ensure-cert' \
+  | sudo tee /etc/sudoers.d/gitlab-runner-qac-cert
+sudo chmod 0440 /etc/sudoers.d/gitlab-runner-qac-cert
+sudo visudo -c
+
+# 4. Jalankan sekali manual untuk memastikan
+sudo /usr/local/sbin/qac-ensure-cert
+```
+
+Kalau nanti `deploy/qac-ensure-cert.sh` di repo diubah, CI akan mencetak
+`WARNING: ... differs from deploy/qac-ensure-cert.sh`. Ulangi langkah 1 untuk
+memperbarui salinan root-nya. CI sengaja tidak memperbaruinya sendiri,
+dengan alasan yang sama seperti di atas.
+
+**Backup `/etc/nginx/ssl/qac/ca/qac-root-ca.key`** ke tempat aman (offline).
+Kalau file itu hilang, script akan membuat CA baru, dan semua perangkat
+harus memasang ulang sertifikat. Key itu juga **jangan pernah** dibagikan:
+siapa pun yang memegangnya bisa membuat cert yang dipercaya semua perangkat
+kantor.
+
+### c. Cek manual cert yang sedang dipakai
+
+```bash
+openssl x509 -noout -issuer -ext subjectAltName -enddate -in /etc/nginx/ssl/qac/qac-server.crt
+grep -H ssl_certificate /etc/nginx/sites-available/trial-validation*.conf
+```
+
+### d. Pasang root CA di perangkat user (dikerjakan IT)
+
+Yang dibagikan cuma **`qac-root-ca.crt`** (bukan `.key`). User bisa
+mengunduhnya sendiri dari `https://100.100.160.23/sertifikat.html`, yang juga
+berisi panduan per OS. Link-nya ada di footer portal.
+
+- **Windows (laptop kantor):** lebih baik lewat GPO (Computer Configuration →
+  Windows Settings → Security Settings → Public Key Policies → Trusted Root
+  Certification Authorities → Import). Cara manual: klik dua kali file `.crt`
+  → Install Certificate → Local Machine → "Trusted Root Certification
+  Authorities". Chrome/Edge memakai store Windows ini.
+- **Android:** Settings → Security → Encryption & credentials → Install a
+  certificate → **CA certificate**.
+- **iOS/iPadOS:** kirim file `.crt` (AirDrop/email/Safari), buka Settings →
+  Profile Downloaded → Install, **lalu wajib** buka Settings → General → About
+  → Certificate Trust Settings → aktifkan "QAC Internal Root CA".
+- **Firefox:** pakai store sendiri. Aktifkan `security.enterprise_roots.enabled`
+  (Windows) atau import manual di Settings → Certificates.
+
+### e. Cek hasilnya
+
+Buka `https://100.100.160.23` → peringatan "Tidak aman" hilang. Chrome/Edge
+desktop: ikon Install muncul di address bar. Android Chrome: menu ⋮ →
+"Install app". iOS Safari: Share → "Add to Home Screen".
+
+Catatan: Trial Validation dan IPC ada di port lain (`:9011`, `:9021`), jadi
+origin-nya berbeda. Dari PWA Portal, klik "Buka aplikasi" akan membuka app itu
+di luar scope PWA (Chrome menampilkan bar URL kecil di atas atau membuka tab
+browser). Kalau nanti mau semuanya terasa seperti satu aplikasi, opsinya
+menyatukan semua app di satu port dengan path berbeda (`/tv`, `/ipc`) lewat
+reverse proxy. Ini belum dikerjakan.
+
 ## Catatan keamanan
 
 `config/database.php` dan `config/sso.php` **sudah ter-commit di git** dengan

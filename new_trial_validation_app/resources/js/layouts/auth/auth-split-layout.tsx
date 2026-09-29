@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import cosmaxLogo from '@/assets/cosmax-idn-logo.jpg';
 import cosmaxVertical from '@/assets/cosmax-vertical.png';
 import AppearanceToggleTab from '@/components/appearance-tabs';
@@ -17,7 +17,7 @@ export default function AuthSplitLayout({
     title,
     description,
 }: AuthLayoutProps) {
-    const { name } = usePage().props;
+    const { name, portalUrl } = usePage().props;
 
     return (
         <div className="relative flex min-h-svh flex-col bg-background lg:flex-row">
@@ -94,17 +94,27 @@ export default function AuthSplitLayout({
             </svg>
 
             <div className="flex flex-1 flex-col">
-                <div className="flex items-center justify-between p-6 lg:justify-end lg:p-8">
-                    <Link
-                        href={home()}
-                        className="inline-flex items-center rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-border lg:hidden"
-                    >
-                        <img
-                            src={cosmaxLogo}
-                            alt="COSMAX Indonesia"
-                            className="h-8 w-auto object-contain"
-                        />
-                    </Link>
+                <div className="flex items-center justify-between gap-3 p-6 lg:p-8 lg:pl-20">
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href={home()}
+                            className="inline-flex items-center rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-border lg:hidden"
+                        >
+                            <img
+                                src={cosmaxLogo}
+                                alt="COSMAX Indonesia"
+                                className="h-8 w-auto object-contain"
+                            />
+                        </Link>
+                        {/* Plain <a>: the portal is a different origin, not an Inertia page. */}
+                        <a
+                            href={portalUrl}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            <ArrowLeft className="size-4" />
+                            Kembali ke Portal
+                        </a>
+                    </div>
                     <AppearanceToggleTab className="scale-90" />
                 </div>
 

@@ -11,6 +11,7 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            portalUrl: string;
             auth: Auth;
             canReviewTrials: boolean;
             sidebarOpen: boolean;

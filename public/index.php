@@ -22,7 +22,13 @@ if($path==='/login'){
   }
   flash('Email atau password salah.');
  }
- view('login');
+ // Portal URL: config/sso.php 'portal_url' when set (server copy is excluded
+ // from rsync, so it may lack the key), else same host on the default port,
+ // which is where the portal lives in production.
+ $ssoConfig=require __DIR__.'/../config/sso.php';
+ $https=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off');
+ $host=preg_replace('/:\d+$/','',$_SERVER['HTTP_HOST']??'localhost');
+ view('login',['portalUrl'=>$ssoConfig['portal_url']??(($https?'https':'http').'://'.$host)]);
  exit;
 }
 

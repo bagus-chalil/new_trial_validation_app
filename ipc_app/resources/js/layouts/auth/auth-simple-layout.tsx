@@ -1,5 +1,7 @@
 import AppearanceToggleTab from '@/components/appearance-tabs';
-import { Link } from '@inertiajs/react';
+import { type SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -9,8 +11,18 @@ interface AuthLayoutProps {
 }
 
 export default function AuthSimpleLayout({ children, title, description }: AuthLayoutProps) {
+    const { portalUrl } = usePage<SharedData>().props;
+
     return (
         <div className="bg-background relative flex min-h-svh flex-col items-center justify-center gap-8 px-5 py-10 sm:px-6">
+            {/* Plain <a>: the portal is a different origin, not an Inertia page. */}
+            <a
+                href={portalUrl}
+                className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors"
+            >
+                <ArrowLeft className="size-4" />
+                Kembali ke Portal
+            </a>
             <div className="absolute top-4 right-4">
                 <AppearanceToggleTab className="scale-90" />
             </div>

@@ -54,6 +54,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'portalUrl' => fn () => config('services.portal.url') ?: $request->getScheme().'://'.$request->getHost(),
             'auth' => [
                 'user' => $request->user(),
             ],
