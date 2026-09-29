@@ -600,6 +600,14 @@ Setelah itu CI menyalin `qac-root-ca.crt` (bagian publik saja, bukan key) ke
 `portal/qac-root-ca.crt`, supaya user bisa mengunduhnya dari halaman
 `https://100.100.160.23/sertifikat.html`.
 
+Di halaman itu (dan di banner portal kalau sertifikat belum dipercaya), user
+Windows cukup klik **Setup Otomatis**: browser membuat
+`setup-sertifikat-qac.cmd` berisi CA tersebut, yang menjalankan
+`certutil -user -addstore Root` (tanpa admin, satu klik "Yes"). Android dan
+iPad punya panduan langkah demi langkah sendiri di halaman yang sama (dipilih
+otomatis sesuai perangkat). Setelah CA dipercaya, portal menampilkan tombol
+**Install Aplikasi** (iPad: petunjuk Share → Add to Home Screen).
+
 Selama setup satu kali di bawah belum dikerjakan, CI hanya mencetak
 `WARNING: qac-ensure-cert not installed...` dan deploy tetap jalan normal.
 

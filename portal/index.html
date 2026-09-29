@@ -272,6 +272,62 @@
     transform: translateX(3px);
   }
 
+  .notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--notice-accent, var(--brand));
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: -24px 0 32px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .notice[hidden] { display: none; }
+
+  .notice strong { display: block; margin-bottom: 2px; }
+
+  .notice span.muted { color: var(--muted); }
+
+  .notice .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 18px;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    text-decoration: none;
+    background: var(--brand);
+    color: #fff;
+  }
+
+  .btn:hover { filter: brightness(0.92); }
+
+  .btn[hidden] { display: none; }
+
+  .btn:disabled { opacity: 0.6; cursor: progress; }
+
+  .btn.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .notice .error { color: var(--brand); flex-basis: 100%; margin: 0; }
+
+  .notice .error:empty { display: none; }
+
   footer {
     text-align: center;
     color: var(--muted);
@@ -295,6 +351,28 @@
 
     <h1>Satu pintu untuk semua sistem <span>QAC</span></h1>
     <p class="subtitle">Pilih aplikasi yang ingin dibuka. Setiap sistem memiliki login terpisah sesuai kebutuhan tim Anda.</p>
+
+    <div class="notice" id="setup-notice" hidden>
+      <div>
+        <strong>Perangkat ini belum memasang sertifikat QAC</strong>
+        <span class="muted" id="setup-text">Pasang sekali supaya peringatan "Tidak aman" hilang, kamera bisa dipakai, dan portal bisa diinstal sebagai aplikasi.</span>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" id="setup-windows" hidden>Setup Otomatis</button>
+        <a class="btn secondary" id="setup-guide" href="sertifikat.html">Cara pasang</a>
+      </div>
+      <p class="error" id="setup-error"></p>
+    </div>
+
+    <div class="notice" id="install-notice" style="--notice-accent: #15803d;" hidden>
+      <div>
+        <strong>Install QAC Super Apps</strong>
+        <span class="muted" id="install-text">Buka portal langsung dari ikon di desktop / home screen, tanpa mengetik alamat.</span>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" id="install-button" hidden>Install Aplikasi</button>
+      </div>
+    </div>
 
     <div class="cards">
       <a class="card" id="link-trial-validation" href="#" style="--card-accent: #EA1D22;">
@@ -336,21 +414,62 @@
   </footer>
 
   <script src="config.js"></script>
+  <script src="setup.js"></script>
   <script>
     document.getElementById('link-trial-validation').href = window.PORTAL_CONFIG.trialValidationUrl;
     document.getElementById('link-ipc').href = window.PORTAL_CONFIG.ipcUrl;
 
-    // PWA: registration only succeeds on a trusted HTTPS origin (or localhost);
-    // on a self-signed/untrusted cert the browser rejects it and the portal
-    // simply keeps working as a normal page.
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').then(function () {
-          // Registered = trusted HTTPS, so the certificate hint is not needed.
-          document.getElementById('cert-link').hidden = true;
-        }).catch(function () {});
+    var qac = window.QacSetup;
+    var os = qac.platform();
+    var setupNotice = document.getElementById('setup-notice');
+    var installNotice = document.getElementById('install-notice');
+    var installButton = document.getElementById('install-button');
+
+    // Only a trusted HTTPS origin can register the service worker, so this
+    // also decides whether to nag about the certificate at all.
+    qac.checkTrusted().then(function (trusted) {
+      if (trusted) {
+        document.getElementById('cert-link').hidden = true;
+        // iOS has no install prompt API: explain the manual Share step instead.
+        if (os === 'ios' && !qac.isStandalone()) {
+          document.getElementById('install-text').innerHTML =
+            'Di Safari, tap tombol <b>Share</b> lalu pilih <b>Add to Home Screen</b>.';
+          installNotice.hidden = false;
+        }
+        return;
+      }
+
+      document.getElementById('setup-guide').href = 'sertifikat.html#' + os;
+      if (os === 'windows') {
+        document.getElementById('setup-windows').hidden = false;
+      }
+      setupNotice.hidden = false;
+    });
+
+    qac.onInstallAvailable(function (available) {
+      installButton.hidden = !available;
+      installNotice.hidden = !available;
+    });
+
+    installButton.addEventListener('click', function () {
+      qac.promptInstall();
+    });
+
+    document.getElementById('setup-windows').addEventListener('click', function () {
+      var button = this;
+      var error = document.getElementById('setup-error');
+      button.disabled = true;
+      error.textContent = '';
+      qac.downloadWindowsSetup().then(function () {
+        document.getElementById('setup-text').innerHTML =
+          'Buka file <b>setup-sertifikat-qac.cmd</b> yang baru diunduh. Kalau muncul peringatan, pilih ' +
+          '<b>Keep</b> di browser dan <b>More info &rarr; Run anyway</b> di Windows, lalu klik <b>Yes</b>.';
+      }, function (err) {
+        error.textContent = err.message;
+      }).then(function () {
+        button.disabled = false;
       });
-    }
+    });
   </script>
 </body>
 </html>

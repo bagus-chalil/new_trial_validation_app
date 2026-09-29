@@ -14,6 +14,9 @@
     --text: #16181d;
     --muted: #6b7280;
     --border: #e5e7eb;
+    --ok: #15803d;
+    --ok-bg: rgba(22, 163, 74, 0.12);
+    --warn-bg: rgba(234, 29, 34, 0.08);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -23,6 +26,9 @@
       --text: #f2f3f5;
       --muted: #9aa0ab;
       --border: #2a2c31;
+      --ok: #4ade80;
+      --ok-bg: rgba(74, 222, 128, 0.14);
+      --warn-bg: rgba(234, 29, 34, 0.14);
     }
   }
 
@@ -54,20 +60,63 @@
 
   h1 { font-size: 1.6rem; margin: 0 0 8px; }
 
-  .lead { color: var(--muted); margin: 0 0 24px; }
+  .lead { color: var(--muted); margin: 0 0 20px; }
 
-  .download {
-    display: inline-block;
+  .status {
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.92rem;
+    background: var(--warn-bg);
+  }
+
+  .status.ok { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+
+  .status[hidden] { display: none; }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .tabs button {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .tabs button[aria-selected="true"] {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    border: 0;
     background: var(--brand);
     color: #fff;
+    font: inherit;
     font-weight: 600;
     padding: 12px 20px;
     border-radius: 999px;
     text-decoration: none;
-    margin-bottom: 28px;
+    cursor: pointer;
+    margin: 4px 0 16px;
   }
 
-  .download:hover { filter: brightness(0.92); }
+  .btn:hover { filter: brightness(0.92); }
+
+  .btn:disabled { opacity: 0.6; cursor: progress; }
 
   section {
     background: var(--card-bg);
@@ -77,11 +126,27 @@
     margin-bottom: 14px;
   }
 
+  section[hidden] { display: none; }
+
   h2 { font-size: 1.05rem; margin: 0 0 8px; }
+
+  h3 { font-size: 0.95rem; margin: 18px 0 6px; }
 
   ol { margin: 0; padding-left: 20px; }
 
-  li + li { margin-top: 4px; }
+  li + li { margin-top: 6px; }
+
+  .hint { color: var(--muted); font-size: 0.88rem; margin: 10px 0 0; }
+
+  .error { color: var(--brand); font-size: 0.9rem; margin: 0 0 12px; }
+
+  .error:empty { display: none; }
+
+  details { margin-top: 16px; }
+
+  summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+
+  details ol { margin-top: 10px; }
 
   .note { color: var(--muted); font-size: 0.9rem; margin-top: 20px; }
 </style>
@@ -91,48 +156,125 @@
     <a class="back" href="./">&larr; Kembali ke Portal</a>
 
     <h1>Pasang sertifikat QAC</h1>
-    <p class="lead">Cukup sekali per perangkat. Setelah terpasang, peringatan "Tidak aman" hilang dari semua aplikasi QAC, dan portal bisa diinstal sebagai aplikasi di desktop maupun HP.</p>
+    <p class="lead">Cukup sekali per perangkat. Setelah terpasang, peringatan "Tidak aman" hilang dari semua aplikasi QAC, kamera (OCR IPC) bisa dipakai, dan portal bisa diinstal sebagai aplikasi.</p>
 
-    <a class="download" href="qac-root-ca.crt" download>Unduh sertifikat (qac-root-ca.crt)</a>
+    <div class="status" id="status" hidden></div>
 
-    <section>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-os="windows" aria-selected="false">Windows</button>
+      <button type="button" role="tab" data-os="android" aria-selected="false">Android</button>
+      <button type="button" role="tab" data-os="ios" aria-selected="false">iPad / iPhone</button>
+    </div>
+
+    <section data-os="windows" hidden>
       <h2>Windows (Chrome / Edge)</h2>
+      <button type="button" class="btn" id="setup-windows">Download Setup Otomatis</button>
+      <p class="error" id="setup-error"></p>
       <ol>
-        <li>Buka file <b>qac-root-ca.crt</b> yang diunduh, lalu klik <b>Install Certificate</b>.</li>
-        <li>Pilih <b>Local Machine</b> (atau Current User kalau tidak punya akses admin).</li>
-        <li>Pilih <b>Place all certificates in the following store</b> → Browse → <b>Trusted Root Certification Authorities</b>.</li>
-        <li>Selesaikan wizard, lalu tutup dan buka lagi browser.</li>
+        <li>Klik tombol di atas. Kalau browser bertanya, pilih <b>Keep</b> / <b>Simpan</b>.</li>
+        <li>Buka file <b>setup-sertifikat-qac.cmd</b>. Kalau muncul "Windows protected your PC", klik <b>More info &rarr; Run anyway</b>.</li>
+        <li>Klik <b>Yes</b> pada peringatan keamanan Windows.</li>
+        <li>Tutup <b>semua</b> jendela Chrome / Edge, lalu tekan tombol apa saja di jendela setup. Portal terbuka lagi dengan gembok normal.</li>
+        <li>Klik <b>Install Aplikasi</b> di portal.</li>
       </ol>
+      <p class="hint">Tidak butuh akses admin. Sertifikat dipasang untuk akun Windows Anda saja.</p>
+
+      <details>
+        <summary>Cara manual (kalau file setup diblokir)</summary>
+        <ol>
+          <li><a href="qac-root-ca.crt" download>Unduh qac-root-ca.crt</a>, buka filenya, lalu klik <b>Install Certificate</b>.</li>
+          <li>Pilih <b>Current User</b> &rarr; Next.</li>
+          <li>Pilih <b>Place all certificates in the following store</b> &rarr; Browse &rarr; <b>Trusted Root Certification Authorities</b>. <b>Jangan</b> pilih "Automatically select the certificate store", karena sertifikat akan masuk ke tempat yang salah dan peringatan tidak hilang.</li>
+          <li>Finish &rarr; klik <b>Yes</b> pada peringatan keamanan, lalu tutup dan buka lagi browser.</li>
+        </ol>
+      </details>
     </section>
 
-    <section>
-      <h2>Android</h2>
+    <section data-os="android" hidden>
+      <h2>Android (Chrome)</h2>
+      <a class="btn" href="qac-root-ca.crt" download>Download Sertifikat</a>
+      <h3>1. Pasang sertifikat</h3>
       <ol>
-        <li>Unduh file sertifikat di atas.</li>
-        <li>Buka <b>Settings → Security → Encryption &amp; credentials → Install a certificate → CA certificate</b>. Nama menu bisa sedikit berbeda antar merek HP.</li>
-        <li>Pilih file <b>qac-root-ca.crt</b>, lalu konfirmasi.</li>
+        <li>Tap tombol di atas. File <b>qac-root-ca.crt</b> tersimpan di Downloads.</li>
+        <li>Buka <b>Settings</b>, cari <b>"CA certificate"</b> di kolom pencarian Settings. Atau lewat <b>Security &rarr; More security settings &rarr; Encryption &amp; credentials &rarr; Install a certificate &rarr; CA certificate</b>. Nama menu berbeda sedikit per merk.</li>
+        <li>Tap <b>Install anyway</b>, lalu pilih file <b>qac-root-ca.crt</b> dari Downloads.</li>
+        <li>Kalau diminta, buat PIN / pola kunci layar dulu. Android mewajibkan ini.</li>
       </ol>
+      <h3>2. Install aplikasi</h3>
+      <ol>
+        <li>Tutup Chrome sepenuhnya (geser dari daftar aplikasi terbuka), lalu buka lagi portal.</li>
+        <li>Pastikan halaman ini menampilkan "Sertifikat sudah terpasang".</li>
+        <li>Di portal, tap <b>Install Aplikasi</b>. Ikon QAC muncul di home screen.</li>
+      </ol>
+      <p class="hint">Membuka file .crt langsung dari notifikasi download tidak akan berhasil di Android 11 ke atas. Harus lewat menu Settings di atas.</p>
     </section>
 
-    <section>
-      <h2>iPhone / iPad</h2>
+    <section data-os="ios" hidden>
+      <h2>iPad / iPhone</h2>
+      <a class="btn" href="qac-root-ca.crt">Download Sertifikat</a>
+      <h3>1. Pasang sertifikat</h3>
       <ol>
-        <li>Buka halaman ini di <b>Safari</b>, lalu unduh sertifikat. Pilih <b>Allow</b>.</li>
-        <li>Buka <b>Settings → Profile Downloaded → Install</b>.</li>
-        <li>Wajib: buka <b>Settings → General → About → Certificate Trust Settings</b>, lalu aktifkan <b>QAC Internal Root CA</b>.</li>
+        <li>Buka halaman ini di <b>Safari</b> (bukan Chrome), lalu tap tombol di atas. Pilih <b>Allow</b>, lalu <b>Close</b>.</li>
+        <li>Buka <b>Settings</b>. Di bagian atas muncul <b>Profile Downloaded</b>, tap lalu <b>Install</b> (masukkan passcode) &rarr; <b>Install</b> &rarr; <b>Done</b>. Kalau tidak muncul: <b>General &rarr; VPN &amp; Device Management</b>.</li>
+        <li><b>Wajib, sering terlewat:</b> <b>Settings &rarr; General &rarr; About &rarr; Certificate Trust Settings</b>, aktifkan <b>QAC Internal Root CA</b> &rarr; Continue.</li>
       </ol>
-    </section>
-
-    <section>
-      <h2>Setelah itu: instal portal sebagai aplikasi</h2>
+      <h3>2. Tambahkan ke home screen</h3>
       <ol>
-        <li><b>Chrome / Edge desktop:</b> klik ikon Install di ujung kanan address bar.</li>
-        <li><b>Android Chrome:</b> menu ⋮ → <b>Install app</b> / <b>Add to Home screen</b>.</li>
-        <li><b>iPhone Safari:</b> tombol Share → <b>Add to Home Screen</b>.</li>
+        <li>Tutup lalu buka lagi Safari, buka portal.</li>
+        <li>Tap tombol <b>Share</b> (kotak dengan panah ke atas) &rarr; <b>Add to Home Screen</b> &rarr; <b>Add</b>.</li>
       </ol>
+      <p class="hint">iPad tidak punya tombol install otomatis; langkah Share di atas adalah satu-satunya cara.</p>
     </section>
 
     <p class="note">Sertifikat ini hanya berlaku untuk server internal QAC. Kalau ada kendala saat memasang, hubungi tim IT.</p>
   </div>
+
+  <script src="setup.js"></script>
+  <script>
+    var qac = window.QacSetup;
+    var tabs = document.querySelectorAll('.tabs button');
+    var sections = document.querySelectorAll('section[data-os]');
+
+    function show(os) {
+      tabs.forEach(function (tab) { tab.setAttribute('aria-selected', String(tab.dataset.os === os)); });
+      sections.forEach(function (section) { section.hidden = section.dataset.os !== os; });
+    }
+
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        show(tab.dataset.os);
+        history.replaceState(null, '', '#' + tab.dataset.os);
+      });
+    });
+
+    var initial = location.hash.slice(1);
+    if (['windows', 'android', 'ios'].indexOf(initial) === -1) {
+      initial = qac.platform() === 'other' ? 'windows' : qac.platform();
+    }
+    show(initial);
+
+    qac.checkTrusted().then(function (trusted) {
+      var status = document.getElementById('status');
+      status.hidden = false;
+      if (trusted) {
+        status.className = 'status ok';
+        status.textContent = '✓ Sertifikat sudah terpasang di perangkat ini. Kembali ke portal untuk menginstal aplikasi.';
+      } else {
+        status.textContent = 'Perangkat ini belum memercayai sertifikat QAC. Ikuti langkah di bawah.';
+      }
+    });
+
+    document.getElementById('setup-windows').addEventListener('click', function () {
+      var button = this;
+      var error = document.getElementById('setup-error');
+      button.disabled = true;
+      error.textContent = '';
+      qac.downloadWindowsSetup().catch(function (err) {
+        error.textContent = err.message;
+      }).then(function () {
+        button.disabled = false;
+      });
+    });
+  </script>
 </body>
 </html>

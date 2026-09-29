@@ -5,11 +5,12 @@
 // Network-first: config.js differs per server (excluded from rsync), so a
 // fresh copy always wins; the cache is only an offline fallback.
 // Bump CACHE on any change to the precache list.
-const CACHE = 'qac-portal-v1';
+const CACHE = 'qac-portal-v2';
 const PRECACHE = [
   './',
   './index.html',
   './config.js',
+  './setup.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
