@@ -329,3 +329,21 @@ test('a staff member without edit rights is forbidden from submitting for review
         'approver_user_id' => $approver->id,
     ])->assertForbidden();
 });
+
+test('resubmitting replaces a same-department row stored under the old alias code', function () {
+    Mail::fake();
+
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $approver = User::factory()->create(['role' => 'Manager QAC']);
+    $prodReviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeCompleteTrial(['created_by' => $owner->email, 'progress_status' => 'Need Revision', 'revision_no' => 0]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+
+    $this->actingAs($owner)->post(route('trials.review.store', $trial), [
+        'departments' => ['PROD'],
+        'reviewer_user_ids' => ['PROD' => $prodReviewer->id],
+        'approver_user_id' => $approver->id,
+    ])->assertRedirect(route('trials.report.show', $trial));
+
+    expect(TrialReview::where('trial_id', $trial->id)->pluck('department')->all())->toBe(['PROD']);
+});

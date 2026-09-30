@@ -64,6 +64,28 @@ class TrialReview extends Model
     }
 
     /**
+     * Other rows in the same trial + round that are the same logical
+     * department under a different stored code (e.g. a legacy "PRD" row next
+     * to a "PROD" one, see User::REVIEW_DEPARTMENT_ALIASES). The report page
+     * collapses these into one line, so a leftover Pending alias row would
+     * otherwise stay invisible there while still showing up in Need Review
+     * and blocking the round from ever completing.
+     *
+     * @param  Builder<TrialReview>  $query
+     * @return Builder<TrialReview>
+     */
+    public function scopeAliasSiblingsOf(Builder $query, int $trialId, int $round, string $department, ?int $exceptId = null): Builder
+    {
+        $codes = User::expandReviewDepartmentAliases([User::normalizeReviewDepartment($department)]);
+
+        return $query->where('trial_id', $trialId)
+            ->where('review_round', $round)
+            ->whereIn(DB::raw('UPPER(TRIM(department))'), $codes)
+            ->when($exceptId !== null, fn (Builder $q) => $q->where('id', '!=', $exceptId))
+            ->when($exceptId === null, fn (Builder $q) => $q->whereRaw('UPPER(TRIM(department)) != ?', [User::normalizeDepartment($department)]));
+    }
+
+    /**
      * Rows this user may act on: assigned to them specifically
      * (reviewer_user_id), or unassigned (legacy-created rows / rows from
      * before per-person assignment existed) and matching one of their review

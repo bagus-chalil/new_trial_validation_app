@@ -273,3 +273,32 @@ test('a stale review from an older round cannot be saved', function () {
         'comment' => 'Too late',
     ])->assertForbidden();
 });
+
+test('reviewing a department also closes its Pending alias row so it leaves the queue and the round completes', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeInReviewTrial(['pending_with' => 'PRD,PROD']);
+    $legacyRow = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
+
+    $this->actingAs($reviewer)
+        ->put(route('reviews.update', $review->id), ['comment' => 'OK dari produksi'])
+        ->assertRedirect(route('reviews.index'));
+
+    expect($legacyRow->fresh()->status)->toBe('Reviewed');
+    expect($legacyRow->fresh()->comment)->toBe('OK dari produksi');
+    expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
+});
+
+test('the repair command closes a stuck Pending alias row next to an already-Reviewed one', function () {
+    $trial = makeInReviewTrial(['pending_with' => 'PRD']);
+    $stuck = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed', 'comment' => 'Sudah OK', 'reviewer_name' => 'Dian']);
+
+    $this->artisan('trials:repair-review-aliases')->assertSuccessful();
+    expect($stuck->fresh()->status)->toBe('Pending');
+
+    $this->artisan('trials:repair-review-aliases', ['--apply' => true])->assertSuccessful();
+    expect($stuck->fresh()->status)->toBe('Reviewed');
+    expect($stuck->fresh()->comment)->toBe('Sudah OK');
+    expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
+});

@@ -37,6 +37,12 @@ class SubmitTrialForReview
             $round = $trial->currentReviewRound();
 
             foreach ($departments as $department) {
+                // Drop a same-department row stored under an old alias code
+                // (e.g. "PRD" for "PROD") — it's being reset to Pending here
+                // anyway, and leaving it would create a second, hidden
+                // Pending row for the same department.
+                TrialReview::query()->aliasSiblingsOf($trial->id, $round, $department)->delete();
+
                 TrialReview::query()->updateOrCreate(
                     ['trial_id' => $trial->id, 'department' => $department, 'review_round' => $round],
                     [
