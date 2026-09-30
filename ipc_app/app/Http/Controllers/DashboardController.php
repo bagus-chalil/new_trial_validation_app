@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,6 +18,8 @@ class DashboardController extends Controller
         IpcBatch::STAGE_PACKING => ['relation' => 'packingCheck', 'route' => 'packing-check.edit', 'label' => 'Packing Check'],
         IpcBatch::STAGE_FINISHED => ['relation' => 'finishedCheck', 'route' => 'finished-check.edit', 'label' => 'Finished Check'],
     ];
+
+    private const NEEDS_ACTION_LIMIT = 8;
 
     public function index(Request $request): Response
     {
@@ -33,42 +36,57 @@ class DashboardController extends Controller
 
         $activeBatches = (int) $stageCounts->except(IpcBatch::STAGE_COMPLETED)->sum();
 
+        // whereBetween (not whereDate) so the (current_stage, updated_at) index is usable.
         $completedToday = IpcBatch::query()
             ->where('current_stage', IpcBatch::STAGE_COMPLETED)
-            ->whereDate('updated_at', today())
+            ->whereBetween('updated_at', [today(), today()->endOfDay()])
             ->count();
 
-        $needsAction = $this->checkItemsNeedingAction()
-            ->concat($user->isApprover() ? $this->approvalItemsNeedingAction() : [])
-            ->values();
+        // Counted and limited in SQL — only the 8 shown rows are ever loaded.
+        $checkQuery = $this->checkItemsQuery();
+        $checkCount = (clone $checkQuery)->count();
+        $needsAction = $this->checkItemsNeedingAction($checkQuery->limit(self::NEEDS_ACTION_LIMIT));
+
+        $approvalCount = 0;
+        if ($user->isApprover()) {
+            $approvalQuery = IpcBatch::query()->where('current_stage', IpcBatch::STAGE_APPROVAL)->pendingApproval();
+            $approvalCount = (clone $approvalQuery)->count();
+            $remaining = self::NEEDS_ACTION_LIMIT - $needsAction->count();
+            if ($remaining > 0) {
+                $needsAction = $needsAction->concat($this->approvalItemsNeedingAction($approvalQuery->limit($remaining)));
+            }
+        }
 
         return Inertia::render('dashboard', [
             'stats' => [
                 'activeBatches' => $activeBatches,
-                'needsActionCount' => $needsAction->count(),
+                'needsActionCount' => $checkCount + $approvalCount,
                 'pendingApprovalBatches' => (int) ($stageCounts[IpcBatch::STAGE_APPROVAL] ?? 0),
                 'completedToday' => $completedToday,
             ],
             'stageBreakdown' => $stageBreakdown,
-            'needsAction' => $needsAction->take(8)->values(),
+            'needsAction' => $needsAction->values(),
         ]);
     }
 
-    /** One item per batch currently sitting on a check stage whose own check isn't done yet. */
-    private function checkItemsNeedingAction()
+    /** Batches currently sitting on a check stage whose own check isn't done yet. */
+    private function checkItemsQuery(): Builder
     {
-        return IpcBatch::query()
-            ->whereIn('current_stage', array_keys(self::CHECK_STAGES))
-            ->with([
-                'masterProduct:id,product_name,fg_code',
-                'startupCheck:id,ipc_batch_id,completed_at',
-                'fillingCheck:id,ipc_batch_id,completed_at',
-                'packingCheck:id,ipc_batch_id,completed_at',
-                'finishedCheck:id,ipc_batch_id,completed_at',
-            ])
+        return IpcBatch::query()->where(function (Builder $query) {
+            foreach (self::CHECK_STAGES as $stage => $config) {
+                $query->orWhere(fn (Builder $q) => $q->where('current_stage', $stage)
+                    ->whereDoesntHave($config['relation'], fn ($q) => $q->whereNotNull('completed_at')));
+            }
+        });
+    }
+
+    /** One item per batch currently sitting on a check stage whose own check isn't done yet. */
+    private function checkItemsNeedingAction(Builder $query)
+    {
+        return $query
+            ->with('masterProduct:id,product_name,fg_code')
             ->latest('id')
             ->get()
-            ->filter(fn (IpcBatch $batch) => ! optional($batch->{self::CHECK_STAGES[$batch->current_stage]['relation']})->completed_at)
             ->map(fn (IpcBatch $batch) => [
                 'id' => $batch->id,
                 'no_batch' => $batch->no_batch,
@@ -80,10 +98,9 @@ class DashboardController extends Controller
     }
 
     /** One item per batch waiting on this approver's decision on at least one of its 3 stages. */
-    private function approvalItemsNeedingAction()
+    private function approvalItemsNeedingAction(Builder $query)
     {
-        return IpcBatch::query()
-            ->where('current_stage', IpcBatch::STAGE_APPROVAL)
+        return $query
             ->with([
                 'masterProduct:id,product_name,fg_code',
                 'startupCheck:id,ipc_batch_id,completed_at',

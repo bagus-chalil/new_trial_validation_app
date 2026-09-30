@@ -1,3 +1,4 @@
+import { PaginationFooter } from '@/components/ipc/pagination-footer';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { Head, Link } from '@inertiajs/react';
 import { ChevronRight, ClipboardCheck } from 'lucide-react';
@@ -15,12 +16,19 @@ interface QueueEntry {
     pendingStages: string[];
 }
 
-export default function ApprovalQueueIndex({ queue }: { queue: QueueEntry[] }) {
+interface PaginatedQueue {
+    data: QueueEntry[];
+    links: { url: string | null; label: string; active: boolean }[];
+    last_page: number;
+    total: number;
+}
+
+export default function ApprovalQueueIndex({ queue }: { queue: PaginatedQueue }) {
     return (
-        <IpcShell title="Approval Queue" subtitle={`${queue.length} batch menunggu keputusan`} backHref="/dashboard">
+        <IpcShell title="Approval Queue" subtitle={`${queue.total} batch menunggu keputusan`} backHref="/dashboard">
             <Head title="Approval Queue" />
             <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-5 md:p-6">
-                {queue.map((entry) => (
+                {queue.data.map((entry) => (
                     <Link
                         key={entry.batch.id}
                         href={`/batches/${entry.batch.id}/approval`}
@@ -54,12 +62,14 @@ export default function ApprovalQueueIndex({ queue }: { queue: QueueEntry[] }) {
                     </Link>
                 ))}
 
-                {queue.length === 0 && (
+                {queue.data.length === 0 && (
                     <div className="border-border flex flex-col items-center gap-2 rounded-2xl border border-dashed py-12 text-center">
                         <ClipboardCheck className="text-muted-foreground/60 size-8" />
                         <p className="text-muted-foreground text-sm">Tidak ada batch yang menunggu approval.</p>
                     </div>
                 )}
+
+                <PaginationFooter links={queue.links} lastPage={queue.last_page} />
             </div>
         </IpcShell>
     );

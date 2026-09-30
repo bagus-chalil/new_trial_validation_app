@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LookupController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -11,6 +12,9 @@ Route::get('/', function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('lookup/products', [LookupController::class, 'products'])->name('lookup.products');
+    Route::get('lookup/batches', [LookupController::class, 'batches'])->name('lookup.batches');
 });
 
 require __DIR__.'/batches.php';

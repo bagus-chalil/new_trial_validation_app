@@ -136,7 +136,31 @@ function BulkCodeManager({ product, open, onOpenChange }: { product: MasterProdu
     );
 }
 
-export default function MasterProductsIndex({ products, filters }: { products: Paginated<MasterProduct>; filters: { q?: string } }) {
+type BulkFilter = 'all' | 'with' | 'without';
+
+const bulkFilterOptions: { value: BulkFilter; label: string }[] = [
+    { value: 'all', label: 'Semua' },
+    { value: 'with', label: 'Ada bulk code' },
+    { value: 'without', label: 'Belum ada bulk code' },
+];
+
+export default function MasterProductsIndex({
+    products,
+    filters,
+    bulkCodeCounts,
+}: {
+    products: Paginated<MasterProduct>;
+    filters: { q?: string; bulk?: string };
+    bulkCodeCounts: Record<BulkFilter, number>;
+}) {
+    const bulkFilter: BulkFilter = filters.bulk === 'with' || filters.bulk === 'without' ? filters.bulk : 'all';
+    const setBulkFilter = (value: BulkFilter) => {
+        const params: Record<string, string> = {};
+        if (filters.q) params.q = filters.q;
+        if (value !== 'all') params.bulk = value;
+        router.get(route('master-products.index'), params, { preserveState: true, replace: true });
+    };
+
     const [open, setOpen] = useState(false);
     const [bulkCodeProductId, setBulkCodeProductId] = useState<number | null>(null);
     const bulkCodeProduct = products.data.find((product) => product.id === bulkCodeProductId) ?? null;
@@ -188,7 +212,32 @@ export default function MasterProductsIndex({ products, filters }: { products: P
                     baseUrl={route('master-products.index')}
                     initialQ={filters.q ?? ''}
                     placeholder="Cari FG code / nama produk / bulk code..."
+                    extraParams={bulkFilter === 'all' ? {} : { bulk: bulkFilter }}
                 />
+
+                <div className="flex flex-wrap items-center gap-2">
+                    {bulkFilterOptions.map((option) => {
+                        const active = bulkFilter === option.value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => setBulkFilter(option.value)}
+                                className={`flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold transition-colors ${
+                                    active
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : 'border-border-soft bg-card text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                {option.label}
+                                <span className={`text-[11.5px] tabular-nums ${active ? 'opacity-80' : 'text-muted-foreground/70'}`}>
+                                    {bulkCodeCounts[option.value].toLocaleString('id-ID')}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
 
                 <MasterImportDialog
                     templateHref={route('master-products.template')}
@@ -243,7 +292,9 @@ export default function MasterProductsIndex({ products, filters }: { products: P
                     {products.data.length === 0 && (
                         <div className="border-border flex flex-col items-center gap-2 rounded-2xl border border-dashed py-12 text-center">
                             <Package className="text-muted-foreground/60 size-8" />
-                            <p className="text-muted-foreground text-sm">Belum ada produk.</p>
+                            <p className="text-muted-foreground text-sm">
+                                {filters.q || bulkFilter !== 'all' ? 'Tidak ada produk yang cocok dengan filter.' : 'Belum ada produk.'}
+                            </p>
                         </div>
                     )}
                 </div>

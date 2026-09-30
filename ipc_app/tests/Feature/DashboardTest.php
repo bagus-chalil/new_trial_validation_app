@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\FillingCheck;
+use App\Models\FinishedCheck;
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
@@ -85,6 +86,8 @@ class DashboardTest extends TestCase
     {
         $batch = $this->makeBatch(IpcBatch::STAGE_APPROVAL);
         StartupCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
+        // Same rule as the Approval Queue: the approval screen 403s until Finished Check is done.
+        FinishedCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
 
         $staffResponse = $this->actingAs(User::factory()->create())->get('/dashboard');
         $staffResponse->assertInertia(fn ($page) => $page->where('needsAction', []));
@@ -92,8 +95,18 @@ class DashboardTest extends TestCase
         $approverResponse = $this->actingAs(User::factory()->approver()->create())->get('/dashboard');
         $approverResponse->assertInertia(fn ($page) => $page
             ->where('needsAction.0.no_batch', 'BATCH-001')
-            ->where('needsAction.0.reason', 'Menunggu approval: '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_STARTUP])
+            ->where('needsAction.0.reason', 'Menunggu approval: '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_STARTUP].', '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED])
+            ->where('stats.needsActionCount', 1)
         );
+    }
+
+    public function test_approval_batch_without_finished_check_is_not_listed_as_needing_approval(): void
+    {
+        $batch = $this->makeBatch(IpcBatch::STAGE_APPROVAL);
+        StartupCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
+
+        $this->actingAs(User::factory()->approver()->create())->get('/dashboard')
+            ->assertInertia(fn ($page) => $page->where('needsAction', [])->where('stats.needsActionCount', 0));
     }
 
     public function test_stage_breakdown_and_pending_approval_count_reflect_real_distribution(): void

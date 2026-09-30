@@ -47,7 +47,9 @@ function EmptyState({ icon: Icon, label }: { icon: typeof Trash2; label: string 
     );
 }
 
-function Section({ title, icon: Icon, count, children }: { title: string; icon: typeof Trash2; count: number; children: ReactNode }) {
+function Section({
+    title, icon: Icon, count, shown, children,
+}: { title: string; icon: typeof Trash2; count: number; shown: number; children: ReactNode }) {
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
@@ -57,6 +59,9 @@ function Section({ title, icon: Icon, count, children }: { title: string; icon: 
                 </h2>
             </div>
             {children}
+            {count > shown && (
+                <p className="text-muted-foreground text-center text-[12px]">Menampilkan {shown} terbaru dari {count} item.</p>
+            )}
         </div>
     );
 }
@@ -70,17 +75,18 @@ function DeletedInfo({ deletedAt, deletedBy }: { deletedAt: string; deletedBy: D
 }
 
 export default function RecycleBinIndex({
-    batches, products, lines, testTypes,
+    batches, products, lines, testTypes, counts,
 }: {
     batches: DeletedBatch[];
     products: DeletedProduct[];
     lines: DeletedLine[];
     testTypes: DeletedTestType[];
+    counts: { batches: number; products: number; lines: number; testTypes: number };
 }) {
     const restore = (routeName: string, id: number) =>
         router.patch(route(routeName, id), {}, { preserveScroll: true });
 
-    const total = batches.length + products.length + lines.length + testTypes.length;
+    const total = counts.batches + counts.products + counts.lines + counts.testTypes;
 
     return (
         <IpcShell title="Tempat Sampah" subtitle={`${total} item terhapus`} backHref="/dashboard">
@@ -95,7 +101,7 @@ export default function RecycleBinIndex({
                     </div>
                 )}
 
-                <Section title="Batch" icon={ClipboardList} count={batches.length}>
+                <Section title="Batch" icon={ClipboardList} count={counts.batches} shown={batches.length}>
                     {batches.length === 0 ? <EmptyState icon={ClipboardList} label="Tidak ada batch yang dihapus." /> : batches.map((b) => (
                         <div key={b.id} className="border-border-soft bg-card flex items-start justify-between gap-3 rounded-[20px] border p-4">
                             <div className="min-w-0 flex-1">
@@ -117,7 +123,7 @@ export default function RecycleBinIndex({
                     ))}
                 </Section>
 
-                <Section title="Produk" icon={Package} count={products.length}>
+                <Section title="Produk" icon={Package} count={counts.products} shown={products.length}>
                     {products.length === 0 ? <EmptyState icon={Package} label="Tidak ada produk yang dihapus." /> : products.map((p) => (
                         <div key={p.id} className="border-border-soft bg-card flex items-center justify-between gap-3 rounded-[20px] border p-4">
                             <div className="min-w-0 flex-1">
@@ -130,7 +136,7 @@ export default function RecycleBinIndex({
                     ))}
                 </Section>
 
-                <Section title="Line" icon={MapPin} count={lines.length}>
+                <Section title="Line" icon={MapPin} count={counts.lines} shown={lines.length}>
                     {lines.length === 0 ? <EmptyState icon={MapPin} label="Tidak ada line yang dihapus." /> : lines.map((l) => (
                         <div key={l.id} className="border-border-soft bg-card flex items-center justify-between gap-3 rounded-[20px] border p-4">
                             <div className="min-w-0 flex-1">
@@ -143,7 +149,7 @@ export default function RecycleBinIndex({
                     ))}
                 </Section>
 
-                <Section title="Test Type" icon={TestTube2} count={testTypes.length}>
+                <Section title="Test Type" icon={TestTube2} count={counts.testTypes} shown={testTypes.length}>
                     {testTypes.length === 0 ? <EmptyState icon={TestTube2} label="Tidak ada test type yang dihapus." /> : testTypes.map((t) => (
                         <div key={t.id} className="border-border-soft bg-card flex items-center justify-between gap-3 rounded-[20px] border p-4">
                             <div className="min-w-0 flex-1">

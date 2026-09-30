@@ -3,19 +3,46 @@ import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
 import { cn } from '@/lib/utils';
 import { type RecentBatch } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Loader2, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; activeId?: number }) {
     const [q, setQ] = useState('');
+    const [results, setResults] = useState<RecentBatch[] | null>(null);
+    const [loading, setLoading] = useState(false);
 
-    const filtered = useMemo(() => {
-        const needle = q.trim().toLowerCase();
-        if (!needle) return batches;
-        return batches.filter(
-            (batch) => batch.no_batch.toLowerCase().includes(needle) || batch.master_product?.product_name.toLowerCase().includes(needle),
-        );
-    }, [batches, q]);
+    // `batches` is only the 20 most recent; a typed search goes to the server so older batches
+    // are findable too, without ever shipping the full table to the tablet.
+    useEffect(() => {
+        const needle = q.trim();
+        if (!needle) {
+            setResults(null);
+            setLoading(false);
+            return;
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            setLoading(true);
+            try {
+                const response = await fetch(route('lookup.batches', { q: needle }), {
+                    signal: controller.signal,
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                });
+                if (response.ok) setResults(await response.json());
+            } catch {
+                // aborted or offline — keep the previous results
+            } finally {
+                if (!controller.signal.aborted) setLoading(false);
+            }
+        }, 300);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [q]);
+
+    const filtered = results ?? batches;
 
     return (
         <>
@@ -28,6 +55,7 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                         placeholder="Cari batch..."
                         className="border-border-soft bg-background h-10 rounded-xl pl-9 text-[13px]"
                     />
+                    {loading && <Loader2 className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />}
                 </div>
             </div>
 
@@ -60,7 +88,7 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                         );
                     })}
 
-                    {filtered.length === 0 && <p className="text-muted-foreground p-4 text-center text-sm">Tidak ada batch.</p>}
+                    {filtered.length === 0 && !loading && <p className="text-muted-foreground p-4 text-center text-sm">Tidak ada batch.</p>}
                 </div>
             </div>
         </>

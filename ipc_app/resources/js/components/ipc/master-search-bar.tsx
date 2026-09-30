@@ -3,17 +3,28 @@ import { router } from '@inertiajs/react';
 import { Search, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-export function MasterSearchBar({ baseUrl, initialQ, placeholder }: { baseUrl: string; initialQ: string; placeholder: string }) {
+export function MasterSearchBar({
+    baseUrl,
+    initialQ,
+    placeholder,
+    extraParams = {},
+}: {
+    baseUrl: string;
+    initialQ: string;
+    placeholder: string;
+    /** Other active filters to keep when the search is submitted or cleared. */
+    extraParams?: Record<string, string>;
+}) {
     const [q, setQ] = useState(initialQ);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        router.get(baseUrl, { q }, { preserveState: true, replace: true });
+        router.get(baseUrl, { ...extraParams, q }, { preserveState: true, replace: true });
     };
 
     const clear = () => {
         setQ('');
-        router.get(baseUrl, {}, { preserveState: true, replace: true });
+        router.get(baseUrl, extraParams, { preserveState: true, replace: true });
     };
 
     return (

@@ -88,6 +88,36 @@ class MasterDataTest extends TestCase
             );
     }
 
+    public function test_products_can_be_filtered_by_bulk_code_presence(): void
+    {
+        $withCode = MasterProduct::create(['fg_code' => 'FG-A', 'product_name' => 'A With Code', 'is_active' => true]);
+        MasterProductBulkCode::create(['master_product_id' => $withCode->id, 'bulk_code' => 'BC-A', 'is_active' => true]);
+        $withoutCode = MasterProduct::create(['fg_code' => 'FG-B', 'product_name' => 'B Without Code', 'is_active' => true]);
+        $onlyDeletedCode = MasterProduct::create(['fg_code' => 'FG-C', 'product_name' => 'C Deleted Code', 'is_active' => true]);
+        MasterProductBulkCode::create(['master_product_id' => $onlyDeletedCode->id, 'bulk_code' => 'BC-C', 'is_active' => true])->delete();
+
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/masters/products?bulk=with')
+            ->assertOk()
+            ->assertInertia(
+                fn ($page) => $page->has('products.data', 1)
+                    ->where('products.data.0.id', $withCode->id)
+                    ->where('bulkCodeCounts', ['all' => 3, 'with' => 1, 'without' => 2]),
+            );
+
+        $this->actingAs($admin)
+            ->get('/masters/products?bulk=without')
+            ->assertOk()
+            ->assertInertia(
+                fn ($page) => $page->has('products.data', 2)
+                    ->where('products.data.0.id', $withoutCode->id)
+                    ->where('products.data.1.id', $onlyDeletedCode->id)
+                    ->where('filters.bulk', 'without'),
+            );
+    }
+
     public function test_product_can_be_created(): void
     {
         $this->actingAs(User::factory()->admin()->create())

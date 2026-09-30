@@ -12,14 +12,12 @@ class ApprovalQueueController extends Controller
     public function index(): Response
     {
         $queue = IpcBatch::query()
-            // Mirrors ApprovalController::guardFinished() — every route on that screen (incl.
-            // every per-stage detail page) 403s until Finished Check is done, regardless of any
-            // individual stage's own readiness, so a batch belongs in this queue only once it's
-            // actually clickable. A plain `current_stage != startup` filter is looser than that
-            // and let a real batch (still at "filling", only Startup done) appear here with a
-            // dead 403 link — caught via live verification against real data, not in the
-            // original design.
-            ->whereHas('finishedCheck', fn ($query) => $query->whereNotNull('completed_at'))
+            // Finished Check done + at least one stage ready-but-not-Approved, evaluated in SQL
+            // (see IpcBatch::scopePendingApproval) so this stays a paginated, indexed query as
+            // batches grow, instead of loading every finished batch into PHP. Mirrors
+            // ApprovalController::guardFinished() — a batch belongs here only once its approval
+            // screen is actually reachable.
+            ->pendingApproval()
             ->with([
                 'masterProduct:id,product_name,fg_code',
                 'masterLine:id,name',
@@ -29,21 +27,14 @@ class ApprovalQueueController extends Controller
                 'finishedCheck:id,ipc_batch_id,completed_at',
                 'approvals',
             ])
-            ->latest('id')->get()
-            ->map(function (IpcBatch $batch) {
-                $pending = IpcApproval::pendingStagesFor($batch);
-
-                if ($pending->isEmpty()) {
-                    return null;
-                }
-
-                return [
-                    'batch' => $batch,
-                    'pendingStages' => $pending->map(fn (string $stage) => IpcApproval::STAGE_LABELS[$stage])->values(),
-                ];
-            })
-            ->filter()
-            ->values();
+            ->latest('id')
+            ->paginate(20)
+            ->through(fn (IpcBatch $batch) => [
+                'batch' => $batch,
+                'pendingStages' => IpcApproval::pendingStagesFor($batch)
+                    ->map(fn (string $stage) => IpcApproval::STAGE_LABELS[$stage])
+                    ->values(),
+            ]);
 
         return Inertia::render('approvals/index', ['queue' => $queue]);
     }

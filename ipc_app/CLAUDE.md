@@ -364,6 +364,16 @@ Gotchas:
 
 Verified 2026-09-30: 17 new tests in `tests/Feature/MasterImportTest.php` (the 6 old import tests in `MasterDataTest.php` were removed), and the full suite passes (274) against `ipc_system_testing`. There was also a live Playwright E2E against the local dev server and `composer run dev` queue worker using the real `docs/template master product.xlsx`: validated in about 1s (8,788 rows → 8,549 valid, 9 errors (blank FG Code/Nama Produk, e.g. rows 391, 785, 972, 3647, 4022), 230 identical-duplicate rows skipped), then committed in about 4s → **8,483 products + 140 bulk codes now exist in the local `ipc_system` dev DB** (the prior 4 products are untouched; imported rows have id > 4). The E2E used a temporary admin user (`claude-e2e@local.test`), which was deleted afterwards.
 
+### List/search performance pass for tablets — 8k products, 1M batches (2026-09-30)
+Batch Baru froze once the master reached ~8,000 products. The page embedded every product and its bulk codes as a prop and rendered them all in a Radix `Select`. Rules this pass established:
+- **Never ship a master list as a page prop.** Use a searchable picker against a capped JSON lookup: `LookupController` (`lookup.products`, `lookup.batches`, 30 results max) and `components/ipc/product-search-select.tsx`, which debounces and aborts stale requests. Batch Baru and OCR Test both use it. The batch sidebar search (`BatchNavList`) now also queries the server, so it can find batches older than the 20 most recent.
+- **Batch search** = `no_batch` **prefix** OR product name contains. Never write it as one `OR` query, because that defeats every index (2.6s on a search with no hits). Use `IpcBatch::searchIds()` (UNION of two indexed branches, ids only) and `IpcBatch::searchCount()` (|A|+|B|−|A∩B|).
+- **Approval Queue / Dashboard "needs action"** are SQL now, via `IpcBatch::scopePendingApproval()` (the SQL twin of `IpcApproval::pendingStagesFor()`). The queue is paginated, so its prop is now `queue.data`. The dashboard's approval items now also require Finished Check done, the same as the queue. Before, it could show a batch whose approval link 403s.
+- Recycle Bin shows the 50 newest per section plus real totals. Batch rows are loaded ids-first (deferred join).
+- Indexes: `2026_09_30_100000_add_list_performance_indexes`. **No standalone `deleted_at` index on `ipc_batches`.** Nearly every row is NULL, and MySQL mis-estimated that and picked it for every soft-delete-scoped count (2s dashboard). Every composite index has `deleted_at` right after its equality column for the same reason.
+
+Measured 2026-09-30 on `ipc_system_testing` seeded with 8,000 products, 24k bulk codes and 1,000,000 batches, going through the real HTTP kernel. Every list/lookup is ≤ ~300ms: dashboard 0.23s (was 2.4s), batch search 0.02–0.18s (was ~2s), recycle bin 0.02s, product lookup ~5ms. 283 tests pass.
+
 ### Vision Service (OCR) integration — backend bundle + "OCR Test Product" sandbox (2026-09-28)
 
 **Stages 1 and 2 of 3 done** (backend installed; shelf-life input on the Master Produk form + an optional `Shelf Life (Bulan)` column in the Excel import, done 2026-09-30, see "Master data Excel import" below). Stage 3 (OCR buttons on the stage pages) is **not built yet**.

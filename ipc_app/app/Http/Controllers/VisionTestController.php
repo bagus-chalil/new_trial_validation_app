@@ -25,10 +25,6 @@ class VisionTestController extends Controller
     public function index(): Response
     {
         return Inertia::render('vision-test/index', [
-            'products' => MasterProduct::query()
-                ->where('is_active', true)
-                ->orderBy('fg_code')
-                ->get(['id', 'fg_code', 'product_name', 'shelf_life_months']),
             'fieldTypes' => config('vision.field_types'),
             'rules' => config('vision.rules'),
         ]);

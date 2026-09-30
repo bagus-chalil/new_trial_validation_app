@@ -182,9 +182,9 @@ class RbacTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('approvals/index')
-                ->has('queue', 1)
-                ->where('queue.0.batch.id', $batch->id)
-                ->where('queue.0.pendingStages', [
+                ->has('queue.data', 1)
+                ->where('queue.data.0.batch.id', $batch->id)
+                ->where('queue.data.0.pendingStages', [
                     IpcApproval::STAGE_LABELS[IpcApproval::STAGE_STARTUP],
                     IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING_PACKING],
                     IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED],
@@ -209,7 +209,7 @@ class RbacTest extends TestCase
 
         $this->actingAs($approver)->get('/approvals')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('queue', 0));
+            ->assertInertia(fn ($page) => $page->has('queue.data', 0));
     }
 
     public function test_approval_queue_excludes_batch_with_zero_ready_stages(): void
@@ -231,7 +231,7 @@ class RbacTest extends TestCase
 
         $this->actingAs($approver)->get('/approvals')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('queue', 0));
+            ->assertInertia(fn ($page) => $page->has('queue.data', 0));
     }
 
     public function test_approval_queue_excludes_batch_with_a_ready_stage_but_no_finished_check(): void
@@ -247,7 +247,7 @@ class RbacTest extends TestCase
 
         $this->actingAs($approver)->get('/approvals')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('queue', 0));
+            ->assertInertia(fn ($page) => $page->has('queue.data', 0));
     }
 
     public function test_approval_queue_includes_batch_with_a_rejected_ready_stage(): void
@@ -266,7 +266,31 @@ class RbacTest extends TestCase
 
         $this->actingAs($approver)->get('/approvals')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('queue', 1));
+            ->assertInertia(fn ($page) => $page->has('queue.data', 1));
+    }
+
+    public function test_approval_queue_includes_print_stage_batch_whose_approval_was_re_decided(): void
+    {
+        $approver = User::factory()->approver()->create();
+        $batch = $this->makeBatchAtApprovalStage(User::factory()->create()->id);
+        $batch->update(['current_stage' => IpcBatch::STAGE_PRINT]);
+
+        foreach (IpcApproval::STAGES as $stage) {
+            IpcApproval::create([
+                'ipc_batch_id' => $batch->id,
+                'stage' => $stage,
+                'decision' => $stage === IpcApproval::STAGE_FINISHED ? IpcApproval::DECISION_REJECTED : IpcApproval::DECISION_APPROVED,
+                'approver_user_id' => $approver->id,
+                'approved_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($approver)->get('/approvals')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('queue.data', 1)
+                ->where('queue.data.0.pendingStages', [IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED]])
+            );
     }
 
     // --- Master Data routes ---

@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { ProductSearchSelect, type ProductOption } from '@/components/ipc/product-search-select';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { Button } from '@/components/ui/button';
@@ -10,23 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler, useMemo } from 'react';
-
-interface BulkCodeOption {
-    id: number;
-    bulk_code: string;
-}
-
-interface MasterProduct {
-    id: number;
-    fg_code: string;
-    product_name: string;
-    bulk_codes: BulkCodeOption[];
-}
+import { FormEventHandler, useState } from 'react';
 
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
-export default function BatchesCreate({ products }: { products: MasterProduct[] }) {
+export default function BatchesCreate() {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const { message, toast } = useToast();
@@ -37,10 +26,9 @@ export default function BatchesCreate({ products }: { products: MasterProduct[] 
         no_batch: '',
     });
 
-    const selectedProduct = useMemo(
-        () => products.find((product) => String(product.id) === data.master_product_id),
-        [products, data.master_product_id],
-    );
+    // The picker searches the server, so the chosen product (incl. its bulk codes) is kept
+    // locally rather than looked up from a full product list shipped with the page.
+    const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null);
 
     const bulkCodeOptions = selectedProduct?.bulk_codes ?? [];
 
@@ -54,7 +42,12 @@ export default function BatchesCreate({ products }: { products: MasterProduct[] 
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
             return;
         }
-        post('/batches', { onSuccess: () => reset() });
+        post('/batches', {
+            onSuccess: () => {
+                reset();
+                setSelectedProduct(null);
+            },
+        });
     };
 
     return (
@@ -71,26 +64,19 @@ export default function BatchesCreate({ products }: { products: MasterProduct[] 
                             <form onSubmit={submit} className="space-y-4">
                                 <div className="grid gap-2">
                                     <Label htmlFor="master_product_id">FG Code</Label>
-                                    <Select
-                                        value={data.master_product_id}
-                                        onValueChange={(value) => {
-                                            setData((prev) => ({ ...prev, master_product_id: value, master_product_bulk_code_id: '' }));
+                                    <ProductSearchSelect
+                                        id="master_product_id"
+                                        value={selectedProduct}
+                                        onChange={(product) => {
+                                            setSelectedProduct(product);
+                                            setData((prev) => ({
+                                                ...prev,
+                                                master_product_id: product ? String(product.id) : '',
+                                                master_product_bulk_code_id: '',
+                                            }));
                                         }}
-                                    >
-                                        <SelectTrigger
-                                            id="master_product_id"
-                                            className={`min-h-11 ${!data.master_product_id && message ? errorBorder : ''}`}
-                                        >
-                                            <SelectValue placeholder="Pilih FG Code" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {products.map((product) => (
-                                                <SelectItem key={product.id} value={String(product.id)}>
-                                                    {product.fg_code} — {product.product_name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        className={!data.master_product_id && message ? errorBorder : ''}
+                                    />
                                     <InputError message={errors.master_product_id} />
                                 </div>
 

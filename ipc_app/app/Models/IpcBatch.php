@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -113,5 +114,94 @@ class IpcBatch extends Model
     public function attachments()
     {
         return $this->hasMany(IpcAttachment::class);
+    }
+
+    /**
+     * Batch search: no_batch prefix OR product-name contains, built so it stays index-driven
+     * at ~1M batches. A single `WHERE no_batch LIKE .. OR master_product_id IN (..)` defeats
+     * every index — a search with no hits scanned the whole table (2.6s measured) — so each
+     * side runs as its own indexed query and only the ids are merged.
+     *
+     * @return array{0: Builder, 1: Builder} [by no_batch, by product name], unordered
+     */
+    public static function searchBranches(string $q, ?string $stage = null): array
+    {
+        $base = fn () => static::query()->when($stage, fn ($query) => $query->where('current_stage', $stage));
+
+        return [
+            $base()->where('no_batch', 'like', static::escapeLike($q).'%'),
+            $base()->whereIn('master_product_id', static::productIdsMatching($q)),
+        ];
+    }
+
+    private static function productIdsMatching(string $q): Builder
+    {
+        return MasterProduct::withTrashed()->select('id')->where('product_name', 'like', '%'.static::escapeLike($q).'%');
+    }
+
+    private static function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    /** Ids of the newest matching batches, newest first: `$take` rows after skipping `$skip`. */
+    public static function searchIds(string $q, ?string $stage, int $take, int $skip = 0): array
+    {
+        [$byNo, $byProduct] = static::searchBranches($q, $stage);
+        $n = $skip + $take;
+
+        return $byNo->select('id')->orderByDesc('id')->limit($n)
+            // toBase() so the soft-delete scope is applied to this branch too — union() on its
+            // own takes the raw query and silently drops Eloquent global scopes.
+            ->union($byProduct->select('id')->orderByDesc('id')->limit($n)->toBase())
+            ->orderByDesc('id')
+            ->offset($skip)
+            ->limit($take)
+            ->pluck('id')
+            ->all();
+    }
+
+    /** Exact match count as |A| + |B| - |A∩B| — three index-only counts, no big dedupe. */
+    public static function searchCount(string $q, ?string $stage): int
+    {
+        [$byNo, $byProduct] = static::searchBranches($q, $stage);
+
+        return (clone $byNo)->count()
+            + $byProduct->count()
+            - $byNo->whereIn('master_product_id', static::productIdsMatching($q))->count();
+    }
+
+    /**
+     * SQL twin of the Approval Queue's rule (Finished Check done + IpcApproval::pendingStagesFor()
+     * non-empty), so the queue/dashboard can filter, count and paginate in the database instead
+     * of loading every finished batch into PHP.
+     *
+     * Candidate narrowing (keeps it index-driven at ~1M batches): a batch only reaches
+     * print/completed once all three stages are Approved (SaveApproval), so a print/completed
+     * batch can be pending again only if one of its approvals was later re-decided to
+     * something other than Approved. Everything else is still in active work.
+     */
+    public function scopePendingApproval(Builder $query): Builder
+    {
+        $approvedFor = fn (string $stage) => fn ($q) => $q->where('stage', $stage)->where('decision', IpcApproval::DECISION_APPROVED);
+        $completed = fn ($q) => $q->whereNotNull('completed_at');
+
+        return $query
+            ->where(function ($query) {
+                $query->whereNotIn('current_stage', [self::STAGE_PRINT, self::STAGE_COMPLETED])
+                    ->orWhereIn('id', IpcApproval::query()
+                        ->select('ipc_batch_id')
+                        ->where(fn ($q) => $q->where('decision', '!=', IpcApproval::DECISION_APPROVED)->orWhereNull('decision')));
+            })
+            ->whereHas('finishedCheck', $completed)
+            ->where(function ($query) use ($approvedFor, $completed) {
+                $query
+                    ->where(fn ($q) => $q->whereHas('startupCheck', $completed)
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_STARTUP)))
+                    ->orWhere(fn ($q) => $q->whereHas('fillingCheck', $completed)
+                        ->whereHas('packingCheck', $completed)
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
+                    ->orWhereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FINISHED));
+            });
     }
 }

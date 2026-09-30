@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\MasterProductsTemplateExport;
 use App\Http\Requests\StoreMasterProductRequest;
 use App\Models\MasterProduct;
+use App\Models\MasterProductBulkCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,16 +24,31 @@ class MasterProductController extends Controller
                 $query->where(function ($query) use ($q) {
                     $query->where('product_name', 'like', "%{$q}%")
                         ->orWhere('fg_code', 'like', "%{$q}%")
-                        ->orWhereHas('bulkCodes', fn ($query) => $query->where('bulk_code', 'like', "%{$q}%"));
+                        ->orWhereIn('id', MasterProductBulkCode::query()
+                            ->select('master_product_id')
+                            ->where('bulk_code', 'like', "%{$q}%"));
                 });
+            })
+            ->when($request->string('bulk')->toString(), fn ($query, $bulk) => match ($bulk) {
+                'with' => $query->has('bulkCodes'),
+                'without' => $query->doesntHave('bulkCodes'),
+                default => $query,
             })
             ->orderBy('product_name')
             ->paginate(20)
             ->withQueryString();
 
+        $total = MasterProduct::query()->count();
+        $withBulkCodes = MasterProduct::query()->has('bulkCodes')->count();
+
         return Inertia::render('masters/products/index', [
             'products' => $products,
-            'filters' => $request->only('q'),
+            'filters' => $request->only('q', 'bulk'),
+            'bulkCodeCounts' => [
+                'all' => $total,
+                'with' => $withBulkCodes,
+                'without' => $total - $withBulkCodes,
+            ],
         ]);
     }
 

@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
-use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,18 +15,35 @@ class IpcBatchController extends Controller
 {
     public function index(Request $request): Response
     {
-        $batches = IpcBatch::query()
-            ->with(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck'])
-            ->when($request->string('q')->toString(), function ($query, $q) {
-                $query->where(function ($query) use ($q) {
-                    $query->where('no_batch', 'like', "%{$q}%")
-                        ->orWhereHas('masterProduct', fn ($query) => $query->where('product_name', 'like', "%{$q}%"));
-                });
-            })
-            ->when($request->string('stage')->toString(), fn ($query, $stage) => $query->where('current_stage', $stage))
-            ->latest('id')
-            ->paginate(20)
-            ->withQueryString();
+        $q = trim($request->string('q')->toString());
+        $stage = $request->string('stage')->toString() ?: null;
+        $perPage = 20;
+
+        $query = IpcBatch::query()->with([
+            'masterProduct:id,fg_code,product_name',
+            'masterLine:id,name,code',
+            'creator:id,name',
+            'startupCheck:id,ipc_batch_id,completed_at',
+            'fillingCheck:id,ipc_batch_id,completed_at',
+        ]);
+
+        if ($q === '') {
+            $batches = $query
+                ->when($stage, fn ($query) => $query->where('current_stage', $stage))
+                ->latest('id')
+                ->paginate($perPage)
+                ->withQueryString();
+        } else {
+            // Searched: page ids and total come from IpcBatch's index-driven search helpers
+            // (see IpcBatch::searchBranches for why a plain OR query can't be used at 1M rows).
+            $page = LengthAwarePaginator::resolveCurrentPage();
+            $ids = IpcBatch::searchIds($q, $stage, $perPage, ($page - 1) * $perPage);
+            $items = $query->whereIn('id', $ids)->latest('id')->get();
+
+            $batches = (new LengthAwarePaginator($items, IpcBatch::searchCount($q, $stage), $perPage, $page, [
+                'path' => LengthAwarePaginator::resolveCurrentPath(),
+            ]))->withQueryString();
+        }
 
         return Inertia::render('batches/index', [
             'batches' => $batches,
@@ -89,13 +106,9 @@ class IpcBatchController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('batches/create', [
-            'products' => MasterProduct::query()
-                ->where('is_active', true)
-                ->with(['bulkCodes' => fn ($query) => $query->where('is_active', true)->orderBy('bulk_code')])
-                ->orderBy('product_name')
-                ->get(['id', 'fg_code', 'product_name']),
-        ]);
+        // No product list here on purpose — the FG Code picker searches `lookup.products`
+        // on demand, since shipping the whole master (8000+ rows) froze tablets.
+        return Inertia::render('batches/create');
     }
 
     public function store(StoreIpcBatchRequest $request): RedirectResponse

@@ -1,4 +1,5 @@
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
+import { ProductSearchSelect, type ProductOption } from '@/components/ipc/product-search-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,13 +10,6 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { Head } from '@inertiajs/react';
 import { Camera, ImageUp, Loader2, ScanText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-interface Product {
-    id: number;
-    fg_code: string;
-    product_name: string;
-    shelf_life_months: number | null;
-}
 
 interface TestResult {
     request_id: string;
@@ -61,16 +55,8 @@ function ResultRow({ label, value, mono = false }: { label: string; value: strin
     );
 }
 
-export default function VisionTestIndex({
-    products,
-    fieldTypes,
-    rules,
-}: {
-    products: Product[];
-    fieldTypes: string[];
-    rules: Record<string, string>;
-}) {
-    const [productId, setProductId] = useState('');
+export default function VisionTestIndex({ fieldTypes, rules }: { fieldTypes: string[]; rules: Record<string, string> }) {
+    const [product, setProduct] = useState<ProductOption | null>(null);
     const [fieldType, setFieldType] = useState(fieldTypes[0] ?? '');
     const [expDate, setExpDate] = useState('');
     const [photo, setPhoto] = useState<File | null>(null);
@@ -81,7 +67,6 @@ export default function VisionTestIndex({
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const product = products.find((p) => String(p.id) === productId);
     const rule = rules[fieldType];
 
     useEffect(() => {
@@ -109,7 +94,7 @@ export default function VisionTestIndex({
         const body = new FormData();
         body.append('photo', photo);
         body.append('field_type', fieldType);
-        if (productId) body.append('master_product_id', productId);
+        if (product) body.append('master_product_id', String(product.id));
         if (expDate) body.append('exp_date', expDate);
 
         try {
@@ -166,24 +151,15 @@ export default function VisionTestIndex({
 
                     <div className="grid gap-2">
                         <Label htmlFor="master_product_id">Produk {rule === 'mfd_plus_shelf_life' ? '' : '(opsional)'}</Label>
-                        <Select
-                            value={productId}
-                            onValueChange={(v) => {
-                                setProductId(v);
+                        <ProductSearchSelect
+                            id="master_product_id"
+                            value={product}
+                            placeholder="Pilih produk"
+                            onChange={(p) => {
+                                setProduct(p);
                                 setResult(null);
                             }}
-                        >
-                            <SelectTrigger id="master_product_id" className="min-h-11">
-                                <SelectValue placeholder="Pilih produk" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {products.map((p) => (
-                                    <SelectItem key={p.id} value={String(p.id)}>
-                                        {p.fg_code} — {p.product_name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        />
                         {rule === 'mfd_plus_shelf_life' && (
                             <p className="text-muted-foreground text-[12px]">
                                 {product
