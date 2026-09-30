@@ -31,6 +31,10 @@ class ReviewController extends Controller
             ->join('trials_header as h', 'h.id', '=', 'trials_review.trial_id')
             ->where('h.progress_status', 'In Review')
             ->whereRaw('trials_review.review_round = h.revision_no + 1')
+            // Already-submitted reviews drop out of the inbox — revising one
+            // (up to TrialReview::MAX_EDITS) is still done from the trial's
+            // Report Summary page, reachable via Tracking Proses.
+            ->where('trials_review.status', 'Pending')
             ->visibleToReviewer($request->user())
             ->when($q !== '', function ($query) use ($q) {
                 $like = '%'.$q.'%';
@@ -39,7 +43,6 @@ class ReviewController extends Controller
                         ->orWhere('h.product_name', 'like', $like);
                 });
             })
-            ->orderByRaw("trials_review.status = 'Pending' desc")
             ->orderByDesc('trials_review.id')
             ->select('trials_review.*', 'h.trial_code', 'h.product_name', 'h.revision_no', 'h.progress_status')
             ->paginate(20)

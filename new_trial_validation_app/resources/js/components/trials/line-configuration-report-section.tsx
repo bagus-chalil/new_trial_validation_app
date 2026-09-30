@@ -642,17 +642,14 @@ function EditableLineConfigurationReport({
                                 defaultValue={report?.operator ?? ''}
                             />
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="lcr_capacity_label">
-                                Label Speed
-                            </Label>
-                            <Input
-                                id="lcr_capacity_label"
-                                name="capacity_label"
-                                placeholder="Capa / PRD (pcs/min)"
-                                defaultValue={report?.capacity_label ?? ''}
-                            />
-                        </div>
+                        {/* Label Speed is hidden from the form per user request;
+                            kept as a hidden input so saving doesn't wipe an
+                            already-stored value. */}
+                        <input
+                            type="hidden"
+                            name="capacity_label"
+                            defaultValue={report?.capacity_label ?? ''}
+                        />
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_total_qty">Total</Label>
                             <Input

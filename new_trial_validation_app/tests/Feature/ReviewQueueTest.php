@@ -40,6 +40,23 @@ test('a reviewer only sees pending reviews for their own department', function (
         ->where('items.data.0.trial_id', $trial->id));
 });
 
+test('an already-submitted review drops out of the review queue', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+
+    $reviewed = makeInReviewTrial(['trial_code' => 'TRIAL-DONE-1', 'pending_with' => 'QAC']);
+    TrialReview::create(['trial_id' => $reviewed->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed', 'comment' => 'OK']);
+    TrialReview::create(['trial_id' => $reviewed->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $pending = makeInReviewTrial(['trial_code' => 'TRIAL-TODO-1']);
+    TrialReview::create(['trial_id' => $pending->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
+
+    $this->actingAs($reviewer)->get(route('reviews.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('items.data', 1)
+            ->where('items.data.0.trial_id', $pending->id));
+});
+
 test('the review queue can be searched by trial code or product name', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
 
