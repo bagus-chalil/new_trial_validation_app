@@ -779,6 +779,62 @@ perangkat bersama CA lama, dan baru pindahkan server ke CA baru setelah
 sebagian besar perangkat memasangnya. Script belum mendukung dua CA
 sekaligus, jadi rotasi ini dikerjakan manual pada waktunya.
 
+## 11. Queue worker ipc_app (wajib untuk fitur Import Excel)
+
+Sejak 2026-09-30, **Import Excel** di Master Produk / Master Line (`ipc_app`)
+diproses sebagai *queued job* (validasi dulu, lalu simpan dalam satu
+transaksi), supaya file ribuan baris tidak kena timeout browser/PHP-FPM dan
+user bisa melihat progress per baris. Artinya **harus ada proses
+`queue:work` yang selalu jalan** di server untuk tiap environment. Tanpa
+itu, import akan berhenti di "Menunggu giliran di antrian...". Dialog import
+akan menampilkan peringatan ke user setelah 15 detik, dan import otomatis
+lanjut begitu worker hidup lagi tanpa perlu upload ulang.
+
+Setup sekali per environment (butuh sudo):
+
+```bash
+# Production
+sudo cp /var/www/trial_validation_app/deploy/ipc-app-queue.service.example \
+  /etc/systemd/system/ipc-app-queue.service
+
+# Development: file sama, ganti Description + WorkingDirectory ke
+# /var/www/trial_validation_app-development/ipc_app
+sudo cp /var/www/trial_validation_app-development/deploy/ipc-app-queue.service.example \
+  /etc/systemd/system/ipc-app-queue-development.service
+sudo nano /etc/systemd/system/ipc-app-queue-development.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now ipc-app-queue ipc-app-queue-development
+systemctl status ipc-app-queue ipc-app-queue-development
+```
+
+Cek `ExecStart` di file unit: path `php` (`which php`) harus sama dengan
+versi PHP yang dipakai PHP-FPM.
+
+Hal-hal yang perlu diketahui:
+
+- **Setelah deploy**, `.gitlab-ci.yml` menjalankan `php artisan queue:restart`
+  untuk `ipc_app`. Worker lalu keluar setelah job yang sedang jalan selesai,
+  dan systemd (`Restart=always`) langsung menyalakannya lagi dengan kode baru.
+  Tidak perlu sudo di CI.
+- **Timeout:** job import punya `$timeout = 300` detik. `DB_QUEUE_RETRY_AFTER`
+  (default di `config/queue.php` sekarang 360) **harus lebih besar** dari itu.
+  Kalau tidak, job yang masih jalan bisa diambil worker kedua dan ditandai
+  gagal. Jangan set `DB_QUEUE_RETRY_AFTER` lebih kecil di `.env`. Sebagai
+  gambaran, file 8.788 baris selesai divalidasi sekitar 1 detik dan disimpan
+  sekitar 4 detik di laptop dev.
+- **Batas upload:** dialog membatasi 10 MB. `client_max_body_size 20m` di
+  nginx sudah cukup, tapi **PHP default `upload_max_filesize=2M` /
+  `post_max_size=8M`**, jadi naikkan di `php.ini` FPM (mis.
+  `/etc/php/8.5/fpm/php.ini`) ke `upload_max_filesize = 12M` dan
+  `post_max_size = 12M`, lalu `sudo systemctl reload php8.5-fpm`.
+- File upload sementara disimpan di `ipc_app/storage/app/private/imports/`
+  (sudah di-exclude dari rsync lewat `ipc_app/storage/`), lalu dihapus otomatis
+  setelah import selesai/dibatalkan, atau 24 jam kemudian untuk yang ditinggal.
+- Progress penyimpanan dan tombol batal memakai **file cache**
+  (`storage/framework/cache`), bukan DB. Jadi worker dan PHP-FPM harus
+  berjalan sebagai user yang sama (`www-data`) di server yang sama.
+
 ## Catatan keamanan
 
 `config/database.php` dan `config/sso.php` **sudah ter-commit di git** dengan

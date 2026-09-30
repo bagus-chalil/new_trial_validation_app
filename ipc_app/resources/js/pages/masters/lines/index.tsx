@@ -80,9 +80,10 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
 
                 <MasterImportDialog
                     templateHref={route('master-lines.template')}
-                    importAction={route('master-lines.import')}
+                    type="master_lines"
+                    entityLabel="line"
                     title="Import Master Line"
-                    description="Upload file Excel (.xlsx) hasil isian dari template. Semua kolom wajib diisi. Line dengan Kode Line yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
+                    description="Upload file Excel hasil isian dari template. Kategori, Area, Kode Line, dan Nama Line wajib diisi. Line dengan Kode Line yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
                 />
 
                 <div className="flex flex-col gap-3">

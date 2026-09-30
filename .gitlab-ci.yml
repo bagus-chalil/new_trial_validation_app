@@ -136,6 +136,9 @@ deploy_legacy_development:
     - npm run build
     - php artisan storage:link
     - php artisan migrate --force
+    # ipc_app runs a systemd queue worker (deploy/ipc-app-queue.service.example); this makes it
+    # exit after its current job so systemd restarts it on the freshly deployed code.
+    - if [ "$APP_DIR" = "ipc_app" ]; then php artisan queue:restart; fi
     - echo "Built and migrated $APP_DIR at $DEPLOY_PATH ($CI_ENVIRONMENT_NAME)"
 
 build_new_trial_validation_app_production:

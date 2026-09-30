@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Package, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
+import { CalendarClock, Package, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface BulkCode {
@@ -23,6 +23,7 @@ interface MasterProduct {
     id: number;
     fg_code: string;
     product_name: string;
+    shelf_life_months: number | null;
     is_active: boolean;
     bulk_codes_count: number;
     bulk_codes: BulkCode[];
@@ -36,7 +37,7 @@ interface Paginated<T> {
     total: number;
 }
 
-const emptyProductForm = { id: null as number | null, fg_code: '', product_name: '', is_active: true };
+const emptyProductForm = { id: null as number | null, fg_code: '', product_name: '', shelf_life_months: '' as number | '', is_active: true };
 const emptyBulkCodeForm = { id: null as number | null, bulk_code: '', is_active: true };
 
 function BulkCodeManager({ product, open, onOpenChange }: { product: MasterProduct | null; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -149,7 +150,13 @@ export default function MasterProductsIndex({ products, filters }: { products: P
 
     const openEdit = (product: MasterProduct) => {
         clearErrors();
-        setData({ id: product.id, fg_code: product.fg_code, product_name: product.product_name, is_active: product.is_active });
+        setData({
+            id: product.id,
+            fg_code: product.fg_code,
+            product_name: product.product_name,
+            shelf_life_months: product.shelf_life_months ?? '',
+            is_active: product.is_active,
+        });
         setOpen(true);
     };
 
@@ -185,9 +192,10 @@ export default function MasterProductsIndex({ products, filters }: { products: P
 
                 <MasterImportDialog
                     templateHref={route('master-products.template')}
-                    importAction={route('master-products.import')}
+                    type="master_products"
+                    entityLabel="produk"
                     title="Import Master Produk"
-                    description="Upload file Excel (.xlsx) hasil isian dari template. Kolom FG Code dan Nama Produk wajib diisi; Bulk Code boleh dikosongkan. Data dengan FG Code / Bulk Code yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
+                    description="Upload file Excel hasil isian dari template. FG Code dan Nama Produk wajib diisi; Bulk Code dan Shelf Life (Bulan) boleh kosong. Shelf Life yang kosong tidak menghapus nilai yang sudah ada. FG Code / Bulk Code yang sudah ada akan diperbarui, yang belum ada akan ditambahkan."
                 />
 
                 <div className="flex flex-col gap-3">
@@ -202,6 +210,12 @@ export default function MasterProductsIndex({ products, filters }: { products: P
                                         </Badge>
                                     </div>
                                     <p className="mt-0.5 truncate text-[14px] font-semibold">{product.product_name}</p>
+                                    <p
+                                        className={`mt-1 flex items-center gap-1 text-[12px] font-medium ${product.shelf_life_months ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}
+                                    >
+                                        <CalendarClock className="size-3.5" strokeWidth={2} />
+                                        {product.shelf_life_months ? `Shelf life ${product.shelf_life_months} bulan` : 'Shelf life belum diisi'}
+                                    </p>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-1.5">
                                     <Button type="button" variant="outline" size="icon" className="size-10" onClick={() => openEdit(product)}>
@@ -252,6 +266,23 @@ export default function MasterProductsIndex({ products, filters }: { products: P
                             <Label htmlFor="product_name">Nama Produk</Label>
                             <Input id="product_name" value={data.product_name} onChange={(e) => setData('product_name', e.target.value)} />
                             <InputError message={errors.product_name} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="shelf_life_months">Shelf Life (Bulan)</Label>
+                            <Input
+                                id="shelf_life_months"
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={120}
+                                placeholder="mis. 36"
+                                value={data.shelf_life_months}
+                                onChange={(e) => setData('shelf_life_months', e.target.value === '' ? '' : Number(e.target.value))}
+                            />
+                            <p className="text-muted-foreground text-[12px]">
+                                Dipakai OCR untuk menghitung EXP dari MFD. Kosongkan jika belum diketahui.
+                            </p>
+                            <InputError message={errors.shelf_life_months} />
                         </div>
                         <div className="flex items-center gap-2">
                             <Checkbox id="is_active" checked={data.is_active} onCheckedChange={(checked) => setData('is_active', checked === true)} />

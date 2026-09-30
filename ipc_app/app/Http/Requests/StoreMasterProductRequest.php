@@ -23,6 +23,8 @@ class StoreMasterProductRequest extends FormRequest
                 Rule::unique('master_products', 'fg_code')->ignore($this->input('id')),
             ],
             'product_name' => ['required', 'string', 'max:150'],
+            // Feeds Vision OCR's EXP = MFD + shelf-life check; blank = not known yet.
+            'shelf_life_months' => ['nullable', 'integer', 'min:1', 'max:120'],
             'is_active' => ['boolean'],
         ];
     }
