@@ -1,6 +1,7 @@
 import { Form, Head, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import ImpersonationController from '@/actions/App/Http/Controllers/Admin/ImpersonationController';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -286,6 +287,29 @@ export default function AdminUsersIndex({
                                                             description={`${usr.name} (${usr.email}) will be deactivated and won't be able to log in anymore.`}
                                                             confirmLabel="Delete"
                                                             formProps={UserController.destroy.form(
+                                                                usr.id,
+                                                            )}
+                                                        />
+                                                    )}
+                                                {usr.id !== auth.user.id &&
+                                                    (usr.role !==
+                                                        'Super Admin' ||
+                                                        auth.user.role ===
+                                                            'Super Admin') && (
+                                                        <ConfirmDialog
+                                                            trigger={
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                >
+                                                                    Login as
+                                                                </Button>
+                                                            }
+                                                            title="Masuk sebagai user ini?"
+                                                            description={`Anda akan login sebagai ${usr.name} (${usr.email}) untuk debugging. Semua aksi akan tercatat atas nama user ini, dan sesi ini dicatat di Activity Log atas nama Anda. Jangan melakukan review/approval atas nama user.`}
+                                                            confirmLabel="Login as"
+                                                            confirmVariant="default"
+                                                            formProps={ImpersonationController.store.form(
                                                                 usr.id,
                                                             )}
                                                         />

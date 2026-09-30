@@ -30,6 +30,24 @@ class UserPolicy
         return $target->effectiveRole() !== 'Super Admin' || $user->isSuperAdmin();
     }
 
+    /**
+     * "Login as User" for debugging (see Admin\ImpersonationController) —
+     * same Super-Admin-target guard as update/delete, and only an active,
+     * non-deleted account other than the admin's own.
+     */
+    public function impersonate(User $user, User $target): bool
+    {
+        if (! $user->isAdmin() || $user->id === $target->id) {
+            return false;
+        }
+
+        if (! $target->is_active || $target->deleted_at !== null) {
+            return false;
+        }
+
+        return $target->effectiveRole() !== 'Super Admin' || $user->isSuperAdmin();
+    }
+
     public function delete(User $user, User $target): bool
     {
         if (! $user->isAdmin() || $user->id === $target->id) {

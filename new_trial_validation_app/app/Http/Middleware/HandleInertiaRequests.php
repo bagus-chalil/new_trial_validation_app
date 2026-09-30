@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Admin\ImpersonationController;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -58,9 +60,23 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'impersonator' => fn () => $this->impersonator($request),
             'canReviewTrials' => $request->user()?->isReviewer() ?? false,
             'canApproveTrials' => $request->user()?->canApproveTrials() ?? false,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /**
+     * The admin behind a "Login as User" session, for the banner.
+     *
+     * @return array{name: string, email: string}|null
+     */
+    private function impersonator(Request $request): ?array
+    {
+        $id = $request->hasSession() ? $request->session()->get(ImpersonationController::SESSION_KEY) : null;
+        $admin = is_int($id) ? User::find($id) : null;
+
+        return $admin ? ['name' => $admin->name, 'email' => $admin->email] : null;
     }
 }

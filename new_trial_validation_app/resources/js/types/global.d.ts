@@ -13,6 +13,7 @@ declare module '@inertiajs/core' {
             name: string;
             portalUrl: string;
             auth: Auth;
+            impersonator: { name: string; email: string } | null;
             canReviewTrials: boolean;
             sidebarOpen: boolean;
             [key: string]: unknown;

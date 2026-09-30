@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccessRightController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\LaneConfigurationController;
 use App\Http\Controllers\Admin\MasterOptionController;
 use App\Http\Controllers\Admin\NotificationController;
@@ -15,6 +16,10 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::get('users', [UserController::class, 'index'])->name('users.index');
     Route::post('users', [UserController::class, 'store'])->name('users.store');
     Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+    Route::post('users/{user}/impersonate', [ImpersonationController::class, 'store'])->name('users.impersonate');
+    // Reached while logged in as the impersonated (usually non-admin) user —
+    // authorization is the session's stored impersonator id, not a Gate.
+    Route::post('impersonate/leave', [ImpersonationController::class, 'destroy'])->name('impersonate.leave');
 
     Route::get('products', [ProductController::class, 'index'])->name('products.index');
     Route::post('products', [ProductController::class, 'store'])->name('products.store');
