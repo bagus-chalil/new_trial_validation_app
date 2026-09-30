@@ -1,12 +1,22 @@
 import { Form } from '@inertiajs/react';
-import { MessageSquare, Trash2 } from 'lucide-react';
+import {
+    CircleAlert,
+    CircleCheck,
+    ClipboardList,
+    Clock,
+    Download,
+    History,
+    MessageSquare,
+    Pencil,
+    RotateCcw,
+    Trash2,
+} from 'lucide-react';
 import { useRef, useState } from 'react';
 import TrialLineConfigurationReportController from '@/actions/App/Http/Controllers/TrialLineConfigurationReportController';
 import { Combobox } from '@/components/combobox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -225,18 +235,54 @@ export function LineConfigurationReportSection({
         return null;
     }
 
+    const fullySignedOff = Boolean(
+        report?.approved_pie && report?.checked_prod,
+    );
+
     return (
-        <div className="print:hidden">
-            <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                    <h3 className="text-base font-semibold">
-                        Line Configuration Report (Production)
-                    </h3>
-                    {locked && (
-                        <Badge variant="outline" className="text-amber-600">
-                            Dalam Proses Approval
-                        </Badge>
-                    )}
+        <section className="space-y-3 print:hidden">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <ClipboardList className="size-4" />
+                    </div>
+                    <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold">
+                                Line Configuration Report
+                            </h3>
+                            {report && (
+                                <Badge
+                                    variant="outline"
+                                    className="tabular-nums"
+                                >
+                                    v{report.version}
+                                </Badge>
+                            )}
+                            {fullySignedOff ? (
+                                <Badge
+                                    variant="outline"
+                                    className="border-green-600/30 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+                                >
+                                    Selesai Sign-off
+                                </Badge>
+                            ) : (
+                                locked && (
+                                    <Badge
+                                        variant="outline"
+                                        className="border-amber-500/40 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                    >
+                                        Dalam Proses Approval
+                                    </Badge>
+                                )
+                            )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            Production — konfigurasi line, standar produksi, dan
+                            sign-off {lanes.approved_pie} &rarr;{' '}
+                            {lanes.checked_prod}.
+                        </p>
+                    </div>
                 </div>
                 {canEdit && (
                     <Button
@@ -245,103 +291,104 @@ export function LineConfigurationReportSection({
                         size="sm"
                         onClick={() => setDialogOpen(true)}
                     >
-                        {report ? 'Edit' : 'Buat Line Configuration Report'}
+                        <Pencil className="size-3.5" />
+                        {report
+                            ? 'Edit Report'
+                            : 'Buat Line Configuration Report'}
                     </Button>
                 )}
             </div>
 
-            {returnNote && (
-                <Alert variant="destructive" className="mb-3">
-                    <AlertTitle>Dikembalikan untuk Revisi</AlertTitle>
-                    <AlertDescription>
-                        <span className="whitespace-pre-line">
-                            {returnNote.reason}
-                        </span>
-                        {(returnNote.by || returnNote.at) && (
-                            <div className="mt-1 text-xs opacity-80">
-                                — {returnNote.by || 'Approver'}
-                                {returnNote.at &&
-                                    `, ${formatDate(returnNote.at)}`}
-                            </div>
-                        )}
-                    </AlertDescription>
-                </Alert>
-            )}
+            <div className="overflow-hidden rounded-xl border bg-card">
+                {returnNote && (
+                    <div className="flex gap-3 border-b bg-red-50/70 px-4 py-3 dark:bg-red-950/20">
+                        <RotateCcw className="mt-0.5 size-4 shrink-0 text-red-600" />
+                        <div className="min-w-0 space-y-0.5">
+                            <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                                Dikembalikan untuk Revisi
+                            </p>
+                            <p className="text-sm wrap-break-word whitespace-pre-line">
+                                {returnNote.reason}
+                            </p>
+                            {(returnNote.by || returnNote.at) && (
+                                <p className="text-xs text-muted-foreground">
+                                    {[
+                                        returnNote.by || 'Approver',
+                                        returnNote.at &&
+                                            formatDate(returnNote.at),
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
 
-            <Card>
-                <CardContent className="pt-6">
-                    <ReadOnlyLineConfigurationReport
-                        trialId={trialId}
-                        report={report}
-                        lanes={lanes}
-                        canApprovePie={canApprovePie}
-                        canCheckProd={canCheckProd}
-                        canReturn={canReturn}
-                    />
-                </CardContent>
-            </Card>
+                <ReadOnlyLineConfigurationReport
+                    trialId={trialId}
+                    report={report}
+                    lanes={lanes}
+                    canApprovePie={canApprovePie}
+                    canCheckProd={canCheckProd}
+                    canReturn={canReturn}
+                />
 
-            {versions.length > 0 && (
-                <Card className="mt-3">
-                    <CardContent className="pt-6">
-                        <h4 className="mb-1 text-sm font-semibold">
-                            Riwayat Versi
-                        </h4>
+                {versions.length > 0 && (
+                    <div className="border-t p-4">
+                        <div className="mb-1 flex items-center gap-2">
+                            <History className="size-4 text-muted-foreground" />
+                            <h4 className="text-sm font-semibold">
+                                Riwayat Versi
+                            </h4>
+                        </div>
                         <p className="mb-3 text-xs text-muted-foreground">
-                            Versi yang sudah di-Return dan direvisi lagi
-                            terkunci di sini — hanya bisa diunduh, tidak bisa
-                            diedit lagi.
+                            Versi yang sudah di-Return terkunci di sini — hanya
+                            bisa diunduh, tidak bisa diedit lagi.
                         </p>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Versi</TableHead>
-                                    <TableHead>Dikunci Pada</TableHead>
-                                    <TableHead>Alasan Return</TableHead>
-                                    <TableHead />
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {versions.map((v) => (
-                                    <TableRow key={v.id}>
-                                        <TableCell>v{v.version}</TableCell>
-                                        <TableCell>
-                                            {formatDate(v.locked_at)}
-                                        </TableCell>
-                                        <TableCell className="max-w-xs">
+                        <ul className="divide-y rounded-lg border">
+                            {versions.map((v) => (
+                                <li
+                                    key={v.id}
+                                    className="flex flex-wrap items-center gap-3 px-3 py-2"
+                                >
+                                    <Badge
+                                        variant="secondary"
+                                        className="tabular-nums"
+                                    >
+                                        v{v.version}
+                                    </Badge>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm">
                                             {v.return_reason ?? '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button
-                                                asChild
-                                                variant="outline"
-                                                size="sm"
-                                            >
-                                                <a
-                                                    href={
-                                                        TrialLineConfigurationReportController.downloadVersion(
-                                                            {
-                                                                trial: trialId,
-                                                                version:
-                                                                    v.version,
-                                                            },
-                                                        ).url
-                                                    }
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    Unduh PDF
-                                                </a>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
-
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Dikunci {formatDate(v.locked_at)}
+                                        </p>
+                                    </div>
+                                    <Button asChild variant="ghost" size="sm">
+                                        <a
+                                            href={
+                                                TrialLineConfigurationReportController.downloadVersion(
+                                                    {
+                                                        trial: trialId,
+                                                        version: v.version,
+                                                    },
+                                                ).url
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <Download className="size-3.5" />
+                                            PDF
+                                        </a>
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
             {canEdit && (
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl lg:max-w-6xl">
@@ -380,7 +427,7 @@ export function LineConfigurationReportSection({
                     </DialogContent>
                 </Dialog>
             )}
-        </div>
+        </section>
     );
 }
 
@@ -1031,30 +1078,24 @@ function ReadOnlyLineConfigurationReport({
 }) {
     if (!report) {
         return (
-            <p className="text-muted-foreground">
+            <p className="p-6 text-center text-sm text-muted-foreground">
                 Belum ada Line Configuration Report.
             </p>
         );
     }
 
+    const lineRows = report.line_configuration ?? [];
+    const standardRows = report.production_standard ?? [];
+    const totalWorkers = lineRows.reduce((sum, row) => {
+        const n = parseLeadingNumber(row.worker ?? '');
+
+        return n !== null ? sum + n : sum;
+    }, 0);
+
     return (
-        <div className="space-y-6">
-            <div className="space-y-3">
-                <div className="flex flex-col items-end gap-2">
-                    <span className="text-xs text-muted-foreground">
-                        Versi {report.version}
-                    </span>
-                    <SignOffSummaryTable
-                        report={report}
-                        lanes={lanes}
-                        canApprovePie={canApprovePie}
-                        canCheckProd={canCheckProd}
-                        canReturn={canReturn}
-                    />
-                </div>
-                <SignOffComments report={report} lanes={lanes} />
-                <SignOffActionPanel
-                    trialId={trialId}
+        <>
+            <div className="border-b p-4">
+                <SignOffFlow
                     report={report}
                     lanes={lanes}
                     canApprovePie={canApprovePie}
@@ -1063,175 +1104,239 @@ function ReadOnlyLineConfigurationReport({
                 />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                    ['Date', formatDate(report.report_date)],
-                    ['Client', report.client_name],
-                    ['Validation', report.validation_name],
-                    ['PIC', report.pic],
-                    ['Operator', report.operator],
-                    ['Total', report.total_qty],
-                    ['Setting', report.setting_qty],
-                    ['PASS', report.pass_qty],
-                    ['NG', report.ng_qty],
-                ].map(([label, value]) => (
-                    <div
-                        key={label as string}
-                        className="rounded-md border p-3"
-                    >
-                        <div className="text-xs tracking-wide text-muted-foreground uppercase">
-                            {label}
+            <SignOffActionPanel
+                trialId={trialId}
+                report={report}
+                lanes={lanes}
+                canApprovePie={canApprovePie}
+                canCheckProd={canCheckProd}
+                canReturn={canReturn}
+            />
+
+            <div className="space-y-4 border-b p-4">
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+                    {[
+                        ['Date', formatDate(report.report_date)],
+                        ['Client', report.client_name],
+                        ['Validation', report.validation_name],
+                        ['PIC', report.pic],
+                        ['Operator', report.operator],
+                    ].map(([label, value]) => (
+                        <div key={label} className="min-w-0">
+                            <dt className="text-xs text-muted-foreground">
+                                {label}
+                            </dt>
+                            <dd
+                                className="truncate text-sm font-medium"
+                                title={value || undefined}
+                            >
+                                {value || '-'}
+                            </dd>
                         </div>
-                        <div className="font-medium">{value || '-'}</div>
+                    ))}
+                </dl>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                        { label: 'Total', value: report.total_qty, tone: '' },
+                        {
+                            label: 'Setting',
+                            value: report.setting_qty,
+                            tone: '',
+                        },
+                        {
+                            label: 'PASS',
+                            value: report.pass_qty,
+                            tone: 'text-green-700 dark:text-green-400',
+                        },
+                        {
+                            label: 'NG',
+                            value: report.ng_qty,
+                            tone: 'text-red-600 dark:text-red-400',
+                        },
+                    ].map(({ label, value, tone }) => (
+                        <div
+                            key={label}
+                            className="rounded-lg bg-muted/50 px-3 py-2"
+                        >
+                            <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                                {label}
+                            </div>
+                            <div
+                                className={cn(
+                                    'text-lg font-semibold tabular-nums',
+                                    tone,
+                                )}
+                            >
+                                {value || '-'}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="space-y-4 p-4">
+                <div className="min-w-0">
+                    <h4 className="mb-2 text-sm font-semibold">
+                        Production Standard
+                    </h4>
+                    <div className="overflow-x-auto rounded-lg border">
+                        <Table>
+                            <TableHeader className="bg-muted/50">
+                                <TableRow>
+                                    <TableHead>Line</TableHead>
+                                    <TableHead>Workers</TableHead>
+                                    <TableHead>
+                                        {report.capacity_label ||
+                                            'Kapasitas/Speed'}
+                                    </TableHead>
+                                    <TableHead>Remark</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {standardRows.map((row, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell>{row.line ?? '-'}</TableCell>
+                                        <TableCell>
+                                            {row.workers ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.capacity ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.remark ?? '-'}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {standardRows.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={4}
+                                            className="text-center text-muted-foreground"
+                                        >
+                                            Tidak ada data.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
                     </div>
-                ))}
-            </div>
+                </div>
 
-            <div>
-                <h4 className="mb-2 text-sm font-semibold">
-                    Production Standard
-                </h4>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Line</TableHead>
-                            <TableHead>Workers</TableHead>
-                            <TableHead>
-                                {report.capacity_label || 'Kapasitas/Speed'}
-                            </TableHead>
-                            <TableHead>Remark</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {(report.production_standard ?? []).map((row, i) => (
-                            <TableRow key={i}>
-                                <TableCell>{row.line ?? '-'}</TableCell>
-                                <TableCell>{row.workers ?? '-'}</TableCell>
-                                <TableCell>{row.capacity ?? '-'}</TableCell>
-                                <TableCell>{row.remark ?? '-'}</TableCell>
-                            </TableRow>
-                        ))}
-                        {(report.production_standard ?? []).length === 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={4}
-                                    className="text-center text-muted-foreground"
-                                >
-                                    Tidak ada data.
-                                </TableCell>
-                            </TableRow>
+                <div className="min-w-0">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold">
+                            Line Configuration
+                        </h4>
+                        {lineRows.length > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                                Total workers:{' '}
+                                <span className="font-semibold text-foreground tabular-nums">
+                                    {totalWorkers}
+                                </span>
+                            </span>
                         )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            <div>
-                <h4 className="mb-2 text-sm font-semibold">
-                    Line Configuration
-                </h4>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="text-center">No</TableHead>
-                            <TableHead>Equipment</TableHead>
-                            <TableHead>Process</TableHead>
-                            <TableHead>Worker</TableHead>
-                            <TableHead>Trial</TableHead>
-                            <TableHead>Remark</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {(report.line_configuration ?? []).map((row, i) => (
-                            <TableRow key={i}>
-                                <TableCell className="text-center text-muted-foreground">
-                                    {i + 1}
-                                </TableCell>
-                                <TableCell>{row.equipment ?? '-'}</TableCell>
-                                <TableCell>{row.process ?? '-'}</TableCell>
-                                <TableCell>{row.worker ?? '-'}</TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant={
-                                            row.trial_status === 'Pass'
-                                                ? 'default'
-                                                : 'outline'
-                                        }
-                                    >
-                                        {row.trial_status || 'No Trial'}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>{row.remark ?? '-'}</TableCell>
-                            </TableRow>
-                        ))}
-                        {(report.line_configuration ?? []).length === 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={6}
-                                    className="text-center text-muted-foreground"
-                                >
-                                    Tidak ada data.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                        {(report.line_configuration ?? []).length > 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={3}
-                                    className="text-right font-semibold"
-                                >
-                                    Total Workers
-                                </TableCell>
-                                <TableCell className="font-semibold">
-                                    {(report.line_configuration ?? []).reduce(
-                                        (sum, row) => {
-                                            const n = parseLeadingNumber(
-                                                row.worker ?? '',
-                                            );
-
-                                            return n !== null ? sum + n : sum;
-                                        },
-                                        0,
-                                    )}
-                                </TableCell>
-                                <TableCell colSpan={2} />
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                    </div>
+                    <div className="overflow-x-auto rounded-lg border">
+                        <Table>
+                            <TableHeader className="bg-muted/50">
+                                <TableRow>
+                                    <TableHead className="w-10 text-center">
+                                        No
+                                    </TableHead>
+                                    <TableHead>Equipment</TableHead>
+                                    <TableHead>Process</TableHead>
+                                    <TableHead>Worker</TableHead>
+                                    <TableHead>Trial</TableHead>
+                                    <TableHead>Remark</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {lineRows.map((row, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell className="text-center text-muted-foreground">
+                                            {i + 1}
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.equipment ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.process ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.worker ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant="outline"
+                                                className={
+                                                    row.trial_status === 'Pass'
+                                                        ? 'border-green-600/30 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                                                        : 'text-muted-foreground'
+                                                }
+                                            >
+                                                {row.trial_status || 'No Trial'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.remark ?? '-'}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {lineRows.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className="text-center text-muted-foreground"
+                                        >
+                                            Tidak ada data.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
             </div>
 
             {report.opinion && (
-                <div>
-                    <h4 className="mb-2 text-sm font-semibold">Opinion</h4>
-                    <p className="whitespace-pre-line">{report.opinion}</p>
+                <div className="border-t p-4">
+                    <h4 className="mb-1 text-sm font-semibold">Opinion</h4>
+                    <p className="text-sm wrap-break-word whitespace-pre-line text-foreground/90">
+                        {report.opinion}
+                    </p>
                 </div>
             )}
-        </div>
+        </>
     );
 }
 
+type StageState = 'done' | 'action' | 'waiting' | 'idle';
+
+type StageView = {
+    key: string;
+    label: string;
+    state: StageState;
+    detail: string;
+    assignee: string | null;
+    at: string | null;
+    comment: string | null;
+};
+
 /**
- * Sign-off box mirroring the source Excel's header table, minus the
- * Return(PROD) column (row 59-62 originally had it as a 4th column) — Return
- * is now its own action (see ReturnDialog below), available next to whichever
- * stage's confirm button is currently active, not a persistent field on
- * every version. Prepared(PIE) just reflects the existing `pic` field.
- *
- * The two real stages are sequential (Approved(PIE) before Checked(PROD) —
- * see App\Policies\TrialLineConfigurationReportPolicy): Checked(PROD) shows
- * a muted "Menunggu Approved (PIE)" placeholder instead of a dash while
- * that's still pending, rather than looking actionable when it isn't yet.
- * A cell shows a "Tindakan diperlukan" badge only when the viewer is
- * specifically authorized for that action right now (canApprovePie/
- * canCheckProd/canReturn, all pre-computed server-side) — the actual
- * Approve/Tandai Checked/Return controls live in the wider SignOffActionPanel
- * below, not in this table (a fixed-width per-stage cell left no real room
- * to type a comment). Clicking Approve/Checked stamps the acting user's own
- * name and Carbon::now() server-side (see
- * MarkTrialLineConfigurationReportSignOff), never a value typed into a form
- * field.
+ * The three sign-off stages as a left-to-right flow — Prepared (just the
+ * report's `pic`), then the two sequential real stages (Approved(PIE) before
+ * Checked(PROD), see App\Policies\TrialLineConfigurationReportPolicy). Each
+ * tile carries its own status, signer, timestamp and optional sign-off
+ * comment inline, replacing the old right-floated compact table plus its
+ * separate "Catatan Sign-off" box (which left a large empty area beside the
+ * table). The Approve/Tandai Checked/Return controls stay in
+ * SignOffActionPanel below; a tile only reads "Menunggu tindakan Anda" when
+ * the viewer is authorized for that stage right now (canApprovePie/
+ * canCheckProd/canReturn, all pre-computed server-side). Signer name/time are
+ * stamped server-side (see MarkTrialLineConfigurationReportSignOff), never
+ * typed into a form.
  */
-function SignOffSummaryTable({
+function SignOffFlow({
     report,
     lanes,
     canApprovePie,
@@ -1244,211 +1349,148 @@ function SignOffSummaryTable({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
-    const fields = stageFields(lanes);
+    const stages: StageView[] = [
+        {
+            key: 'prepared',
+            label: 'Prepared (PIE)',
+            state: report.pic ? 'done' : 'idle',
+            detail: report.pic || 'Belum diisi',
+            assignee: null,
+            at: null,
+            comment: null,
+        },
+        ...stageFields(lanes).map(({ field, label }): StageView => {
+            const done = report[field] ?? false;
+            const assignedUser = report[`${field}_user`] ?? null;
+            const canConfirm =
+                field === 'approved_pie' ? canApprovePie : canCheckProd;
+            const waitingOnPrevious =
+                field === 'checked_prod' && !report.approved_pie && !done;
+
+            let state: StageState = 'idle';
+            let detail = 'Belum ditentukan';
+
+            if (done) {
+                state = 'done';
+                detail = report[`${field}_by`] || 'Dikonfirmasi';
+            } else if (waitingOnPrevious) {
+                detail = `Menunggu ${lanes.approved_pie}`;
+            } else if (canConfirm || canReturn) {
+                state = 'action';
+                detail = 'Menunggu tindakan Anda';
+            } else if (assignedUser) {
+                state = 'waiting';
+                detail = `Menunggu ${assignedUser.name}`;
+            }
+
+            return {
+                key: field,
+                label,
+                state,
+                detail,
+                assignee: !done && assignedUser ? assignedUser.name : null,
+                at: done ? (report[`${field}_at`] ?? null) : null,
+                comment: done ? (report[`${field}_comment`] ?? null) : null,
+            };
+        }),
+    ];
 
     return (
-        <div className="inline-block overflow-x-auto rounded-md border">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="text-center whitespace-nowrap">
-                            Prepared (PIE)
-                        </TableHead>
-                        {fields.map(({ field, label }) => (
-                            <TableHead
-                                key={field}
-                                className="text-center whitespace-nowrap"
-                            >
-                                {label}
-                            </TableHead>
-                        ))}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow>
-                        <TableCell className="text-center align-top">
-                            {report.pic || '-'}
-                        </TableCell>
-                        {fields.map(({ field }) => {
-                            const by = report[`${field}_by`] ?? null;
-                            const at = report[`${field}_at`] ?? null;
-                            const done = report[field] ?? false;
-                            const assignedUser =
-                                report[`${field}_user`] ?? null;
-                            const canConfirm =
-                                field === 'approved_pie'
-                                    ? canApprovePie
-                                    : canCheckProd;
-                            const waitingOnPreviousStage =
-                                field === 'checked_prod' &&
-                                !report.approved_pie &&
-                                !done;
-
-                            if (waitingOnPreviousStage) {
-                                return (
-                                    <TableCell
-                                        key={field}
-                                        className="text-center align-top"
-                                    >
-                                        <span className="text-xs text-muted-foreground">
-                                            Menunggu {lanes.approved_pie}
-                                        </span>
-                                    </TableCell>
-                                );
-                            }
-
-                            // The actual Approve/Tandai Checked/Return
-                            // controls live below in SignOffActionPanel —
-                            // cramming a Textarea + two buttons into this
-                            // compact per-stage table cell (fixed-width by
-                            // the 3-column layout) left no room to type a
-                            // real comment. This table stays a pure status
-                            // overview; a "action needed" badge here just
-                            // points the viewer at the panel underneath.
-                            if (!done && (canConfirm || canReturn)) {
-                                return (
-                                    <TableCell
-                                        key={field}
-                                        className="text-center align-top"
-                                    >
-                                        <Badge
-                                            variant="outline"
-                                            className="text-amber-600"
-                                        >
-                                            Tindakan diperlukan
-                                        </Badge>
-                                    </TableCell>
-                                );
-                            }
-
-                            return (
-                                <TableCell
-                                    key={field}
-                                    className="text-center align-top"
-                                >
-                                    {done ? (
-                                        <div className="text-sm font-medium text-green-600 dark:text-green-400">
-                                            {by || 'Ya'}
-                                            {at && (
-                                                <div className="text-[10px] font-normal text-muted-foreground">
-                                                    {formatDate(at)}
-                                                </div>
-                                            )}
-                                            {report[`${field}_comment`] && (
-                                                <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
-                                                    <MessageSquare className="size-3" />
-                                                    Ada komentar
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : assignedUser ? (
-                                        <span className="text-xs text-muted-foreground">
-                                            Menunggu {assignedUser.name}
-                                        </span>
-                                    ) : (
-                                        <span className="text-muted-foreground">
-                                            Belum ditentukan
-                                        </span>
-                                    )}
-                                </TableCell>
-                            );
-                        })}
-                    </TableRow>
-                </TableBody>
-            </Table>
-        </div>
+        <ol className="grid gap-3 sm:grid-cols-3">
+            {stages.map((stage, index) => (
+                <li
+                    key={stage.key}
+                    className={cn(
+                        'flex gap-3 rounded-lg border p-3',
+                        stage.state === 'done' &&
+                            'border-green-600/25 bg-green-50/50 dark:bg-green-950/15',
+                        stage.state === 'action' &&
+                            'border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20',
+                    )}
+                >
+                    <StageIcon state={stage.state} step={index + 1} />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                            {stage.label}
+                        </p>
+                        <p
+                            className={cn(
+                                'truncate text-sm font-medium',
+                                stage.state === 'action' &&
+                                    'text-amber-700 dark:text-amber-400',
+                                (stage.state === 'idle' ||
+                                    stage.state === 'waiting') &&
+                                    'font-normal text-muted-foreground',
+                            )}
+                            title={stage.detail}
+                        >
+                            {stage.detail}
+                        </p>
+                        {stage.at && (
+                            <p className="text-xs text-muted-foreground">
+                                {formatDate(stage.at)}
+                            </p>
+                        )}
+                        {stage.state === 'action' && stage.assignee && (
+                            <p className="text-xs text-muted-foreground">
+                                Ditugaskan ke {stage.assignee}
+                            </p>
+                        )}
+                        {stage.comment && (
+                            <p className="mt-2 flex gap-1.5 rounded-md bg-background/80 px-2 py-1.5 text-xs wrap-break-word whitespace-pre-line text-foreground/80">
+                                <MessageSquare className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
+                                <span className="min-w-0">{stage.comment}</span>
+                            </p>
+                        )}
+                    </div>
+                </li>
+            ))}
+        </ol>
     );
 }
 
-/**
- * Full-width list of the optional comments left on Approve/Tandai Checked.
- * These used to render inside SignOffSummaryTable's cells, but a table cell
- * is `whitespace-nowrap` and sized by its header, so any real sentence either
- * bled into the neighbouring column or forced a horizontal scrollbar. The
- * table now only shows an "Ada komentar" marker; the text itself lives here.
- */
-function SignOffComments({
-    report,
-    lanes,
-}: {
-    report: NonNullable<LineConfigurationReportData>;
-    lanes: LineConfigurationLanes;
-}) {
-    const comments = stageFields(lanes).flatMap(({ field, label }) => {
-        const comment = report[`${field}_comment`];
+function StageIcon({ state, step }: { state: StageState; step: number }) {
+    if (state === 'done') {
+        return (
+            <CircleCheck className="size-5 shrink-0 text-green-600 dark:text-green-400" />
+        );
+    }
 
-        if (!report[field] || !comment) {
-            return [];
-        }
+    if (state === 'action') {
+        return (
+            <CircleAlert className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        );
+    }
 
-        return [
-            {
-                field,
-                label,
-                comment,
-                by: report[`${field}_by`] ?? null,
-                at: report[`${field}_at`] ?? null,
-            },
-        ];
-    });
-
-    if (comments.length === 0) {
-        return null;
+    if (state === 'waiting') {
+        return <Clock className="size-5 shrink-0 text-muted-foreground" />;
     }
 
     return (
-        <div className="rounded-md border bg-muted/30 p-3">
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <MessageSquare className="size-3.5" />
-                Catatan Sign-off
-            </div>
-            <ul className="space-y-3">
-                {comments.map(({ field, label, comment, by, at }) => (
-                    <li
-                        key={field}
-                        className="border-l-2 border-green-500/60 pl-3"
-                    >
-                        <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
-                            <span className="font-medium">{label}</span>
-                            <span className="text-muted-foreground">
-                                {[by, at && formatDate(at)]
-                                    .filter(Boolean)
-                                    .join(' · ')}
-                            </span>
-                        </div>
-                        <p className="mt-0.5 text-sm wrap-break-word whitespace-pre-line">
-                            {comment}
-                        </p>
-                    </li>
-                ))}
-            </ul>
-        </div>
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold text-muted-foreground">
+            {step}
+        </span>
     );
 }
 
 /**
- * The spacious counterpart to SignOffSummaryTable's compact "Tindakan
- * diperlukan" badge — a full-width Card with a real-sized comment Textarea
- * and the actual Approve/Tandai Checked + Return controls, rendered right
- * below the table. Resolves to at most one stage at a time (the two are
- * sequential — see TrialLineConfigurationReport::currentApprovalStage() —
- * and canApprovePie/canCheckProd/canReturn are all pre-scoped server-side to
- * whichever stage is currently active for *this* viewer), so there's never
- * a question of which stage's controls are showing. Renders nothing once
- * neither stage is actionable for the current viewer (report fully signed
- * off, or the viewer isn't the assignee).
+ * The actionable counterpart to SignOffFlow's "Menunggu tindakan Anda" tile —
+ * a full-width amber band with a real-sized comment box and the actual
+ * Approve/Tandai Checked + Return controls. Resolves to at most one stage at
+ * a time (the two are sequential — see
+ * TrialLineConfigurationReport::currentApprovalStage() — and canApprovePie/
+ * canCheckProd/canReturn are all pre-scoped server-side to whichever stage is
+ * currently active for *this* viewer). Renders nothing once neither stage is
+ * actionable for the current viewer.
  *
- * The comment box is a *single* shared field, not two separate ones — its
- * text becomes the optional Approve/Tandai Checked `comment` if you submit
- * that button, or the Return `reason` if you submit Return instead (each
- * button belongs to its own real `<Form>`, posting to its own route — the
- * Textarea itself sits outside both and is mirrored into each via a hidden
- * input, so there's exactly one visible box, not an unexplained duplicate).
- * Return has no confirmation popup — per the user's explicit ask, it's just
- * the second submit button in this same panel, gated by the same
- * MIN_RETURN_REASON_WORDS-word minimum the standalone dialog used to
- * enforce (client-side: the button stays disabled below that; server-side:
- * ReturnLineConfigurationReportRequest is still the authoritative check).
+ * The comment box is a *single* shared field: its text becomes the optional
+ * Approve/Tandai Checked `comment`, or the Return `reason` if Return is
+ * submitted instead (each button belongs to its own real `<Form>` posting to
+ * its own route; the Textarea sits outside both and is mirrored into each via
+ * a hidden input). Return has no confirmation popup — per the user's explicit
+ * ask — and is gated by the MIN_RETURN_REASON_WORDS-word minimum (client-side
+ * the button stays disabled below it; ReturnLineConfigurationReportRequest is
+ * still the authoritative server-side check).
  */
 function SignOffActionPanel({
     trialId,
@@ -1491,59 +1533,53 @@ function SignOffActionPanel({
         TrialLineConfigurationReportController.returnReport.form(trialId);
 
     return (
-        <Card className="border-amber-600/40">
-            <CardContent className="space-y-3 pt-6">
+        <div className="space-y-3 border-b border-l-4 border-l-amber-500 bg-amber-50/50 p-4 dark:bg-amber-950/15">
+            <div className="flex items-start gap-2">
+                <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <div>
                     <h4 className="text-sm font-semibold">
                         Tindakan Diperlukan: {label}
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                        Konfirmasi {label} untuk Line Configuration Report ini,
-                        atau kembalikan untuk revisi.
+                        Konfirmasi {label} untuk report ini, atau kembalikan
+                        untuk revisi.
                     </p>
                 </div>
+            </div>
 
-                <div className="grid gap-2">
-                    <Label htmlFor="lcr_sign_off_comment">Komentar</Label>
-                    <Textarea
-                        id="lcr_sign_off_comment"
-                        rows={4}
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        placeholder="Tambahkan komentar bila perlu..."
-                    />
-                    <p
-                        className={cn(
-                            'text-xs',
-                            reasonOk
-                                ? 'text-muted-foreground'
-                                : 'text-amber-600',
-                        )}
-                    >
-                        Opsional untuk {confirmLabel}. Untuk Return, wajib diisi
-                        — {wordCount} / {MIN_RETURN_REASON_WORDS} kata minimal.
-                    </p>
-                </div>
+            <div className="grid gap-1.5">
+                <Label htmlFor="lcr_sign_off_comment" className="sr-only">
+                    Komentar
+                </Label>
+                <Textarea
+                    id="lcr_sign_off_comment"
+                    rows={3}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Komentar (opsional untuk konfirmasi, wajib untuk Return)..."
+                    className="bg-background"
+                />
+            </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <Form {...confirmFormProps}>
-                        {({ processing }) => (
-                            <>
-                                <input
-                                    type="hidden"
-                                    name="comment"
-                                    value={note}
-                                />
-                                <Button type="submit" disabled={processing}>
-                                    {confirmLabel}
-                                </Button>
-                            </>
-                        )}
-                    </Form>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p
+                    className={cn(
+                        'text-xs',
+                        reasonOk
+                            ? 'text-muted-foreground'
+                            : 'text-amber-700 dark:text-amber-400',
+                    )}
+                >
+                    Return butuh minimal {MIN_RETURN_REASON_WORDS} kata —{' '}
+                    <span className="tabular-nums">
+                        {wordCount}/{MIN_RETURN_REASON_WORDS}
+                    </span>
+                </p>
+                <div className="flex flex-wrap items-start gap-2">
                     {canReturn && (
                         <Form {...returnFormProps}>
                             {({ processing, errors }) => (
-                                <div className="flex flex-col gap-1">
+                                <div className="flex flex-col items-end gap-1">
                                     <input
                                         type="hidden"
                                         name="reason"
@@ -1551,9 +1587,11 @@ function SignOffActionPanel({
                                     />
                                     <Button
                                         type="submit"
-                                        variant="destructive"
+                                        variant="outline"
+                                        className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                         disabled={processing || !reasonOk}
                                     >
+                                        <RotateCcw className="size-4" />
                                         Return
                                     </Button>
                                     {errors.reason && (
@@ -1565,8 +1603,23 @@ function SignOffActionPanel({
                             )}
                         </Form>
                     )}
+                    <Form {...confirmFormProps}>
+                        {({ processing }) => (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="comment"
+                                    value={note}
+                                />
+                                <Button type="submit" disabled={processing}>
+                                    <CircleCheck className="size-4" />
+                                    {confirmLabel}
+                                </Button>
+                            </>
+                        )}
+                    </Form>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }

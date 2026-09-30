@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\TrialAdditionalAttachmentController;
 use App\Http\Controllers\TrialAttachmentController;
 use App\Http\Controllers\TrialController;
 use App\Http\Controllers\TrialLineConfigurationReportController;
@@ -29,6 +30,13 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
         ->whereNumber('trial')->whereNumber('attachment')->name('attachments.destroy');
     Route::get('{trial}/attachments/{attachment}/file', [TrialAttachmentController::class, 'show'])
         ->whereNumber('trial')->whereNumber('attachment')->name('attachments.show');
+
+    Route::post('{trial}/additional-attachments', [TrialAdditionalAttachmentController::class, 'store'])
+        ->whereNumber('trial')->name('additional-attachments.store');
+    Route::delete('{trial}/additional-attachments/{attachment}', [TrialAdditionalAttachmentController::class, 'destroy'])
+        ->whereNumber('trial')->whereNumber('attachment')->name('additional-attachments.destroy');
+    Route::get('{trial}/additional-attachments/{attachment}/file', [TrialAdditionalAttachmentController::class, 'show'])
+        ->whereNumber('trial')->whereNumber('attachment')->name('additional-attachments.show');
 
     Route::get('{trial}/review', [TrialReviewController::class, 'edit'])->whereNumber('trial')->name('review.edit');
     Route::post('{trial}/review', [TrialReviewController::class, 'store'])->whereNumber('trial')->name('review.store');

@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Trial;
+use App\Models\TrialAdditionalAttachment;
 use App\Models\TrialReview;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -146,6 +147,62 @@ class TrialPolicy
         }
 
         return false;
+    }
+
+    /**
+     * Additional Attachments (supplementary PDF/images) — deliberately NOT
+     * tied to progress_status: the trial's drafter (owner or a granted
+     * editor) or any reviewer assigned to one of its department reviews, in
+     * any round, may upload at any point, including after Approved/Rejected.
+     * Admin may too.
+     */
+    public function uploadAdditionalAttachment(User $user, Trial $trial): bool
+    {
+        return $this->additionalAttachmentUploaderRole($user, $trial) !== null;
+    }
+
+    /**
+     * The original uploader may remove their own file while they still hold
+     * drafter/reviewer standing on this trial; Admin may remove any file
+     * (e.g. a wrong upload by someone else).
+     */
+    public function deleteAdditionalAttachment(User $user, Trial $trial, TrialAdditionalAttachment $attachment): bool
+    {
+        if ((int) $attachment->trial_id !== $trial->id) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return (int) $attachment->uploaded_by_user_id === $user->id
+            && $this->uploadAdditionalAttachment($user, $trial);
+    }
+
+    /**
+     * 'Drafter', 'Reviewer (DEPT)', 'Admin', or null when the user is none
+     * of those.
+     */
+    public function additionalAttachmentUploaderRole(User $user, Trial $trial): ?string
+    {
+        if ($user->isTrialOwner($trial) || $user->hasTrialEditPermission($trial->id)) {
+            return 'Drafter';
+        }
+
+        if ($user->isReviewer()) {
+            $department = TrialReview::query()
+                ->where('trial_id', $trial->id)
+                ->visibleToReviewer($user)
+                ->orderByDesc('review_round')
+                ->value('department');
+
+            if ($department !== null) {
+                return 'Reviewer ('.$department.')';
+            }
+        }
+
+        return $user->isAdmin() ? 'Admin' : null;
     }
 
     public function delete(User $user, Trial $trial): bool

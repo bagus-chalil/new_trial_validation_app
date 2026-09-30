@@ -6,6 +6,7 @@ use App\Actions\Trials\CheckTrialCompleteness;
 use App\Actions\Trials\RecordReportPrint;
 use App\Models\LineConfigurationLane;
 use App\Models\Trial;
+use App\Models\TrialAdditionalAttachment;
 use App\Models\TrialAttachmentFile;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\TrialResult;
@@ -158,6 +159,9 @@ class TrialReportController extends Controller
 
         return Inertia::render('trials/report', [
             'trial' => $trial,
+            'additionalAttachments' => $this->additionalAttachmentsFor($trial),
+            'canUploadAdditionalAttachment' => Gate::allows('uploadAdditionalAttachment', $trial),
+            'additionalAttachmentLimit' => TrialAdditionalAttachment::MAX_PER_TRIAL,
             'results' => $core['results'],
             'weighingSections' => $core['weighingSections'],
             'attachments' => $attachments,
@@ -505,6 +509,33 @@ class TrialReportController extends Controller
             'approvedByName' => $trial->approved_by ? User::displayName($trial->approved_by) : null,
             'rejectedByName' => $trial->rejected_by ? User::displayName($trial->rejected_by) : null,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function additionalAttachmentsFor(Trial $trial): array
+    {
+        return TrialAdditionalAttachment::query()
+            ->where('trial_id', $trial->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (TrialAdditionalAttachment $a) => [
+                'id' => $a->id,
+                'original_name' => $a->original_name,
+                'mime_type' => $a->mime_type,
+                'is_pdf' => $a->isPdf(),
+                'size_bytes' => $a->size_bytes,
+                'description' => $a->description,
+                'uploaded_by_name' => $a->uploaded_by_name,
+                'uploader_role' => $a->uploader_role,
+                'created_at' => $a->created_at?->toDateTimeString(),
+                'url' => route('trials.additional-attachments.show', [$trial->id, $a->id]),
+                'can_delete' => Gate::allows('deleteAdditionalAttachment', [$trial, $a]),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

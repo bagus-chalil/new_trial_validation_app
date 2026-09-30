@@ -5,6 +5,8 @@ import TrialReportController from '@/actions/App/Http/Controllers/TrialReportCon
 import { AttachmentImagePreview } from '@/components/attachment-image-preview';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import type { AdditionalAttachment } from '@/components/trials/additional-attachments-section';
+import { AdditionalAttachmentsSection } from '@/components/trials/additional-attachments-section';
 import type {
     LineConfigurationApproverOption,
     LineConfigurationReportData,
@@ -116,6 +118,9 @@ type EditableReview = {
 
 type PageProps = {
     trial: TrialData;
+    additionalAttachments: AdditionalAttachment[];
+    canUploadAdditionalAttachment: boolean;
+    additionalAttachmentLimit: number;
     results: ResultItem[];
     weighingSections: WeighingSection[];
     attachments: Record<string, AttachmentFile[]>;
@@ -167,6 +172,9 @@ function formatNumber(value: number | null): string {
 
 export default function TrialReport({
     trial,
+    additionalAttachments,
+    canUploadAdditionalAttachment,
+    additionalAttachmentLimit,
     results,
     weighingSections,
     attachments,
@@ -993,6 +1001,13 @@ export default function TrialReport({
                                 </Table>
                             </div>
                         )}
+
+                        <AdditionalAttachmentsSection
+                            trialId={trial.id}
+                            attachments={additionalAttachments}
+                            canUpload={canUploadAdditionalAttachment}
+                            limit={additionalAttachmentLimit}
+                        />
 
                         <LineConfigurationReportSection
                             trialId={trial.id}

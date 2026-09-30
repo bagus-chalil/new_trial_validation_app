@@ -121,6 +121,14 @@ class Trial extends Model
     }
 
     /**
+     * @return HasMany<TrialAdditionalAttachment, $this>
+     */
+    public function additionalAttachments(): HasMany
+    {
+        return $this->hasMany(TrialAdditionalAttachment::class, 'trial_id');
+    }
+
+    /**
      * The one *editable* Line Configuration Report row (is_locked=false) —
      * see TrialLineConfigurationReport's doc comment on versioning. Historical
      * (Returned-then-superseded) versions are lineConfigurationReportVersions()
