@@ -14,6 +14,7 @@ import type {
     LineConfigurationReturnNote,
 } from '@/components/trials/line-configuration-report-section';
 import { LineConfigurationReportSection } from '@/components/trials/line-configuration-report-section';
+import { ReportPdfDownloadDialog } from '@/components/trials/report-pdf-download-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -240,15 +241,13 @@ export default function TrialReport({
                                 Export Excel
                             </a>
                         </Button>
-                        <Button asChild>
-                            <a
-                                href={TrialReportController.pdf(trial.id).url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                Unduh PDF
-                            </a>
-                        </Button>
+                        <ReportPdfDownloadDialog
+                            trialId={trial.id}
+                            hasLineConfigurationReport={
+                                lineConfigurationReport != null ||
+                                lineConfigurationReportVersions.length > 0
+                            }
+                        />
                     </div>
                 </div>
 

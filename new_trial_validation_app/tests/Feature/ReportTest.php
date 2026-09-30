@@ -3,6 +3,7 @@
 use App\Models\ActivityLog;
 use App\Models\AuditLog;
 use App\Models\Trial;
+use App\Models\TrialLineConfigurationReport;
 use App\Models\TrialReview;
 use App\Models\User;
 use App\Models\ValidationParameter;
@@ -325,6 +326,43 @@ test('downloading the per-trial report PDF returns a PDF and writes the report_p
 
     $activityLog = ActivityLog::where('module', 'REPORT')->where('action', 'PRINT_REPORT')->first();
     expect($activityLog)->not->toBeNull();
+});
+
+test('the per-trial report PDF includes only the trial data by default', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $trial = makeReportTrial(['created_by' => $owner->email]);
+    TrialLineConfigurationReport::create(['trial_id' => $trial->id, 'client_name' => 'LCR Client']);
+
+    $html = $this->actingAs($owner)->get(route('trials.report.pdf', $trial))->assertOk()->getContent();
+
+    expect($html)->toContain('Validation Parameter')
+        ->not->toContain('Attachment Summary')
+        ->not->toContain('Line Configuration Report');
+});
+
+test('the per-trial report PDF adds attachments when requested', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $trial = makeReportTrial(['created_by' => $owner->email]);
+
+    $html = $this->actingAs($owner)->get(route('trials.report.pdf', [$trial, 'attachments' => 1]))->assertOk()->getContent();
+
+    expect($html)->toContain('Attachment Summary')
+        ->toContain('Additional Attachment')
+        ->not->toContain('Line Configuration Report');
+});
+
+test('the per-trial report PDF adds only the latest line configuration report version when requested', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $trial = makeReportTrial(['created_by' => $owner->email]);
+    TrialLineConfigurationReport::create(['trial_id' => $trial->id, 'version' => 1, 'is_locked' => true, 'client_name' => 'Old Version Client']);
+    TrialLineConfigurationReport::create(['trial_id' => $trial->id, 'version' => 2, 'is_locked' => false, 'client_name' => 'Latest Version Client']);
+
+    $html = $this->actingAs($owner)->get(route('trials.report.pdf', [$trial, 'line_configuration' => 1]))->assertOk()->getContent();
+
+    expect($html)->toContain('Line Configuration Report')
+        ->toContain('Latest Version Client')
+        ->not->toContain('Old Version Client')
+        ->not->toContain('Attachment Summary');
 });
 
 test('a user without view access is forbidden from the per-trial report PDF', function () {

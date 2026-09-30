@@ -236,12 +236,21 @@ class TrialReportController extends Controller
      * legacy's window.print() flow: it fires the same report_printed audit
      * write logPrint() does, so no separate fetch-then-print call is needed
      * from the frontend anymore.
+     *
+     * The trial data itself is always included; `?attachments=1` adds the
+     * photo evidence + additional attachments, and `?line_configuration=1`
+     * appends the trial's Line Configuration Report — only its latest
+     * version, never the locked historical ones (those stay downloadable
+     * individually via TrialLineConfigurationReportController::downloadVersion()).
      */
     public function pdf(Request $request, int $trial, RecordReportPrint $action, PdfService $pdf): HttpResponse
     {
         $trial = Trial::whereNull('deleted_at')->with(['product', 'approver'])->findOrFail($trial);
 
         Gate::authorize('view', $trial);
+
+        $includeAttachments = $request->boolean('attachments');
+        $includeLineConfiguration = $request->boolean('line_configuration');
 
         $action($trial, $request->user());
 
@@ -251,26 +260,53 @@ class TrialReportController extends Controller
         // avoid a PHPStan/Larastan false positive on nested Collection
         // generics from ->groupBy()->map().
         $attachments = collect();
-        foreach (TrialAttachmentFile::query()
-            ->where('trial_id', $trial->id)
-            ->whereNull('deleted_at')
-            ->orderBy('category')
-            ->orderBy('id')
-            ->get()
-            ->groupBy('category') as $category => $files) {
-            $attachments[$category] = $files->map(fn (TrialAttachmentFile $file) => [
-                'file_name' => $file->file_name,
-                'caption' => $file->caption,
-                'src' => $this->attachmentDataUri($file),
-            ])->values();
+        $additionalAttachments = collect();
+        if ($includeAttachments) {
+            foreach (TrialAttachmentFile::query()
+                ->where('trial_id', $trial->id)
+                ->whereNull('deleted_at')
+                ->orderBy('category')
+                ->orderBy('id')
+                ->get()
+                ->groupBy('category') as $category => $files) {
+                $attachments[$category] = $files->map(fn (TrialAttachmentFile $file) => [
+                    'file_name' => $file->file_name,
+                    'caption' => $file->caption,
+                    'src' => $this->attachmentDataUri($file),
+                ])->values();
+            }
+
+            $additionalAttachments = TrialAdditionalAttachment::query()
+                ->where('trial_id', $trial->id)
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (TrialAdditionalAttachment $a) => [
+                    'original_name' => $a->original_name,
+                    'description' => $a->description,
+                    'uploaded_by_name' => $a->uploaded_by_name,
+                    'created_at' => $a->created_at?->toDateTimeString(),
+                    'is_pdf' => $a->isPdf(),
+                    // PDFs can't be embedded as an image — they're listed by
+                    // name only and stay downloadable from the report page.
+                    'src' => $a->isPdf() ? '' : $this->additionalAttachmentDataUri($a),
+                ]);
         }
+
+        $lineConfigurationReport = $includeLineConfiguration
+            ? TrialLineConfigurationReport::where('trial_id', $trial->id)->orderByDesc('version')->first()
+            : null;
 
         return $pdf->fromView('pdf.trial-report', [
             'title' => 'Report — '.$trial->trial_code,
             'trial' => $trial,
             'results' => $core['results'],
             'weighingSections' => $core['weighingSections'],
+            'includeAttachments' => $includeAttachments,
             'attachments' => $attachments,
+            'additionalAttachments' => $additionalAttachments,
+            'includeLineConfiguration' => $includeLineConfiguration,
+            'lineConfigurationReport' => $lineConfigurationReport,
             'reviews' => $core['reviews'],
             'approvedByName' => $core['approvedByName'],
             'rejectedByName' => $core['rejectedByName'],
@@ -555,6 +591,17 @@ class TrialReportController extends Controller
         $mime = $disk->mimeType($path) ?: 'application/octet-stream';
 
         return 'data:'.$mime.';base64,'.base64_encode($disk->get($path));
+    }
+
+    private function additionalAttachmentDataUri(TrialAdditionalAttachment $file): string
+    {
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($file->storagePath())) {
+            return '';
+        }
+
+        return 'data:'.$file->mime_type.';base64,'.base64_encode((string) $disk->get($file->storagePath()));
     }
 
     /**

@@ -153,32 +153,60 @@
         </div>
     @endforeach
 
-    <div class="section-title">Attachment Summary</div>
-    @if (count($attachments) === 0)
-        <p class="muted">Tidak ada attachment.</p>
-    @else
-        @foreach ($attachments as $category => $files)
-            <div class="attachment-category">
-                <h4>{{ $category }}</h4>
-                <div class="attachment-grid">
-                    @foreach ($files as $file)
-                        <figure class="attachment-tile">
-                            @if ($file['src'])
-                                <img src="{{ $file['src'] }}" alt="{{ $file['file_name'] }}">
-                            @else
-                                <p class="muted" style="height: 55mm; display: flex; align-items: center; justify-content: center;">File tidak ditemukan</p>
-                            @endif
-                            <figcaption>
-                                @if (filled($file['caption'] ?? null))
-                                    <strong>{{ $file['caption'] }}</strong><br>
+    @if ($includeAttachments)
+        <div class="section-title">Attachment Summary</div>
+        @if (count($attachments) === 0)
+            <p class="muted">Tidak ada attachment.</p>
+        @else
+            @foreach ($attachments as $category => $files)
+                <div class="attachment-category">
+                    <h4>{{ $category }}</h4>
+                    <div class="attachment-grid">
+                        @foreach ($files as $file)
+                            <figure class="attachment-tile">
+                                @if ($file['src'])
+                                    <img src="{{ $file['src'] }}" alt="{{ $file['file_name'] }}">
+                                @else
+                                    <p class="muted" style="height: 55mm; display: flex; align-items: center; justify-content: center;">File tidak ditemukan</p>
                                 @endif
-                                {{ $file['file_name'] }}
-                            </figcaption>
-                        </figure>
-                    @endforeach
+                                <figcaption>
+                                    @if (filled($file['caption'] ?? null))
+                                        <strong>{{ $file['caption'] }}</strong><br>
+                                    @endif
+                                    {{ $file['file_name'] }}
+                                </figcaption>
+                            </figure>
+                        @endforeach
+                    </div>
                 </div>
+            @endforeach
+        @endif
+
+        <div class="section-title">Additional Attachment</div>
+        @if (count($additionalAttachments) === 0)
+            <p class="muted">Tidak ada additional attachment.</p>
+        @else
+            <div class="attachment-grid">
+                @foreach ($additionalAttachments as $file)
+                    <figure class="attachment-tile">
+                        @if ($file['src'])
+                            <img src="{{ $file['src'] }}" alt="{{ $file['original_name'] }}">
+                        @else
+                            <p class="muted" style="height: 55mm; display: flex; align-items: center; justify-content: center; text-align: center;">
+                                {{ $file['is_pdf'] ? 'File PDF — unduh dari halaman Report' : 'File tidak ditemukan' }}
+                            </p>
+                        @endif
+                        <figcaption>
+                            @if (filled($file['description'] ?? null))
+                                <strong>{{ $file['description'] }}</strong><br>
+                            @endif
+                            {{ $file['original_name'] }}<br>
+                            <span class="muted">{{ $file['uploaded_by_name'] ?? '-' }} · {{ $file['created_at'] ?? '-' }}</span>
+                        </figcaption>
+                    </figure>
+                @endforeach
             </div>
-        @endforeach
+        @endif
     @endif
 
     <div class="section-title">Department Review</div>
@@ -229,5 +257,14 @@
                 </tr>
             </tbody>
         </table>
+    @endif
+
+    @if ($includeLineConfiguration)
+        <div class="section-title" style="page-break-before: always;">Line Configuration Report</div>
+        @if ($lineConfigurationReport)
+            @include('pdf.partials.line-configuration-report', ['report' => $lineConfigurationReport])
+        @else
+            <p class="muted">Belum ada Line Configuration Report.</p>
+        @endif
     @endif
 @endsection
