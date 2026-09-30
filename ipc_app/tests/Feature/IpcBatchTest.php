@@ -26,6 +26,30 @@ class IpcBatchTest extends TestCase
         $this->get('/batches')->assertOk();
     }
 
+    public function test_create_page_preselects_the_product_given_in_the_query(): void
+    {
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BC-ACTIVE', 'is_active' => true]);
+        MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BC-INACTIVE', 'is_active' => false]);
+        $inactive = MasterProduct::create(['fg_code' => 'FG-2', 'product_name' => 'Product 2', 'is_active' => false]);
+
+        $this->actingAs(User::factory()->create());
+
+        $this->get("/batches/create?product={$product->id}")
+            ->assertOk()
+            ->assertInertia(
+                fn ($page) => $page->where('initialProduct.id', $product->id)
+                    ->has('initialProduct.bulk_codes', 1)
+                    ->where('initialProduct.bulk_codes.0.bulk_code', 'BC-ACTIVE'),
+            );
+
+        $this->get("/batches/create?product={$inactive->id}")
+            ->assertInertia(fn ($page) => $page->where('initialProduct', null));
+
+        $this->get('/batches/create')
+            ->assertInertia(fn ($page) => $page->where('initialProduct', null));
+    }
+
     public function test_authenticated_user_can_create_a_batch_and_is_redirected_to_startup_check(): void
     {
         $this->actingAs(User::factory()->create());

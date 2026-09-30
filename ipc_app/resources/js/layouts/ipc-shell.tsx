@@ -1,5 +1,6 @@
 import { BottomNav } from '@/components/ipc/bottom-nav';
 import { NavRail } from '@/components/ipc/nav-rail';
+import { returnToFromUrl } from '@/lib/return-to';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
@@ -22,7 +23,9 @@ export function IpcShell({
     progressPct?: number;
     children: ReactNode;
 }) {
-    const { props } = usePage<SharedData>();
+    const { props, url } = usePage<SharedData>();
+    // A `?return_to=` from the page that sent the user here beats the fixed parent.
+    const backTarget = returnToFromUrl(url) ?? backHref;
 
     return (
         <div className="bg-background flex h-screen flex-col md:flex-row">
@@ -31,9 +34,10 @@ export function IpcShell({
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 {header ?? (
                     <header className="flex shrink-0 items-center gap-3 px-5 py-5 md:px-6">
-                        {backHref && (
+                        {backTarget && (
                             <Link
-                                href={backHref}
+                                href={backTarget}
+                                aria-label="Kembali"
                                 className="border-border-soft bg-card text-foreground flex size-11 shrink-0 items-center justify-center rounded-2xl border"
                             >
                                 <ArrowLeft className="size-[18px]" strokeWidth={2.2} />

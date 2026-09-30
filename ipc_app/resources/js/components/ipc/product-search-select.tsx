@@ -22,12 +22,15 @@ export function ProductSearchSelect({
     onChange,
     placeholder = 'Pilih FG Code',
     className,
+    flagMissingBulkCode = false,
 }: {
     id?: string;
     value: ProductOption | null;
     onChange: (product: ProductOption | null) => void;
     placeholder?: string;
     className?: string;
+    /** Mark results that have no active bulk code (batches can't be created for those). */
+    flagMissingBulkCode?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const [q, setQ] = useState('');
@@ -97,7 +100,7 @@ export function ProductSearchSelect({
     };
 
     return (
-        <div ref={rootRef} className="relative">
+        <div ref={rootRef} className="relative min-w-0">
             <button
                 id={id}
                 type="button"
@@ -146,6 +149,11 @@ export function ProductSearchSelect({
                                 <span className="min-w-0 flex-1">
                                     <span className="font-semibold">{product.fg_code}</span> — {product.product_name}
                                 </span>
+                                {flagMissingBulkCode && product.bulk_codes.length === 0 && (
+                                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                                        Tanpa bulk code
+                                    </span>
+                                )}
                             </button>
                         ))}
                         {!loading && failed && <p className="text-destructive p-3 text-center text-sm">Gagal memuat produk. Coba lagi.</p>}

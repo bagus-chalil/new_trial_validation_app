@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
+use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -104,11 +105,21 @@ class IpcBatchController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         // No product list here on purpose — the FG Code picker searches `lookup.products`
         // on demand, since shipping the whole master (8000+ rows) froze tablets.
-        return Inertia::render('batches/create');
+        // `?product=` re-selects a product when returning from adding its bulk code in Master Produk.
+        $initialProduct = $request->integer('product')
+            ? MasterProduct::query()
+                ->where('is_active', true)
+                ->with(['bulkCodes' => fn ($query) => $query->where('is_active', true)->orderBy('bulk_code')->select(['id', 'master_product_id', 'bulk_code'])])
+                ->find($request->integer('product'), ['id', 'fg_code', 'product_name', 'shelf_life_months'])
+            : null;
+
+        return Inertia::render('batches/create', [
+            'initialProduct' => $initialProduct,
+        ]);
     }
 
     public function store(StoreIpcBatchRequest $request): RedirectResponse

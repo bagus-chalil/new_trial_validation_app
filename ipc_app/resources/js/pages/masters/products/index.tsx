@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
-import { Head, router, useForm } from '@inertiajs/react';
-import { CalendarClock, Package, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
+import { RETURN_TO_PARAM, returnToFromUrl } from '@/lib/return-to';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeft, CalendarClock, Package, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface BulkCode {
@@ -154,8 +155,15 @@ export default function MasterProductsIndex({
     bulkCodeCounts: Record<BulkFilter, number>;
 }) {
     const bulkFilter: BulkFilter = filters.bulk === 'with' || filters.bulk === 'without' ? filters.bulk : 'all';
+    // Set when another page (e.g. Batch Baru) sent the user here to fix something; kept across
+    // search/filter so the back button still leads there.
+    const returnTo = returnToFromUrl(usePage().url);
+    const keptParams: Record<string, string> = {
+        ...(returnTo ? { [RETURN_TO_PARAM]: returnTo } : {}),
+        ...(bulkFilter === 'all' ? {} : { bulk: bulkFilter }),
+    };
     const setBulkFilter = (value: BulkFilter) => {
-        const params: Record<string, string> = {};
+        const params: Record<string, string> = returnTo ? { [RETURN_TO_PARAM]: returnTo } : {};
         if (filters.q) params.q = filters.q;
         if (value !== 'all') params.bulk = value;
         router.get(route('master-products.index'), params, { preserveState: true, replace: true });
@@ -212,8 +220,18 @@ export default function MasterProductsIndex({
                     baseUrl={route('master-products.index')}
                     initialQ={filters.q ?? ''}
                     placeholder="Cari FG code / nama produk / bulk code..."
-                    extraParams={bulkFilter === 'all' ? {} : { bulk: bulkFilter }}
+                    extraParams={keptParams}
                 />
+
+                {returnTo && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-[13px] text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+                        <span>Setelah bulk code ditambahkan, kembali ke halaman sebelumnya untuk melanjutkan.</span>
+                        <Link href={returnTo} className="flex items-center gap-1 font-semibold underline underline-offset-2">
+                            <ArrowLeft className="size-3.5" />
+                            Kembali ke halaman sebelumnya
+                        </Link>
+                    </div>
+                )}
 
                 <div className="flex flex-wrap items-center gap-2">
                     {bulkFilterOptions.map((option) => {

@@ -116,6 +116,11 @@ class MasterDataTest extends TestCase
                     ->where('products.data.1.id', $onlyDeletedCode->id)
                     ->where('filters.bulk', 'without'),
             );
+
+        $this->actingAs($admin)
+            ->get('/masters/products?q=FG-A')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('bulkCodeCounts', ['all' => 1, 'with' => 1, 'without' => 0]));
     }
 
     public function test_product_can_be_created(): void

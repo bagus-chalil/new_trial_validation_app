@@ -17,9 +17,8 @@ class MasterProductController extends Controller
 {
     public function index(Request $request): Response
     {
-        $products = MasterProduct::query()
-            ->withCount('bulkCodes')
-            ->with(['bulkCodes' => fn ($query) => $query->orderBy('bulk_code')])
+        // The chip counts follow the search, so they are built from the same base query.
+        $searched = MasterProduct::query()
             ->when($request->string('q')->toString(), function ($query, $q) {
                 $query->where(function ($query) use ($q) {
                     $query->where('product_name', 'like', "%{$q}%")
@@ -28,7 +27,11 @@ class MasterProductController extends Controller
                             ->select('master_product_id')
                             ->where('bulk_code', 'like', "%{$q}%"));
                 });
-            })
+            });
+
+        $products = (clone $searched)
+            ->withCount('bulkCodes')
+            ->with(['bulkCodes' => fn ($query) => $query->orderBy('bulk_code')])
             ->when($request->string('bulk')->toString(), fn ($query, $bulk) => match ($bulk) {
                 'with' => $query->has('bulkCodes'),
                 'without' => $query->doesntHave('bulkCodes'),
@@ -38,8 +41,8 @@ class MasterProductController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $total = MasterProduct::query()->count();
-        $withBulkCodes = MasterProduct::query()->has('bulkCodes')->count();
+        $total = (clone $searched)->count();
+        $withBulkCodes = (clone $searched)->has('bulkCodes')->count();
 
         return Inertia::render('masters/products/index', [
             'products' => $products,
