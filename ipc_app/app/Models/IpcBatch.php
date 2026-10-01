@@ -61,6 +61,12 @@ class IpcBatch extends Model
         return $this->belongsTo(MasterProductBulkCode::class, 'master_product_bulk_code_id');
     }
 
+    /** Every bulk code this batch was filled from (`bulkCode()` is only the first one). */
+    public function bulkCodes()
+    {
+        return $this->hasMany(IpcBatchBulkCode::class);
+    }
+
     public function masterLine()
     {
         return $this->belongsTo(MasterLine::class);

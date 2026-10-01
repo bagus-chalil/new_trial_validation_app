@@ -9,6 +9,7 @@ use App\Models\MasterProductBulkCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -124,16 +125,29 @@ class IpcBatchController extends Controller
 
     public function store(StoreIpcBatchRequest $request): RedirectResponse
     {
-        $bulkCode = MasterProductBulkCode::findOrFail($request->validated('master_product_bulk_code_id'));
+        // Sorted by code so the joined display snapshot is stable regardless of tick order.
+        $bulkCodes = MasterProductBulkCode::query()
+            ->whereIn('id', $request->validated('master_product_bulk_code_ids'))
+            ->orderBy('bulk_code')
+            ->get(['id', 'bulk_code']);
 
-        $batch = IpcBatch::create([
-            'master_product_id' => $request->validated('master_product_id'),
-            'master_product_bulk_code_id' => $bulkCode->id,
-            'no_batch' => $request->validated('no_batch'),
-            'bulk_code' => $bulkCode->bulk_code,
-            'created_by' => $request->user()->id,
-            'current_stage' => IpcBatch::STAGE_STARTUP,
-        ]);
+        $batch = DB::transaction(function () use ($request, $bulkCodes) {
+            $batch = IpcBatch::create([
+                'master_product_id' => $request->validated('master_product_id'),
+                'master_product_bulk_code_id' => $bulkCodes->first()->id,
+                'no_batch' => $request->validated('no_batch'),
+                'bulk_code' => $bulkCodes->pluck('bulk_code')->implode(', '),
+                'created_by' => $request->user()->id,
+                'current_stage' => IpcBatch::STAGE_STARTUP,
+            ]);
+
+            $batch->bulkCodes()->createMany($bulkCodes->map(fn (MasterProductBulkCode $bulkCode) => [
+                'master_product_bulk_code_id' => $bulkCode->id,
+                'bulk_code' => $bulkCode->bulk_code,
+            ])->all());
+
+            return $batch;
+        });
 
         return redirect()->route('startup-check.edit', $batch)->with('success', 'Batch dibuat. Lanjutkan ke Startup Check.');
     }

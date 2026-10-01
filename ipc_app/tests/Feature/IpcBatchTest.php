@@ -63,7 +63,7 @@ class IpcBatchTest extends TestCase
 
         $response = $this->post('/batches', [
             'master_product_id' => $product->id,
-            'master_product_bulk_code_id' => $bulkCode->id,
+            'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'BATCH-001',
         ]);
 
@@ -92,11 +92,64 @@ class IpcBatchTest extends TestCase
 
         $this->post('/batches', [
             'master_product_id' => $product->id,
-            'master_product_bulk_code_id' => $bulkCode->id,
+            'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'batch-typed-lowercase',
         ]);
 
         $this->assertSame('BATCH-TYPED-LOWERCASE', IpcBatch::firstOrFail()->no_batch);
+    }
+
+    public function test_batch_can_be_created_with_multiple_bulk_codes(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $bulkB = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-B', 'is_active' => true]);
+        $bulkA = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-A', 'is_active' => true]);
+        MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-C', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_ids' => [$bulkB->id, $bulkA->id],
+            'no_batch' => 'batch-multi',
+        ])->assertSessionHasNoErrors();
+
+        $batch = IpcBatch::with('bulkCodes')->sole();
+        $this->assertSame('BULK-A, BULK-B', $batch->bulk_code);
+        $this->assertSame($bulkA->id, $batch->master_product_bulk_code_id);
+        $this->assertEqualsCanonicalizing([$bulkA->id, $bulkB->id], $batch->bulkCodes->pluck('master_product_bulk_code_id')->all());
+    }
+
+    public function test_at_least_one_bulk_code_is_required(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_ids' => [],
+            'no_batch' => 'BATCH-001',
+        ])->assertSessionHasErrors('master_product_bulk_code_ids');
+
+        $this->assertSame(0, IpcBatch::count());
+    }
+
+    public function test_inactive_bulk_code_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $active = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-1', 'is_active' => true]);
+        $inactive = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-2', 'is_active' => false]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_ids' => [$active->id, $inactive->id],
+            'no_batch' => 'BATCH-001',
+        ])->assertSessionHasErrors('master_product_bulk_code_ids.1');
+
+        $this->assertSame(0, IpcBatch::count());
     }
 
     public function test_no_batch_is_required_to_create_a_batch(): void
@@ -112,7 +165,7 @@ class IpcBatchTest extends TestCase
 
         $this->post('/batches', [
             'master_product_id' => $product->id,
-            'master_product_bulk_code_id' => $bulkCode->id,
+            'master_product_bulk_code_ids' => [$bulkCode->id],
         ])->assertSessionHasErrors('no_batch');
 
         $this->assertSame(0, IpcBatch::count());
@@ -132,8 +185,8 @@ class IpcBatchTest extends TestCase
 
         $this->post('/batches', [
             'master_product_id' => $product->id,
-            'master_product_bulk_code_id' => $otherBulkCode->id,
-        ])->assertSessionHasErrors('master_product_bulk_code_id');
+            'master_product_bulk_code_ids' => [$otherBulkCode->id],
+        ])->assertSessionHasErrors('master_product_bulk_code_ids.0');
     }
 
     public function test_authenticated_user_can_view_batch_show_page(): void
@@ -175,7 +228,7 @@ class IpcBatchTest extends TestCase
         ]);
         $this->post('/batches', [
             'master_product_id' => $product->id,
-            'master_product_bulk_code_id' => $bulkCode->id,
+            'master_product_bulk_code_ids' => [$bulkCode->id],
         ])->assertSessionHasErrors('master_product_id');
     }
 }

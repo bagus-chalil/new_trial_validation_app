@@ -5,9 +5,9 @@ import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { withReturnTo } from '@/lib/return-to';
 import { type RecentBatch, type SharedData } from '@/types';
@@ -17,6 +17,10 @@ import { FormEventHandler, useState } from 'react';
 
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
+// Every active bulk code is ticked by default — most FG codes have one, and multi-bulk
+// batches usually use all of them; the user unticks whatever this batch doesn't use.
+const allBulkCodeIds = (product: ProductOption | null) => product?.bulk_codes.map((bulkCode) => String(bulkCode.id)) ?? [];
+
 export default function BatchesCreate({ initialProduct = null }: { initialProduct?: ProductOption | null }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -24,7 +28,7 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
 
     const { data, setData, post, processing, errors, reset } = useForm({
         master_product_id: initialProduct ? String(initialProduct.id) : '',
-        master_product_bulk_code_id: initialProduct?.bulk_codes.length === 1 ? String(initialProduct.bulk_codes[0].id) : '',
+        master_product_bulk_code_ids: allBulkCodeIds(initialProduct),
         no_batch: '',
     });
 
@@ -34,6 +38,16 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
 
     const bulkCodeOptions = selectedProduct?.bulk_codes ?? [];
     const missingBulkCode = selectedProduct !== null && bulkCodeOptions.length === 0;
+    const selectedCount = data.master_product_bulk_code_ids.length;
+    const allSelected = bulkCodeOptions.length > 0 && selectedCount === bulkCodeOptions.length;
+    const bulkCodeError =
+        errors.master_product_bulk_code_ids ?? Object.entries(errors).find(([key]) => key.startsWith('master_product_bulk_code_ids.'))?.[1];
+
+    const toggleBulkCode = (id: string, checked: boolean) =>
+        setData(
+            'master_product_bulk_code_ids',
+            checked ? [...data.master_product_bulk_code_ids, id] : data.master_product_bulk_code_ids.filter((selected) => selected !== id),
+        );
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -43,7 +57,7 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
             return;
         }
         if (!data.master_product_id) empty.push('FG Code / Produk');
-        if (!data.master_product_bulk_code_id) empty.push('Bulk Code');
+        if (selectedProduct && !selectedCount) empty.push('Bulk Code (minimal 1)');
         if (!data.no_batch.trim()) empty.push('No Batch FG');
         if (empty.length) {
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
@@ -77,12 +91,10 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
                                         value={selectedProduct}
                                         onChange={(product) => {
                                             setSelectedProduct(product);
-                                            // Pre-select when there's only one option, which is the common case.
-                                            const onlyBulkCode = product?.bulk_codes.length === 1 ? String(product.bulk_codes[0].id) : '';
                                             setData((prev) => ({
                                                 ...prev,
                                                 master_product_id: product ? String(product.id) : '',
-                                                master_product_bulk_code_id: onlyBulkCode,
+                                                master_product_bulk_code_ids: allBulkCodeIds(product),
                                             }));
                                         }}
                                         className={!data.master_product_id && message ? errorBorder : ''}
@@ -96,34 +108,62 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="master_product_bulk_code_id">Bulk Code</Label>
-                                    <Select
-                                        value={data.master_product_bulk_code_id}
-                                        onValueChange={(value) => setData('master_product_bulk_code_id', value)}
-                                        disabled={!selectedProduct || missingBulkCode}
-                                    >
-                                        <SelectTrigger
-                                            id="master_product_bulk_code_id"
-                                            className={`min-h-11 ${!data.master_product_bulk_code_id && message ? errorBorder : ''}`}
-                                        >
-                                            <SelectValue
-                                                placeholder={
-                                                    !selectedProduct
-                                                        ? 'Pilih FG Code dahulu'
-                                                        : missingBulkCode
-                                                          ? 'Tidak ada bulk code'
-                                                          : 'Pilih bulk code'
-                                                }
-                                            />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {bulkCodeOptions.map((bulkCode) => (
-                                                <SelectItem key={bulkCode.id} value={String(bulkCode.id)}>
-                                                    {bulkCode.bulk_code}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="flex items-baseline justify-between gap-2">
+                                        <Label>Bulk Code</Label>
+                                        {bulkCodeOptions.length > 0 && (
+                                            <span className="text-muted-foreground text-[12.5px]">
+                                                Tersedia <span className="text-foreground font-semibold">{bulkCodeOptions.length}</span> bulk ·
+                                                terpilih <span className="text-foreground font-semibold">{selectedCount}</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    {!selectedProduct ? (
+                                        <div className="border-input text-muted-foreground flex min-h-11 items-center rounded-md border px-3 text-sm">
+                                            Pilih FG Code dahulu
+                                        </div>
+                                    ) : (
+                                        bulkCodeOptions.length > 0 && (
+                                            <div
+                                                className={`border-input overflow-hidden rounded-md border ${!selectedCount && message ? errorBorder : ''}`}
+                                            >
+                                                {bulkCodeOptions.length > 1 && (
+                                                    <div className="bg-muted/40 flex items-center justify-end border-b px-3 py-1.5">
+                                                        <button
+                                                            type="button"
+                                                            className="text-primary text-[12.5px] font-semibold"
+                                                            onClick={() =>
+                                                                setData(
+                                                                    'master_product_bulk_code_ids',
+                                                                    allSelected ? [] : allBulkCodeIds(selectedProduct),
+                                                                )
+                                                            }
+                                                        >
+                                                            {allSelected ? 'Kosongkan' : 'Pilih semua'}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                <div className="max-h-60 divide-y overflow-y-auto">
+                                                    {bulkCodeOptions.map((bulkCode) => {
+                                                        const id = String(bulkCode.id);
+                                                        return (
+                                                            <label
+                                                                key={bulkCode.id}
+                                                                htmlFor={`bulk-code-${id}`}
+                                                                className="hover:bg-muted/40 flex min-h-11 cursor-pointer items-center gap-3 px-3 text-sm"
+                                                            >
+                                                                <Checkbox
+                                                                    id={`bulk-code-${id}`}
+                                                                    checked={data.master_product_bulk_code_ids.includes(id)}
+                                                                    onCheckedChange={(checked) => toggleBulkCode(id, checked === true)}
+                                                                />
+                                                                {bulkCode.bulk_code}
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
                                     {missingBulkCode && (
                                         <div
                                             role="alert"
@@ -150,7 +190,7 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
                                             </div>
                                         </div>
                                     )}
-                                    <InputError message={errors.master_product_bulk_code_id} />
+                                    <InputError message={bulkCodeError} />
                                 </div>
 
                                 <div className="grid gap-2">

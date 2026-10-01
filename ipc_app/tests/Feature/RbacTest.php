@@ -139,7 +139,7 @@ class RbacTest extends TestCase
         $this->actingAs(User::factory()->approver()->create())
             ->post('/batches', [
                 'master_product_id' => $product->id,
-                'master_product_bulk_code_id' => 1,
+                'master_product_bulk_code_ids' => [1],
                 'no_batch' => 'BATCH-003',
             ])
             ->assertForbidden();
