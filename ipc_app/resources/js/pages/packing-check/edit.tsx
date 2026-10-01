@@ -50,6 +50,7 @@ interface PackingCheckData {
     save_count: number;
     line_leader_name: string | null;
     coding_machine: string | null;
+    weighing_data: string | null;
     revisions?: PackingCheckRevision[];
     user?: { name: string } | null;
     [key: string]: unknown;
@@ -81,6 +82,7 @@ export default function PackingCheckEdit({
     isReadOnly,
     checklistGroups,
     decisions,
+    weighingDataOptions,
     photoUrls,
     standardWeightMb,
     canFillMasterBox,
@@ -92,6 +94,7 @@ export default function PackingCheckEdit({
     isReadOnly: boolean;
     checklistGroups: ChecklistGroup[];
     decisions: string[];
+    weighingDataOptions: string[];
     photoUrls: Record<string, string | null>;
     standardWeightMb: string;
     canFillMasterBox: boolean;
@@ -123,6 +126,7 @@ export default function PackingCheckEdit({
         sum_weight_mb: (packingCheck?.sum_weight_mb as string) ?? '',
         line_leader_name: packingCheck?.line_leader_name ?? '',
         coding_machine: packingCheck?.coding_machine ?? '',
+        weighing_data: packingCheck?.weighing_data ?? '',
         remarks: (packingCheck?.remarks as string) ?? '',
         decision: (packingCheck?.decision as string) ?? '',
     });
@@ -131,6 +135,7 @@ export default function PackingCheckEdit({
     // and the form stops asking, so QC only re-enters what actually changes between rounds.
     const lineLeaderLocked = Boolean(packingCheck?.line_leader_name);
     const codingMachineLocked = Boolean(packingCheck?.coding_machine);
+    const weighingDataLocked = Boolean(packingCheck?.weighing_data);
 
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
@@ -141,6 +146,7 @@ export default function PackingCheckEdit({
         Boolean(data.sum_weight_mb?.toString().trim()) &&
         Boolean(data.line_leader_name?.trim()) &&
         Boolean(data.coding_machine?.trim()) &&
+        Boolean(data.weighing_data) &&
         PHOTO_FIELDS.every(({ key }) => Boolean(photoUrls[key])) &&
         Boolean(data.decision) &&
         Boolean(data.remarks?.trim());
@@ -156,6 +162,7 @@ export default function PackingCheckEdit({
         // by the server and don't need re-entry, matching SavePackingCheckRequest's server-side rule.
         if (!lineLeaderLocked && !data.line_leader_name?.trim()) empty.add('line_leader_name');
         if (!codingMachineLocked && !data.coding_machine?.trim()) empty.add('coding_machine');
+        if (!weighingDataLocked && !data.weighing_data) empty.add('weighing_data');
         if (!data.sum_weight_mb?.toString().trim()) empty.add('sum_weight_mb');
         allChecklistKeys.forEach((key) => {
             if (!data[key]) empty.add(key);
@@ -202,6 +209,7 @@ export default function PackingCheckEdit({
         // though the server now has it locked in.
         line_leader_name: data.line_leader_name,
         coding_machine: data.coding_machine,
+        weighing_data: data.weighing_data,
         remarks: '',
         decision: '',
     });
@@ -210,6 +218,7 @@ export default function PackingCheckEdit({
         Boolean(data.sum_weight_mb?.toString().trim()) ||
         Boolean(data.line_leader_name?.trim()) ||
         Boolean(data.coding_machine?.trim()) ||
+        Boolean(data.weighing_data) ||
         Boolean(data.remarks?.trim()) ||
         Boolean(data.decision) ||
         allChecklistKeys.some((key) => Boolean(data[key]));
@@ -333,7 +342,7 @@ export default function PackingCheckEdit({
 
                         <AccordionCard title="Parameter Packing" complete={parameterPackingComplete} defaultOpen={!parameterPackingComplete}>
                             <div className="flex flex-col gap-2">
-                                <Label className="text-muted-foreground text-xs font-semibold">Standard Weight MB</Label>
+                                <Label className="text-muted-foreground text-xs font-semibold">Std Bruto MB</Label>
                                 {/* Read-only: taken from the batch's Start Inspection weight-master-box
                                     readings on save, not typed here — see SavePackingCheck::standardWeightMbFor().
                                     Defaults to 0 when Start Inspection recorded no weights yet, so this never
@@ -384,7 +393,7 @@ export default function PackingCheckEdit({
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="coding_machine" className="text-muted-foreground text-xs font-semibold">
-                                    Coding Machine{codingMachineLocked && ' (terkunci sejak TH Progress 1)'}
+                                    Machines Coding{codingMachineLocked && ' (terkunci sejak TH Progress 1)'}
                                 </Label>
                                 <Input
                                     id="coding_machine"
@@ -401,6 +410,28 @@ export default function PackingCheckEdit({
                                     disabled={isReadOnly || codingMachineLocked}
                                 />
                                 <InputError message={errors.coding_machine} />
+                            </div>
+                            <div id="weighing_data" className="flex flex-col gap-2">
+                                <Label className="text-muted-foreground text-xs font-semibold">
+                                    Data Timbang{weighingDataLocked && ' (terkunci sejak TH Progress 1)'}
+                                </Label>
+                                <div className={errorFields.has('weighing_data') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
+                                    <ChipToggleGroup
+                                        name="weighing_data"
+                                        options={weighingDataOptions}
+                                        value={data.weighing_data ?? ''}
+                                        onChange={(value) => {
+                                            setData('weighing_data', value);
+                                            setErrorFields((prev) => {
+                                                const n = new Set(prev);
+                                                n.delete('weighing_data');
+                                                return n;
+                                            });
+                                        }}
+                                        disabled={isReadOnly || weighingDataLocked}
+                                    />
+                                </div>
+                                <InputError message={errors.weighing_data} />
                             </div>
                             <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
                                 {PHOTO_FIELDS.map(({ key, label }) => (

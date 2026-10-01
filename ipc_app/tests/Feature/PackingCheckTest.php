@@ -86,6 +86,7 @@ class PackingCheckTest extends TestCase
             'sum_weight_mb' => 105.0,
             'line_leader_name' => 'Budi',
             'coding_machine' => 'CM-01',
+            'weighing_data' => 'Ada',
             'remarks' => 'OK',
             'decision' => PackingCheck::DECISION_PASSED,
             ...$overrides,
@@ -236,6 +237,8 @@ class PackingCheckTest extends TestCase
         $this->assertNull($packingCheck->primary_bulk_status);
         $this->assertNull($packingCheck->secondary_coding_na_status);
         $this->assertNull($packingCheck->tersier_coding_na_status);
+        $this->assertNull($packingCheck->primary_capping_sealing_status);
+        $this->assertNull($packingCheck->tersier_shipper_label_status);
         $this->assertNull($packingCheck->sum_weight_mb);
         $this->assertNull($packingCheck->remarks);
         $this->assertNull($packingCheck->decision);
@@ -243,6 +246,7 @@ class PackingCheckTest extends TestCase
         // ...but line leader/coding machine (asked once, locked) must survive.
         $this->assertSame('Budi', $packingCheck->line_leader_name);
         $this->assertSame('CM-01', $packingCheck->coding_machine);
+        $this->assertSame('Ada', $packingCheck->weighing_data);
 
         // And round 1's real answers must still be fully intact in its revision snapshot.
         $revision = $packingCheck->revisions()->where('revision_no', 1)->firstOrFail();
@@ -563,5 +567,87 @@ class PackingCheckTest extends TestCase
 
         $photo = UploadedFile::fake()->image('color.jpg');
         $this->post("/batches/{$batch->id}/packing-check/photo/color", ['photo' => $photo])->assertForbidden();
+    }
+
+    public function test_checklist_matches_the_paper_form_fr_qac_193(): void
+    {
+        $groups = collect(PackingCheck::checklistGroups())->keyBy('key');
+
+        $this->assertSame(
+            ['Bulk', 'Packaging', 'Capping / Sealing', 'Coding Batch & EXP', 'Coding NA', 'Attribute', 'Functional Test'],
+            array_values($groups['primary']['fields']),
+        );
+        $this->assertSame(
+            ['Identity', 'Appearance', 'Coding Batch & EXP', 'Coding NA', 'Attribute'],
+            array_values($groups['secondary']['fields']),
+        );
+        $this->assertSame(
+            ['Identity', 'Appearance', 'Coding Batch & EXP', 'Coding NA', 'Shipper Label'],
+            array_values($groups['tersier']['fields']),
+        );
+
+        foreach ($groups as $group) {
+            foreach (array_keys($group['fields']) as $field) {
+                $this->assertArrayHasKey($field, PackingCheck::SEVERITY_LABELS);
+            }
+        }
+    }
+
+    public function test_new_paper_form_items_are_saved_and_snapshotted_into_the_revision(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload([
+            'primary_capping_sealing_status' => PackingCheck::STATUS_NOT_CONFORM,
+            'tersier_shipper_label_status' => PackingCheck::STATUS_NA,
+        ]))->assertSessionHasNoErrors();
+
+        $packingCheck = $batch->fresh()->packingCheck;
+        $this->assertSame(PackingCheck::STATUS_NOT_CONFORM, $packingCheck->primary_capping_sealing_status);
+        $this->assertSame(PackingCheck::STATUS_NA, $packingCheck->tersier_shipper_label_status);
+        $this->assertSame(PackingCheck::STATUS_CONFORM, $packingCheck->secondary_coding_batch_exp_status);
+
+        $revision = $packingCheck->revisions()->first();
+        $this->assertSame(PackingCheck::STATUS_NOT_CONFORM, $revision->primary_capping_sealing_status);
+        $this->assertSame(PackingCheck::STATUS_NA, $revision->tersier_shipper_label_status);
+    }
+
+    public function test_new_paper_form_items_are_required_even_on_a_draft_save(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $payload = $this->validPayload(['finalize' => false]);
+        unset($payload['primary_capping_sealing_status'], $payload['tersier_shipper_label_status']);
+
+        $this->put("/batches/{$batch->id}/packing-check", $payload)
+            ->assertSessionHasErrors(['primary_capping_sealing_status', 'tersier_shipper_label_status']);
+    }
+
+    public function test_weighing_data_is_required_to_finalize_and_must_be_ada_or_tidak_ada(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['weighing_data' => null]))
+            ->assertSessionHasErrors('weighing_data');
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['weighing_data' => 'Mungkin']))
+            ->assertSessionHasErrors('weighing_data');
+    }
+
+    public function test_weighing_data_is_locked_after_the_first_round(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $this->seedPackingFinalizePrereqs($batch);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'weighing_data' => 'Tidak Ada']));
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['weighing_data' => 'Ada']))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Tidak Ada', $batch->fresh()->packingCheck->weighing_data);
     }
 }

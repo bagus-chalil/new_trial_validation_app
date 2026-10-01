@@ -37,6 +37,7 @@ class SavePackingCheckRequest extends FormRequest
         $existing = $batch->packingCheck;
         $lineLeaderRequired = $existing?->line_leader_name ? 'nullable' : $required;
         $codingMachineRequired = $existing?->coding_machine ? 'nullable' : $required;
+        $weighingDataRequired = $existing?->weighing_data ? 'nullable' : $required;
 
         $rules = [
             'finalize' => ['required', 'boolean'],
@@ -45,6 +46,7 @@ class SavePackingCheckRequest extends FormRequest
             'sum_weight_mb' => ['required', 'numeric', 'min:0'],
             'line_leader_name' => [$lineLeaderRequired, 'string', 'max:255'],
             'coding_machine' => [$codingMachineRequired, 'string', 'max:255'],
+            'weighing_data' => [$weighingDataRequired, 'in:'.implode(',', PackingCheck::WEIGHING_DATA_OPTIONS)],
             'remarks' => [$required, 'string'],
             'decision' => [$required, 'in:'.implode(',', PackingCheck::DECISIONS)],
         ];
@@ -53,7 +55,7 @@ class SavePackingCheckRequest extends FormRequest
         // server-side from the batch's Start Inspection weight-master-box readings (defaulting
         // to '0' when none exist yet), never submitted by the client and never blocking finalize.
 
-        // The 13 checklist items are wajib on every save, draft included (user, 2026-10-01).
+        // The 17 checklist items are wajib on every save, draft included (user, 2026-10-01).
         foreach (PackingCheck::checklistGroups() as $group) {
             foreach (array_keys($group['fields']) as $field) {
                 $rules[$field] = ['required', 'in:'.implode(',', $group['options'])];
@@ -88,6 +90,7 @@ class SavePackingCheckRequest extends FormRequest
                 $hasAnyValue = filled($this->input('sum_weight_mb'))
                     || filled($this->input('line_leader_name'))
                     || filled($this->input('coding_machine'))
+                    || filled($this->input('weighing_data'))
                     || filled($this->input('remarks'))
                     || filled($this->input('decision'))
                     || $checklistFields->contains(fn ($field) => filled($this->input($field)));

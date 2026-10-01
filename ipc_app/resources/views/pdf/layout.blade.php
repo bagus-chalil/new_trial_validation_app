@@ -282,7 +282,12 @@
             <div style="text-align:center;"><span class="approval-badge">Approval</span></div>
         </div>
         <div class="meta">
-            <div class="form-number">No. Batch: {{ $batch->no_batch }}</div>
+            @isset($docNumber)
+                <div class="form-number">No. Doc: {{ $docNumber }}</div>
+                <div>Rev: {{ $docRevision ?? '0' }}</div>
+            @else
+                <div class="form-number">No. Batch: {{ $batch->no_batch }}</div>
+            @endisset
             <div>{{ now()->translatedFormat('d M Y H:i') }}</div>
         </div>
     </div>

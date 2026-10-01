@@ -63,6 +63,7 @@ interface PackingCheckData {
     sum_weight_mb: string | null;
     line_leader_name: string | null;
     coding_machine: string | null;
+    weighing_data: string | null;
     remarks: string | null;
     decision: string | null;
     revisions?: PackingCheckRevision[];
@@ -171,12 +172,13 @@ export default function PrintFillingPacking({
                             <InfoField label="QC" value={packingCheck.user?.name ?? '—'} />
                             <InfoField label="Line Leader" value={packingCheck.line_leader_name ?? '—'} />
                             <InfoField label="Machines Coding" value={packingCheck.coding_machine ?? '—'} />
-                            <InfoField label="Standard Weight MB" value={packingCheck.standard_weight_mb ?? '—'} />
+                            <InfoField label="Std Bruto MB" value={packingCheck.standard_weight_mb ?? '—'} />
+                            <InfoField label="Data Timbang" value={packingCheck.weighing_data ?? '—'} />
 
                             {packingChecklistGroups.map((group) => (
                                 <div key={group.key} className="col-span-full">
                                     <p className="text-muted-foreground/70 mb-1.5 text-[11.5px] font-semibold tracking-wide uppercase">
-                                        {groupLabel(group.key)} Packing
+                                        {groupLabel(group.key)} Packaging
                                     </p>
                                     {Object.entries(group.fields).map(([field, label]) => (
                                         <ChecklistRow key={field} label={label} value={packingCheck[field] as string | null} />

@@ -250,6 +250,10 @@ trait BuildsIpcReportPayloads
                     return [
                         ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing'])),
                         'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
+                        // Title + document control number of the paper form this report mirrors.
+                        'title' => 'Laporan Pemeriksaan In Process Control Filling & Packing',
+                        'docNumber' => 'FR.QAC.193.00',
+                        'docRevision' => '0',
                     ];
                 })(),
                 "Filling-Packing-Report-{$batch->no_batch}.pdf",

@@ -26,14 +26,15 @@ class SavePackingCheck
         return DB::transaction(function () use ($batch, $user, $data) {
             $finalize = (bool) ($data['finalize'] ?? false);
             $existing = $batch->packingCheck;
-            $fields = collect($data)->except(['finalize', 'line_leader_name', 'coding_machine'])->all();
+            $fields = collect($data)->except(['finalize', 'line_leader_name', 'coding_machine', 'weighing_data'])->all();
 
-            // Asked once on the first round, then carried forward untouched — the coding machine
-            // and line leader don't change between inspection rounds of the same batch, so the
+            // Asked once on the first round, then carried forward untouched — the coding machine,
+            // line leader and Data Timbang don't change between inspection rounds of the same batch, so the
             // form stops rendering them from TH_PROGRESS 2 on and submits nothing for them. A
             // first round that left one blank can still fill it in later.
             $lineLeaderName = $existing?->line_leader_name ?? ($data['line_leader_name'] ?? null);
             $codingMachine = $existing?->coding_machine ?? ($data['coding_machine'] ?? null);
+            $weighingData = $existing?->weighing_data ?? ($data['weighing_data'] ?? null);
 
             $saveCount = ($existing?->save_count ?? 0) + 1;
 
@@ -44,6 +45,7 @@ class SavePackingCheck
                     'standard_weight_mb' => self::standardWeightMbFor($batch),
                     'line_leader_name' => $lineLeaderName,
                     'coding_machine' => $codingMachine,
+                    'weighing_data' => $weighingData,
                     'user_id' => $user->id,
                     // TH_PROGRESS: counts every save, draft or final (real legacy column).
                     'save_count' => $saveCount,
