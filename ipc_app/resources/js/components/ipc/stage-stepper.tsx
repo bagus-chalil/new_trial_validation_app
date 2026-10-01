@@ -8,6 +8,8 @@ export interface StepperStage {
     status: 'done' | 'active' | 'locked';
     href: string | null;
     available: boolean;
+    /** TH Progress "n/max" for the repeatable round stages (filling/packing/finished), once saved. */
+    progress?: string | null;
 }
 
 function StageCircle({ stage, size = 32 }: { stage: StepperStage; size?: number }) {
@@ -33,7 +35,11 @@ function StageMeta({ stage }: { stage: StepperStage }) {
     if (stage.status === 'active')
         return (
             <span className="text-muted-foreground mt-0.5 text-xs font-medium">
-                {stage.available ? 'Sedang berjalan · ketuk untuk isi' : 'Belum tersedia'}
+                {!stage.available
+                    ? 'Belum tersedia'
+                    : stage.progress
+                      ? `TH Progress ${stage.progress} · ketuk untuk isi`
+                      : 'Sedang berjalan · ketuk untuk isi'}
             </span>
         );
     return <span className="text-muted-foreground/70 mt-0.5 text-xs font-medium">Belum dimulai</span>;

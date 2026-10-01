@@ -2,12 +2,16 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesThProgressRound;
 use App\Models\FillingCheck;
+use App\Models\IpcBatch;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 class SaveFillingCheckRequest extends FormRequest
 {
+    use ValidatesThProgressRound;
+
     public function authorize(): bool
     {
         return true;
@@ -34,6 +38,16 @@ class SaveFillingCheckRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $validator->after(function (Validator $validator) {
+            /** @var IpcBatch $batch */
+            $batch = $this->route('batch');
+            $this->validateThProgressRound(
+                $validator,
+                (int) $batch->fillingCheck?->save_count,
+                $this->boolean('finalize'),
+            );
+        });
+
         if (! $this->boolean('finalize')) {
             $validator->after(fn (Validator $validator) => $this->validateDraft($validator));
 

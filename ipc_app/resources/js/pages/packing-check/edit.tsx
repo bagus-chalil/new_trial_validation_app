@@ -83,6 +83,8 @@ export default function PackingCheckEdit({
     decisions,
     photoUrls,
     standardWeightMb,
+    maxThProgress,
+    previousStageCompleted,
 }: {
     batch: Batch;
     packingCheck: PackingCheckData | null;
@@ -91,6 +93,8 @@ export default function PackingCheckEdit({
     decisions: string[];
     photoUrls: Record<string, string | null>;
     standardWeightMb: string;
+    maxThProgress: number;
+    previousStageCompleted: boolean;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -182,7 +186,7 @@ export default function PackingCheckEdit({
         }
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: true }));
-        put(`/batches/${batch.id}/packing-check`);
+        put(`/batches/${batch.id}/packing-check`, { onError: showProgressError });
     };
 
     const blankRoundForm = () => ({
@@ -208,6 +212,14 @@ export default function PackingCheckEdit({
         Boolean(data.decision) ||
         allChecklistKeys.some((key) => Boolean(data[key]));
 
+    // TH Progress rule errors (max rounds / Filling not finalized) come back under `progress`.
+    const showProgressError = (serverErrors: Record<string, string>) => {
+        if (serverErrors.progress) toast(serverErrors.progress);
+    };
+
+    // The last allowed round can only be "Selesaikan" — SavePackingCheckRequest rejects a draft.
+    const isLastRound = (packingCheck?.save_count ?? 0) + 1 >= maxThProgress;
+
     const saveDraft = () => {
         if (!hasAnyDraftValue()) {
             // Nothing at all is filled — computeEmptyRequiredFields() here is the same
@@ -221,7 +233,7 @@ export default function PackingCheckEdit({
         }
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: false }));
-        put(`/batches/${batch.id}/packing-check`, { preserveState: true, onSuccess: () => setData(blankRoundForm()) });
+        put(`/batches/${batch.id}/packing-check`, { preserveState: true, onSuccess: () => setData(blankRoundForm()), onError: showProgressError });
     };
 
     return (
@@ -255,7 +267,7 @@ export default function PackingCheckEdit({
                             <InfoField label="Bulk Code" value={batch.bulk_code} />
                             <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
-                            <InfoField label="TH Progress" value={String(packingCheck?.save_count ?? 0)} />
+                            <InfoField label="TH Progress" value={`${packingCheck?.save_count ?? 0} / ${maxThProgress}`} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
@@ -464,9 +476,15 @@ export default function PackingCheckEdit({
                         <StickySaveBar
                             label="Simpan & Selesaikan"
                             processing={processing}
-                            secondaryLabel="Simpan"
+                            secondaryLabel={isLastRound ? undefined : 'Simpan'}
                             onSecondaryClick={saveDraft}
-                            note={`${answeredCount} dari ${allChecklistKeys.length} item checklist terisi`}
+                            note={[
+                                `${answeredCount} dari ${allChecklistKeys.length} item checklist terisi`,
+                                isLastRound && `TH Progress ke-${maxThProgress} (terakhir) — wajib Selesaikan`,
+                                !previousStageCompleted && 'Selesaikan butuh Filling Check selesai dulu',
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
                         />
                     )}
                 </form>

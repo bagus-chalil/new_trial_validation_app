@@ -107,7 +107,7 @@ class PackingCheckTest extends TestCase
         $this->get("/batches/{$batch->id}/packing-check")->assertOk();
     }
 
-    public function test_form_is_forbidden_when_filling_check_is_not_completed(): void
+    public function test_form_is_forbidden_when_filling_check_has_never_been_saved(): void
     {
         $this->actingAs(User::factory()->create());
         $product = MasterProduct::create(['fg_code' => 'FG-2', 'product_name' => 'Product 2', 'is_active' => true]);
@@ -121,6 +121,50 @@ class PackingCheckTest extends TestCase
         ]);
 
         $this->get("/batches/{$batch->id}/packing-check")->assertForbidden();
+    }
+
+    public function test_form_opens_once_filling_has_a_draft_save_but_finalize_needs_filling_finalized(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $batch->fillingCheck->update(['completed_at' => null, 'save_count' => 1]);
+        $batch->update(['current_stage' => IpcBatch::STAGE_FILLING]);
+        $this->seedPackingFinalizePrereqs($batch);
+
+        $this->get("/batches/{$batch->id}/packing-check")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('isReadOnly', false)->where('previousStageCompleted', false));
+
+        // A round can be recorded while Filling is still open...
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]))
+            ->assertSessionDoesntHaveErrors();
+
+        // ...but Selesaikan waits for Filling to be finalized.
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
+            ->assertSessionHasErrors('progress');
+        $this->assertNull($batch->fresh()->packingCheck->completed_at);
+
+        $batch->fillingCheck->update(['completed_at' => now()]);
+        $batch->update(['current_stage' => IpcBatch::STAGE_PACKING]);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
+            ->assertSessionDoesntHaveErrors();
+        $this->assertNotNull($batch->fresh()->packingCheck->completed_at);
+        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->fresh()->current_stage);
+    }
+
+    public function test_draft_is_rejected_on_the_last_allowed_th_progress_round(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        PackingCheck::create([
+            'ipc_batch_id' => $batch->id,
+            'user_id' => $batch->created_by,
+            'save_count' => IpcBatch::MAX_TH_PROGRESS - 1,
+        ]);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]))
+            ->assertSessionHasErrors('progress');
     }
 
     public function test_soft_deleted_batch_is_not_found(): void
@@ -168,7 +212,7 @@ class PackingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedFillingCheck();
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'remarks' => null, 'decision' => null]))
-            ->assertRedirect("/batches/{$batch->id}/packing-check");
+            ->assertRedirect("/batches/{$batch->id}/finished-check");
 
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_PACKING, $batch->current_stage);

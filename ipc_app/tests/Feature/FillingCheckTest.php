@@ -217,7 +217,8 @@ class FillingCheckTest extends TestCase
             'samples' => [['sample_no' => 1, 'weight_value' => 21]],
         ])->assertSessionDoesntHaveErrors();
 
-        $this->assertSame(FillingCheck::DECISION_PASSED, $batch->fresh()->fillingCheck->decision);
+        // The live row is reset for the next round; the decision lives on in the revision.
+        $this->assertSame(FillingCheck::DECISION_PASSED, $batch->fresh()->fillingCheck->revisions()->first()->decision);
     }
 
     public function test_draft_save_allows_remarks_only_without_any_assessment(): void
@@ -240,15 +241,56 @@ class FillingCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/filling-check", [
             'finalize' => false,
             'samples' => [['sample_no' => 1, 'weight_value' => 21]],
-        ])->assertRedirect("/batches/{$batch->id}/filling-check");
+        ])->assertRedirect("/batches/{$batch->id}/packing-check");
 
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FILLING, $batch->current_stage);
 
-        $fillingCheck = $batch->fillingCheck()->with('samples')->first();
+        $fillingCheck = $batch->fillingCheck()->with('revisions.samples')->first();
         $this->assertNull($fillingCheck->completed_at);
         $this->assertSame(1, $fillingCheck->save_count);
-        $this->assertCount(1, $fillingCheck->samples);
+        $this->assertCount(1, $fillingCheck->revisions->first()->samples);
+    }
+
+    public function test_draft_save_resets_the_live_row_for_the_next_round(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->put("/batches/{$batch->id}/filling-check", [
+            'finalize' => false,
+            'remarks' => 'Shift 1',
+            'decision' => FillingCheck::DECISION_HOLD,
+            'samples' => [['sample_no' => 1, 'weight_value' => 21]],
+        ])->assertSessionDoesntHaveErrors();
+
+        $fillingCheck = $batch->fresh()->fillingCheck()->with('samples')->first();
+        $this->assertNull($fillingCheck->remarks);
+        $this->assertNull($fillingCheck->decision);
+        $this->assertCount(0, $fillingCheck->samples);
+
+        // ...and Filling stays editable for the next round until Selesaikan.
+        $this->get("/batches/{$batch->id}/filling-check")
+            ->assertInertia(fn ($page) => $page->where('isReadOnly', false)->where('maxThProgress', IpcBatch::MAX_TH_PROGRESS));
+    }
+
+    public function test_the_last_allowed_th_progress_round_must_be_selesaikan(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+        FillingCheck::create([
+            'ipc_batch_id' => $batch->id,
+            'user_id' => $batch->created_by,
+            'save_count' => IpcBatch::MAX_TH_PROGRESS - 1,
+        ]);
+
+        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'remarks' => 'Round 10', 'samples' => []])
+            ->assertSessionHasErrors('progress');
+
+        $this->put("/batches/{$batch->id}/filling-check", $this->validPayload(finalize: true))
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(IpcBatch::MAX_TH_PROGRESS, $batch->fresh()->fillingCheck->save_count);
     }
 
     public function test_th_progress_increments_across_repeated_draft_saves_and_the_final_save(): void
@@ -292,10 +334,9 @@ class FillingCheckTest extends TestCase
         $this->assertEquals(21.0, (float) $revision1->samples->firstWhere('sample_no', 1)->weight_value);
         $this->assertEquals(22.0, (float) $revision2->samples->firstWhere('sample_no', 1)->weight_value);
 
-        // The "current" filling_checks row only reflects the latest save — the point of the
-        // revisions table is that the earlier remarks/samples above are NOT lost, even though
-        // this row itself has moved on.
-        $this->assertSame('Hour 2 check, back within range', $fillingCheck->remarks);
+        // A draft resets the "current" filling_checks row for the next round — the revisions
+        // above are where every round's remarks/samples live.
+        $this->assertNull($fillingCheck->remarks);
     }
 
     public function test_draft_save_ignores_the_all_ten_samples_requirement(): void

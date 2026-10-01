@@ -79,10 +79,25 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_COMPLETED => 'Selesai',
         ];
 
-        $stages = collect($labels)->map(function ($label, $key) use ($stageIndex, $builtStages) {
+        // Filling / Packing / Finished run as repeated TH Progress rounds: each opens once the
+        // previous one has a save, not only once it's finalized, so several can be "active" at
+        // once. Their status comes from their own row, not from current_stage (which still only
+        // advances on Selesaikan).
+        $roundStages = [
+            IpcBatch::STAGE_FILLING => [$batch->fillingCheck, (bool) $batch->startupCheck?->completed_at],
+            IpcBatch::STAGE_PACKING => [$batch->packingCheck, (bool) $batch->fillingCheck],
+            IpcBatch::STAGE_FINISHED => [$batch->finishedCheck, (bool) $batch->packingCheck],
+        ];
+
+        $stages = collect($labels)->map(function ($label, $key) use ($stageIndex, $builtStages, $roundStages) {
             $thisIndex = array_search($key, IpcBatch::STAGES, true);
+            [$check, $unlocked] = $roundStages[$key] ?? [null, null];
+            // current_stage having reached this stage also counts (older rows / seeded batches).
+            $unlocked = $unlocked === null ? null : ($unlocked || $thisIndex <= $stageIndex);
 
             $status = match (true) {
+                $unlocked !== null && (bool) $check?->completed_at => 'done',
+                $unlocked !== null => $unlocked ? 'active' : 'locked',
                 $thisIndex < $stageIndex => 'done',
                 // 'completed' has no page of its own — reaching it (batch.current_stage ===
                 // 'completed') means every prior stage, print included, is genuinely finished.
@@ -97,6 +112,7 @@ class IpcBatchController extends Controller
                 'status' => $status,
                 'href' => $status !== 'locked' ? ($builtStages[$key] ?? null) : null,
                 'available' => array_key_exists($key, $builtStages),
+                'progress' => $check ? $check->save_count.'/'.IpcBatch::MAX_TH_PROGRESS : null,
             ];
         })->values();
 

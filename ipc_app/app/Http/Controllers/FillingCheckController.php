@@ -58,6 +58,7 @@ class FillingCheckController extends Controller
             'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->fillingCheck?->completed_at,
             'decisions' => FillingCheck::DECISIONS,
             'photoUrls' => $photoUrls,
+            'maxThProgress' => IpcBatch::MAX_TH_PROGRESS,
         ]);
     }
 
@@ -73,7 +74,9 @@ class FillingCheckController extends Controller
             return redirect()->route('batches.show', $batch)->with('success', 'Filling Check tersimpan.');
         }
 
-        return redirect()->route('filling-check.edit', $batch)->with('success', 'Progress tersimpan.');
+        // A draft closes this round's filling part; the round continues on Packing Check, which
+        // opens as soon as Filling has a save. Filling itself stays editable until Selesaikan.
+        return redirect()->route('packing-check.edit', $batch)->with('success', 'Progress Filling tersimpan. Lanjut ke Packing Check.');
     }
 
     public function uploadPhoto(UploadFillingCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse

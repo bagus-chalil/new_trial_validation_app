@@ -113,6 +113,8 @@ export default function FinishedCheckEdit({
     dispositions,
     photoUrls,
     lineleaderName,
+    maxThProgress,
+    previousStageCompleted,
 }: {
     batch: Batch;
     finishedCheck: FinishedCheckData | null;
@@ -122,6 +124,8 @@ export default function FinishedCheckEdit({
     dispositions: string[];
     photoUrls: Record<string, string | null | { id: number; url: string }[]>;
     lineleaderName: string | null;
+    maxThProgress: number;
+    previousStageCompleted: boolean;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -238,6 +242,11 @@ export default function FinishedCheckEdit({
     // like the button did nothing. Every `put()` call below wires this in as `onError` so a
     // failed save is never silent, regardless of why it failed.
     const handleServerErrors = (serverErrors: Record<string, string>) => {
+        // TH Progress rule errors (max rounds / Packing not finalized) have no field to mark.
+        if (serverErrors.progress) {
+            toast(serverErrors.progress);
+            return;
+        }
         const keys = Object.keys(serverErrors);
         if (keys.length === 0) {
             toast('Gagal menyimpan. Periksa koneksi lalu coba lagi.');
@@ -254,6 +263,9 @@ export default function FinishedCheckEdit({
         toast(`${fields.size} bagian gagal disimpan — periksa isian yang ditandai merah.`);
         scrollToFirstError(fields);
     };
+
+    // The last allowed round can only be "Selesaikan" — SaveFinishedCheckRequest rejects a draft.
+    const isLastRound = (finishedCheck?.save_count ?? 0) + 1 >= maxThProgress;
 
     const saveDraft = () => {
         if (!hasAnyDraftValue()) {
@@ -321,7 +333,7 @@ export default function FinishedCheckEdit({
                             <InfoField label="No. Batch" value={batch.no_batch} />
                             <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
-                            <InfoField label="TH Progress" value={String(finishedCheck?.save_count ?? 0)} />
+                            <InfoField label="TH Progress" value={`${finishedCheck?.save_count ?? 0} / ${maxThProgress}`} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
@@ -644,9 +656,15 @@ export default function FinishedCheckEdit({
                         <StickySaveBar
                             label="Simpan & Selesaikan"
                             processing={processing}
-                            secondaryLabel="Simpan"
+                            secondaryLabel={isLastRound ? undefined : 'Simpan'}
                             onSecondaryClick={saveDraft}
-                            note={`${filledSampleCount} dari ${allParameterKeys.length} sample terisi`}
+                            note={[
+                                `${filledSampleCount} dari ${allParameterKeys.length} sample terisi`,
+                                isLastRound && `TH Progress ke-${maxThProgress} (terakhir) — wajib Selesaikan`,
+                                !previousStageCompleted && 'Selesaikan butuh Packing Check selesai dulu',
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
                         />
                     )}
                 </form>

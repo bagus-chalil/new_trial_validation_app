@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Controllers\PackingCheckController;
+use App\Http\Requests\Concerns\ValidatesThProgressRound;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\PackingCheck;
@@ -11,6 +12,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class SavePackingCheckRequest extends FormRequest
 {
+    use ValidatesThProgressRound;
+
     public function authorize(): bool
     {
         return true;
@@ -59,6 +62,18 @@ class SavePackingCheckRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $validator->after(function (Validator $validator) {
+            /** @var IpcBatch $batch */
+            $batch = $this->route('batch');
+            $this->validateThProgressRound(
+                $validator,
+                (int) $batch->packingCheck?->save_count,
+                $this->boolean('finalize'),
+                'Filling Check',
+                (bool) $batch->fillingCheck?->completed_at,
+            );
+        });
+
         if (! $this->boolean('finalize')) {
             $validator->after(function (Validator $validator) {
                 // A draft save is meant to let QC record whatever it has so far — but a save with

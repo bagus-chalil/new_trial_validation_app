@@ -34,6 +34,13 @@ class IpcBatch extends Model
         self::STAGE_COMPLETED,
     ];
 
+    /**
+     * Filling / Packing / Finished Check each allow at most this many TH Progress rounds
+     * (save_count), the last of which must be "Selesaikan" — QC repeats the whole
+     * filling → packing → FG loop once per shift, so a batch never needs more (user, 2026-10-01).
+     */
+    public const MAX_TH_PROGRESS = 10;
+
     protected $fillable = [
         'master_product_id',
         'master_product_bulk_code_id',

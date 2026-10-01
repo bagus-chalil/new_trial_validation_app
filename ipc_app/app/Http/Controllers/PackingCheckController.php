@@ -30,7 +30,10 @@ class PackingCheckController extends Controller
 
     public function edit(IpcBatch $batch): Response
     {
-        abort_unless($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini belum selesai.');
+        // Opens as soon as Filling Check has one saved TH Progress round — QC runs
+        // filling -> packing -> FG per round and finalizes each stage only at the end (see
+        // ValidatesThProgressRound). Finalizing Packing still needs Filling finalized.
+        abort_unless($batch->fillingCheck, 403, 'Filling Check untuk batch ini belum disimpan.');
 
         $batch->load([
             'masterProduct',
@@ -65,12 +68,14 @@ class PackingCheckController extends Controller
             'decisions' => PackingCheck::DECISIONS,
             'photoUrls' => $photoUrls,
             'standardWeightMb' => SavePackingCheck::standardWeightMbFor($batch),
+            'maxThProgress' => IpcBatch::MAX_TH_PROGRESS,
+            'previousStageCompleted' => (bool) $batch->fillingCheck->completed_at,
         ]);
     }
 
     public function update(SavePackingCheckRequest $request, IpcBatch $batch, SavePackingCheck $action): RedirectResponse
     {
-        abort_unless($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini belum selesai.');
+        abort_unless($batch->fillingCheck, 403, 'Filling Check untuk batch ini belum disimpan.');
         abort_if($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini sudah selesai dan bersifat read-only.');
 
         $data = $request->validated();
@@ -80,13 +85,14 @@ class PackingCheckController extends Controller
             return redirect()->route('finished-check.edit', $batch)->with('success', 'Packing Check tersimpan.');
         }
 
-        return redirect()->route('packing-check.edit', $batch)->with('success', 'Progress tersimpan.');
+        // The round continues on Finished Good, which opens once Packing has a save.
+        return redirect()->route('finished-check.edit', $batch)->with('success', 'Progress Packing tersimpan. Lanjut ke Finished Good.');
     }
 
     public function uploadPhoto(UploadPackingCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse
     {
         abort_unless(in_array($field, self::PHOTO_FIELDS, true), 404);
-        abort_unless($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini belum selesai.');
+        abort_unless($batch->fillingCheck, 403, 'Filling Check untuk batch ini belum disimpan.');
         abort_if($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini sudah selesai dan bersifat read-only.');
 
         // Deliberately does NOT delete/replace the previous row for this field, unlike every

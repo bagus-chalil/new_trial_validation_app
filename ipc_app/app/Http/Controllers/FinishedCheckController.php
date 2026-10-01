@@ -35,7 +35,9 @@ class FinishedCheckController extends Controller
 
     public function edit(IpcBatch $batch): Response
     {
-        abort_unless($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini belum selesai.');
+        // Opens once Packing Check has one saved TH Progress round (same rule as Packing vs
+        // Filling — see ValidatesThProgressRound); finalizing still needs Packing finalized.
+        abort_unless($batch->packingCheck, 403, 'Packing Check untuk batch ini belum disimpan.');
 
         $batch->load([
             'masterProduct',
@@ -80,12 +82,14 @@ class FinishedCheckController extends Controller
             'dispositions' => FinishedCheck::DISPOSITIONS,
             'photoUrls' => $photoUrls,
             'lineleaderName' => $batch->packingCheck?->line_leader_name,
+            'maxThProgress' => IpcBatch::MAX_TH_PROGRESS,
+            'previousStageCompleted' => (bool) $batch->packingCheck->completed_at,
         ]);
     }
 
     public function update(SaveFinishedCheckRequest $request, IpcBatch $batch, SaveFinishedCheck $action): RedirectResponse
     {
-        abort_unless($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini belum selesai.');
+        abort_unless($batch->packingCheck, 403, 'Packing Check untuk batch ini belum disimpan.');
         abort_if($batch->finishedCheck?->completed_at, 403, 'Finished Check untuk batch ini sudah selesai dan bersifat read-only.');
 
         $data = $request->validated();
@@ -101,7 +105,7 @@ class FinishedCheckController extends Controller
     public function uploadPhoto(UploadFinishedCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse
     {
         abort_unless(in_array($field, self::PHOTO_FIELDS, true), 404);
-        abort_unless($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini belum selesai.');
+        abort_unless($batch->packingCheck, 403, 'Packing Check untuk batch ini belum disimpan.');
 
         $isMulti = in_array($field, self::MULTI_PHOTO_FIELDS, true);
 

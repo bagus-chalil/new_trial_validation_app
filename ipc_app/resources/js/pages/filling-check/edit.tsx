@@ -112,12 +112,14 @@ export default function FillingCheckEdit({
     isReadOnly,
     decisions,
     photoUrls,
+    maxThProgress,
 }: {
     readonly batch: Batch;
     readonly fillingCheck: FillingCheckData | null;
     readonly isReadOnly: boolean;
     readonly decisions: string[];
     readonly photoUrls: Record<string, string | null>;
+    readonly maxThProgress: number;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -186,7 +188,7 @@ export default function FillingCheckEdit({
         }
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: true }));
-        put(`/batches/${batch.id}/filling-check`);
+        put(`/batches/${batch.id}/filling-check`, { onError: showProgressError });
     };
 
     const blankForm = () => ({
@@ -211,6 +213,14 @@ export default function FillingCheckEdit({
         (Boolean(data.decision) || Boolean(data.sample_bulk_odor_status) || Boolean(data.sample_leakage_test_status)) &&
         !data.samples.some((row) => Boolean(row.weight_value));
 
+    // TH Progress rule errors (max rounds) come back under `progress`, which has no field of its own.
+    const showProgressError = (serverErrors: Record<string, string>) => {
+        if (serverErrors.progress) toast(serverErrors.progress);
+    };
+
+    // The last allowed round can only be "Selesaikan" — SaveFillingCheckRequest rejects a draft.
+    const isLastRound = (fillingCheck?.save_count ?? 0) + 1 >= maxThProgress;
+
     const saveDraft = () => {
         if (!hasAnyDraftValue()) {
             // Nothing at all is filled — computeEmptyFields() here is the same "everything" set
@@ -229,7 +239,7 @@ export default function FillingCheckEdit({
         }
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: false }));
-        put(`/batches/${batch.id}/filling-check`, { preserveState: true, onSuccess: () => setData(blankForm()) });
+        put(`/batches/${batch.id}/filling-check`, { preserveState: true, onSuccess: () => setData(blankForm()), onError: showProgressError });
     };
 
     const uploadPhoto = (field: string, file: File) => {
@@ -276,7 +286,7 @@ export default function FillingCheckEdit({
                             <InfoField label="Bulk Code" value={batch.bulk_code} />
                             <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
                             <InfoField label="IPC ID" value={inspectorName} />
-                            <InfoField label="TH Progress" value={String(fillingCheck?.save_count ?? 0)} />
+                            <InfoField label="TH Progress" value={`${fillingCheck?.save_count ?? 0} / ${maxThProgress}`} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
@@ -464,10 +474,16 @@ export default function FillingCheckEdit({
                     {!isReadOnly && (
                         <StickySaveBar
                             label="Selesaikan"
-                            secondaryLabel="Simpan Progress"
+                            secondaryLabel={isLastRound ? undefined : 'Simpan Progress'}
                             onSecondaryClick={saveDraft}
                             processing={processing}
-                            note={hasAnyDraftValue() ? 'Ada perubahan belum disimpan' : 'Semua perubahan tersimpan'}
+                            note={
+                                isLastRound
+                                    ? `TH Progress ke-${maxThProgress} (terakhir) — wajib Selesaikan`
+                                    : hasAnyDraftValue()
+                                      ? 'Ada perubahan belum disimpan · Simpan Progress lanjut ke Packing'
+                                      : 'Semua perubahan tersimpan'
+                            }
                         />
                     )}
                 </form>

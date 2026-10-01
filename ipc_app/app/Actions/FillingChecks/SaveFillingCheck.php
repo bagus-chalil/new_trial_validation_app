@@ -100,6 +100,21 @@ class SaveFillingCheck
                 FillingCheckRevisionSample::insert($revisionRows);
             }
 
+            // Same round model as SavePackingCheck: a draft closes out this round (it lives on in
+            // the revision snapshot above), so the live row is cleared for the next round —
+            // otherwise reopening Filling next shift would show the previous round's answers as
+            // if they were unsaved new input. A finalized row stays as the permanent record.
+            if (! $finalize) {
+                $fillingCheck->samples()->delete();
+                $fillingCheck->forceFill([
+                    'sample_bulk_odor_status' => null,
+                    'sample_leakage_test_status' => null,
+                    'remarks' => null,
+                    'decision' => null,
+                    'average_weight' => null,
+                ])->save();
+            }
+
             if ($finalize && $batch->current_stage === IpcBatch::STAGE_FILLING) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_PACKING]);
             }

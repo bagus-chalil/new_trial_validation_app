@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Controllers\FinishedCheckController;
+use App\Http\Requests\Concerns\ValidatesThProgressRound;
 use App\Models\FinishedCheck;
 use App\Models\FinishedCheckSample;
 use App\Models\IpcAttachment;
@@ -28,6 +29,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class SaveFinishedCheckRequest extends FormRequest
 {
+    use ValidatesThProgressRound;
+
     public function authorize(): bool
     {
         return true;
@@ -76,6 +79,18 @@ class SaveFinishedCheckRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $validator->after(function (Validator $validator) {
+            /** @var IpcBatch $batch */
+            $batch = $this->route('batch');
+            $this->validateThProgressRound(
+                $validator,
+                (int) $batch->finishedCheck?->save_count,
+                $this->boolean('finalize'),
+                'Packing Check',
+                (bool) $batch->packingCheck?->completed_at,
+            );
+        });
+
         if (! $this->boolean('finalize')) {
             $validator->after(fn (Validator $validator) => $this->validateDraftIsNotCompletelyEmpty($validator));
 

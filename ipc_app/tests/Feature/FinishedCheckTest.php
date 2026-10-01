@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\FinishedCheckController;
+use App\Models\FinishedCheck;
 use App\Models\FinishedCheckSample;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
@@ -122,6 +123,41 @@ class FinishedCheckTest extends TestCase
         ]);
 
         $this->get("/batches/{$batch->id}/finished-check")->assertForbidden();
+    }
+
+    public function test_form_opens_once_packing_has_a_draft_save_but_finalize_needs_packing_finalized(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $batch->packingCheck->update(['completed_at' => null]);
+        $batch->update(['current_stage' => IpcBatch::STAGE_FILLING]);
+        $this->seedFinishedCheckPhotos($batch);
+
+        $this->get("/batches/{$batch->id}/finished-check")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('previousStageCompleted', false));
+
+        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'quantity_wi' => 100])
+            ->assertSessionDoesntHaveErrors();
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload())
+            ->assertSessionHasErrors('progress');
+        $this->assertNull($batch->fresh()->finishedCheck->completed_at);
+    }
+
+    public function test_th_progress_is_capped(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        FinishedCheck::create([
+            'ipc_batch_id' => $batch->id,
+            'user_id' => $batch->created_by,
+            'save_count' => IpcBatch::MAX_TH_PROGRESS,
+        ]);
+
+        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'quantity_wi' => 100])
+            ->assertSessionHasErrors('progress');
+        $this->assertSame(IpcBatch::MAX_TH_PROGRESS, $batch->fresh()->finishedCheck->save_count);
     }
 
     public function test_soft_deleted_batch_is_not_found(): void
