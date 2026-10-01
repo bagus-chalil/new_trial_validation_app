@@ -7,6 +7,7 @@ use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\MasterTestType;
 use App\Models\StartupInspectionItem;
+use App\Models\StartupInspectionSample;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -46,6 +47,19 @@ class StartupInspectionTest extends TestCase
         return $items;
     }
 
+    private function validSamplesPayload(): array
+    {
+        return array_map(
+            fn (int $n) => ['sample_no' => $n, 'volume_weight' => 10 + $n / 10, 'weight_master_box' => null],
+            range(1, StartupInspectionSample::SAMPLE_COUNT),
+        );
+    }
+
+    private function validPayload(): array
+    {
+        return ['items' => $this->validItemsPayload(), 'samples' => $this->validSamplesPayload()];
+    }
+
     public function test_guests_are_redirected_to_the_login_page(): void
     {
         $batch = $this->makeBatch();
@@ -75,7 +89,7 @@ class StartupInspectionTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload()])
+        $this->put("/batches/{$batch->id}/startup-inspection", $this->validPayload())
             ->assertRedirect("/batches/{$batch->id}/startup-check");
 
         $inspection = $batch->fresh()->startupInspection;
@@ -85,35 +99,35 @@ class StartupInspectionTest extends TestCase
         $this->assertSame(IpcBatch::STAGE_STARTUP, $batch->fresh()->current_stage);
     }
 
-    public function test_samples_and_weight_master_box_can_be_left_blank(): void
+    public function test_weight_master_box_can_be_left_blank(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload()])
+        $this->put("/batches/{$batch->id}/startup-inspection", $this->validPayload())
             ->assertRedirect("/batches/{$batch->id}/startup-check");
 
-        $this->assertSame(0, $batch->fresh()->startupInspection->samples()->count());
+        $samples = $batch->fresh()->startupInspection->samples()->orderBy('sample_no')->get();
+        $this->assertCount(StartupInspectionSample::SAMPLE_COUNT, $samples);
+        $this->assertEquals(10.1, (float) $samples->first()->volume_weight);
+        $this->assertNull($samples->first()->weight_master_box);
     }
 
-    public function test_a_partially_filled_sample_row_is_persisted(): void
+    public function test_missing_volume_weight_samples_are_rejected(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $payload = [
-            'items' => $this->validItemsPayload(),
-            'samples' => [
-                ['sample_no' => 1, 'volume_weight' => 10.5, 'weight_master_box' => null],
-            ],
-        ];
+        $samples = $this->validSamplesPayload();
+        $samples[29]['volume_weight'] = null;
 
-        $this->put("/batches/{$batch->id}/startup-inspection", $payload)->assertRedirect("/batches/{$batch->id}/startup-check");
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload(), 'samples' => $samples])
+            ->assertSessionHasErrors('samples');
 
-        $sample = $batch->fresh()->startupInspection->samples()->first();
-        $this->assertSame(1, $sample->sample_no);
-        $this->assertEquals(10.5, (float) $sample->volume_weight);
-        $this->assertNull($sample->weight_master_box);
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload()])
+            ->assertSessionHasErrors('samples');
+
+        $this->assertNull($batch->fresh()->startupInspection);
     }
 
     public function test_test_result_toggle_is_persisted(): void
@@ -123,7 +137,7 @@ class StartupInspectionTest extends TestCase
         $testType = $this->makeTestType();
 
         $payload = [
-            'items' => $this->validItemsPayload(),
+            ...$this->validPayload(),
             'test_results' => [
                 $testType->id => ['is_performed' => true],
             ],
@@ -144,7 +158,7 @@ class StartupInspectionTest extends TestCase
         $items = $this->validItemsPayload();
         unset($items['bulk_odor']);
 
-        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $items])
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $items, 'samples' => $this->validSamplesPayload()])
             ->assertSessionHasErrors('items.bulk_odor.status');
 
         $this->assertNull($batch->fresh()->startupInspection);
@@ -155,10 +169,10 @@ class StartupInspectionTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload()])
+        $this->put("/batches/{$batch->id}/startup-inspection", $this->validPayload())
             ->assertRedirect("/batches/{$batch->id}/startup-check");
 
-        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload()])
+        $this->put("/batches/{$batch->id}/startup-inspection", $this->validPayload())
             ->assertForbidden();
     }
 }

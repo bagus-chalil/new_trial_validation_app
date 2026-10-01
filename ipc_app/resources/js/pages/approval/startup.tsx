@@ -36,6 +36,7 @@ interface StartupCheckData {
     filling_range_min: string | null;
     filling_range_max: string | null;
     density: string | null;
+    density_not_applicable?: boolean;
     average_of_empty_bottle_weight: string | null;
     heating: string | null;
     line_leader_name: string | null;
@@ -130,7 +131,7 @@ export default function ApprovalStartup({
                                 <ChecklistRow label="Validation Report" value={startupCheck.validation_report_status} />
                                 <InfoField label="Filling Range Min" value={startupCheck.filling_range_min ?? '—'} />
                                 <InfoField label="Filling Range Max" value={startupCheck.filling_range_max ?? '—'} />
-                                <InfoField label="Density" value={startupCheck.density ?? '—'} />
+                                <InfoField label="Density" value={startupCheck.density_not_applicable ? 'N/A' : (startupCheck.density ?? '—')} />
                                 <InfoField label="Average of Empty Bottle Weight" value={startupCheck.average_of_empty_bottle_weight ?? '—'} />
                                 <InfoField label="Heating" value={startupCheck.heating ?? '—'} />
                                 <InfoField label="Line Leader" value={startupCheck.line_leader_name ?? '—'} />

@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class StartupInspectionSample extends Model
 {
+    public const SAMPLE_COUNT = 30;
+
     protected $fillable = [
         'startup_inspection_id',
         'sample_no',

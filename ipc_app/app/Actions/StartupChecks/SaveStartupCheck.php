@@ -19,6 +19,12 @@ class SaveStartupCheck
         $expDate = Arr::pull($data, 'exp_date');
         $masterLineId = Arr::pull($data, 'master_line_id');
 
+        // N/A wins over any number still sitting in the input — never store both.
+        $data['density_not_applicable'] = (bool) ($data['density_not_applicable'] ?? false);
+        if ($data['density_not_applicable']) {
+            $data['density'] = null;
+        }
+
         return DB::transaction(function () use ($batch, $user, $data, $mixingDate, $expDate, $masterLineId) {
             $startupCheck = StartupCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],

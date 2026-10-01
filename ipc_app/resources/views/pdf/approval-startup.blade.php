@@ -126,7 +126,7 @@
                         <tbody>
                             <tr><td><strong>Filling Range Min</strong></td><td>{{ $startupCheck->filling_range_min ?? '—' }}</td></tr>
                             <tr><td><strong>Filling Range Max</strong></td><td>{{ $startupCheck->filling_range_max ?? '—' }}</td></tr>
-                            <tr><td><strong>Density</strong></td><td>{{ $startupCheck->density ?? '—' }}</td></tr>
+                            <tr><td><strong>Density</strong></td><td>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck?->density ?? '—') }}</td></tr>
                             <tr><td><strong>Avg. Empty Bottle Weight</strong></td><td>{{ $startupCheck->average_of_empty_bottle_weight ?? '—' }}</td></tr>
                         </tbody>
                     </table>

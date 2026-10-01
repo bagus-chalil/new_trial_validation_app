@@ -125,12 +125,15 @@ export default function StartupCheckEdit({
         filling_range_min: (startupCheck?.filling_range_min as string) ?? '',
         filling_range_max: (startupCheck?.filling_range_max as string) ?? '',
         density: (startupCheck?.density as string) ?? '',
+        density_not_applicable: startupCheck?.density_not_applicable ? '1' : '0',
         average_of_empty_bottle_weight: (startupCheck?.average_of_empty_bottle_weight as string) ?? '',
         heating: (startupCheck?.heating as string) ?? '',
         line_leader_name: (startupCheck?.line_leader_name as string) ?? '',
         operator_name: (startupCheck?.operator_name as string) ?? '',
         remarks: (startupCheck?.remarks as string) ?? '',
     });
+
+    const densityNotApplicable = data.density_not_applicable === '1';
 
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
@@ -300,15 +303,30 @@ export default function StartupCheckEdit({
                                 <Label htmlFor="density" className="text-muted-foreground text-xs font-semibold">
                                     Density
                                 </Label>
-                                <Input
-                                    id="density"
-                                    type="number"
-                                    step="0.0001"
-                                    className={inputClass}
-                                    value={data.density ?? ''}
-                                    onChange={(e) => setData('density', e.target.value)}
-                                    disabled={isReadOnly}
-                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        id="density"
+                                        type={densityNotApplicable ? 'text' : 'number'}
+                                        step="0.0001"
+                                        className={`${inputClass} flex-1`}
+                                        value={densityNotApplicable ? 'N/A' : (data.density ?? '')}
+                                        onChange={(e) => setData('density', e.target.value)}
+                                        disabled={isReadOnly || densityNotApplicable}
+                                    />
+                                    <button
+                                        type="button"
+                                        aria-pressed={densityNotApplicable}
+                                        onClick={() => setData({ ...data, density_not_applicable: densityNotApplicable ? '0' : '1', density: '' })}
+                                        disabled={isReadOnly}
+                                        className={`h-[46px] shrink-0 rounded-xl border-[1.5px] px-4 text-[13.5px] font-bold transition-colors disabled:opacity-60 ${
+                                            densityNotApplicable
+                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                                        }`}
+                                    >
+                                        N/A
+                                    </button>
+                                </div>
                                 <InputError message={errors.density} />
                             </div>
                             <div className="flex flex-col gap-2">

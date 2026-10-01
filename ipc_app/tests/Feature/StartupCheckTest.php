@@ -104,6 +104,20 @@ class StartupCheckTest extends TestCase
         $this->assertEquals(21.5, (float) $startupCheck->average_of_empty_bottle_weight);
     }
 
+    public function test_density_can_be_marked_not_applicable(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        // A stale number left in the input must not survive alongside N/A.
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'density_not_applicable' => '1'])
+            ->assertRedirect("/batches/{$batch->id}");
+
+        $startupCheck = $batch->startupCheck()->first();
+        $this->assertTrue($startupCheck->density_not_applicable);
+        $this->assertNull($startupCheck->density);
+    }
+
     public function test_missing_mixing_date_is_rejected(): void
     {
         $this->actingAs(User::factory()->create());

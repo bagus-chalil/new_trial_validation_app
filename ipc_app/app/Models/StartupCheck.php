@@ -144,6 +144,7 @@ class StartupCheck extends Model
         'filling_range_min',
         'filling_range_max',
         'density',
+        'density_not_applicable',
         'average_of_empty_bottle_weight',
         'heating',
         'line_leader_name',
@@ -158,6 +159,7 @@ class StartupCheck extends Model
             'filling_range_min' => 'decimal:2',
             'filling_range_max' => 'decimal:2',
             'density' => 'decimal:4',
+            'density_not_applicable' => 'boolean',
             'average_of_empty_bottle_weight' => 'decimal:4',
             'completed_at' => 'datetime',
         ];

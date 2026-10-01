@@ -366,7 +366,6 @@ export default function FillingCheckEdit({
                                     <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4">
                                         <div className="flex items-center justify-between border-b pb-2">
                                             <span className="text-foreground text-[13.5px] font-bold">Volume / Weight (30 Sample)</span>
-                                            <span className="text-muted-foreground text-xs font-semibold">Opsional — belum bisa ditimbang</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5">
                                             {data.startup_inspection_samples.map((row) => (

@@ -184,6 +184,8 @@ export default function StartupInspectionEdit({
     });
 
     const answeredCount = parameterKeys.filter((key) => data.items[key]?.status).length;
+    const volumeWeightFilledCount = data.samples.filter((sample) => String(sample.volume_weight ?? '').trim() !== '').length;
+    const volumeWeightComplete = volumeWeightFilledCount === SAMPLE_NUMBERS.length;
 
     const setItemField = (key: string, field: 'status' | 'remark', value: string) => {
         setData('items', { ...data.items, [key]: { ...data.items[key], [field]: value } });
@@ -201,6 +203,13 @@ export default function StartupInspectionEdit({
             'samples',
             data.samples.map((sample) => (sample.sample_no === sampleNo ? { ...sample, [field]: value } : sample)),
         );
+        if (field === 'volume_weight') {
+            setErrorFields((prev) => {
+                const n = new Set(prev);
+                n.delete(`volume_weight.${sampleNo}`);
+                return n;
+            });
+        }
     };
 
     const toggleTestResult = (typeId: number) => {
@@ -227,9 +236,18 @@ export default function StartupInspectionEdit({
         parameterKeys.forEach((key) => {
             if (!data.items[key]?.status) empty.add(key);
         });
+        const emptyChecklistCount = empty.size;
+        data.samples.forEach((sample) => {
+            if (String(sample.volume_weight ?? '').trim() === '') empty.add(`volume_weight.${sample.sample_no}`);
+        });
         if (empty.size) {
             setErrorFields(empty);
-            toast(`${empty.size} item checklist belum diisi`);
+            const emptySampleCount = empty.size - emptyChecklistCount;
+            const parts = [
+                emptyChecklistCount ? `${emptyChecklistCount} item checklist` : null,
+                emptySampleCount ? `${emptySampleCount} sample Volume / Weight` : null,
+            ].filter(Boolean);
+            toast(`${parts.join(' dan ')} belum diisi`);
             return;
         }
         setErrorFields(new Set());
@@ -292,7 +310,12 @@ export default function StartupInspectionEdit({
                             ))}
                         </AccordionCard>
 
-                        <AccordionCard title="Volume / Weight" progress="Opsional — belum bisa ditimbang" defaultOpen={false}>
+                        <AccordionCard
+                            title="Volume / Weight"
+                            progress={`${volumeWeightFilledCount}/${SAMPLE_NUMBERS.length} terisi`}
+                            complete={volumeWeightComplete}
+                            forceOpen={[...errorFields].some((field) => field.startsWith('volume_weight.'))}
+                        >
                             <div className="col-span-full grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
                                 {SAMPLE_NUMBERS.map((n) => {
                                     const sample = data.samples.find((s) => s.sample_no === n)!;
@@ -302,7 +325,10 @@ export default function StartupInspectionEdit({
                                             <Input
                                                 type="number"
                                                 step="0.0001"
-                                                className={inputClass}
+                                                className={cn(
+                                                    inputClass,
+                                                    errorFields.has(`volume_weight.${n}`) && 'border-destructive ring-destructive ring-1',
+                                                )}
                                                 value={sample.volume_weight}
                                                 onChange={(e) => setSampleField(n, 'volume_weight', e.target.value)}
                                                 disabled={isReadOnly}
@@ -311,6 +337,7 @@ export default function StartupInspectionEdit({
                                     );
                                 })}
                             </div>
+                            <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />
                         </AccordionCard>
 
                         <AccordionCard title="Weight Master Box" progress="Opsional — belum bisa ditimbang" defaultOpen={false}>

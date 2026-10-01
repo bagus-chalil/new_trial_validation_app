@@ -73,6 +73,7 @@ interface PackingCheckData {
 interface StartupCheckSlice {
     line_leader_name: string | null;
     density: string | null;
+    density_not_applicable?: boolean;
 }
 
 export default function PrintFillingPacking({
@@ -117,7 +118,7 @@ export default function PrintFillingPacking({
                         <AccordionCard title="A. Filling Inspection" defaultOpen={false}>
                             <InfoField label="QC Inspector" value={fillingCheck.user?.name ?? '—'} />
                             <InfoField label="Line Leader" value={startupCheck?.line_leader_name ?? '—'} />
-                            <InfoField label="Density" value={startupCheck?.density ?? '—'} />
+                            <InfoField label="Density" value={startupCheck?.density_not_applicable ? 'N/A' : (startupCheck?.density ?? '—')} />
                             <InfoField label="Average Weight (Result)" value={fillingCheck.average_weight ?? '—'} />
                             <ChecklistRow label="Kebersihan Bulk & Odor" value={fillingCheck.sample_bulk_odor_status} />
                             <ChecklistRow label="Uji Kebocoran (Vaccum / Press)" value={fillingCheck.sample_leakage_test_status} />

@@ -23,6 +23,7 @@ class SaveStartupCheckRequest extends FormRequest
             'filling_range_min' => ['nullable', 'numeric'],
             'filling_range_max' => ['nullable', 'numeric'],
             'density' => ['nullable', 'numeric', 'min:0'],
+            'density_not_applicable' => ['nullable', 'boolean'],
             // Confirmed with real IPC users 2026-09-03: SOP no longer does the 30-sample
             // BottleData weighing — this is entered once, directly, matching the legacy
             // screen's own single input box for AVERAGE_OF_EMPTY_BOTTLE_WEIGHT.

@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\StartupInspectionItem;
+use App\Models\StartupInspectionSample;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class SaveStartupInspectionRequest extends FormRequest
 {
@@ -27,9 +29,8 @@ class SaveStartupInspectionRequest extends FormRequest
             $rules["items.{$key}.remark"] = ['nullable', 'string'];
         }
 
-        // Volume/Weight and Weight Master Box samples are deliberately optional for now — the
-        // user confirmed IPC can't do this weighing yet at this stage (2026-09-03). See
-        // ipc_app/CLAUDE.md — don't make these required without checking with the user again.
+        // Volume/Weight is required for all 30 samples (user, 2026-10-01). Weight Master Box
+        // stays optional — IPC still can't weigh master boxes at this stage (2026-09-03).
         $rules['samples'] = ['nullable', 'array'];
         $rules['samples.*.sample_no'] = ['required_with:samples', 'integer', 'between:1,30'];
         $rules['samples.*.volume_weight'] = ['nullable', 'numeric', 'min:0'];
@@ -40,5 +41,20 @@ class SaveStartupInspectionRequest extends FormRequest
         $rules['test_results.*.remark'] = ['nullable', 'string'];
 
         return $rules;
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $rows = collect($this->input('samples', []))
+                ->keyBy(fn ($row) => (int) ($row['sample_no'] ?? 0));
+
+            for ($sampleNo = 1; $sampleNo <= StartupInspectionSample::SAMPLE_COUNT; $sampleNo++) {
+                if (blank($rows->get($sampleNo)['volume_weight'] ?? null)) {
+                    $validator->errors()->add('samples', 'Isi seluruh '.StartupInspectionSample::SAMPLE_COUNT.' sample Volume / Weight.');
+                    break;
+                }
+            }
+        });
     }
 }
