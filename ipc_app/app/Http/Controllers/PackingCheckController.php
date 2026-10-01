@@ -68,6 +68,7 @@ class PackingCheckController extends Controller
             'decisions' => PackingCheck::DECISIONS,
             'photoUrls' => $photoUrls,
             'standardWeightMb' => SavePackingCheck::standardWeightMbFor($batch),
+            'canFillMasterBox' => Gate::allows('update', $batch) && StartupInspectionController::masterBoxLockReason($batch) === null,
             'maxThProgress' => IpcBatch::MAX_TH_PROGRESS,
             'previousStageCompleted' => (bool) $batch->fillingCheck->completed_at,
         ]);

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Actions\StartupInspections\SaveStartupInspection;
+use App\Actions\StartupInspections\SaveStartupInspectionMasterBox;
+use App\Http\Requests\SaveStartupInspectionMasterBoxRequest;
 use App\Http\Requests\SaveStartupInspectionRequest;
 use App\Models\IpcBatch;
 use App\Models\MasterTestType;
@@ -37,6 +39,7 @@ class StartupInspectionController extends Controller
                 StartupInspectionItem::STATUS_NOT_OK,
             ],
             'testTypes' => $testTypes,
+            'masterBoxOnly' => Gate::allows('update', $batch) && self::masterBoxLockReason($batch) === null,
         ]);
     }
 
@@ -47,5 +50,37 @@ class StartupInspectionController extends Controller
         $action->handle($batch, $request->user(), $request->validated());
 
         return redirect()->route('startup-check.edit', $batch)->with('success', 'Start Inspection tersimpan.');
+    }
+
+    public function updateMasterBox(SaveStartupInspectionMasterBoxRequest $request, IpcBatch $batch, SaveStartupInspectionMasterBox $action): RedirectResponse
+    {
+        $reason = self::masterBoxLockReason($batch);
+        abort_if($reason !== null, 403, $reason ?? '');
+
+        $action->handle($batch->startupInspection, $request->validated()['samples']);
+
+        return redirect()->route('packing-check.edit', $batch)->with('success', 'Weight Master Box tersimpan.');
+    }
+
+    /**
+     * Weight Master Box is optional at Start Inspection (IPC often can't weigh master boxes
+     * that early), so it gets one more chance once the batch reaches Packing: after Start
+     * Inspection is completed, Filling has a save (which is what opens Packing), and Packing
+     * isn't finalized yet. It's a one-time fill — once any sample has a value, whether typed
+     * at Start Inspection or here, it's locked for good.
+     *
+     * Returns null when the late fill is allowed, otherwise the reason it isn't.
+     */
+    public static function masterBoxLockReason(IpcBatch $batch): ?string
+    {
+        $inspection = $batch->startupInspection;
+
+        return match (true) {
+            ! $inspection?->completed_at => 'Start Inspection untuk batch ini belum selesai.',
+            ! $batch->fillingCheck => 'Weight Master Box baru bisa diisi setelah Filling Check disimpan.',
+            (bool) $batch->packingCheck?->completed_at => 'Packing Check untuk batch ini sudah selesai.',
+            $inspection->samples()->whereNotNull('weight_master_box')->exists() => 'Weight Master Box untuk batch ini sudah diisi.',
+            default => null,
+        };
     }
 }

@@ -252,6 +252,22 @@ class PackingCheckTest extends TestCase
         $this->assertSame(PackingCheck::DECISION_PASSED, $revision->decision);
     }
 
+    public function test_draft_save_requires_weight_of_mb_every_round(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'sum_weight_mb' => null]))
+            ->assertSessionHasErrors('sum_weight_mb');
+        $this->assertNull($batch->fresh()->packingCheck);
+
+        // Round 2 needs its own weighing too — round 1's value isn't carried forward.
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'sum_weight_mb' => null]))
+            ->assertSessionHasErrors('sum_weight_mb');
+        $this->assertSame(1, $batch->fresh()->packingCheck->save_count);
+    }
+
     public function test_finalize_save_does_not_reset_the_final_round(): void
     {
         $this->actingAs(User::factory()->create());

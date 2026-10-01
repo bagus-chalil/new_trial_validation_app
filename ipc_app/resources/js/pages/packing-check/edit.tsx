@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type RecentBatch, type SharedData } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Camera } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
@@ -83,6 +83,7 @@ export default function PackingCheckEdit({
     decisions,
     photoUrls,
     standardWeightMb,
+    canFillMasterBox,
     maxThProgress,
     previousStageCompleted,
 }: {
@@ -93,6 +94,7 @@ export default function PackingCheckEdit({
     decisions: string[];
     photoUrls: Record<string, string | null>;
     standardWeightMb: string;
+    canFillMasterBox: boolean;
     maxThProgress: number;
     previousStageCompleted: boolean;
 }) {
@@ -221,6 +223,14 @@ export default function PackingCheckEdit({
     const isLastRound = (packingCheck?.save_count ?? 0) + 1 >= maxThProgress;
 
     const saveDraft = () => {
+        // Weight of MB is weighed every TH Progress round, so even a draft save needs it.
+        if (hasAnyDraftValue() && !data.sum_weight_mb?.toString().trim()) {
+            const empty = new Set(['sum_weight_mb']);
+            setErrorFields(empty);
+            toast('Weight of MB wajib diisi setiap TH Progress');
+            scrollToFirstError(empty);
+            return;
+        }
         if (!hasAnyDraftValue()) {
             // Nothing at all is filled — computeEmptyRequiredFields() here is the same
             // "everything" set Selesaikan would show (minus photos, which aren't part of this
@@ -271,6 +281,20 @@ export default function PackingCheckEdit({
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
+                        {canFillMasterBox && (
+                            <div className="border-primary/30 bg-primary/[0.06] flex flex-col gap-2.5 rounded-[20px] border px-[18px] py-3.5 md:flex-row md:items-center md:justify-between">
+                                <p className="text-foreground text-[13px] font-medium">
+                                    <b>Weight Master Box</b> belum diisi di Start Inspection. Isi sekarang — hanya bisa diisi sekali.
+                                </p>
+                                <Link
+                                    href={`/batches/${batch.id}/startup-inspection`}
+                                    className="bg-primary flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-[12.5px] font-bold whitespace-nowrap text-white"
+                                >
+                                    Isi Weight Master Box
+                                </Link>
+                            </div>
+                        )}
+
                         {checklistGroups.map((group) => {
                             const groupTotal = Object.keys(group.fields).length;
                             const groupAnswered = Object.keys(group.fields).filter((key) => data[key]).length;
@@ -318,7 +342,7 @@ export default function PackingCheckEdit({
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="sum_weight_mb" className="text-muted-foreground text-xs font-semibold">
-                                    Sum Weight MB
+                                    Weight of MB
                                 </Label>
                                 <Input
                                     id="sum_weight_mb"
@@ -462,7 +486,7 @@ export default function PackingCheckEdit({
                                             </div>
                                             <div className="text-muted-foreground mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]">
                                                 {rev.decision && <span>Decision: {rev.decision}</span>}
-                                                {rev.sum_weight_mb && <span>Sum Weight MB: {rev.sum_weight_mb}</span>}
+                                                {rev.sum_weight_mb && <span>Weight of MB: {rev.sum_weight_mb}</span>}
                                             </div>
                                             {rev.remarks && <p className="text-muted-foreground mt-1 text-[12px]">Remarks: {rev.remarks}</p>}
                                         </div>

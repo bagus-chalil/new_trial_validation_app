@@ -142,7 +142,6 @@
             <div><span>QC</span><strong>{{ $packingCheck->user->name ?? '—' }}</strong></div>
             <div><span>Line Leader</span><strong>{{ $packingCheck->line_leader_name ?? '—' }}</strong></div>
             <div><span>Standar Bruto MB</span><strong>{{ $packingCheck->standard_weight_mb ?? '—' }}</strong></div>
-            <div><span>Sum Weight MB</span><strong>{{ $packingCheck->sum_weight_mb ?? '—' }}</strong></div>
         </div>
 
         @php
@@ -247,6 +246,17 @@
                         </tr>
                     @endforeach
                 @endforeach
+                {{-- Weighed every TH_PROGRESS round (sum_weight_mb column), so it gets one value
+                     per round column instead of a single header field. --}}
+                <tr>
+                    <td class="center">{{ $itemNo + 1 }}</td>
+                    <td class="center">—</td>
+                    <td><strong>Weight of MB</strong></td>
+                    @foreach ($packingRounds as $round)
+                        <td class="center">{{ $round->sum_weight_mb ?? '—' }}</td>
+                    @endforeach
+                    <td colspan="{{ $packingRounds->count() }}">&nbsp;</td>
+                </tr>
             </tbody>
         </table>
 
@@ -295,7 +305,7 @@
                         <td>{{ $rev->finalize ? 'Selesai' : 'Draft' }}</td>
                         <td>
                             {{ $rev->decision ? 'Decision: '.$rev->decision.'. ' : '' }}
-                            {{ $rev->sum_weight_mb ? 'Sum Weight MB: '.$rev->sum_weight_mb.'. ' : '' }}
+                            {{ $rev->sum_weight_mb ? 'Weight of MB: '.$rev->sum_weight_mb.'. ' : '' }}
                             {{ $rev->remarks ? 'Remarks: '.$rev->remarks : '' }}
                         </td>
                     </tr>

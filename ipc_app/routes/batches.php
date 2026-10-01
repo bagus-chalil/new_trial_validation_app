@@ -43,6 +43,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('startup-inspection.update');
+    Route::put('batches/{batch}/startup-inspection/master-box', [StartupInspectionController::class, 'updateMasterBox'])
+        ->middleware('can:update,batch')
+        ->name('startup-inspection.master-box');
 
     Route::get('batches/{batch}/filling-check', [FillingCheckController::class, 'edit'])->name('filling-check.edit');
     Route::put('batches/{batch}/filling-check', [FillingCheckController::class, 'update'])

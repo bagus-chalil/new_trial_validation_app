@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\FillingCheck;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\MasterTestType;
+use App\Models\PackingCheck;
+use App\Models\StartupInspection;
 use App\Models\StartupInspectionItem;
 use App\Models\StartupInspectionSample;
 use App\Models\User;
@@ -188,6 +191,107 @@ class StartupInspectionTest extends TestCase
             ->assertRedirect("/batches/{$batch->id}/startup-check");
 
         $this->put("/batches/{$batch->id}/startup-inspection", $this->validPayload())
+            ->assertForbidden();
+    }
+
+    /**
+     * A batch whose Start Inspection is completed (with Volume/Weight samples but no Weight
+     * Master Box) and whose Filling Check has a save — i.e. Packing is open.
+     */
+    private function makeBatchAtPacking(): IpcBatch
+    {
+        $batch = $this->makeBatch();
+        $batch->update(['current_stage' => IpcBatch::STAGE_PACKING]);
+
+        $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
+        foreach (range(1, StartupInspectionSample::SAMPLE_COUNT) as $n) {
+            $inspection->samples()->create(['sample_no' => $n, 'volume_weight' => 10]);
+        }
+
+        FillingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by]);
+
+        return $batch->fresh();
+    }
+
+    private function masterBoxPayload(array $weights): array
+    {
+        return ['samples' => array_map(
+            fn (int $n) => ['sample_no' => $n, 'weight_master_box' => $weights[$n] ?? null],
+            range(1, StartupInspectionSample::SAMPLE_COUNT),
+        )];
+    }
+
+    public function test_master_box_can_be_filled_once_from_packing(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchAtPacking();
+
+        $this->get("/batches/{$batch->id}/startup-inspection")
+            ->assertInertia(fn ($page) => $page->where('masterBoxOnly', true)->where('isReadOnly', true));
+
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 250.5, 2 => 251]))
+            ->assertRedirect("/batches/{$batch->id}/packing-check");
+
+        $samples = $batch->startupInspection->samples()->orderBy('sample_no')->get();
+        $this->assertSame('250.50', $samples[0]->weight_master_box);
+        $this->assertSame('251.00', $samples[1]->weight_master_box);
+        // Volume/Weight is untouched by the late fill.
+        $this->assertSame('10.00', $samples[0]->volume_weight);
+
+        // One-time: a second fill is refused and the page is back to fully read-only.
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([3 => 260]))
+            ->assertForbidden();
+        $this->assertNull($samples[2]->fresh()->weight_master_box);
+        $this->get("/batches/{$batch->id}/startup-inspection")
+            ->assertInertia(fn ($page) => $page->where('masterBoxOnly', false));
+    }
+
+    public function test_master_box_filled_at_start_inspection_cannot_be_filled_again(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchAtPacking();
+        $batch->startupInspection->samples()->where('sample_no', 1)->update(['weight_master_box' => 100]);
+
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([2 => 260]))
+            ->assertForbidden();
+    }
+
+    public function test_master_box_cannot_be_filled_before_filling_check_is_saved(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchAtPacking();
+        $batch->fillingCheck->delete();
+
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 250]))
+            ->assertForbidden();
+    }
+
+    public function test_master_box_cannot_be_filled_after_packing_is_finalized(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchAtPacking();
+        PackingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
+
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 250]))
+            ->assertForbidden();
+    }
+
+    public function test_master_box_fill_requires_at_least_one_value(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchAtPacking();
+
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([]))
+            ->assertSessionHasErrors('samples');
+    }
+
+    public function test_approver_cannot_fill_master_box(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchAtPacking();
+        $this->actingAs(User::factory()->approver()->create());
+
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 250]))
             ->assertForbidden();
     }
 }

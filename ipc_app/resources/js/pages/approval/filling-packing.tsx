@@ -174,7 +174,6 @@ export default function ApprovalFillingPacking({
                             <InfoField label="Line Leader" value={packingCheck.line_leader_name ?? '—'} />
                             <InfoField label="Machines Coding" value={packingCheck.coding_machine ?? '—'} />
                             <InfoField label="Standard Weight MB" value={packingCheck.standard_weight_mb ?? '—'} />
-                            <InfoField label="Sum Weight MB" value={packingCheck.sum_weight_mb ?? '—'} />
 
                             {packingChecklistGroups.map((group) => (
                                 <div key={group.key} className="col-span-full">
@@ -222,7 +221,7 @@ export default function ApprovalFillingPacking({
                         renderSummary={(rev) => (
                             <>
                                 {rev.decision && <span>Decision: {rev.decision}</span>}
-                                {rev.sum_weight_mb && <span>Sum Weight MB: {rev.sum_weight_mb}</span>}
+                                {rev.sum_weight_mb && <span>Weight of MB: {rev.sum_weight_mb}</span>}
                             </>
                         )}
                         renderRemarks={(rev) => rev.remarks}

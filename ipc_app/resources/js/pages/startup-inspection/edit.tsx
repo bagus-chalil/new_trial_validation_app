@@ -127,6 +127,7 @@ export default function StartupInspectionEdit({
     parameterKeys,
     statusOptions,
     testTypes,
+    masterBoxOnly,
 }: {
     batch: Batch;
     startupInspection: StartupInspectionData | null;
@@ -134,6 +135,10 @@ export default function StartupInspectionEdit({
     parameterKeys: string[];
     statusOptions: string[];
     testTypes: TestType[];
+    // Start Inspection is already completed, but Weight Master Box was left empty and the batch
+    // is now at Packing: everything is read-only except that one card (see
+    // StartupInspectionController::masterBoxLockReason()).
+    masterBoxOnly: boolean;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -178,7 +183,7 @@ export default function StartupInspectionEdit({
         return acc;
     }, {});
 
-    const { data, setData, put, processing, errors } = useForm<StartupInspectionForm>({
+    const { data, setData, put, transform, processing, errors } = useForm<StartupInspectionForm>({
         items: initialItems,
         samples: initialSamples,
         test_results: initialTestResults,
@@ -187,6 +192,8 @@ export default function StartupInspectionEdit({
     const answeredCount = parameterKeys.filter((key) => data.items[key]?.status).length;
     const volumeWeightFilledCount = data.samples.filter((sample) => String(sample.volume_weight ?? '').trim() !== '').length;
     const volumeWeightComplete = volumeWeightFilledCount === SAMPLE_NUMBERS.length;
+    const masterBoxFilledCount = data.samples.filter((sample) => String(sample.weight_master_box ?? '').trim() !== '').length;
+    const masterBoxEditable = masterBoxOnly || !isReadOnly;
 
     const setItemField = (key: string, field: 'status' | 'remark', value: string) => {
         setData('items', { ...data.items, [key]: { ...data.items[key], [field]: value } });
@@ -233,6 +240,17 @@ export default function StartupInspectionEdit({
         return groups;
     }, [testTypes]);
 
+    const submitMasterBox: FormEventHandler = (e) => {
+        e.preventDefault();
+        if (masterBoxFilledCount === 0) {
+            toast('Isi minimal satu sample Weight Master Box');
+            return;
+        }
+        if (!confirm(`Simpan ${masterBoxFilledCount} sample Weight Master Box? Setelah disimpan tidak bisa diubah lagi.`)) return;
+        transform((current) => ({ samples: current.samples.map(({ sample_no, weight_master_box }) => ({ sample_no, weight_master_box })) }));
+        put(`/batches/${batch.id}/startup-inspection/master-box`);
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         const empty = new Set<string>();
@@ -263,9 +281,16 @@ export default function StartupInspectionEdit({
         <IpcShell
             title="Start Inspection"
             subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
-            backHref={`/batches/${batch.id}/startup-check`}
+            backHref={masterBoxOnly ? `/batches/${batch.id}/packing-check` : `/batches/${batch.id}/startup-check`}
             headerActions={
-                isReadOnly ? (
+                masterBoxOnly ? (
+                    <Link
+                        href={`/batches/${batch.id}/packing-check`}
+                        className="bg-primary/[0.08] text-primary flex h-9 items-center rounded-full px-3.5 text-[12.5px] font-bold whitespace-nowrap"
+                    >
+                        Kembali ke Packing Check
+                    </Link>
+                ) : isReadOnly ? (
                     <Link
                         href={`/batches/${batch.id}/startup-check`}
                         className="flex h-9 items-center gap-1.5 rounded-full bg-green-100 px-3.5 text-[12.5px] font-bold whitespace-nowrap text-green-800"
@@ -282,8 +307,15 @@ export default function StartupInspectionEdit({
             <Head title={`Start Inspection — ${batch.no_batch}`} />
             <Toast message={message} />
             <TwoPane list={listPane}>
-                <form onSubmit={submit} className="flex flex-1 flex-col">
+                <form onSubmit={masterBoxOnly ? submitMasterBox : submit} className="flex flex-1 flex-col">
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
+                        {masterBoxOnly && (
+                            <div className="border-primary/30 bg-primary/[0.06] text-foreground rounded-[20px] border px-[18px] py-3.5 text-[13px] font-medium">
+                                Start Inspection sudah selesai. Saat ini hanya <b>Weight Master Box</b> yang bisa diisi, dan hanya sekali — setelah
+                                disimpan tidak bisa diubah lagi.
+                            </div>
+                        )}
+
                         <AccordionCard
                             title="Checklist Inspeksi"
                             progress={`${answeredCount}/${parameterKeys.length} terisi`}
@@ -340,10 +372,20 @@ export default function StartupInspectionEdit({
                                     );
                                 })}
                             </div>
-                            <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />
+                            {!masterBoxOnly && <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />}
                         </AccordionCard>
 
-                        <AccordionCard title="Weight Master Box" progress="Opsional — belum bisa ditimbang" defaultOpen={false}>
+                        <AccordionCard
+                            title="Weight Master Box"
+                            progress={
+                                masterBoxOnly
+                                    ? `${masterBoxFilledCount}/${SAMPLE_NUMBERS.length} terisi — sekali isi`
+                                    : masterBoxFilledCount > 0
+                                      ? `${masterBoxFilledCount}/${SAMPLE_NUMBERS.length} terisi`
+                                      : 'Opsional — bisa diisi lagi saat Packing'
+                            }
+                            defaultOpen={masterBoxOnly}
+                        >
                             <div className="col-span-full grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
                                 {SAMPLE_NUMBERS.map((n) => {
                                     const sample = data.samples.find((s) => s.sample_no === n)!;
@@ -356,12 +398,13 @@ export default function StartupInspectionEdit({
                                                 className={inputClass}
                                                 value={sample.weight_master_box}
                                                 onChange={(e) => setSampleField(n, 'weight_master_box', e.target.value)}
-                                                disabled={isReadOnly}
+                                                disabled={!masterBoxEditable}
                                             />
                                         </div>
                                     );
                                 })}
                             </div>
+                            {masterBoxOnly && <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />}
                         </AccordionCard>
 
                         {['Leakage', 'Functional', 'Attribute'].map((category) => {
@@ -394,6 +437,14 @@ export default function StartupInspectionEdit({
                             );
                         })}
                     </div>
+
+                    {masterBoxOnly && (
+                        <StickySaveBar
+                            label="Simpan Weight Master Box"
+                            processing={processing}
+                            note={`${masterBoxFilledCount} dari ${SAMPLE_NUMBERS.length} sample terisi`}
+                        />
+                    )}
 
                     {!isReadOnly && (
                         <StickySaveBar

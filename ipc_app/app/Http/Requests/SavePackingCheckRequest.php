@@ -40,7 +40,9 @@ class SavePackingCheckRequest extends FormRequest
 
         $rules = [
             'finalize' => ['required', 'boolean'],
-            'sum_weight_mb' => [$required, 'numeric', 'min:0'],
+            // "Weight of MB" (sum_weight_mb column): weighed fresh every TH_PROGRESS round, so
+            // it's wajib on every save — draft or final — not just on Selesaikan (user, 2026-10-01).
+            'sum_weight_mb' => ['required', 'numeric', 'min:0'],
             'line_leader_name' => [$lineLeaderRequired, 'string', 'max:255'],
             'coding_machine' => [$codingMachineRequired, 'string', 'max:255'],
             'remarks' => [$required, 'string'],
