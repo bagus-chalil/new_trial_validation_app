@@ -86,9 +86,9 @@ const errorBorder = 'border-destructive ring-1 ring-destructive';
 
 const PHOTO_FIELDS: { key: string; label: string }[] = [
     { key: 'color', label: 'Color' },
-    { key: 'wo_image', label: 'WO Image' },
+    { key: 'wo_image', label: 'WI Image' },
     { key: 'date_bulk', label: 'Date Bulk' },
-    { key: 'image_tube', label: 'Image Tube' },
+    { key: 'image_tube', label: 'Image' },
 ];
 
 const inputClass =

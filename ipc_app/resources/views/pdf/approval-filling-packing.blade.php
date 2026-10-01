@@ -91,7 +91,7 @@
         </table>
 
         <div class="attachment-grid" style="grid-template-columns: repeat(4, 1fr);">
-            @foreach ([['color', 'Color'], ['wo_image', 'WO Image'], ['date_bulk', 'Date Bulk'], ['image_tube', 'Image Tube']] as [$field, $label])
+            @foreach ([['color', 'Color'], ['wo_image', 'WI Image'], ['date_bulk', 'Date Bulk'], ['image_tube', 'Image']] as [$field, $label])
                 <figure class="attachment-tile">
                     @if ($photoUrls['filling'][$field] ?? null)
                         <img src="{{ $photoUrls['filling'][$field] }}" alt="{{ $label }}">

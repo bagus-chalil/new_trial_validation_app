@@ -128,7 +128,7 @@
                 <strong>{{ $finishedCheck->user->name ?? '—' }}</strong>
             </div>
             <div>
-                <span>QC Staff</span>
+                <span>QC Approval</span>
                 @if ($finishedApproval)
                     <strong>{{ $finishedApproval->approver->name ?? '—' }}</strong>
                     <small class="sign-date">{{ optional($finishedApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>

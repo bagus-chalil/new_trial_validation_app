@@ -144,9 +144,9 @@ export default function PrintFillingPacking({
                             <PhotoRow
                                 photos={[
                                     { key: 'color', label: 'Color', url: photoUrls.filling?.color ?? null },
-                                    { key: 'wo_image', label: 'WO Image', url: photoUrls.filling?.wo_image ?? null },
+                                    { key: 'wo_image', label: 'WI Image', url: photoUrls.filling?.wo_image ?? null },
                                     { key: 'date_bulk', label: 'Date Bulk', url: photoUrls.filling?.date_bulk ?? null },
-                                    { key: 'image_tube', label: 'Image Tube', url: photoUrls.filling?.image_tube ?? null },
+                                    { key: 'image_tube', label: 'Image', url: photoUrls.filling?.image_tube ?? null },
                                 ]}
                             />
                         </AccordionCard>
