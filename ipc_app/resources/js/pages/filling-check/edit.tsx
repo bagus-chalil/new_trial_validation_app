@@ -79,13 +79,6 @@ interface FillingCheckData {
     user?: { name: string } | null;
 }
 
-interface StartupInspectionSampleInput {
-    sample_no: number;
-    volume_weight: string;
-    weight_master_box: string;
-    [key: string]: FormDataConvertible;
-}
-
 const SAMPLE_COUNT = 10;
 const CONFORM_OPTIONS = ['Conform', 'Not Conform'];
 const errorBorder = 'border-destructive ring-1 ring-destructive';
@@ -118,18 +111,12 @@ export default function FillingCheckEdit({
     isReadOnly,
     decisions,
     photoUrls,
-    startupInspectionSamples,
 }: {
     readonly batch: Batch;
     readonly fillingCheck: FillingCheckData | null;
     readonly isReadOnly: boolean;
     readonly decisions: string[];
     readonly photoUrls: Record<string, string | null>;
-    readonly startupInspectionSamples: readonly {
-        readonly sample_no: number;
-        readonly volume_weight: string | null;
-        readonly weight_master_box: string | null;
-    }[];
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -147,61 +134,19 @@ export default function FillingCheckEdit({
         }));
     };
 
-    const initialStartupSamples = (): StartupInspectionSampleInput[] => {
-        const bySample = new Map(startupInspectionSamples.map((row) => [row.sample_no, row]));
-        return Array.from({ length: 30 }, (_, i) => ({
-            sample_no: i + 1,
-            volume_weight: bySample.get(i + 1)?.volume_weight ?? '',
-            weight_master_box: bySample.get(i + 1)?.weight_master_box ?? '',
-        }));
-    };
-
     const { data, setData, put, transform, processing, errors } = useForm<{
         sample_bulk_odor_status: string;
         sample_leakage_test_status: string;
         remarks: string;
         decision: string;
         samples: FillingCheckSampleInput[];
-        startup_inspection_samples: StartupInspectionSampleInput[];
     }>({
         sample_bulk_odor_status: fillingCheck?.sample_bulk_odor_status ?? '',
         sample_leakage_test_status: fillingCheck?.sample_leakage_test_status ?? '',
         remarks: fillingCheck?.remarks ?? '',
         decision: fillingCheck?.decision ?? '',
         samples: initialSamples(),
-        startup_inspection_samples: initialStartupSamples(),
     });
-
-    const [liveMinVolume, setLiveMinVolume] = useState<string | null>(batch.startup_check?.filling_range_min ?? null);
-    const [liveMaxWeight, setLiveMaxWeight] = useState<string | null>(batch.startup_check?.filling_range_max ?? null);
-
-    // When Volume/Weight or Weight Master Box is dynamically updated, let's recalibrate Min & Max if needed
-    const updateDynamicMinMax = (updatedSamples: StartupInspectionSampleInput[]) => {
-        const validVols = updatedSamples.map((s) => toNumber(s.volume_weight)).filter((v): v is number => v !== null);
-        const validWeights = updatedSamples.map((s) => toNumber(s.weight_master_box)).filter((v): v is number => v !== null);
-
-        if (validVols.length > 0) {
-            const minVol = Math.min(...validVols).toString();
-            setLiveMinVolume(minVol);
-        } else {
-            setLiveMinVolume(batch.startup_check?.filling_range_min ?? null);
-        }
-
-        if (validWeights.length > 0) {
-            const maxW = Math.max(...validWeights).toString();
-            setLiveMaxWeight(maxW);
-        } else {
-            setLiveMaxWeight(batch.startup_check?.filling_range_max ?? null);
-        }
-    };
-
-    const setStartupSampleField = (sampleNo: number, field: 'volume_weight' | 'weight_master_box', value: string) => {
-        const updated = data.startup_inspection_samples.map((row) =>
-            row.sample_no === sampleNo ? { ...row, [field]: value === '' ? null : value } : row,
-        );
-        setData('startup_inspection_samples', updated as unknown as StartupInspectionSampleInput[]);
-        updateDynamicMinMax(updated as unknown as StartupInspectionSampleInput[]);
-    };
 
     const setWeight = (sampleNo: number, value: string) => {
         setData(
@@ -251,7 +196,6 @@ export default function FillingCheckEdit({
         remarks: '',
         decision: '',
         samples: Array.from({ length: SAMPLE_COUNT }, (_, i) => ({ sample_no: i + 1, weight_value: null })),
-        startup_inspection_samples: initialStartupSamples(),
     });
 
     const hasAnyDraftValue = () =>
@@ -359,67 +303,6 @@ export default function FillingCheckEdit({
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                         </div>
 
-                        <AccordionCard title="Volume/Weight & Weight Master Box" defaultOpen={true}>
-                            <div className="col-span-full">
-                                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                                    {/* Volume / Weight Card */}
-                                    <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4">
-                                        <div className="flex items-center justify-between border-b pb-2">
-                                            <span className="text-foreground text-[13.5px] font-bold">Volume / Weight (30 Sample)</span>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5">
-                                            {data.startup_inspection_samples.map((row) => (
-                                                <div key={`vol-${row.sample_no}`} className="flex flex-col gap-1">
-                                                    <span className="text-muted-foreground/70 text-center text-[10px] font-semibold">
-                                                        #{row.sample_no}
-                                                    </span>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.0001"
-                                                        className="border-border h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold"
-                                                        value={row.volume_weight ?? ''}
-                                                        onChange={(e) => setStartupSampleField(row.sample_no, 'volume_weight', e.target.value)}
-                                                        disabled={isReadOnly}
-                                                        placeholder="—"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Weight Master Box Card */}
-                                    <div className="border-border bg-background flex flex-col gap-3 rounded-2xl border p-4">
-                                        <div className="flex items-center justify-between border-b pb-2">
-                                            <span className="text-foreground text-[13.5px] font-bold">Weight Master Box (30 Sample)</span>
-                                            <span className="text-muted-foreground text-xs font-semibold">Opsional — belum bisa ditimbang</span>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5">
-                                            {data.startup_inspection_samples.map((row) => (
-                                                <div key={`wmb-${row.sample_no}`} className="flex flex-col gap-1">
-                                                    <span className="text-muted-foreground/70 text-center text-[10px] font-semibold">
-                                                        #{row.sample_no}
-                                                    </span>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.0001"
-                                                        className="border-border h-10 rounded-lg border-[1.5px] px-1 text-center text-[12.5px] font-semibold"
-                                                        value={row.weight_master_box ?? ''}
-                                                        onChange={(e) => setStartupSampleField(row.sample_no, 'weight_master_box', e.target.value)}
-                                                        disabled={isReadOnly}
-                                                        placeholder="—"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="text-muted-foreground mt-3 text-xs">
-                                    Data ini tersimpan ke Start Inspection — bisa dilengkapi dari sini jika belum diisi saat startup. Min Volume dan
-                                    Max Weight di bawah akan mengadaptasi isi form ini secara interaktif!
-                                </p>
-                            </div>
-                        </AccordionCard>
-
                         <AccordionCard title="Sample Check">
                             <div id="sample_bulk_odor_status" className="flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Sample Bulk & Odor (5 Sample)</Label>
@@ -506,11 +389,11 @@ export default function FillingCheckEdit({
                         <AccordionCard title="Parameter Filling">
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Min Volume (dari Startup Check)</Label>
-                                <div className={readOnlyFieldClass}>{liveMinVolume ?? '—'}</div>
+                                <div className={readOnlyFieldClass}>{batch.startup_check?.filling_range_min ?? '—'}</div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Max Weight (dari Startup Check)</Label>
-                                <div className={readOnlyFieldClass}>{liveMaxWeight ?? '—'}</div>
+                                <div className={readOnlyFieldClass}>{batch.startup_check?.filling_range_max ?? '—'}</div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">Line Leader (dari Startup Check)</Label>

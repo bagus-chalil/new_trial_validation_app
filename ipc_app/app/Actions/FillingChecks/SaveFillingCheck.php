@@ -7,7 +7,6 @@ use App\Models\FillingCheckRevision;
 use App\Models\FillingCheckRevisionSample;
 use App\Models\FillingCheckSample;
 use App\Models\IpcBatch;
-use App\Models\StartupInspectionSample;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -114,21 +113,6 @@ class SaveFillingCheck
 
             if ($finalize && $batch->current_stage === IpcBatch::STAGE_FILLING) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_PACKING]);
-            }
-
-            // Persist any volume/weight & weight_master_box edits made from the Filling form.
-            // The startup inspection may not exist yet — skip silently if so.
-            $inspectionId = $batch->startupInspection?->id;
-            if ($inspectionId && ! empty($data['startup_inspection_samples'])) {
-                foreach ($data['startup_inspection_samples'] as $row) {
-                    StartupInspectionSample::updateOrCreate(
-                        ['startup_inspection_id' => $inspectionId, 'sample_no' => $row['sample_no']],
-                        [
-                            'volume_weight' => filled($row['volume_weight'] ?? null) ? $row['volume_weight'] : null,
-                            'weight_master_box' => filled($row['weight_master_box'] ?? null) ? $row['weight_master_box'] : null,
-                        ],
-                    );
-                }
             }
 
             return $fillingCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);

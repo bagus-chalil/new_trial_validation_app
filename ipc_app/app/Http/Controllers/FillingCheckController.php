@@ -33,7 +33,6 @@ class FillingCheckController extends Controller
             'masterProduct',
             'masterLine',
             'startupCheck',
-            'startupInspection.samples',
             'fillingCheck.samples',
             'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'fillingCheck.revisions.samples',
@@ -59,7 +58,6 @@ class FillingCheckController extends Controller
             'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->fillingCheck?->completed_at,
             'decisions' => FillingCheck::DECISIONS,
             'photoUrls' => $photoUrls,
-            'startupInspectionSamples' => $batch->startupInspection?->samples ?? [],
         ]);
     }
 
@@ -68,7 +66,6 @@ class FillingCheckController extends Controller
         abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
         abort_if($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini sudah selesai dan bersifat read-only.');
 
-        $batch->load('startupInspection');
         $data = $request->validated();
         $action->handle($batch, $request->user(), $data);
 

@@ -8,6 +8,7 @@ import { TwoPane } from '@/components/ipc/two-pane';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { limitDecimals } from '@/lib/decimal';
 import { cn } from '@/lib/utils';
 import { type RecentBatch, type SharedData } from '@/types';
 import { type FormDataConvertible } from '@inertiajs/core';
@@ -198,7 +199,9 @@ export default function StartupInspectionEdit({
         }
     };
 
-    const setSampleField = (sampleNo: number, field: 'volume_weight' | 'weight_master_box', value: string) => {
+    const setSampleField = (sampleNo: number, field: 'volume_weight' | 'weight_master_box', rawValue: string) => {
+        // Max 2 digits after the decimal point — extra digits are dropped as they're typed.
+        const value = limitDecimals(rawValue);
         setData(
             'samples',
             data.samples.map((sample) => (sample.sample_no === sampleNo ? { ...sample, [field]: value } : sample)),
@@ -324,7 +327,7 @@ export default function StartupInspectionEdit({
                                             <span className="text-muted-foreground w-5 shrink-0 text-[11px] font-semibold">{n}</span>
                                             <Input
                                                 type="number"
-                                                step="0.0001"
+                                                step="0.01"
                                                 className={cn(
                                                     inputClass,
                                                     errorFields.has(`volume_weight.${n}`) && 'border-destructive ring-destructive ring-1',
@@ -349,7 +352,7 @@ export default function StartupInspectionEdit({
                                             <span className="text-muted-foreground w-5 shrink-0 text-[11px] font-semibold">{n}</span>
                                             <Input
                                                 type="number"
-                                                step="0.0001"
+                                                step="0.01"
                                                 className={inputClass}
                                                 value={sample.weight_master_box}
                                                 onChange={(e) => setSampleField(n, 'weight_master_box', e.target.value)}

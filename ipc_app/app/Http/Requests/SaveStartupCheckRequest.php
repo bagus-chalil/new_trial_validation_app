@@ -20,14 +20,14 @@ class SaveStartupCheckRequest extends FormRequest
             'exp_date' => ['required', 'date'],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],
-            'filling_range_min' => ['nullable', 'numeric'],
-            'filling_range_max' => ['nullable', 'numeric'],
-            'density' => ['nullable', 'numeric', 'min:0'],
+            'filling_range_min' => ['nullable', 'numeric', 'decimal:0,2'],
+            'filling_range_max' => ['nullable', 'numeric', 'decimal:0,2'],
+            'density' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
             'density_not_applicable' => ['nullable', 'boolean'],
             // Confirmed with real IPC users 2026-09-03: SOP no longer does the 30-sample
             // BottleData weighing — this is entered once, directly, matching the legacy
             // screen's own single input box for AVERAGE_OF_EMPTY_BOTTLE_WEIGHT.
-            'average_of_empty_bottle_weight' => ['required', 'numeric', 'min:0'],
+            'average_of_empty_bottle_weight' => ['required', 'numeric', 'decimal:0,2', 'min:0'],
             'heating' => ['nullable', 'string', 'max:255'],
             'line_leader_name' => ['nullable', 'string', 'max:255'],
             'operator_name' => ['nullable', 'string', 'max:255'],

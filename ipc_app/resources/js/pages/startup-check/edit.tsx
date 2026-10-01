@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { limitDecimals } from '@/lib/decimal';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Camera, CheckCircle2, ClipboardList, Trash2 } from 'lucide-react';
@@ -279,7 +280,7 @@ export default function StartupCheckEdit({
                                     step="0.01"
                                     className={inputClass}
                                     value={data.filling_range_min ?? ''}
-                                    onChange={(e) => setData('filling_range_min', e.target.value)}
+                                    onChange={(e) => setData('filling_range_min', limitDecimals(e.target.value))}
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.filling_range_min} />
@@ -294,7 +295,7 @@ export default function StartupCheckEdit({
                                     step="0.01"
                                     className={inputClass}
                                     value={data.filling_range_max ?? ''}
-                                    onChange={(e) => setData('filling_range_max', e.target.value)}
+                                    onChange={(e) => setData('filling_range_max', limitDecimals(e.target.value))}
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.filling_range_max} />
@@ -307,10 +308,10 @@ export default function StartupCheckEdit({
                                     <Input
                                         id="density"
                                         type={densityNotApplicable ? 'text' : 'number'}
-                                        step="0.0001"
+                                        step="0.01"
                                         className={`${inputClass} flex-1`}
                                         value={densityNotApplicable ? 'N/A' : (data.density ?? '')}
-                                        onChange={(e) => setData('density', e.target.value)}
+                                        onChange={(e) => setData('density', limitDecimals(e.target.value))}
                                         disabled={isReadOnly || densityNotApplicable}
                                     />
                                     <button
@@ -336,11 +337,11 @@ export default function StartupCheckEdit({
                                 <Input
                                     id="average_of_empty_bottle_weight"
                                     type="number"
-                                    step="0.0001"
+                                    step="0.01"
                                     className={`${inputClass} ${errorFields.has('average_of_empty_bottle_weight') ? errorBorder : ''}`}
                                     value={data.average_of_empty_bottle_weight ?? ''}
                                     onChange={(e) => {
-                                        setData('average_of_empty_bottle_weight', e.target.value);
+                                        setData('average_of_empty_bottle_weight', limitDecimals(e.target.value));
                                         setErrorFields((prev) => {
                                             const n = new Set(prev);
                                             n.delete('average_of_empty_bottle_weight');

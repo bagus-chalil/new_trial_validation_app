@@ -33,8 +33,8 @@ class SaveStartupInspectionRequest extends FormRequest
         // stays optional — IPC still can't weigh master boxes at this stage (2026-09-03).
         $rules['samples'] = ['nullable', 'array'];
         $rules['samples.*.sample_no'] = ['required_with:samples', 'integer', 'between:1,30'];
-        $rules['samples.*.volume_weight'] = ['nullable', 'numeric', 'min:0'];
-        $rules['samples.*.weight_master_box'] = ['nullable', 'numeric', 'min:0'];
+        $rules['samples.*.volume_weight'] = ['nullable', 'numeric', 'decimal:0,2', 'min:0'];
+        $rules['samples.*.weight_master_box'] = ['nullable', 'numeric', 'decimal:0,2', 'min:0'];
 
         $rules['test_results'] = ['nullable', 'array'];
         $rules['test_results.*.is_performed'] = ['nullable', 'boolean'];

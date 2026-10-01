@@ -50,7 +50,7 @@ class StartupInspectionTest extends TestCase
     private function validSamplesPayload(): array
     {
         return array_map(
-            fn (int $n) => ['sample_no' => $n, 'volume_weight' => 10 + $n / 10, 'weight_master_box' => null],
+            fn (int $n) => ['sample_no' => $n, 'volume_weight' => round(10 + $n / 10, 2), 'weight_master_box' => null],
             range(1, StartupInspectionSample::SAMPLE_COUNT),
         );
     }
@@ -126,6 +126,21 @@ class StartupInspectionTest extends TestCase
 
         $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload()])
             ->assertSessionHasErrors('samples');
+
+        $this->assertNull($batch->fresh()->startupInspection);
+    }
+
+    public function test_sample_values_allow_at_most_two_decimal_places(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $samples = $this->validSamplesPayload();
+        $samples[0]['volume_weight'] = 10.123;
+        $samples[1]['weight_master_box'] = 5.5555;
+
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload(), 'samples' => $samples])
+            ->assertSessionHasErrors(['samples.0.volume_weight', 'samples.1.weight_master_box']);
 
         $this->assertNull($batch->fresh()->startupInspection);
     }

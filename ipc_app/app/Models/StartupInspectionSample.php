@@ -18,8 +18,8 @@ class StartupInspectionSample extends Model
     protected function casts(): array
     {
         return [
-            'volume_weight' => 'decimal:4',
-            'weight_master_box' => 'decimal:4',
+            'volume_weight' => 'decimal:2',
+            'weight_master_box' => 'decimal:2',
         ];
     }
 

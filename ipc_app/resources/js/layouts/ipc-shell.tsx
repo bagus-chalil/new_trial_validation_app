@@ -69,7 +69,9 @@ export function IpcShell({
                     </div>
                 )}
 
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-16 md:pb-0">{children}</div>
+                {/* `relative` keeps absolutely-positioned descendants (e.g. Radix's hidden native
+                    <select>) inside this clip instead of stretching the document below the shell. */}
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden pb-16 md:pb-0">{children}</div>
             </div>
 
             <BottomNav />
