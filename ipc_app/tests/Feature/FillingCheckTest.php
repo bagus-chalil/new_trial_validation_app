@@ -99,7 +99,7 @@ class FillingCheckTest extends TestCase
         $this->get("/batches/{$batch->id}/filling-check")->assertNotFound();
     }
 
-    public function test_valid_submission_computes_weight_results_and_advances_stage(): void
+    public function test_valid_submission_averages_the_typed_weights_and_advances_stage(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedStartupCheck();
@@ -114,14 +114,27 @@ class FillingCheckTest extends TestCase
         $this->assertNotNull($fillingCheck->completed_at);
         $this->assertCount(10, $fillingCheck->samples);
 
-        // density=1.0, average_of_empty_bottle_weight=20.0 -> result = weight - 20.
+        // No density / empty-bottle formula anymore — the result column stays empty.
         $sample1 = $fillingCheck->samples->firstWhere('sample_no', 1);
-        $this->assertEquals(1.0, (float) $sample1->weight_result);
-        $sample10 = $fillingCheck->samples->firstWhere('sample_no', 10);
-        $this->assertEquals(10.0, (float) $sample10->weight_result);
+        $this->assertEquals(21.0, (float) $sample1->weight_value);
+        $this->assertNull($sample1->weight_result);
 
-        // average of results 1..10 = 5.5
-        $this->assertEquals(5.5, (float) $fillingCheck->average_weight);
+        // plain mean of the typed weights 21..30 = 25.5
+        $this->assertEquals(25.5, (float) $fillingCheck->average_weight);
+    }
+
+    public function test_weight_samples_allow_at_most_two_decimal_places(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $payload = $this->validPayload();
+        $payload['samples'][0]['weight_value'] = 21.125;
+
+        $this->put("/batches/{$batch->id}/filling-check", $payload)
+            ->assertSessionHasErrors('samples.0.weight_value');
+
+        $this->assertNull($batch->fresh()->fillingCheck);
     }
 
     public function test_missing_field_is_rejected(): void

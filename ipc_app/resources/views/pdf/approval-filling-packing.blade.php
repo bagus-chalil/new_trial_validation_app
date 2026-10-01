@@ -24,7 +24,7 @@
             if ($fillingRounds->isEmpty()) {
                 $fillingRounds = collect([$fillingCheck]);
             }
-            $results = $fillingCheck->samples->pluck('weight_result')->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+            $results = $fillingCheck->samples->pluck('weight_value')->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
             $parameterWidth = 14;
             $fillingTimeColWidth = (100 - $parameterWidth) / max($fillingRounds->count(), 1);
         @endphp
@@ -78,7 +78,7 @@
                     <td style="width: 45%;">
                         Min: {{ $results->isNotEmpty() ? $results->min() : '—' }}
                         &nbsp;&nbsp; Max: {{ $results->isNotEmpty() ? $results->max() : '—' }}
-                        &nbsp;&nbsp; Average: {{ $fillingCheck->average_weight ?? ($results->isNotEmpty() ? round($results->avg(), 4) : '—') }}
+                        &nbsp;&nbsp; Average: {{ $fillingCheck->average_weight ?? ($results->isNotEmpty() ? round($results->avg(), 2) : '—') }}
                     </td>
                     <td style="width: 15%;"><strong>Decision</strong></td>
                     <td>@include('pdf._status-pill', ['value' => $fillingCheck->decision])</td>

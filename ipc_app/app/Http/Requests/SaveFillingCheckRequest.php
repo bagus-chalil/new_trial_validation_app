@@ -28,7 +28,7 @@ class SaveFillingCheckRequest extends FormRequest
             'decision' => [$required, 'in:'.implode(',', FillingCheck::DECISIONS)],
             'samples' => ['nullable', 'array'],
             'samples.*.sample_no' => ['required', 'integer', 'min:1'],
-            'samples.*.weight_value' => ['nullable', 'numeric', 'min:0'],
+            'samples.*.weight_value' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
         ];
     }
 

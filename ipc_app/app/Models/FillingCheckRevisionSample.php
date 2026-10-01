@@ -16,7 +16,7 @@ class FillingCheckRevisionSample extends Model
     protected function casts(): array
     {
         return [
-            'weight_value' => 'decimal:4',
+            'weight_value' => 'decimal:2',
         ];
     }
 

@@ -22,7 +22,7 @@ class FillingCheckRevision extends Model
     {
         return [
             'finalize' => 'boolean',
-            'average_weight' => 'decimal:4',
+            'average_weight' => 'decimal:2',
         ];
     }
 

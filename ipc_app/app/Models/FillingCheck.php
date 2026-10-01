@@ -33,7 +33,7 @@ class FillingCheck extends Model
     protected function casts(): array
     {
         return [
-            'average_weight' => 'decimal:4',
+            'average_weight' => 'decimal:2',
             'completed_at' => 'datetime',
         ];
     }

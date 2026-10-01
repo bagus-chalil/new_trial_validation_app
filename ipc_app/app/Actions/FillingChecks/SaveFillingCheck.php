@@ -18,32 +18,21 @@ class SaveFillingCheck
             $finalize = (bool) ($data['finalize'] ?? false);
             $fields = collect($data)->except(['samples', 'finalize'])->all();
 
-            // Real per-sample formula from the export (Controls/625.json):
-            // WEIGHT_SAMPLE_N_RESULT = (WEIGHT_SAMPLE_N - Start.AVERAGE_OF_EMPTY_BOTTLE_WEIGHT) / Start.DENSITY.
-            // Requires the batch's Startup Check to already be completed (guaranteed by the
-            // controller, since a batch only reaches the filling stage once that's done).
-            $averageOfEmptyBottleWeight = (float) $batch->startupCheck->average_of_empty_bottle_weight;
-            $density = (float) $batch->startupCheck->density;
-
+            // weight_result is no longer computed — the (weight - empty bottle) / density formula
+            // is done outside the system now (user, 2026-10-01). Average Weight is the plain mean
+            // of the weights QC actually typed. The column stays for historical rows.
             $samples = collect($data['samples'] ?? [])
                 ->filter(fn ($row) => filled($row['weight_value'] ?? null))
-                ->map(function ($row) use ($averageOfEmptyBottleWeight, $density) {
-                    $weightValue = (float) $row['weight_value'];
+                ->map(fn ($row) => [
+                    'sample_no' => $row['sample_no'],
+                    'weight_value' => round((float) $row['weight_value'], 2),
+                    'weight_result' => null,
+                ]);
 
-                    return [
-                        'sample_no' => $row['sample_no'],
-                        'weight_value' => $weightValue,
-                        'weight_result' => $density !== 0.0
-                            ? round(($weightValue - $averageOfEmptyBottleWeight) / $density, 4)
-                            : null,
-                    ];
-                });
-
-            // Legacy's own Label3_1 formula averages the 10 per-sample RESULT values, not the
-            // raw weights (Controls/625.json). Recomputed on every save (draft or final) so QC
-            // sees it update live while re-checking samples over a shift, not only at the end.
+            // Recomputed on every save (draft or final) so QC sees it update while re-checking
+            // samples over a shift, not only at the end.
             $averageWeight = $samples->isNotEmpty()
-                ? round((float) $samples->avg('weight_result'), 4)
+                ? round((float) $samples->avg('weight_value'), 2)
                 : 0;
 
             $saveCount = ($batch->fillingCheck?->save_count ?? 0) + 1;

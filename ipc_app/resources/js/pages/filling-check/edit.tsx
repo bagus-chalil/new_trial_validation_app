@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { limitDecimals } from '@/lib/decimal';
 import { type RecentBatch, type SharedData } from '@/types';
 import { type FormDataConvertible } from '@inertiajs/core';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
@@ -124,8 +125,6 @@ export default function FillingCheckEdit({
     const { message, toast } = useToast();
     const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
 
-    const resultBySample = new Map((fillingCheck?.samples ?? []).map((row) => [row.sample_no, row.weight_result ?? null]));
-
     const initialSamples = (): FillingCheckSampleInput[] => {
         const bySample = new Map((fillingCheck?.samples ?? []).map((row) => [row.sample_no, row.weight_value]));
         return Array.from({ length: SAMPLE_COUNT }, (_, i) => ({
@@ -151,7 +150,7 @@ export default function FillingCheckEdit({
     const setWeight = (sampleNo: number, value: string) => {
         setData(
             'samples',
-            data.samples.map((row) => (row.sample_no === sampleNo ? { ...row, weight_value: value === '' ? null : value } : row)),
+            data.samples.map((row) => (row.sample_no === sampleNo ? { ...row, weight_value: value === '' ? null : limitDecimals(value) } : row)),
         );
     };
 
@@ -239,35 +238,13 @@ export default function FillingCheckEdit({
 
     const inspectorName = fillingCheck?.user?.name ?? props.auth.user.name;
 
-    // Live per-sample result, mirroring the real legacy formula (Controls/625.json, Label5.Text):
-    // (Value(WEIGHT_SAMPLE_N.Text) - Start.AVERAGE_OF_EMPTY_BOTTLE_WEIGHT) / Start.DENSITY —
-    // recalculated as the operator types, same as legacy's own reactive label, instead of only
-    // after a save. Power Apps' Value() coerces a blank text input to 0 rather than blank, so an
-    // empty sample shows a real (if nonsensical) negative number instead of a dash — direct user
-    // feedback 2026-09-04 confirmed this is legacy behavior they want mirrored exactly, not a
-    // bug to fix, so an unfilled weight is treated as 0 here too. This is purely a live on-screen
-    // preview: SaveFillingCheck's persisted weight_result/average_weight still only ever consider
-    // samples that actually have a value (see that action's `->filter(fn ($row) => filled(...))`)
-    // — replicating legacy's blank-reads-as-0 quirk in stored data would corrupt the average.
-    const density = toNumber(batch.startup_check?.density);
-    const avgBottleWeight = toNumber(batch.startup_check?.average_of_empty_bottle_weight);
-
-    const liveResult = (weightValue: string | null): string | null => {
-        if (density === null || density === 0 || avgBottleWeight === null) return null;
-        const value = toNumber(weightValue) ?? 0;
-        return ((value - avgBottleWeight) / density).toFixed(4);
-    };
-
-    // Live Average Weight, mirroring the exact legacy formula (Controls/625.json, Label3_1.Text):
-    // Text((Label5.Text + Label5_1.Text + ... + Label5_9.Text) / 10, "#,##0.00") — sum of all 10
-    // per-sample result labels above (blank ones included, via liveResult's same 0-coercion) then
-    // always divided by 10, recalculated on every keystroke exactly like the reactive legacy
-    // label. Direct user feedback 2026-09-04: don't invent a different (e.g. filled-only) average
-    // for the live view, and don't wait for a save round-trip — mirror legacy's own live formula.
+    // Average Weight is the plain mean of the weights QC typed — no Density / Empty Bottle
+    // Weight formula anymore (user, 2026-10-01: the calculation is done outside the system).
+    // Blank samples are ignored rather than counted as 0. Mirrors SaveFillingCheck.
     const liveAverageWeight = (): string | null => {
-        if (density === null || density === 0 || avgBottleWeight === null) return null;
-        const sum = data.samples.reduce((total, row) => total + Number.parseFloat(liveResult(row.weight_value) ?? '0'), 0);
-        return (sum / SAMPLE_COUNT).toFixed(2);
+        const values = data.samples.map((row) => toNumber(row.weight_value)).filter((v): v is number => v !== null);
+        if (values.length === 0) return null;
+        return (values.reduce((total, v) => total + v, 0) / values.length).toFixed(2);
     };
 
     const revisions = [...(fillingCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
@@ -355,7 +332,6 @@ export default function FillingCheckEdit({
                                 <InputError message={(errors as Record<string, string>).samples} className="mb-2" />
                                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                                     {data.samples.map((row) => {
-                                        const result = liveResult(row.weight_value) ?? resultBySample.get(row.sample_no) ?? null;
                                         return (
                                             <div key={row.sample_no} className="flex flex-col gap-1">
                                                 <span className="text-muted-foreground/70 text-center text-[10.5px] font-semibold">
@@ -364,13 +340,12 @@ export default function FillingCheckEdit({
                                                 <Input
                                                     id={`weight-${row.sample_no}`}
                                                     type="number"
-                                                    step="0.0001"
+                                                    step="0.01"
                                                     className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-destructive ring-1' : 'border-border'}`}
                                                     value={row.weight_value ?? ''}
                                                     onChange={(e) => setWeight(row.sample_no, e.target.value)}
                                                     disabled={isReadOnly}
                                                 />
-                                                <span className="text-muted-foreground text-center text-[10px]">{result ?? '—'}</span>
                                             </div>
                                         );
                                     })}
@@ -379,10 +354,6 @@ export default function FillingCheckEdit({
                                     <span className="text-muted-foreground text-xs font-semibold">Average Weight</span>
                                     <span className="text-[15px] font-bold">{liveAverageWeight() ?? fillingCheck?.average_weight ?? '—'}</span>
                                 </div>
-                                <p className="text-muted-foreground mt-2 text-xs">
-                                    Result per sample dan Average Weight dihitung langsung real-time dari Density & Average of Empty Bottle Weight
-                                    milik Startup Check, sama seperti kalkulasi live di aplikasi lama — tidak perlu disimpan dulu.
-                                </p>
                             </div>
                         </AccordionCard>
 

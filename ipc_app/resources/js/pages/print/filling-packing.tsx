@@ -30,7 +30,6 @@ interface Batch {
 interface FillingSampleRow {
     sample_no: number;
     weight_value: string | null;
-    weight_result: string | null;
 }
 
 interface FillingCheckRevision extends RevisionRow {
@@ -119,7 +118,7 @@ export default function PrintFillingPacking({
                             <InfoField label="QC Inspector" value={fillingCheck.user?.name ?? '—'} />
                             <InfoField label="Line Leader" value={startupCheck?.line_leader_name ?? '—'} />
                             <InfoField label="Density" value={startupCheck?.density_not_applicable ? 'N/A' : (startupCheck?.density ?? '—')} />
-                            <InfoField label="Average Weight (Result)" value={fillingCheck.average_weight ?? '—'} />
+                            <InfoField label="Average Weight" value={fillingCheck.average_weight ?? '—'} />
                             <ChecklistRow label="Kebersihan Bulk & Odor" value={fillingCheck.sample_bulk_odor_status} />
                             <ChecklistRow label="Uji Kebocoran (Vaccum / Press)" value={fillingCheck.sample_leakage_test_status} />
                             <div className="col-span-full overflow-x-auto">
@@ -128,7 +127,6 @@ export default function PrintFillingPacking({
                                         <tr className="text-muted-foreground/70 border-border-soft border-b text-left uppercase">
                                             <th className="py-1.5 pr-2 font-semibold">Sample</th>
                                             <th className="py-1.5 pr-2 font-semibold">Weight Value</th>
-                                            <th className="py-1.5 pr-2 font-semibold">Weight Result</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -136,7 +134,6 @@ export default function PrintFillingPacking({
                                             <tr key={no} className="border-border-soft border-b last:border-0">
                                                 <td className="py-1.5 pr-2 font-semibold">{no}</td>
                                                 <td className="py-1.5 pr-2">{fillingSamplesByNo[no]?.weight_value ?? '—'}</td>
-                                                <td className="py-1.5 pr-2">{fillingSamplesByNo[no]?.weight_result ?? '—'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
