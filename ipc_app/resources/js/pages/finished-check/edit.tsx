@@ -436,8 +436,9 @@ export default function FinishedCheckEdit({
                                 </Label>
                                 <Input
                                     id="masterbox"
-                                    type="number"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="text"
+                                    placeholder="Contoh: 4,17,55,78"
                                     className={`${inputClass} ${errorFields.has('masterbox') ? errorBorder : ''}`}
                                     value={(data.masterbox as string) ?? ''}
                                     onChange={(e) => setField('masterbox', e.target.value)}
@@ -451,8 +452,9 @@ export default function FinishedCheckEdit({
                                 </Label>
                                 <Input
                                     id="no_pallet_qty"
-                                    type="number"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="text"
+                                    placeholder="Contoh: 1/2016"
                                     className={`${inputClass} ${errorFields.has('no_pallet_qty') ? errorBorder : ''}`}
                                     value={(data.no_pallet_qty as string) ?? ''}
                                     onChange={(e) => setField('no_pallet_qty', e.target.value)}

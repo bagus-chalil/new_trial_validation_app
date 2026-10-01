@@ -36,19 +36,38 @@ class SaveFinishedCheckRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // "4, 17 , 55" is fine to type � spaces are stripped before the format check and storage.
+        foreach (['masterbox', 'no_pallet_qty'] as $field) {
+            if (is_string($this->input($field))) {
+                $this->merge([$field => preg_replace('/\s+/', '', $this->input($field))]);
+            }
+        }
+    }
+
+    public function messages(): array
+    {
+        return [
+            'masterbox.regex' => 'Masterbox harus berupa angka dipisah koma, contoh: 4,17,55,78.',
+            'no_pallet_qty.regex' => 'No. Pallet & Qty harus berformat pallet/qty, contoh: 1/2016 (beberapa dipisah koma).',
+        ];
+    }
+
     public function rules(): array
     {
         $required = $this->boolean('finalize') ? 'required' : 'nullable';
 
         $rules = [
             'finalize' => ['nullable', 'boolean'],
-            // max:9999999999.99 matches the finished_checks.{quantity_wi,masterbox,no_pallet_qty}
-            // decimal(12,2) column precision — without this, a value with more than 10 integer
+            // max:9999999999.99 matches the finished_checks.quantity_wi decimal(12,2) column precision — without this, a value with more than 10 integer
             // digits passes validation but then crashes with a raw SQL "out of range" error
             // instead of a clean, visible validation message.
             'quantity_wi' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
-            'masterbox' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
-            'no_pallet_qty' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
+            // Free-text lists (columns are strings): masterbox "4,17,55,78", no_pallet_qty
+            // "1/2016" or several pairs "1/2016,2/1800" (pallet number / quantity).
+            'masterbox' => [$required, 'string', 'max:255', 'regex:/^\d+(,\d+)*$/'],
+            'no_pallet_qty' => [$required, 'string', 'max:255', 'regex:/^\d+\/\d+(,\d+\/\d+)*$/'],
             // max:4294967295 matches the unsignedInteger column type of every AQL quantity field
             // below (finished_checks + finished_check_samples) — same crash class as the decimal
             // fields above: 'integer'/'min:0' alone lets an out-of-range value reach a raw SQL

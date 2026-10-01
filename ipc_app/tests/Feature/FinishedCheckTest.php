@@ -76,8 +76,8 @@ class FinishedCheckTest extends TestCase
         return [
             'finalize' => true,
             'quantity_wi' => 500,
-            'masterbox' => 50,
-            'no_pallet_qty' => 5,
+            'masterbox' => '4,17,55,78',
+            'no_pallet_qty' => '1/2016',
             'quantity_sampling_aql' => 32,
             'quantity_sample_aql_cd' => 0,
             'quantity_sample_aql_md' => 1,
@@ -253,6 +253,34 @@ class FinishedCheckTest extends TestCase
         $this->assertNull($tersierAppearance->cd);
         $this->assertNull($tersierAppearance->md);
         $this->assertNull($tersierAppearance->mnd);
+    }
+
+    public function test_finalize_accepts_spaced_masterbox_list_and_normalizes_it(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $this->seedFinishedCheckPhotos($batch);
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload([
+            'masterbox' => '4, 17 ,55,78',
+            'no_pallet_qty' => '1/2016, 2/1800',
+        ]))->assertSessionHasNoErrors();
+
+        $finished = $batch->fresh()->finishedCheck;
+        $this->assertSame('4,17,55,78', $finished->masterbox);
+        $this->assertSame('1/2016,2/1800', $finished->no_pallet_qty);
+    }
+
+    public function test_finalize_rejects_malformed_masterbox_and_pallet(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $this->seedFinishedCheckPhotos($batch);
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['masterbox' => '4,,abc', 'no_pallet_qty' => '5']))
+            ->assertSessionHasErrors(['masterbox', 'no_pallet_qty']);
+
+        $this->assertNull($batch->fresh()->finishedCheck);
     }
 
     /**

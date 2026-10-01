@@ -43,8 +43,6 @@ class FinishedCheck extends Model
     {
         return [
             'quantity_wi' => 'decimal:2',
-            'masterbox' => 'decimal:2',
-            'no_pallet_qty' => 'decimal:2',
             'completed_at' => 'datetime',
         ];
     }
