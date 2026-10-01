@@ -58,28 +58,30 @@ class SaveFinishedCheckRequest extends FormRequest
     {
         $required = $this->boolean('finalize') ? 'required' : 'nullable';
 
+        // Header quantities are wajib on every save, draft included (user, 2026-10-01);
+        // disposition/remarks/photos stay finalize-only.
         $rules = [
             'finalize' => ['nullable', 'boolean'],
             // max:9999999999.99 matches the finished_checks.quantity_wi decimal(12,2) column precision — without this, a value with more than 10 integer
             // digits passes validation but then crashes with a raw SQL "out of range" error
             // instead of a clean, visible validation message.
-            'quantity_wi' => [$required, 'numeric', 'min:0', 'max:9999999999.99'],
+            'quantity_wi' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             // Free-text lists (columns are strings): masterbox "4,17,55,78", no_pallet_qty
             // "1/2016" or several pairs "1/2016,2/1800" (pallet number / quantity).
-            'masterbox' => [$required, 'string', 'max:255', 'regex:/^\d+(,\d+)*$/'],
-            'no_pallet_qty' => [$required, 'string', 'max:255', 'regex:/^\d+\/\d+(,\d+\/\d+)*$/'],
+            'masterbox' => ['required', 'string', 'max:255', 'regex:/^\d+(,\d+)*$/'],
+            'no_pallet_qty' => ['required', 'string', 'max:255', 'regex:/^\d+\/\d+(,\d+\/\d+)*$/'],
             // max:4294967295 matches the unsignedInteger column type of every AQL quantity field
             // below (finished_checks + finished_check_samples) — same crash class as the decimal
             // fields above: 'integer'/'min:0' alone lets an out-of-range value reach a raw SQL
             // "out of range" error instead of a clean validation message.
-            'quantity_sampling_aql' => [$required, 'integer', 'min:0', 'max:4294967295'],
-            'quantity_sample_aql_cd' => [$required, 'integer', 'min:0', 'max:4294967295'],
-            'quantity_sample_aql_md' => [$required, 'integer', 'min:0', 'max:4294967295'],
-            'quantity_sample_aql_mnd' => [$required, 'integer', 'min:0', 'max:4294967295'],
-            'quantity_special_inspection' => [$required, 'integer', 'min:0', 'max:4294967295'],
-            'quantity_special_inspection_cd' => [$required, 'integer', 'min:0', 'max:4294967295'],
-            'quantity_special_inspection_md' => [$required, 'integer', 'min:0', 'max:4294967295'],
-            'quantity_special_inspection_mnd' => [$required, 'integer', 'min:0', 'max:4294967295'],
+            'quantity_sampling_aql' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'quantity_sample_aql_cd' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'quantity_sample_aql_md' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'quantity_sample_aql_mnd' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection_cd' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection_md' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'quantity_special_inspection_mnd' => ['required', 'integer', 'min:0', 'max:4294967295'],
             'disposition' => [$required, 'in:'.implode(',', FinishedCheck::DISPOSITIONS)],
             'remarks' => [$required, 'string'],
             'samples' => ['nullable', 'array'],

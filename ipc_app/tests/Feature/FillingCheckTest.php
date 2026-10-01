@@ -44,6 +44,12 @@ class FillingCheckTest extends TestCase
         return $batch->fresh();
     }
 
+    /** Status fields are wajib on every save, draft included (2026-10-01). */
+    private function draftBase(): array
+    {
+        return ['sample_bulk_odor_status' => 'Conform', 'sample_leakage_test_status' => 'Conform'];
+    }
+
     private function validPayload(bool $finalize = true): array
     {
         return [
@@ -198,7 +204,7 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'decision' => FillingCheck::DECISION_PASSED,
             'samples' => [],
         ])->assertSessionHasErrors('samples');
@@ -212,7 +218,7 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'decision' => FillingCheck::DECISION_PASSED,
             'samples' => [['sample_no' => 1, 'weight_value' => 21]],
         ])->assertSessionDoesntHaveErrors();
@@ -221,15 +227,15 @@ class FillingCheckTest extends TestCase
         $this->assertSame(FillingCheck::DECISION_PASSED, $batch->fresh()->fillingCheck->revisions()->first()->decision);
     }
 
-    public function test_draft_save_allows_remarks_only_without_any_assessment(): void
+    public function test_draft_save_allows_remarks_with_one_sample(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'remarks' => 'Menunggu sample dari line',
-            'samples' => [],
+            'samples' => [['sample_no' => 1, 'weight_value' => 21]],
         ])->assertSessionDoesntHaveErrors();
     }
 
@@ -239,7 +245,7 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'samples' => [['sample_no' => 1, 'weight_value' => 21]],
         ])->assertRedirect("/batches/{$batch->id}/packing-check");
 
@@ -258,7 +264,7 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'remarks' => 'Shift 1',
             'decision' => FillingCheck::DECISION_HOLD,
             'samples' => [['sample_no' => 1, 'weight_value' => 21]],
@@ -284,7 +290,7 @@ class FillingCheckTest extends TestCase
             'save_count' => IpcBatch::MAX_TH_PROGRESS - 1,
         ]);
 
-        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'remarks' => 'Round 10', 'samples' => []])
+        $this->put("/batches/{$batch->id}/filling-check", [...$this->draftBase(), 'finalize' => false, 'remarks' => 'Round 10', 'samples' => []])
             ->assertSessionHasErrors('progress');
 
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload(finalize: true))
@@ -298,8 +304,8 @@ class FillingCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
-        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'remarks' => 'Round 1', 'samples' => []]);
-        $this->put("/batches/{$batch->id}/filling-check", ['finalize' => false, 'remarks' => 'Round 2', 'samples' => []]);
+        $this->put("/batches/{$batch->id}/filling-check", [...$this->draftBase(), 'finalize' => false, 'remarks' => 'Round 1', 'samples' => [['sample_no' => 1, 'weight_value' => 21]]]);
+        $this->put("/batches/{$batch->id}/filling-check", [...$this->draftBase(), 'finalize' => false, 'remarks' => 'Round 2', 'samples' => [['sample_no' => 1, 'weight_value' => 21]]]);
         $this->put("/batches/{$batch->id}/filling-check", $this->validPayload(finalize: true));
 
         $fillingCheck = $batch->fresh()->fillingCheck;
@@ -313,12 +319,12 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'remarks' => 'Hour 1 check, slightly under target',
             'samples' => [['sample_no' => 1, 'weight_value' => 21]],
         ]);
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'remarks' => 'Hour 2 check, back within range',
             'samples' => [['sample_no' => 1, 'weight_value' => 22]],
         ]);
@@ -345,7 +351,7 @@ class FillingCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
         $this->put("/batches/{$batch->id}/filling-check", [
-            'finalize' => false,
+            ...$this->draftBase(), 'finalize' => false,
             'samples' => [['sample_no' => 1, 'weight_value' => 21]],
         ])->assertSessionDoesntHaveErrors();
     }

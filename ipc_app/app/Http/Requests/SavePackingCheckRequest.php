@@ -53,9 +53,10 @@ class SavePackingCheckRequest extends FormRequest
         // server-side from the batch's Start Inspection weight-master-box readings (defaulting
         // to '0' when none exist yet), never submitted by the client and never blocking finalize.
 
+        // The 13 checklist items are wajib on every save, draft included (user, 2026-10-01).
         foreach (PackingCheck::checklistGroups() as $group) {
             foreach (array_keys($group['fields']) as $field) {
-                $rules[$field] = [$required, 'in:'.implode(',', $group['options'])];
+                $rules[$field] = ['required', 'in:'.implode(',', $group['options'])];
             }
         }
 

@@ -24,10 +24,11 @@ class SaveFillingCheckRequest extends FormRequest
         // legacy all-required behaviour this request originally always applied.
         $required = $this->boolean('finalize') ? 'required' : 'nullable';
 
+        // Bulk&Odor / Leakage status are wajib on every save, draft included (user, 2026-10-01).
         return [
             'finalize' => ['required', 'boolean'],
-            'sample_bulk_odor_status' => [$required, 'in:Conform,Not Conform'],
-            'sample_leakage_test_status' => [$required, 'in:Conform,Not Conform'],
+            'sample_bulk_odor_status' => ['required', 'in:Conform,Not Conform'],
+            'sample_leakage_test_status' => ['required', 'in:Conform,Not Conform'],
             'remarks' => [$required, 'string'],
             'decision' => [$required, 'in:'.implode(',', FillingCheck::DECISIONS)],
             'samples' => ['nullable', 'array'],

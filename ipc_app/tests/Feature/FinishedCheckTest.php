@@ -137,7 +137,7 @@ class FinishedCheckTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('previousStageCompleted', false));
 
-        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'quantity_wi' => 100])
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false, 'quantity_wi' => 100]))
             ->assertSessionDoesntHaveErrors();
 
         $this->put("/batches/{$batch->id}/finished-check", $this->validPayload())
@@ -155,7 +155,7 @@ class FinishedCheckTest extends TestCase
             'save_count' => IpcBatch::MAX_TH_PROGRESS,
         ]);
 
-        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'quantity_wi' => 100])
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false, 'quantity_wi' => 100]))
             ->assertSessionHasErrors('progress');
         $this->assertSame(IpcBatch::MAX_TH_PROGRESS, $batch->fresh()->finishedCheck->save_count);
     }
@@ -190,7 +190,7 @@ class FinishedCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedPackingCheck();
 
-        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'quantity_wi' => 100]);
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false, 'quantity_wi' => 100]));
 
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->current_stage);
@@ -359,7 +359,7 @@ class FinishedCheckTest extends TestCase
         $batch = $this->makeBatchWithCompletedPackingCheck();
         $this->seedFinishedCheckPhotos($batch);
 
-        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'quantity_wi' => 100]);
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false, 'quantity_wi' => 100, 'disposition' => null]));
         $this->put("/batches/{$batch->id}/finished-check", $this->validPayload());
 
         $finishedCheck = $batch->fresh()->finishedCheck;
@@ -512,7 +512,7 @@ class FinishedCheckTest extends TestCase
 
         // A draft save (finalize=false) already creates the finishedCheck row — that alone
         // should lock Exp Date, well before the record is ever finalized.
-        $this->put("/batches/{$batch->id}/finished-check", ['finalize' => false, 'remarks' => 'progress note']);
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false, 'remarks' => 'progress note']));
 
         $this->post("/batches/{$batch->id}/finished-check/photo/exp_date", ['photo' => UploadedFile::fake()->image('b.jpg')])
             ->assertForbidden();
