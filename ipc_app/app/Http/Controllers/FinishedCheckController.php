@@ -113,16 +113,22 @@ class FinishedCheckController extends Controller
         // MULTI_PHOTO_FIELDS doc comment above), which stays uploadable up to its cap below.
         abort_if(! $isMulti && $batch->finishedCheck?->completed_at, 403, 'Finished Check untuk batch ini sudah selesai dan bersifat read-only.');
 
-        // Exp Date locks earlier than that: per direct user request, it can only be captured on
-        // the very first TH Progress round (before the form has ever been saved, draft or final) —
-        // once $batch->finishedCheck exists at all, no more uploads/replacements for this field.
-        abort_if($field === 'exp_date' && $batch->finishedCheck !== null, 403, 'Exp Date hanya bisa diunggah pada TH Progress pertama, sebelum disimpan.');
-
         $existing = IpcAttachment::query()
             ->where('ipc_batch_id', $batch->id)
             ->where('stage', 'finished')
             ->where('field_label', $field)
             ->get();
+
+        // Exp Date locks earlier than that: per direct user request, the photo taken on the first
+        // TH Progress round can't be replaced once the form has been saved (draft or final). The
+        // lock only applies once a photo exists, though — locking on "saved" alone deadlocked any
+        // batch whose first round was saved before the photo was taken: SAVE & END requires the
+        // photo, but the upload was already blocked (IPC improvement list #17, 2026-10-02).
+        abort_if(
+            $field === 'exp_date' && $batch->finishedCheck !== null && $existing->isNotEmpty(),
+            403,
+            'Exp Date sudah diunggah pada TH Progress pertama dan tidak bisa diganti lagi.',
+        );
 
         if ($isMulti && $existing->count() >= self::MAX_PHOTOS_PER_FIELD[$field]) {
             return redirect()->route('finished-check.edit', $batch)

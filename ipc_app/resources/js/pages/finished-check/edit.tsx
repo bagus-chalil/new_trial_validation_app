@@ -346,10 +346,10 @@ export default function FinishedCheckEdit({
                                 const multiPhotos = multi ? (Array.isArray(raw) ? (raw as { id: number; url: string }[]) : []) : null;
                                 const singleUrl = !multi ? (raw as string | null) : null;
                                 const atMax = multi ? (multiPhotos?.length ?? 0) >= MAX_WI_NUMBER_PHOTOS : false;
-                                // Exp Date only accepts a photo on TH Progress round 1 — once the
-                                // form has ever been saved (finishedCheck exists), it locks, even
-                                // while the rest of the page is still editable pre-finalize.
-                                const expDateLocked = key === 'exp_date' && finishedCheck !== null;
+                                // Exp Date's round-1 photo can't be replaced once the form has been
+                                // saved — but if it was never taken, it stays uploadable, otherwise
+                                // Selesaikan (which requires it) could never succeed.
+                                const expDateLocked = key === 'exp_date' && finishedCheck !== null && Boolean(singleUrl);
                                 const fieldDisabled = multi ? atMax : isReadOnly || expDateLocked;
 
                                 return (

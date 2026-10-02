@@ -520,6 +520,26 @@ class FinishedCheckTest extends TestCase
         $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', 'exp_date')->count());
     }
 
+    public function test_missing_exp_date_photo_can_still_be_uploaded_after_a_draft_save_and_then_finalized(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        // Draft saved before Exp Date was ever photographed — must not deadlock SAVE & END.
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false, 'remarks' => 'progress note']));
+
+        foreach (['wi_number', 'exp_date', 'color'] as $field) {
+            $this->post("/batches/{$batch->id}/finished-check/photo/{$field}", ['photo' => UploadedFile::fake()->image("{$field}.jpg")])
+                ->assertRedirect("/batches/{$batch->id}/finished-check");
+        }
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => true]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertNotNull($batch->fresh()->finishedCheck->completed_at);
+    }
+
     public function test_wi_number_photo_stays_uploadable_and_deletable_after_finished_check_is_completed(): void
     {
         Storage::fake('public');
