@@ -75,9 +75,13 @@ class IpcBatch extends Model
         return $this->hasMany(IpcBatchBulkCode::class);
     }
 
+    /**
+     * Nullable: the line is picked on Startup Check, not at batch creation. withTrashed so a
+     * batch keeps showing its line after that line is deleted from Master Line.
+     */
     public function masterLine()
     {
-        return $this->belongsTo(MasterLine::class);
+        return $this->belongsTo(MasterLine::class)->withTrashed();
     }
 
     public function creator()

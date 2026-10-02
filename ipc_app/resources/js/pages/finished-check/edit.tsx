@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { AQL_DERIVED_FIELDS, aqlPlanForLotSize } from '@/lib/aql-sampling-plan';
+import { lineLabel } from '@/lib/batch-line';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Camera, Trash2 } from 'lucide-react';
@@ -32,7 +33,7 @@ interface Batch {
     bulk_code: string;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
-    master_line: { name: string; code: string };
+    master_line: { name: string; code: string } | null;
 }
 
 interface FinishedCheckRevisionSample {
@@ -353,7 +354,7 @@ export default function FinishedCheckEdit({
                             <InfoField label="Tanggal" value={formatDateTime(finishedCheck?.created_at ?? batch.created_at)} />
                             <InfoField label="FG Code" value={batch.master_product.fg_code} />
                             <InfoField label="No. Batch" value={batch.no_batch} />
-                            <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
+                            <InfoField label="Line" value={lineLabel(batch.master_line)} />
                             <InfoField label="IPC ID" value={inspectorName} />
                             <InfoField label="TH Progress" value={`${finishedCheck?.save_count ?? 0} / ${maxThProgress}`} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />

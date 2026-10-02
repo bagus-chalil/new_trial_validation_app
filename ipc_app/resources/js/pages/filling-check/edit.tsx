@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { lineLabel } from '@/lib/batch-line';
 import { limitDecimals } from '@/lib/decimal';
 import { type RecentBatch, type SharedData } from '@/types';
 import { type FormDataConvertible } from '@inertiajs/core';
@@ -23,7 +24,7 @@ interface Batch {
     bulk_code: string;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
-    master_line: { name: string; code: string };
+    master_line: { name: string; code: string } | null;
     startup_check: {
         filling_range_min: string | null;
         filling_range_max: string | null;
@@ -284,7 +285,7 @@ export default function FillingCheckEdit({
                             <InfoField label="FG Code" value={batch.master_product.fg_code} />
                             <InfoField label="No. Batch" value={batch.no_batch} />
                             <InfoField label="Bulk Code" value={batch.bulk_code} />
-                            <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
+                            <InfoField label="Line" value={lineLabel(batch.master_line)} />
                             <InfoField label="IPC ID" value={inspectorName} />
                             <InfoField label="TH Progress" value={`${fillingCheck?.save_count ?? 0} / ${maxThProgress}`} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />

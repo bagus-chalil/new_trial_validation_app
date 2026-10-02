@@ -2,6 +2,7 @@ import { formatDateTime, type PrintInfo } from '@/components/ipc/approval-report
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { lineLabel } from '@/lib/batch-line';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { CheckCircle2, ChevronRight, Clock3, Droplets, Package, Printer } from 'lucide-react';
@@ -12,7 +13,7 @@ interface Batch {
     bulk_code: string;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
-    master_line: { name: string; code: string };
+    master_line: { name: string; code: string } | null;
 }
 
 const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Droplets; description: string }> = {
@@ -112,9 +113,7 @@ export default function PrintOverview({ batch, stages }: { batch: Batch; stages:
                         </div>
                         <div>
                             <p className="text-muted-foreground/70 text-[10.5px] font-semibold tracking-wide uppercase">Line</p>
-                            <p className="mt-0.5 text-[13.5px] font-bold">
-                                {batch.master_line.name} ({batch.master_line.code})
-                            </p>
+                            <p className="mt-0.5 text-[13.5px] font-bold">{lineLabel(batch.master_line)}</p>
                         </div>
                     </div>
 

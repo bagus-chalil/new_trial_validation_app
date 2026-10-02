@@ -110,6 +110,19 @@ class FinishedCheckTest extends TestCase
         $this->get("/batches/{$batch->id}/finished-check")->assertOk();
     }
 
+    /** Found on the server 2026-10-02: a batch whose line was deleted got master_line=null and the page crashed. */
+    public function test_form_still_shows_a_line_deleted_from_master(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+        $code = $batch->masterLine->code;
+        $batch->masterLine->delete();
+
+        $this->get("/batches/{$batch->id}/finished-check")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('batch.master_line.code', $code));
+    }
+
     public function test_form_is_forbidden_when_packing_check_is_not_completed(): void
     {
         $this->actingAs(User::factory()->create());

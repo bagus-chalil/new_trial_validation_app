@@ -2,6 +2,7 @@ import { formatDateTime, InfoField, type ApprovalData, type StageInfo } from '@/
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { lineLabel } from '@/lib/batch-line';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { CheckCircle2, ChevronRight, Clock3, Droplets, Package, XCircle } from 'lucide-react';
@@ -12,7 +13,7 @@ interface Batch {
     bulk_code: string;
     created_at: string;
     master_product: { product_name: string; fg_code: string };
-    master_line: { name: string; code: string };
+    master_line: { name: string; code: string } | null;
 }
 
 const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Droplets; description: string }> = {
@@ -108,7 +109,7 @@ export default function ApprovalOverview({ batch, stages }: { batch: Batch; stag
                         <InfoField label="No. Batch" value={batch.no_batch} />
                         <InfoField label="FG Code" value={batch.master_product.fg_code} />
                         <InfoField label="Bulk Code" value={batch.bulk_code} />
-                        <InfoField label="Line" value={`${batch.master_line.name} (${batch.master_line.code})`} />
+                        <InfoField label="Line" value={lineLabel(batch.master_line)} />
                         <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                     </div>
 
