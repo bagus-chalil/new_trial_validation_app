@@ -37,8 +37,8 @@ class TrialAdditionalAttachmentController extends Controller
         );
 
         Inertia::flash('toast', $saved > 0
-            ? ['type' => 'success', 'message' => "{$saved} additional attachment berhasil diupload."]
-            : ['type' => 'error', 'message' => 'Tidak ada file yang berhasil diupload.']);
+            ? ['type' => 'success', 'message' => __('messages.toast.additional_uploaded', ['count' => $saved])]
+            : ['type' => 'error', 'message' => __('messages.toast.additional_none_uploaded')]);
 
         return to_route('trials.report.show', $trial);
     }
@@ -52,7 +52,7 @@ class TrialAdditionalAttachmentController extends Controller
 
         $action($file, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Additional attachment berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.additional_deleted')]);
 
         return to_route('trials.report.show', $trial);
     }

@@ -75,7 +75,7 @@ class SaveTrialValidationRequest extends FormRequest
                 $row = $submitted->get($parameter->id);
 
                 if (! $row) {
-                    $validator->errors()->add('results', "Parameter {$parameter->parameter_name} belum terisi.");
+                    $validator->errors()->add('results', __('messages.validation.parameter_missing', ['name' => $parameter->parameter_name]));
 
                     continue;
                 }
@@ -85,7 +85,7 @@ class SaveTrialValidationRequest extends FormRequest
                 $remark = trim((string) ($row['remark'] ?? ''));
 
                 if ($decision === 'NOT OK' && ($result === '' || $remark === '')) {
-                    $validator->errors()->add('results', "Parameter {$parameter->parameter_name} NOT OK wajib isi Result dan Remark.");
+                    $validator->errors()->add('results', __('messages.validation.parameter_not_ok', ['name' => $parameter->parameter_name]));
                 }
             }
         });

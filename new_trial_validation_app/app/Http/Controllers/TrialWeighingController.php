@@ -53,7 +53,7 @@ class TrialWeighingController extends Controller
             $request->user(),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Weighing berhasil disimpan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.weighing_saved')]);
 
         if ($section === 'Packaging') {
             return to_route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Filling']);

@@ -50,7 +50,7 @@ class SaveTrialWeighingRequest extends FormRequest
                 }
 
                 if (! ctype_digit((string) $itemNo) || ! is_numeric($value) || (float) $value < 0) {
-                    $validator->errors()->add('w', 'Weighing sample must be numeric and cannot be negative.');
+                    $validator->errors()->add('w', __('messages.validation.weighing_invalid'));
 
                     return;
                 }
@@ -59,7 +59,7 @@ class SaveTrialWeighingRequest extends FormRequest
             }
 
             if ($validCount === 0) {
-                $validator->errors()->add('w', 'Please input at least 1 weighing sample or click Skip.');
+                $validator->errors()->add('w', __('messages.validation.weighing_empty'));
             }
         });
     }

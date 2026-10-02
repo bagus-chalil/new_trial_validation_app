@@ -17,15 +17,18 @@ use Illuminate\Support\Facades\DB;
 class CheckTrialCompleteness
 {
     /**
+     * Required header fields, each mapped to its label key (shared with the
+     * Report page's header section).
+     *
      * @var array<string, string>
      */
     private const HEADER_REQUIRED = [
-        'batch_number' => 'Batch Number',
-        'bulk_code' => 'Bulk Code',
-        'support_team' => 'Support Team',
-        'initiated_person_team' => 'Initiated person/team',
-        'reason' => 'Reason',
-        'bom' => 'B.O.M',
+        'batch_number' => 'report.header.batch_number',
+        'bulk_code' => 'report.header.bulk_code',
+        'support_team' => 'report.header.support_team',
+        'initiated_person_team' => 'report.header.initiated_person_team',
+        'reason' => 'report.header.reason',
+        'bom' => 'report.header.bom',
     ];
 
     /**
@@ -37,7 +40,7 @@ class CheckTrialCompleteness
 
         foreach (self::HEADER_REQUIRED as $field => $label) {
             if (trim((string) $trial->{$field}) === '') {
-                $errors[] = "{$label} wajib diisi.";
+                $errors[] = __('messages.completeness.required', ['field' => __($label)]);
             }
         }
 
@@ -49,7 +52,7 @@ class CheckTrialCompleteness
             ->get();
 
         if ($params->isEmpty()) {
-            $errors[] = "Parameter validation untuk product type {$trial->product_type} belum dikonfigurasi.";
+            $errors[] = __('messages.completeness.no_parameters', ['type' => $trial->product_type]);
 
             return $errors;
         }
@@ -64,13 +67,13 @@ class CheckTrialCompleteness
             $result = $results->get($param->id);
 
             if (! $result || ! in_array($result->decision, ['OK', 'NOT OK', 'N/A'], true)) {
-                $errors[] = "Parameter {$param->parameter_name} belum memiliki decision.";
+                $errors[] = __('messages.completeness.no_decision', ['name' => $param->parameter_name]);
 
                 continue;
             }
 
             if ($result->decision === 'NOT OK' && (trim((string) $result->result_value) === '' || trim((string) $result->remark) === '')) {
-                $errors[] = "Parameter {$param->parameter_name} NOT OK wajib punya result dan remark.";
+                $errors[] = __('messages.completeness.not_ok_incomplete', ['name' => $param->parameter_name]);
             }
         }
 

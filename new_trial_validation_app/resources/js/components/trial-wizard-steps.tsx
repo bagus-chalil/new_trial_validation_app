@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Check } from 'lucide-react';
+import { Fragment } from 'react';
 import { useTranslation } from '@/hooks/use-translation';
 import {
     resolveTrialCompletedSteps,
@@ -66,7 +67,13 @@ export function TrialWizardSteps({
     );
 
     return (
-        <nav aria-label="Trial progress" className="mb-2">
+        <nav
+            aria-label={t('common.wizard.step_of', {
+                current: currentStep,
+                total: TRIAL_WIZARD_STEPS.length,
+            })}
+            className="mb-2"
+        >
             <p className="mb-3 text-sm font-medium text-muted-foreground">
                 {t('common.wizard.step_of', {
                     current: currentStep,
@@ -139,11 +146,23 @@ export function TrialWizardSteps({
             </ol>
             {showProgressNote && trial && completedSteps !== null && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                    Trial ini sudah berjalan sampai tahap{' '}
-                    <strong>
-                        {t(TRIAL_WIZARD_STEPS[completedSteps - 1].labelKey)}
-                    </strong>{' '}
-                    di sistem lama; layar ini hanya mengedit data header.
+                    {/* Split around :step so the step name can be bold. */}
+                    {t('wizard.progress_note')
+                        .split(':step')
+                        .map((part, i) => (
+                            <Fragment key={i}>
+                                {i > 0 && (
+                                    <strong>
+                                        {t(
+                                            TRIAL_WIZARD_STEPS[
+                                                completedSteps - 1
+                                            ].labelKey,
+                                        )}
+                                    </strong>
+                                )}
+                                {part}
+                            </Fragment>
+                        ))}
                 </p>
             )}
         </nav>

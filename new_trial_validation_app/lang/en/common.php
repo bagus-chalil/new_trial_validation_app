@@ -44,7 +44,6 @@ return [
         'new_trial' => 'New Trial',
         'edit_trial' => 'Edit Trial Form',
         'validation' => 'Validation',
-        'weighing' => ':section Weighing',
         'attachments' => 'Attachments',
         'review' => 'Review',
         'trial_report' => 'Trial Report',
@@ -93,6 +92,26 @@ return [
         'all' => 'All :label',
         'active' => 'Active filters:',
         'remove' => 'Remove filter :label',
+    ],
+
+    'combobox' => [
+        'placeholder' => 'Select...',
+        'search' => 'Search...',
+        'empty' => 'No results found.',
+        'remove' => 'Remove :label',
+        'selected' => ':count selected',
+    ],
+
+    'image_preview' => [
+        'view' => 'View image detail :name',
+        'zoom' => 'Zoom image',
+        'close_hint' => 'Click outside the image or press Escape to close.',
+        'zoom_out' => 'Zoom out',
+        'zoom_in' => 'Zoom in',
+        'fit' => 'Fit',
+        'fit_title' => 'Fit to screen',
+        'reset' => 'Reset',
+        'reset_title' => 'Reset to default size',
     ],
 
     'pagination' => [

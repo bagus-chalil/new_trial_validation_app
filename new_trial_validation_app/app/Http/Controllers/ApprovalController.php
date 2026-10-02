@@ -50,7 +50,7 @@ class ApprovalController extends Controller
             $request->user(),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Keputusan approval berhasil disimpan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.approval_saved')]);
 
         return to_route('approvals.index');
     }

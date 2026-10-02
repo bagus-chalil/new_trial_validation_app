@@ -11,7 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import validation from '@/routes/trials/validation';
 import weighing from '@/routes/trials/weighing';
@@ -36,10 +40,11 @@ type PageProps = {
     canEdit: boolean;
 };
 
-// Port of legacy's section_display_name() in app/bootstrap.php.
-const SECTION_LABELS: Record<Section, string> = {
-    Packaging: 'Empty packaging (gr)',
-    Filling: 'Filling Weight (gr)',
+// Port of legacy's section_display_name() in app/bootstrap.php, as
+// translation keys. `section` itself stays the raw stored value.
+const SECTION_LABEL_KEYS: Record<Section, string> = {
+    Packaging: 'wizard.weighing.labels.packaging',
+    Filling: 'wizard.weighing.labels.filling',
 };
 
 const WIZARD_STEP: Record<Section, number> = {
@@ -87,6 +92,8 @@ function WeighingForm({
     skip: initialSkip,
     canEdit,
 }: PageProps) {
+    const { t } = useTranslation();
+    const sectionLabel = t(SECTION_LABEL_KEYS[section]);
     const { initialItemNumbers, initialMaxItemNo } = useMemo(() => {
         const keys = Object.keys(values).map((k) => parseInt(k, 10));
         const max = keys.length ? Math.max(30, ...keys) : 30;
@@ -161,7 +168,9 @@ function WeighingForm({
                         {canEdit && !skip && itemNo > initialMaxItemNo && (
                             <button
                                 type="button"
-                                aria-label={`Remove sample ${itemNo}`}
+                                aria-label={t('wizard.weighing.remove_sample', {
+                                    number: itemNo,
+                                })}
                                 className="text-muted-foreground hover:text-destructive"
                                 onClick={() => removeSample(itemNo)}
                             >
@@ -193,16 +202,28 @@ function WeighingForm({
     const statsBar = (
         <div className="flex flex-wrap gap-6 text-sm">
             <div>
-                <span className="font-medium">Total Sample:</span> {stats.total}
+                <span className="font-medium">
+                    {t('report.weighing.total_sample')}:
+                </span>{' '}
+                {stats.total}
             </div>
             <div>
-                <span className="font-medium">Average:</span> {stats.average}
+                <span className="font-medium">
+                    {t('report.weighing.average')}:
+                </span>{' '}
+                {stats.average}
             </div>
             <div>
-                <span className="font-medium">Minimum:</span> {stats.min}
+                <span className="font-medium">
+                    {t('report.weighing.minimum')}:
+                </span>{' '}
+                {stats.min}
             </div>
             <div>
-                <span className="font-medium">Maximum:</span> {stats.max}
+                <span className="font-medium">
+                    {t('report.weighing.maximum')}:
+                </span>{' '}
+                {stats.max}
             </div>
         </div>
     );
@@ -210,14 +231,21 @@ function WeighingForm({
     return (
         <>
             <Head
-                title={`Weighing ${SECTION_LABELS[section]} — ${trial.trial_code}`}
+                title={t('wizard.weighing.page_title', {
+                    label: sectionLabel,
+                    code: trial.trial_code,
+                })}
             />
 
             <div className="mx-auto max-w-6xl space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4">
                     <Heading
-                        title={`Weighing ${SECTION_LABELS[section]}`}
-                        description={`Input hasil sampling untuk trial ${trial.trial_code}.`}
+                        title={t('wizard.weighing.title', {
+                            label: sectionLabel,
+                        })}
+                        description={t('wizard.weighing.description', {
+                            code: trial.trial_code,
+                        })}
                     />
                     <Badge
                         variant="outline"
@@ -226,7 +254,7 @@ function WeighingForm({
                             trial.final_decision,
                         )}
                     >
-                        {trial.progress_status}
+                        {trialStatusLabel(t, trial.progress_status)}
                     </Badge>
                 </div>
 
@@ -249,7 +277,9 @@ function WeighingForm({
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>
-                                            Weighing {SECTION_LABELS[section]}
+                                            {t('wizard.weighing.title', {
+                                                label: sectionLabel,
+                                            })}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
@@ -263,9 +293,9 @@ function WeighingForm({
                                         {showMissingSampleError && (
                                             <Alert variant="destructive">
                                                 <AlertDescription>
-                                                    Please input at least 1
-                                                    weighing sample or click
-                                                    Skip.
+                                                    {t(
+                                                        'messages.validation.weighing_empty',
+                                                    )}
                                                 </AlertDescription>
                                             </Alert>
                                         )}
@@ -281,8 +311,9 @@ function WeighingForm({
                                                 }
                                             />
                                             <Label htmlFor="skip">
-                                                Skip {SECTION_LABELS[section]}{' '}
-                                                (N/A)
+                                                {t('wizard.weighing.skip', {
+                                                    label: sectionLabel,
+                                                })}
                                             </Label>
                                         </div>
 
@@ -295,7 +326,7 @@ function WeighingForm({
                                             disabled={skip}
                                             onClick={addSample}
                                         >
-                                            Add Sample
+                                            {t('wizard.weighing.add_sample')}
                                         </Button>
 
                                         {statsBar}
@@ -308,10 +339,12 @@ function WeighingForm({
                                         variant="secondary"
                                         asChild
                                     >
-                                        <Link href={backHref}>Back</Link>
+                                        <Link href={backHref}>
+                                            {t('common.actions.back')}
+                                        </Link>
                                     </Button>
                                     <Button type="submit" disabled={processing}>
-                                        Save & Next
+                                        {t('wizard.save_next')}
                                     </Button>
                                 </div>
                             </>
@@ -322,7 +355,9 @@ function WeighingForm({
                         <Card>
                             <CardHeader>
                                 <CardTitle>
-                                    Weighing {SECTION_LABELS[section]}
+                                    {t('wizard.weighing.title', {
+                                        label: sectionLabel,
+                                    })}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
@@ -333,7 +368,9 @@ function WeighingForm({
                                         disabled
                                     />
                                     <Label htmlFor="skip">
-                                        Skip {SECTION_LABELS[section]} (N/A)
+                                        {t('wizard.weighing.skip', {
+                                            label: sectionLabel,
+                                        })}
                                     </Label>
                                 </div>
                                 {grid}
@@ -343,7 +380,9 @@ function WeighingForm({
 
                         <div className="flex justify-end">
                             <Button type="button" variant="secondary" asChild>
-                                <Link href={backHref}>Back</Link>
+                                <Link href={backHref}>
+                                    {t('common.actions.back')}
+                                </Link>
                             </Button>
                         </div>
                     </>

@@ -53,8 +53,8 @@ class StoreTrialAdditionalAttachmentsRequest extends FormRequest
 
             if ($submitted > $remaining) {
                 $validator->errors()->add('files', $remaining > 0
-                    ? 'Maksimal '.TrialAdditionalAttachment::MAX_PER_TRIAL." attachment per trial — sisa slot {$remaining}."
-                    : 'Batas '.TrialAdditionalAttachment::MAX_PER_TRIAL.' additional attachment untuk trial ini sudah tercapai.');
+                    ? __('messages.validation.additional_remaining', ['max' => TrialAdditionalAttachment::MAX_PER_TRIAL, 'remaining' => $remaining])
+                    : __('messages.validation.additional_limit_reached', ['max' => TrialAdditionalAttachment::MAX_PER_TRIAL]));
             }
         });
     }
@@ -65,11 +65,11 @@ class StoreTrialAdditionalAttachmentsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'files.required' => 'Pilih minimal satu file.',
-            'files.max' => 'Maksimal '.TrialAdditionalAttachment::MAX_PER_TRIAL.' file per upload.',
-            'files.*.max' => 'Ukuran file maksimal 10 MB.',
-            'files.*.mimetypes' => 'Hanya file PDF atau gambar (JPG, PNG, WEBP, GIF) yang diizinkan.',
-            'files.*.extensions' => 'Hanya file PDF atau gambar (JPG, PNG, WEBP, GIF) yang diizinkan.',
+            'files.required' => __('messages.validation.additional_required'),
+            'files.max' => __('messages.validation.additional_max_per_upload', ['max' => TrialAdditionalAttachment::MAX_PER_TRIAL]),
+            'files.*.max' => __('messages.validation.additional_too_large'),
+            'files.*.mimetypes' => __('messages.validation.additional_file_type'),
+            'files.*.extensions' => __('messages.validation.additional_file_type'),
         ];
     }
 }

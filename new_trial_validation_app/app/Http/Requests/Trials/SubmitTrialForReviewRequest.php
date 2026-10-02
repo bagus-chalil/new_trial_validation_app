@@ -53,7 +53,7 @@ class SubmitTrialForReviewRequest extends FormRequest
             $errors = (new CheckTrialCompleteness)($trial);
 
             if ($errors) {
-                $validator->errors()->add('completeness', 'Belum bisa submit review: '.implode(' | ', $errors));
+                $validator->errors()->add('completeness', __('messages.validation.submit_incomplete', ['errors' => implode(' | ', $errors)]));
             }
 
             $departments = $this->departments();
@@ -63,7 +63,7 @@ class SubmitTrialForReviewRequest extends FormRequest
                 $reviewerId = $reviewerUserIds[$department] ?? null;
 
                 if (! $reviewerId || ! ctype_digit((string) $reviewerId)) {
-                    $validator->errors()->add('reviewer_user_ids', "Pilih reviewer untuk department {$department}.");
+                    $validator->errors()->add('reviewer_user_ids', __('messages.validation.reviewer_required', ['department' => $department]));
 
                     continue;
                 }
@@ -76,7 +76,7 @@ class SubmitTrialForReviewRequest extends FormRequest
                     ->exists();
 
                 if (! $valid) {
-                    $validator->errors()->add('reviewer_user_ids', "Reviewer yang dipilih tidak valid untuk department {$department}.");
+                    $validator->errors()->add('reviewer_user_ids', __('messages.validation.reviewer_invalid', ['department' => $department]));
                 }
             }
         });

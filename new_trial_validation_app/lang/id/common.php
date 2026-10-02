@@ -46,7 +46,6 @@ return [
         'new_trial' => 'Trial Baru',
         'edit_trial' => 'Ubah Formulir Trial',
         'validation' => 'Validasi',
-        'weighing' => 'Penimbangan :section',
         'attachments' => 'Lampiran',
         'review' => 'Peninjauan',
         'trial_report' => 'Laporan Trial',
@@ -97,6 +96,26 @@ return [
         'all' => 'Semua :label',
         'active' => 'Filter aktif:',
         'remove' => 'Hapus filter :label',
+    ],
+
+    'combobox' => [
+        'placeholder' => 'Pilih...',
+        'search' => 'Cari...',
+        'empty' => 'Tidak ada hasil.',
+        'remove' => 'Hapus :label',
+        'selected' => ':count dipilih',
+    ],
+
+    'image_preview' => [
+        'view' => 'Lihat detail gambar :name',
+        'zoom' => 'Perbesar gambar',
+        'close_hint' => 'Klik di luar gambar atau tekan Escape untuk menutup.',
+        'zoom_out' => 'Perkecil',
+        'zoom_in' => 'Perbesar',
+        'fit' => 'Pas',
+        'fit_title' => 'Sesuaikan dengan layar',
+        'reset' => 'Atur Ulang',
+        'reset_title' => 'Kembalikan ke ukuran awal',
     ],
 
     'pagination' => [

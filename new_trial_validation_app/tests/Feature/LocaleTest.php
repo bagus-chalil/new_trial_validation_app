@@ -56,3 +56,27 @@ test('every translation group has the same keys in every language', function () 
     expect($keys('en'))->toBe($keys('id'))
         ->and($keys('ko'))->toBe($keys('id'));
 });
+
+test('validation messages follow the UI language, with friendly field names', function (?string $locale, string $message) {
+    $request = $this->actingAs(User::factory()->create());
+
+    if ($locale !== null) {
+        $request = $request->withUnencryptedCookie('locale', $locale);
+    }
+
+    $request->post(route('trials.store'), [])
+        ->assertSessionHasErrors(['batch_number' => $message]);
+})->with([
+    'default (id)' => [null, 'Nomor Batch wajib diisi.'],
+    'en' => ['en', 'The batch number field is required.'],
+    'ko' => ['ko', '배치 번호 항목은 필수입니다.'],
+]);
+
+test('server-side wizard messages are translated', function () {
+    app()->setLocale('ko');
+    expect(__('messages.toast.trial_created'))->toBe('트라이얼이 생성되었습니다.');
+
+    app()->setLocale('en');
+    expect(__('messages.completeness.no_decision', ['name' => 'Weight']))
+        ->toBe('Parameter Weight has no decision yet.');
+});

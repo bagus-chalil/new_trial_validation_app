@@ -45,7 +45,7 @@ class SaveTrialAttachments
 
         foreach ($photos as $i => $photo) {
             if (! $photo instanceof UploadedFile || ! $photo->isValid()) {
-                $errors[] = 'Upload file ke-'.($i + 1).' gagal.';
+                $errors[] = __('messages.upload.failed', ['number' => $i + 1]);
 
                 continue;
             }
@@ -53,7 +53,7 @@ class SaveTrialAttachments
             $originalName = $photo->getClientOriginalName();
 
             if ($photo->getSize() > self::MAX_SIZE_BYTES) {
-                $errors[] = "File {$originalName} melebihi 10 MB.";
+                $errors[] = __('messages.upload.too_large', ['name' => $originalName]);
 
                 continue;
             }
@@ -61,7 +61,7 @@ class SaveTrialAttachments
             $extension = self::ALLOWED_MIME_TO_EXTENSION[$photo->getMimeType()] ?? null;
 
             if ($extension === null) {
-                $errors[] = "File {$originalName} bukan gambar yang diizinkan.";
+                $errors[] = __('messages.upload.not_image', ['name' => $originalName]);
 
                 continue;
             }
@@ -69,7 +69,7 @@ class SaveTrialAttachments
             $name = bin2hex(random_bytes(16)).'.'.$extension;
 
             if ($disk->putFileAs((string) $trial->id, $photo, $name) === false) {
-                $errors[] = "File {$originalName} gagal disimpan.";
+                $errors[] = __('messages.upload.store_failed', ['name' => $originalName]);
 
                 continue;
             }

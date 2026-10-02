@@ -13,7 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { edit as reviewEdit } from '@/routes/trials/review';
 import weighing from '@/routes/trials/weighing';
@@ -66,6 +70,7 @@ function UploadPreview({
     files: File[];
     onRemove: (index: number) => void;
 }) {
+    const { t } = useTranslation();
     const urls = useMemo(
         () => files.map((f) => URL.createObjectURL(f)),
         [files],
@@ -98,7 +103,7 @@ function UploadPreview({
                         className="w-full text-destructive"
                         onClick={() => onRemove(index)}
                     >
-                        Remove
+                        {t('wizard.attachments.remove')}
                     </Button>
                 </figure>
             ))}
@@ -112,6 +117,7 @@ export default function TrialAttachments({
     files,
     canEdit,
 }: PageProps) {
+    const { t } = useTranslation();
     const inputRef = useRef<HTMLInputElement>(null);
     const [selected, setSelected] = useState<File[]>([]);
     const [category, setCategory] = useState(categories[0] ?? '');
@@ -142,13 +148,19 @@ export default function TrialAttachments({
 
     return (
         <>
-            <Head title={`Attachments — ${trial.trial_code}`} />
+            <Head
+                title={t('wizard.attachments.page_title', {
+                    code: trial.trial_code,
+                })}
+            />
 
             <div className="mx-auto max-w-6xl space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4">
                     <Heading
-                        title="Attachments"
-                        description={`Upload dan kelola evidence foto trial ${trial.trial_code}.`}
+                        title={t('wizard.attachments.title')}
+                        description={t('wizard.attachments.description', {
+                            code: trial.trial_code,
+                        })}
                     />
                     <Badge
                         variant="outline"
@@ -157,7 +169,7 @@ export default function TrialAttachments({
                             trial.final_decision,
                         )}
                     >
-                        {trial.progress_status}
+                        {trialStatusLabel(t, trial.progress_status)}
                     </Badge>
                 </div>
 
@@ -184,7 +196,9 @@ export default function TrialAttachments({
                         {({ processing, errors }) => (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Upload Foto</CardTitle>
+                                    <CardTitle>
+                                        {t('wizard.attachments.upload_title')}
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     {errors.category && (
@@ -204,14 +218,18 @@ export default function TrialAttachments({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="category">
-                                            Category
+                                            {t('wizard.attachments.category')}
                                         </Label>
                                         <Combobox
                                             options={categoryOptions}
                                             value={category}
                                             onChange={setCategory}
-                                            placeholder="Pilih category..."
-                                            searchPlaceholder="Cari category..."
+                                            placeholder={t(
+                                                'wizard.attachments.category_placeholder',
+                                            )}
+                                            searchPlaceholder={t(
+                                                'wizard.attachments.category_search',
+                                            )}
                                             disabled={categories.length === 0}
                                             className="w-full sm:w-2/3"
                                         />
@@ -223,17 +241,21 @@ export default function TrialAttachments({
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="caption">
-                                            Caption (Optional)
+                                            {t('wizard.attachments.caption')}
                                         </Label>
                                         <Input
                                             id="caption"
                                             name="caption"
-                                            placeholder="Tambahkan keterangan singkat tentang foto ini..."
+                                            placeholder={t(
+                                                'wizard.attachments.caption_placeholder',
+                                            )}
                                             maxLength={255}
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="photos">Photos</Label>
+                                        <Label htmlFor="photos">
+                                            {t('wizard.attachments.photos')}
+                                        </Label>
                                         <Input
                                             id="photos"
                                             ref={inputRef}
@@ -258,7 +280,7 @@ export default function TrialAttachments({
                                                 categories.length === 0
                                             }
                                         >
-                                            Upload
+                                            {t('wizard.attachments.upload')}
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -268,8 +290,7 @@ export default function TrialAttachments({
                 ) : (
                     <Alert>
                         <AlertDescription>
-                            Attachment readonly. Foto hanya bisa dihapus saat
-                            status Draft atau Need Revision.
+                            {t('wizard.attachments.readonly')}
                         </AlertDescription>
                     </Alert>
                 )}
@@ -279,7 +300,9 @@ export default function TrialAttachments({
                         <CardHeader className="flex flex-row items-center justify-between space-y-0">
                             <CardTitle>{category}</CardTitle>
                             <span className="text-sm text-muted-foreground">
-                                {categoryFiles.length} foto
+                                {t('wizard.attachments.photo_count', {
+                                    count: categoryFiles.length,
+                                })}
                             </span>
                         </CardHeader>
                         <CardContent>
@@ -314,12 +337,18 @@ export default function TrialAttachments({
                                                         size="sm"
                                                         className="w-full text-destructive"
                                                     >
-                                                        Delete
+                                                        {t(
+                                                            'wizard.attachments.delete',
+                                                        )}
                                                     </Button>
                                                 }
-                                                title="Remove this photo?"
+                                                title={t(
+                                                    'wizard.attachments.delete_confirm',
+                                                )}
                                                 description={file.file_name}
-                                                confirmLabel="Delete"
+                                                confirmLabel={t(
+                                                    'wizard.attachments.delete',
+                                                )}
                                                 formProps={TrialAttachmentController.destroy.form(
                                                     {
                                                         trial: trial.id,
@@ -338,18 +367,18 @@ export default function TrialAttachments({
                 {files.length === 0 && (
                     <Card>
                         <CardContent className="py-6 text-center text-muted-foreground">
-                            Belum ada attachment.
+                            {t('wizard.attachments.empty')}
                         </CardContent>
                     </Card>
                 )}
 
                 <div className="flex justify-between">
                     <Button type="button" variant="secondary" asChild>
-                        <Link href={backHref}>Back</Link>
+                        <Link href={backHref}>{t('common.actions.back')}</Link>
                     </Button>
                     <Button type="button" asChild>
                         <Link href={reviewEdit({ trial: trial.id }).url}>
-                            Continue to Review
+                            {t('wizard.attachments.continue_review')}
                         </Link>
                     </Button>
                 </div>

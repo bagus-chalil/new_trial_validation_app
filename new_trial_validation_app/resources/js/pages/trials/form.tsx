@@ -19,7 +19,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 
 type Product = {
@@ -71,6 +75,11 @@ export default function TrialForm({
     masterOptions,
     riskLevels,
 }: PageProps) {
+    const { t } = useTranslation();
+    const title =
+        mode === 'edit'
+            ? t('wizard.form.title_edit', { code: trial?.trial_code ?? '' })
+            : t('wizard.form.title_new');
     const [productId, setProductId] = useState(
         trial?.product_id ? String(trial.product_id) : '',
     );
@@ -90,23 +99,13 @@ export default function TrialForm({
 
     return (
         <>
-            <Head
-                title={
-                    mode === 'edit'
-                        ? `Edit Trial — ${trial?.trial_code}`
-                        : 'New Trial'
-                }
-            />
+            <Head title={title} />
 
             <div className="mx-auto max-w-6xl space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4">
                     <Heading
-                        title={
-                            mode === 'edit'
-                                ? `Edit Trial — ${trial?.trial_code}`
-                                : 'New Trial'
-                        }
-                        description="Lengkapi informasi header trial. Langkah validasi, weighing, review, dan approval menyusul di layar terpisah."
+                        title={title}
+                        description={t('wizard.form.description')}
                     />
                     {mode === 'edit' && trial && (
                         <Badge
@@ -116,7 +115,7 @@ export default function TrialForm({
                                 trial.final_decision,
                             )}
                         >
-                            {trial.progress_status}
+                            {trialStatusLabel(t, trial.progress_status)}
                         </Badge>
                     )}
                 </div>
@@ -154,11 +153,15 @@ export default function TrialForm({
 
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Informasi Produk</CardTitle>
+                                    <CardTitle>
+                                        {t('wizard.form.sections.product')}
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 sm:grid-cols-2">
                                     <div className="grid min-w-0 gap-2">
-                                        <Label htmlFor="product">Product</Label>
+                                        <Label htmlFor="product">
+                                            {t('wizard.form.product')}
+                                        </Label>
                                         <Combobox
                                             options={products.map((p) => ({
                                                 value: String(p.id),
@@ -166,8 +169,12 @@ export default function TrialForm({
                                             }))}
                                             value={productId}
                                             onChange={setProductId}
-                                            placeholder="Pilih product"
-                                            searchPlaceholder="Cari product..."
+                                            placeholder={t(
+                                                'wizard.form.placeholders.product',
+                                            )}
+                                            searchPlaceholder={t(
+                                                'wizard.form.placeholders.product_search',
+                                            )}
                                             aria-invalid={Boolean(
                                                 errors.product_id,
                                             )}
@@ -179,7 +186,7 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="finish_good_code">
-                                            Finish Good Code
+                                            {t('report.info.fg_code')}
                                         </Label>
                                         <Input
                                             id="finish_good_code"
@@ -194,7 +201,7 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="product_type">
-                                            Product Type
+                                            {t('report.info.product_type')}
                                         </Label>
                                         <Select
                                             name="product_type"
@@ -207,7 +214,11 @@ export default function TrialForm({
                                                 )}
                                                 className="w-full"
                                             >
-                                                <SelectValue placeholder="Pilih product type" />
+                                                <SelectValue
+                                                    placeholder={t(
+                                                        'wizard.form.placeholders.product_type',
+                                                    )}
+                                                />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {masterOptions.product_type.map(
@@ -229,7 +240,7 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="validation_date">
-                                            Validation Date
+                                            {t('report.info.validation_date')}
                                         </Label>
                                         <Input
                                             id="validation_date"
@@ -250,7 +261,9 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="validation_category">
-                                            Validation Category
+                                            {t(
+                                                'report.info.validation_category',
+                                            )}
                                         </Label>
                                         <Select
                                             name="validation_category"
@@ -265,7 +278,11 @@ export default function TrialForm({
                                                 )}
                                                 className="w-full"
                                             >
-                                                <SelectValue placeholder="Pilih kategori" />
+                                                <SelectValue
+                                                    placeholder={t(
+                                                        'wizard.form.placeholders.validation_category',
+                                                    )}
+                                                />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {masterOptions.validation_category.map(
@@ -287,7 +304,7 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="risk_level">
-                                            Risk Level
+                                            {t('report.info.risk_level')}
                                         </Label>
                                         <Select
                                             name="risk_level"
@@ -300,7 +317,11 @@ export default function TrialForm({
                                                 )}
                                                 className="w-full"
                                             >
-                                                <SelectValue placeholder="Pilih risk level" />
+                                                <SelectValue
+                                                    placeholder={t(
+                                                        'wizard.form.placeholders.risk_level',
+                                                    )}
+                                                />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {riskLevels.map((level) => (
@@ -322,12 +343,14 @@ export default function TrialForm({
 
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Cakupan & Mesin</CardTitle>
+                                    <CardTitle>
+                                        {t('wizard.form.sections.scope')}
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 sm:grid-cols-2">
                                     <div className="grid min-w-0 gap-2">
                                         <Label htmlFor="validation_scope">
-                                            Validation Scope
+                                            {t('report.info.validation_scope')}
                                         </Label>
                                         <MultiSelect
                                             options={masterOptions.validation_scope.map(
@@ -338,8 +361,12 @@ export default function TrialForm({
                                             )}
                                             value={validationScope}
                                             onChange={setValidationScope}
-                                            placeholder="Pilih cakupan"
-                                            searchPlaceholder="Cari cakupan..."
+                                            placeholder={t(
+                                                'wizard.form.placeholders.validation_scope',
+                                            )}
+                                            searchPlaceholder={t(
+                                                'wizard.form.placeholders.validation_scope_search',
+                                            )}
                                             aria-invalid={Boolean(
                                                 errors.validation_scope,
                                             )}
@@ -351,7 +378,7 @@ export default function TrialForm({
 
                                     <div className="grid min-w-0 gap-2">
                                         <Label htmlFor="machine_used">
-                                            Machine Used
+                                            {t('report.info.machine_used')}
                                         </Label>
                                         <MultiSelect
                                             options={masterOptions.machine_used.map(
@@ -362,8 +389,12 @@ export default function TrialForm({
                                             )}
                                             value={machineUsed}
                                             onChange={setMachineUsed}
-                                            placeholder="Pilih mesin"
-                                            searchPlaceholder="Cari mesin..."
+                                            placeholder={t(
+                                                'wizard.form.placeholders.machine_used',
+                                            )}
+                                            searchPlaceholder={t(
+                                                'wizard.form.placeholders.machine_used_search',
+                                            )}
                                             aria-invalid={Boolean(
                                                 errors.machine_used,
                                             )}
@@ -377,12 +408,14 @@ export default function TrialForm({
 
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Batch & Tim</CardTitle>
+                                    <CardTitle>
+                                        {t('wizard.form.sections.batch')}
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 sm:grid-cols-2">
                                     <div className="grid gap-2">
                                         <Label htmlFor="estimate_qty">
-                                            Estimate Qty
+                                            {t('report.header.estimate_qty')}
                                         </Label>
                                         <Input
                                             id="estimate_qty"
@@ -402,7 +435,7 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="batch_number">
-                                            Batch Number
+                                            {t('report.header.batch_number')}
                                         </Label>
                                         <Input
                                             id="batch_number"
@@ -421,7 +454,7 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="bulk_code">
-                                            Bulk Code
+                                            {t('report.header.bulk_code')}
                                         </Label>
                                         <Input
                                             id="bulk_code"
@@ -440,7 +473,7 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="support_team">
-                                            Support Team
+                                            {t('report.header.support_team')}
                                         </Label>
                                         <Input
                                             id="support_team"
@@ -459,7 +492,9 @@ export default function TrialForm({
 
                                     <div className="grid gap-2">
                                         <Label htmlFor="initiated_person_team">
-                                            Initiated Person / Team
+                                            {t(
+                                                'report.header.initiated_person_team',
+                                            )}
                                         </Label>
                                         <Input
                                             id="initiated_person_team"
@@ -483,11 +518,15 @@ export default function TrialForm({
 
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Alasan & BOM</CardTitle>
+                                    <CardTitle>
+                                        {t('wizard.form.sections.reason')}
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="reason">Reason</Label>
+                                        <Label htmlFor="reason">
+                                            {t('report.header.reason')}
+                                        </Label>
                                         <Textarea
                                             id="reason"
                                             name="reason"
@@ -500,7 +539,9 @@ export default function TrialForm({
                                     </div>
 
                                     <div className="grid gap-2">
-                                        <Label htmlFor="bom">BOM</Label>
+                                        <Label htmlFor="bom">
+                                            {t('report.header.bom')}
+                                        </Label>
                                         <Textarea
                                             id="bom"
                                             name="bom"
@@ -518,12 +559,14 @@ export default function TrialForm({
                                     variant="secondary"
                                     asChild
                                 >
-                                    <Link href={dashboard().url}>Cancel</Link>
+                                    <Link href={dashboard().url}>
+                                        {t('common.actions.cancel')}
+                                    </Link>
                                 </Button>
                                 <Button type="submit" disabled={processing}>
                                     {mode === 'edit'
-                                        ? 'Simpan Perubahan'
-                                        : 'Simpan & Lanjutkan'}
+                                        ? t('wizard.form.save_changes')
+                                        : t('wizard.save_next')}
                                 </Button>
                             </div>
                         </>

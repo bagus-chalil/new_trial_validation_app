@@ -8,6 +8,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { useTranslation } from '@/hooks/use-translation';
 import { handleAttachmentImageError } from '@/lib/image-fallback';
 
 type AttachmentImagePreviewProps = {
@@ -25,6 +26,7 @@ export function AttachmentImagePreview({
     caption,
     className = 'aspect-square w-full rounded object-cover',
 }: AttachmentImagePreviewProps) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [zoom, setZoom] = useState(1);
     const [fitToScreen, setFitToScreen] = useState(true);
@@ -96,7 +98,9 @@ export function AttachmentImagePreview({
                     type="button"
                     variant="ghost"
                     className="group relative h-auto w-full overflow-hidden rounded p-0"
-                    aria-label={`Lihat detail gambar ${fileName}`}
+                    aria-label={t('common.image_preview.view', {
+                        name: fileName,
+                    })}
                 >
                     <img
                         src={src}
@@ -106,7 +110,9 @@ export function AttachmentImagePreview({
                     />
                     <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100 group-focus-visible:bg-black/35 group-focus-visible:opacity-100">
                         <ZoomIn className="size-6" aria-hidden="true" />
-                        <span className="sr-only">Zoom gambar</span>
+                        <span className="sr-only">
+                            {t('common.image_preview.zoom')}
+                        </span>
                     </span>
                 </Button>
             </DialogTrigger>
@@ -115,9 +121,7 @@ export function AttachmentImagePreview({
                     {caption || fileName}
                 </DialogTitle>
                 <DialogDescription className="break-all">
-                    {caption
-                        ? fileName
-                        : 'Klik di luar gambar atau tekan Escape untuk menutup.'}
+                    {caption ? fileName : t('common.image_preview.close_hint')}
                 </DialogDescription>
                 <div
                     className={`flex h-[min(65vh,700px)] items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2 ${fitToScreen || zoom <= 1 ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
@@ -148,13 +152,15 @@ export function AttachmentImagePreview({
                         size="icon"
                         onClick={() => changeZoom(-0.25)}
                         disabled={zoom <= 0.5}
-                        title="Zoom out"
-                        aria-label="Zoom out"
+                        title={t('common.image_preview.zoom_out')}
+                        aria-label={t('common.image_preview.zoom_out')}
                     >
                         <ZoomOut className="size-4" />
                     </Button>
                     <span className="min-w-14 text-center text-sm text-muted-foreground tabular-nums">
-                        {fitToScreen ? 'Fit' : `${Math.round(zoom * 100)}%`}
+                        {fitToScreen
+                            ? t('common.image_preview.fit')
+                            : `${Math.round(zoom * 100)}%`}
                     </span>
                     <Button
                         type="button"
@@ -162,8 +168,8 @@ export function AttachmentImagePreview({
                         size="icon"
                         onClick={() => changeZoom(0.25)}
                         disabled={zoom >= 3}
-                        title="Zoom in"
-                        aria-label="Zoom in"
+                        title={t('common.image_preview.zoom_in')}
+                        aria-label={t('common.image_preview.zoom_in')}
                     >
                         <ZoomIn className="size-4" />
                     </Button>
@@ -173,10 +179,10 @@ export function AttachmentImagePreview({
                         size="sm"
                         onClick={fitPreview}
                         disabled={fitToScreen}
-                        title="Fit to screen"
+                        title={t('common.image_preview.fit_title')}
                     >
                         <Maximize2 className="size-4" />
-                        Fit
+                        {t('common.image_preview.fit')}
                     </Button>
                     <Button
                         type="button"
@@ -184,10 +190,10 @@ export function AttachmentImagePreview({
                         size="sm"
                         onClick={resetPreview}
                         disabled={!fitToScreen && zoom === 1}
-                        title="Reset default"
+                        title={t('common.image_preview.reset_title')}
                     >
                         <RotateCcw className="size-4" />
-                        Reset
+                        {t('common.image_preview.reset')}
                     </Button>
                 </div>
                 {caption && (

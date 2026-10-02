@@ -24,9 +24,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { useTranslation } from '@/hooks/use-translation';
 import {
     trialListGroupFor,
     trialStatusBadgeClassName,
+    trialStatusLabel,
 } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { edit as editTrial, index as trialsIndex } from '@/routes/trials';
@@ -154,6 +156,7 @@ export default function TrialValidation({
     results,
     canEdit,
 }: PageProps) {
+    const { t } = useTranslation();
     const backHref = canEdit
         ? editTrial(trial.id).url
         : trialsIndex(
@@ -164,11 +167,13 @@ export default function TrialValidation({
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>Parameter</TableHead>
-                    <TableHead>Specification</TableHead>
-                    <TableHead>Decision</TableHead>
-                    <TableHead>Result</TableHead>
-                    <TableHead>Remark</TableHead>
+                    <TableHead>{t('report.validation.parameter')}</TableHead>
+                    <TableHead>
+                        {t('report.validation.specification')}
+                    </TableHead>
+                    <TableHead>{t('report.validation.decision')}</TableHead>
+                    <TableHead>{t('report.validation.result')}</TableHead>
+                    <TableHead>{t('report.validation.remark')}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -187,13 +192,19 @@ export default function TrialValidation({
 
     return (
         <>
-            <Head title={`Validation — ${trial.trial_code}`} />
+            <Head
+                title={t('wizard.validation.page_title', {
+                    code: trial.trial_code,
+                })}
+            />
 
             <div className="mx-auto max-w-6xl space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4">
                     <Heading
-                        title={`Validation Trial Parameter — ${trial.product_type}`}
-                        description="Isi Decision, Result, dan Remark untuk setiap parameter validasi."
+                        title={t('wizard.validation.title', {
+                            type: trial.product_type,
+                        })}
+                        description={t('wizard.validation.description')}
                     />
                     <Badge
                         variant="outline"
@@ -202,7 +213,7 @@ export default function TrialValidation({
                             trial.final_decision,
                         )}
                     >
-                        {trial.progress_status}
+                        {trialStatusLabel(t, trial.progress_status)}
                     </Badge>
                 </div>
 
@@ -212,13 +223,14 @@ export default function TrialValidation({
                     <>
                         <Alert>
                             <AlertDescription>
-                                Parameter validation untuk product type ini
-                                belum dikonfigurasi.
+                                {t('wizard.validation.no_parameters')}
                             </AlertDescription>
                         </Alert>
                         <div className="flex justify-end">
                             <Button type="button" variant="secondary" asChild>
-                                <Link href={backHref}>Back</Link>
+                                <Link href={backHref}>
+                                    {t('common.actions.back')}
+                                </Link>
                             </Button>
                         </div>
                     </>
@@ -233,7 +245,7 @@ export default function TrialValidation({
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>
-                                            Parameter Validasi
+                                            {t('report.validation.title')}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
@@ -254,10 +266,12 @@ export default function TrialValidation({
                                         variant="secondary"
                                         asChild
                                     >
-                                        <Link href={backHref}>Back</Link>
+                                        <Link href={backHref}>
+                                            {t('common.actions.back')}
+                                        </Link>
                                     </Button>
                                     <Button type="submit" disabled={processing}>
-                                        Save & Next
+                                        {t('wizard.save_next')}
                                     </Button>
                                 </div>
                             </>
@@ -267,14 +281,18 @@ export default function TrialValidation({
                     <>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Parameter Validasi</CardTitle>
+                                <CardTitle>
+                                    {t('report.validation.title')}
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>{table}</CardContent>
                         </Card>
 
                         <div className="flex justify-end">
                             <Button type="button" variant="secondary" asChild>
-                                <Link href={backHref}>Back</Link>
+                                <Link href={backHref}>
+                                    {t('common.actions.back')}
+                                </Link>
                             </Button>
                         </div>
                     </>

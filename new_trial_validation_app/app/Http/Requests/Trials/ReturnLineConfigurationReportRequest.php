@@ -37,7 +37,7 @@ class ReturnLineConfigurationReportRequest extends FormRequest
                     $words = preg_split('/\s+/', trim((string) $value)) ?: [];
                     $wordCount = count(array_filter($words));
                     if ($wordCount < 5) {
-                        $fail('Alasan Return minimal 5 kata.');
+                        $fail(__('messages.validation.return_reason_min_words'));
                     }
                 },
             ],

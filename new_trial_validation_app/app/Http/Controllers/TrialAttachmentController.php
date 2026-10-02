@@ -78,9 +78,9 @@ class TrialAttachmentController extends Controller
         if ($result['saved'] === 0 && $result['errors']) {
             Inertia::flash('toast', ['type' => 'error', 'message' => implode(' | ', $result['errors'])]);
         } elseif ($result['errors']) {
-            Inertia::flash('toast', ['type' => 'warning', 'message' => 'Sebagian file gagal: '.implode(' | ', $result['errors'])]);
+            Inertia::flash('toast', ['type' => 'warning', 'message' => __('messages.toast.upload_partial', ['errors' => implode(' | ', $result['errors'])])]);
         } elseif ($result['saved'] > 0) {
-            Inertia::flash('toast', ['type' => 'success', 'message' => "{$result['saved']} foto berhasil diupload."]);
+            Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.photos_uploaded', ['count' => $result['saved']])]);
         }
 
         return to_route('trials.attachments.edit', $trial);
@@ -96,7 +96,7 @@ class TrialAttachmentController extends Controller
 
         $action($file, request()->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Attachment berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.attachment_deleted')]);
 
         return to_route('trials.attachments.edit', $trial);
     }

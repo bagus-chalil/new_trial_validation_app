@@ -95,7 +95,7 @@ class TrialController extends Controller
     {
         $trial = $action($request->validated(), $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil dibuat.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.trial_created')]);
 
         return to_route('trials.validation.edit', $trial);
     }
@@ -119,7 +119,7 @@ class TrialController extends Controller
 
         $action($trial, $request->validated(), $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil diperbarui.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.trial_updated')]);
 
         // TrialPolicy::update() only lets this succeed for Draft, Need
         // Revision, or In-Review-before-any-department-has-reviewed — every

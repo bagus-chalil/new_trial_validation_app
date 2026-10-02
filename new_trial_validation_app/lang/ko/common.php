@@ -44,7 +44,6 @@ return [
         'new_trial' => '신규 트라이얼',
         'edit_trial' => '트라이얼 양식 수정',
         'validation' => '검증',
-        'weighing' => ':section 계량',
         'attachments' => '첨부 파일',
         'review' => '검토',
         'trial_report' => '트라이얼 보고서',
@@ -93,6 +92,26 @@ return [
         'all' => '전체 :label',
         'active' => '적용된 필터:',
         'remove' => ':label 필터 삭제',
+    ],
+
+    'combobox' => [
+        'placeholder' => '선택...',
+        'search' => '검색...',
+        'empty' => '검색 결과가 없습니다.',
+        'remove' => ':label 삭제',
+        'selected' => ':count개 선택됨',
+    ],
+
+    'image_preview' => [
+        'view' => ':name 이미지 상세 보기',
+        'zoom' => '이미지 확대',
+        'close_hint' => '이미지 바깥을 클릭하거나 Esc 키를 눌러 닫습니다.',
+        'zoom_out' => '축소',
+        'zoom_in' => '확대',
+        'fit' => '맞춤',
+        'fit_title' => '화면에 맞춤',
+        'reset' => '초기화',
+        'reset_title' => '기본 크기로 되돌리기',
     ],
 
     'pagination' => [

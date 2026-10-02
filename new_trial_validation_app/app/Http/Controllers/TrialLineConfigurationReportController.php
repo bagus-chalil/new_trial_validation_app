@@ -53,7 +53,7 @@ class TrialLineConfigurationReportController extends Controller
 
         $action($trial, $data, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Line Configuration Report berhasil disimpan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.line_config_saved')]);
 
         return to_route('trials.report.show', $trial->id);
     }
@@ -88,7 +88,7 @@ class TrialLineConfigurationReportController extends Controller
         $action($trial, $report, $field, $request->user(), $comment);
 
         $label = LineConfigurationLane::label($field, $field === 'approved_pie' ? 'Approved (PIE)' : 'Checked (PROD)');
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$label} berhasil dikonfirmasi."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.line_config_confirmed', ['label' => $label])]);
 
         return to_route('trials.report.show', $trial->id);
     }
@@ -100,7 +100,7 @@ class TrialLineConfigurationReportController extends Controller
 
         $action($trial, $report, $request->string('reason')->trim()->value(), $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Line Configuration Report dikembalikan untuk revisi.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.line_config_returned')]);
 
         return to_route('trials.report.show', $trial->id);
     }

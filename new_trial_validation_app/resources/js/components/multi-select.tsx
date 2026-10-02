@@ -16,6 +16,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { useTranslation } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 
 export interface MultiSelectOption {
@@ -39,13 +40,14 @@ export function MultiSelect({
     options,
     value,
     onChange,
-    placeholder = 'Pilih...',
-    searchPlaceholder = 'Cari...',
-    emptyMessage = 'Tidak ada hasil.',
+    placeholder,
+    searchPlaceholder,
+    emptyMessage,
     disabled = false,
     className,
     'aria-invalid': ariaInvalid,
 }: MultiSelectProps) {
+    const { t } = useTranslation();
     const [open, setOpen] = React.useState(false);
     const selectedOptions = options.filter((option) =>
         value.includes(option.value),
@@ -82,8 +84,11 @@ export function MultiSelect({
                     >
                         <span className="min-w-0 flex-1 truncate text-left">
                             {selectedOptions.length > 0
-                                ? `${selectedOptions.length} dipilih`
-                                : placeholder}
+                                ? t('common.combobox.selected', {
+                                      count: selectedOptions.length,
+                                  })
+                                : (placeholder ??
+                                  t('common.combobox.placeholder'))}
                         </span>
                         <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
                     </Button>
@@ -93,9 +98,15 @@ export function MultiSelect({
                     align="start"
                 >
                     <Command>
-                        <CommandInput placeholder={searchPlaceholder} />
+                        <CommandInput
+                            placeholder={
+                                searchPlaceholder ?? t('common.combobox.search')
+                            }
+                        />
                         <CommandList>
-                            <CommandEmpty>{emptyMessage}</CommandEmpty>
+                            <CommandEmpty>
+                                {emptyMessage ?? t('common.combobox.empty')}
+                            </CommandEmpty>
                             <CommandGroup>
                                 {options.map((option) => {
                                     const isSelected = value.includes(
@@ -142,7 +153,9 @@ export function MultiSelect({
                                 type="button"
                                 onClick={() => remove(option.value)}
                                 className="shrink-0 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
-                                aria-label={`Hapus ${option.label}`}
+                                aria-label={t('common.combobox.remove', {
+                                    label: option.label,
+                                })}
                             >
                                 <XIcon className="size-3" />
                             </button>

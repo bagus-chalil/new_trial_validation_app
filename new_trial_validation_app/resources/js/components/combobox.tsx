@@ -15,6 +15,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { useTranslation } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 
 export interface ComboboxOption {
@@ -38,13 +39,14 @@ export function Combobox({
     options,
     value,
     onChange,
-    placeholder = 'Pilih...',
-    searchPlaceholder = 'Cari...',
-    emptyMessage = 'Tidak ada hasil.',
+    placeholder,
+    searchPlaceholder,
+    emptyMessage,
     disabled = false,
     className,
     'aria-invalid': ariaInvalid,
 }: ComboboxProps) {
+    const { t } = useTranslation();
     const [open, setOpen] = React.useState(false);
     const selected = options.find((option) => option.value === value);
 
@@ -65,7 +67,9 @@ export function Combobox({
                     )}
                 >
                     <span className="min-w-0 flex-1 truncate text-left">
-                        {selected ? selected.label : placeholder}
+                        {selected
+                            ? selected.label
+                            : (placeholder ?? t('common.combobox.placeholder'))}
                     </span>
                     <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
                 </Button>
@@ -75,9 +79,15 @@ export function Combobox({
                 align="start"
             >
                 <Command>
-                    <CommandInput placeholder={searchPlaceholder} />
+                    <CommandInput
+                        placeholder={
+                            searchPlaceholder ?? t('common.combobox.search')
+                        }
+                    />
                     <CommandList>
-                        <CommandEmpty>{emptyMessage}</CommandEmpty>
+                        <CommandEmpty>
+                            {emptyMessage ?? t('common.combobox.empty')}
+                        </CommandEmpty>
                         <CommandGroup>
                             {options.map((option) => (
                                 <CommandItem

@@ -69,7 +69,7 @@ class ReviewController extends Controller
 
         $action($review, trim((string) $request->string('comment')), $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Review berhasil disimpan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.review_saved')]);
 
         return to_route('reviews.index');
     }

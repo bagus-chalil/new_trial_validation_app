@@ -50,7 +50,7 @@ class TrialValidationController extends Controller
 
         $action($trial, $request->validated('results'), $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Validation berhasil disimpan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.validation_saved')]);
 
         return to_route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Packaging']);
     }

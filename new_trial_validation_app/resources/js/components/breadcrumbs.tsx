@@ -54,9 +54,11 @@ function trialDetailLabel(segments: string[], t: TranslateFn): string {
         case 'validation':
             return t('common.breadcrumb.validation');
         case 'weighing':
-            return t('common.breadcrumb.weighing', {
-                section: segments[3] ?? 'Packaging',
-            });
+            return t(
+                segments[3] === 'Filling'
+                    ? 'common.wizard.weighing_filling'
+                    : 'common.wizard.weighing_packaging',
+            );
         case 'attachments':
             return t('common.breadcrumb.attachments');
         case 'review':

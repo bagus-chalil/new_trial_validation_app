@@ -18,7 +18,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import attachments from '@/routes/trials/attachments';
@@ -65,6 +69,12 @@ type PageProps = {
     canEdit: boolean;
 };
 
+// trials_review.status values (shared with the legacy app) → label keys.
+const REVIEW_STATUS_KEYS: Record<string, string> = {
+    Pending: 'report.review.statuses.pending',
+    Reviewed: 'report.review.statuses.reviewed',
+};
+
 export default function TrialReview({
     trial,
     reviewerDepartments,
@@ -75,6 +85,7 @@ export default function TrialReview({
     completeness,
     canEdit,
 }: PageProps) {
+    const { t } = useTranslation();
     const [approverId, setApproverId] = useState(
         selectedApproverId ? String(selectedApproverId) : '',
     );
@@ -108,13 +119,19 @@ export default function TrialReview({
 
     return (
         <>
-            <Head title={`Review — ${trial.trial_code}`} />
+            <Head
+                title={t('wizard.review.page_title', {
+                    code: trial.trial_code,
+                })}
+            />
 
             <div className="mx-auto max-w-6xl space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4">
                     <Heading
-                        title="Review & Submit"
-                        description={`Kirim trial ${trial.trial_code} untuk direview department terkait.`}
+                        title={t('wizard.review.title')}
+                        description={t('wizard.review.description', {
+                            code: trial.trial_code,
+                        })}
                     />
                     <Badge
                         variant="outline"
@@ -123,7 +140,7 @@ export default function TrialReview({
                             trial.final_decision,
                         )}
                     >
-                        {trial.progress_status}
+                        {trialStatusLabel(t, trial.progress_status)}
                     </Badge>
                 </div>
 
@@ -132,19 +149,35 @@ export default function TrialReview({
                 {alreadySubmitted && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Status Review Department</CardTitle>
+                            <CardTitle>
+                                {t('wizard.review.status_title')}
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Round</TableHead>
-                                        <TableHead>Department</TableHead>
-                                        <TableHead>Assigned To</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Reviewer</TableHead>
-                                        <TableHead>Reviewed At</TableHead>
-                                        <TableHead>Comment</TableHead>
+                                        <TableHead>
+                                            {t('report.review.round')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.department')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('wizard.review.assigned_to')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.status')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.reviewer_name')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.reviewed_at')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.comment')}
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -161,7 +194,15 @@ export default function TrialReview({
                                             <TableCell>
                                                 {r.assigned_to ?? '-'}
                                             </TableCell>
-                                            <TableCell>{r.status}</TableCell>
+                                            <TableCell>
+                                                {REVIEW_STATUS_KEYS[r.status]
+                                                    ? t(
+                                                          REVIEW_STATUS_KEYS[
+                                                              r.status
+                                                          ],
+                                                      )
+                                                    : r.status}
+                                            </TableCell>
                                             <TableCell>
                                                 {r.reviewer_name ?? '-'}
                                             </TableCell>
@@ -181,7 +222,7 @@ export default function TrialReview({
 
                 {canEdit && completeness.length > 0 && (
                     <Alert variant="destructive">
-                        <AlertTitle>Belum siap submit review</AlertTitle>
+                        <AlertTitle>{t('wizard.review.not_ready')}</AlertTitle>
                         <AlertDescription>
                             <ul className="list-inside list-disc">
                                 {completeness.map((item) => (
@@ -202,7 +243,7 @@ export default function TrialReview({
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>
-                                            Select Review Department / Team
+                                            {t('wizard.review.select_title')}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
@@ -283,7 +324,13 @@ export default function TrialReview({
                                                                 {reviewerOptions.length ===
                                                                 0 ? (
                                                                     <p className="text-xs text-destructive">
-                                                                        {`Belum ada user dengan review team ${dept}. Atur di Access Rights.`}
+                                                                        {t(
+                                                                            'wizard.review.no_reviewer',
+                                                                            {
+                                                                                department:
+                                                                                    dept,
+                                                                            },
+                                                                        )}
                                                                     </p>
                                                                 ) : (
                                                                     <Combobox
@@ -304,8 +351,12 @@ export default function TrialReview({
                                                                                 value,
                                                                             )
                                                                         }
-                                                                        placeholder="Pilih reviewer..."
-                                                                        searchPlaceholder="Cari reviewer..."
+                                                                        placeholder={t(
+                                                                            'wizard.review.reviewer_placeholder',
+                                                                        )}
+                                                                        searchPlaceholder={t(
+                                                                            'wizard.review.reviewer_search',
+                                                                        )}
                                                                     />
                                                                 )}
                                                                 <input
@@ -326,14 +377,18 @@ export default function TrialReview({
 
                                         <div className="grid gap-2 sm:w-2/3">
                                             <Label htmlFor="approver_user_id">
-                                                Approver
+                                                {t('wizard.review.approver')}
                                             </Label>
                                             <Combobox
                                                 options={approverOptions}
                                                 value={approverId}
                                                 onChange={setApproverId}
-                                                placeholder="Pilih approver..."
-                                                searchPlaceholder="Cari approver..."
+                                                placeholder={t(
+                                                    'wizard.review.approver_placeholder',
+                                                )}
+                                                searchPlaceholder={t(
+                                                    'wizard.review.approver_search',
+                                                )}
                                             />
                                             <input
                                                 type="hidden"
@@ -350,7 +405,9 @@ export default function TrialReview({
                                         variant="secondary"
                                         asChild
                                     >
-                                        <Link href={backHref}>Back</Link>
+                                        <Link href={backHref}>
+                                            {t('common.actions.back')}
+                                        </Link>
                                     </Button>
                                     <Button
                                         type="button"
@@ -358,7 +415,7 @@ export default function TrialReview({
                                         asChild
                                     >
                                         <Link href={reportShow(trial.id).url}>
-                                            Lihat Detail Trial
+                                            {t('wizard.review.view_detail')}
                                         </Link>
                                     </Button>
                                     <Button
@@ -370,7 +427,7 @@ export default function TrialReview({
                                             !approverId
                                         }
                                     >
-                                        Submit for Review
+                                        {t('wizard.review.submit')}
                                     </Button>
                                 </div>
                             </>
@@ -379,11 +436,13 @@ export default function TrialReview({
                 ) : (
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="secondary" asChild>
-                            <Link href={backHref}>Back</Link>
+                            <Link href={backHref}>
+                                {t('common.actions.back')}
+                            </Link>
                         </Button>
                         <Button type="button" asChild>
                             <Link href={reportShow(trial.id).url}>
-                                Lihat Detail Trial
+                                {t('wizard.review.view_detail')}
                             </Link>
                         </Button>
                     </div>

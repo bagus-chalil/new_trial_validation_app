@@ -56,7 +56,7 @@ class SaveApprovalDecisionRequest extends FormRequest
             $trial = Trial::whereNull('deleted_at')->where('id', $this->route('trial'))->firstOrFail();
 
             if ($trial->progress_status !== 'Ready for Approval') {
-                $validator->errors()->add('decision', 'Trial belum siap approval.');
+                $validator->errors()->add('decision', __('messages.validation.not_ready_for_approval'));
 
                 return;
             }
@@ -68,7 +68,7 @@ class SaveApprovalDecisionRequest extends FormRequest
 
             $user = $this->user();
             if (! $user->is_active || ! Hash::check($password, $user->password_hash)) {
-                $validator->errors()->add('signature_password', 'Password e-signature salah.');
+                $validator->errors()->add('signature_password', __('messages.validation.signature_wrong'));
             }
         });
     }
