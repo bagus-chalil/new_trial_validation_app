@@ -35,6 +35,7 @@ class SavePackingCheckRequest extends FormRequest
         /** @var IpcBatch $batch */
         $batch = $this->route('batch');
         $existing = $batch->packingCheck;
+        $standardWeightMbRequired = $existing?->standard_weight_mb !== null ? 'nullable' : $required;
         $lineLeaderRequired = $existing?->line_leader_name ? 'nullable' : $required;
         $codingMachineRequired = $existing?->coding_machine ? 'nullable' : $required;
         $weighingDataRequired = $existing?->weighing_data ? 'nullable' : $required;
@@ -44,16 +45,14 @@ class SavePackingCheckRequest extends FormRequest
             // "Weight of MB" (sum_weight_mb column): weighed fresh every TH_PROGRESS round, so
             // it's wajib on every save — draft or final — not just on Selesaikan (user, 2026-10-01).
             'sum_weight_mb' => ['required', 'numeric', 'min:0'],
+            // "Std Bruto MB": typed by QC once (user, 2026-10-02), no longer derived from Start Inspection.
+            'standard_weight_mb' => [$standardWeightMbRequired, 'numeric', 'min:0', 'max:999999.9999'],
             'line_leader_name' => [$lineLeaderRequired, 'string', 'max:255'],
             'coding_machine' => [$codingMachineRequired, 'string', 'max:255'],
             'weighing_data' => [$weighingDataRequired, 'in:'.implode(',', PackingCheck::WEIGHING_DATA_OPTIONS)],
             'remarks' => [$required, 'string'],
             'decision' => [$required, 'in:'.implode(',', PackingCheck::DECISIONS)],
         ];
-
-        // standard_weight_mb is deliberately absent from the request payload: it's derived
-        // server-side from the batch's Start Inspection weight-master-box readings (defaulting
-        // to '0' when none exist yet), never submitted by the client and never blocking finalize.
 
         // The 17 checklist items are wajib on every save, draft included (user, 2026-10-01).
         foreach (PackingCheck::checklistGroups() as $group) {
@@ -88,6 +87,7 @@ class SavePackingCheckRequest extends FormRequest
                     ->flatMap(fn ($group) => array_keys($group['fields']));
 
                 $hasAnyValue = filled($this->input('sum_weight_mb'))
+                    || filled($this->input('standard_weight_mb'))
                     || filled($this->input('line_leader_name'))
                     || filled($this->input('coding_machine'))
                     || filled($this->input('weighing_data'))

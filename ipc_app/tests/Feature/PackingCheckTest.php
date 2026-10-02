@@ -48,9 +48,7 @@ class PackingCheckTest extends TestCase
     /**
      * Finalize (Simpan & Selesaikan) requires all 5 packing photo fields, which don't travel
      * through the packing-check payload itself, so tests that finalize successfully must seed
-     * them directly rather than via validPayload(). Standard Weight MB is also derived
-     * server-side (from Start Inspection's weight-master-box samples) but defaults to 0 and
-     * never blocks finalize, so it's seeded here only to exercise the non-default case.
+     * them directly rather than via validPayload().
      */
     private function seedPackingFinalizePrereqs(IpcBatch $batch): void
     {
@@ -84,6 +82,7 @@ class PackingCheckTest extends TestCase
             ...$checklist,
             'finalize' => true,
             'sum_weight_mb' => 105.0,
+            'standard_weight_mb' => 98.5,
             'line_leader_name' => 'Budi',
             'coding_machine' => 'CM-01',
             'weighing_data' => 'Ada',
@@ -212,7 +211,7 @@ class PackingCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
 
-        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'remarks' => null, 'decision' => null]))
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'remarks' => null, 'decision' => null, 'standard_weight_mb' => null]))
             ->assertRedirect("/batches/{$batch->id}/finished-check");
 
         $batch->refresh();
@@ -341,7 +340,7 @@ class PackingCheckTest extends TestCase
         // Round 2 sends neither field (the form stops asking once locked) — the round-1 values
         // must survive untouched, not be overwritten with blanks.
         $round2 = $this->validPayload(['finalize' => false]);
-        unset($round2['line_leader_name'], $round2['coding_machine']);
+        unset($round2['line_leader_name'], $round2['coding_machine'], $round2['standard_weight_mb']);
         $this->put("/batches/{$batch->id}/packing-check", $round2);
 
         $packingCheck = $batch->fresh()->packingCheck;
@@ -349,20 +348,21 @@ class PackingCheckTest extends TestCase
         $this->assertSame('CM-01', $packingCheck->coding_machine);
     }
 
-    public function test_standard_weight_mb_is_taken_from_the_batchs_start_inspection_samples(): void
+    public function test_standard_weight_mb_is_typed_once_and_locked_after(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
 
+        // Start Inspection weights no longer feed this field.
         $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by]);
-        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.3456]);
-        $inspection->samples()->create(['sample_no' => 2, 'weight_master_box' => 12.7]);
-        $inspection->samples()->create(['sample_no' => 3, 'weight_master_box' => null]);
-        $this->seedPackingPhotos($batch);
+        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.7]);
 
-        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => true]));
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
+        $this->assertSame('98.5000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
 
-        $this->assertSame('12.7000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
+        // Round 2 tries to change it — the round-1 value must survive.
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'standard_weight_mb' => 50]));
+        $this->assertSame('98.5000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
     }
 
     public function test_missing_checklist_field_is_rejected(): void
@@ -432,18 +432,19 @@ class PackingCheckTest extends TestCase
         $this->assertNull($batch->fresh()->packingCheck);
     }
 
-    public function test_standard_weight_mb_defaults_to_zero_and_still_allows_finalize(): void
+    public function test_missing_standard_weight_mb_is_rejected_on_first_finalize(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
-        // No StartupInspection weight-master-box samples seeded for this batch at all — Start
-        // Inspection's samples are optional, so Packing Check must still be finalizable.
         $this->seedPackingPhotos($batch);
 
-        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload())
-            ->assertSessionDoesntHaveErrors('standard_weight_mb');
+        $payload = $this->validPayload();
+        unset($payload['standard_weight_mb']);
 
-        $this->assertSame('0.0000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
+        $this->put("/batches/{$batch->id}/packing-check", $payload)
+            ->assertSessionHasErrors('standard_weight_mb');
+
+        $this->assertNull($batch->fresh()->packingCheck);
     }
 
     public function test_draft_save_does_not_require_photos_or_standard_weight_mb(): void
@@ -451,7 +452,7 @@ class PackingCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedFillingCheck();
 
-        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'remarks' => null, 'decision' => null]))
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'remarks' => null, 'decision' => null, 'standard_weight_mb' => null]))
             ->assertSessionDoesntHaveErrors(['standard_weight_mb', 'photo_palletisasi', 'photo_color']);
     }
 
@@ -466,9 +467,9 @@ class PackingCheckTest extends TestCase
         // Round 2 omits both fields entirely, same as the "form stops asking once locked" test
         // above, but this time finalizing — must not be rejected as missing.
         $round2 = $this->validPayload(['finalize' => true]);
-        unset($round2['line_leader_name'], $round2['coding_machine']);
+        unset($round2['line_leader_name'], $round2['coding_machine'], $round2['standard_weight_mb']);
         $this->put("/batches/{$batch->id}/packing-check", $round2)
-            ->assertSessionDoesntHaveErrors(['line_leader_name', 'coding_machine']);
+            ->assertSessionDoesntHaveErrors(['line_leader_name', 'coding_machine', 'standard_weight_mb']);
 
         $packingCheck = $batch->fresh()->packingCheck;
         $this->assertNotNull($packingCheck->completed_at);

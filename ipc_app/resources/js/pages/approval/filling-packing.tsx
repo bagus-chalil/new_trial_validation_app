@@ -148,7 +148,7 @@ export default function ApprovalFillingPacking({
                                 photos={[
                                     { key: 'color', label: 'Color', url: photoUrls.filling?.color ?? null },
                                     { key: 'wo_image', label: 'WI Image', url: photoUrls.filling?.wo_image ?? null },
-                                    { key: 'date_bulk', label: 'Date Bulk', url: photoUrls.filling?.date_bulk ?? null },
+                                    { key: 'date_bulk', label: 'Identity Bulk', url: photoUrls.filling?.date_bulk ?? null },
                                     { key: 'image_tube', label: 'Image', url: photoUrls.filling?.image_tube ?? null },
                                 ]}
                             />

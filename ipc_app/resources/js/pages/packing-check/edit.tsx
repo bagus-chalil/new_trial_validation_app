@@ -48,6 +48,7 @@ interface PackingCheckData {
     completed_at: string | null;
     created_at: string;
     save_count: number;
+    standard_weight_mb: string | null;
     line_leader_name: string | null;
     coding_machine: string | null;
     weighing_data: string | null;
@@ -84,7 +85,6 @@ export default function PackingCheckEdit({
     decisions,
     weighingDataOptions,
     photoUrls,
-    standardWeightMb,
     canFillMasterBox,
     maxThProgress,
     previousStageCompleted,
@@ -96,7 +96,6 @@ export default function PackingCheckEdit({
     decisions: string[];
     weighingDataOptions: string[];
     photoUrls: Record<string, string | null>;
-    standardWeightMb: string;
     canFillMasterBox: boolean;
     maxThProgress: number;
     previousStageCompleted: boolean;
@@ -124,6 +123,7 @@ export default function PackingCheckEdit({
     const { data, setData, put, transform, processing, errors } = useForm<Record<string, string | null>>({
         ...initialChecklistValues,
         sum_weight_mb: (packingCheck?.sum_weight_mb as string) ?? '',
+        standard_weight_mb: packingCheck?.standard_weight_mb ?? '',
         line_leader_name: packingCheck?.line_leader_name ?? '',
         coding_machine: packingCheck?.coding_machine ?? '',
         weighing_data: packingCheck?.weighing_data ?? '',
@@ -133,6 +133,7 @@ export default function PackingCheckEdit({
 
     // Captured once on the first round; from TH_PROGRESS 2 on the server carries them forward
     // and the form stops asking, so QC only re-enters what actually changes between rounds.
+    const standardWeightMbLocked = packingCheck?.standard_weight_mb != null;
     const lineLeaderLocked = Boolean(packingCheck?.line_leader_name);
     const codingMachineLocked = Boolean(packingCheck?.coding_machine);
     const weighingDataLocked = Boolean(packingCheck?.weighing_data);
@@ -144,6 +145,7 @@ export default function PackingCheckEdit({
     // show its "Selesai" badge — every field this screen actually requires to finalize.
     const parameterPackingComplete =
         Boolean(data.sum_weight_mb?.toString().trim()) &&
+        Boolean(data.standard_weight_mb?.toString().trim()) &&
         Boolean(data.line_leader_name?.trim()) &&
         Boolean(data.coding_machine?.trim()) &&
         Boolean(data.weighing_data) &&
@@ -160,6 +162,7 @@ export default function PackingCheckEdit({
         if (!data.decision) empty.add('decision');
         // Only wajib on the round that actually sets them — once locked they're carried forward
         // by the server and don't need re-entry, matching SavePackingCheckRequest's server-side rule.
+        if (!standardWeightMbLocked && !data.standard_weight_mb?.toString().trim()) empty.add('standard_weight_mb');
         if (!lineLeaderLocked && !data.line_leader_name?.trim()) empty.add('line_leader_name');
         if (!codingMachineLocked && !data.coding_machine?.trim()) empty.add('coding_machine');
         if (!weighingDataLocked && !data.weighing_data) empty.add('weighing_data');
@@ -207,6 +210,7 @@ export default function PackingCheckEdit({
         // lock flags here was the bug — they reflect props from *before* this save resolved,
         // so a round-1 save that just set the value would wipe it back to blank on screen even
         // though the server now has it locked in.
+        standard_weight_mb: data.standard_weight_mb,
         line_leader_name: data.line_leader_name,
         coding_machine: data.coding_machine,
         weighing_data: data.weighing_data,
@@ -216,6 +220,7 @@ export default function PackingCheckEdit({
 
     const hasAnyDraftValue = () =>
         Boolean(data.sum_weight_mb?.toString().trim()) ||
+        Boolean(data.standard_weight_mb?.toString().trim()) ||
         Boolean(data.line_leader_name?.trim()) ||
         Boolean(data.coding_machine?.trim()) ||
         Boolean(data.weighing_data) ||
@@ -342,12 +347,26 @@ export default function PackingCheckEdit({
 
                         <AccordionCard title="Parameter Packing" complete={parameterPackingComplete} defaultOpen={!parameterPackingComplete}>
                             <div className="flex flex-col gap-2">
-                                <Label className="text-muted-foreground text-xs font-semibold">Std Bruto MB</Label>
-                                {/* Read-only: taken from the batch's Start Inspection weight-master-box
-                                    readings on save, not typed here — see SavePackingCheck::standardWeightMbFor().
-                                    Defaults to 0 when Start Inspection recorded no weights yet, so this never
-                                    blocks Selesaikan. */}
-                                <div className={`${inputClass} bg-muted/40`}>{standardWeightMb}</div>
+                                <Label htmlFor="standard_weight_mb" className="text-muted-foreground text-xs font-semibold">
+                                    Std Bruto MB{standardWeightMbLocked && ' (terkunci sejak TH Progress 1)'}
+                                </Label>
+                                <Input
+                                    id="standard_weight_mb"
+                                    type="number"
+                                    step="0.0001"
+                                    className={`${inputClass} ${errorFields.has('standard_weight_mb') ? errorBorder : ''}`}
+                                    value={data.standard_weight_mb ?? ''}
+                                    onChange={(e) => {
+                                        setData('standard_weight_mb', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('standard_weight_mb');
+                                            return n;
+                                        });
+                                    }}
+                                    disabled={isReadOnly || standardWeightMbLocked}
+                                />
+                                <InputError message={errors.standard_weight_mb} />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="sum_weight_mb" className="text-muted-foreground text-xs font-semibold">

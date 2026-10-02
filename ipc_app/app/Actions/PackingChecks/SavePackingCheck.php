@@ -26,12 +26,13 @@ class SavePackingCheck
         return DB::transaction(function () use ($batch, $user, $data) {
             $finalize = (bool) ($data['finalize'] ?? false);
             $existing = $batch->packingCheck;
-            $fields = collect($data)->except(['finalize', 'line_leader_name', 'coding_machine', 'weighing_data'])->all();
+            $fields = collect($data)->except(['finalize', 'standard_weight_mb', 'line_leader_name', 'coding_machine', 'weighing_data'])->all();
 
-            // Asked once on the first round, then carried forward untouched — the coding machine,
-            // line leader and Data Timbang don't change between inspection rounds of the same batch, so the
-            // form stops rendering them from TH_PROGRESS 2 on and submits nothing for them. A
-            // first round that left one blank can still fill it in later.
+            // Asked once on the first round, then carried forward untouched — Std Bruto MB, the
+            // coding machine, line leader and Data Timbang don't change between inspection rounds
+            // of the same batch, so the form locks them from TH_PROGRESS 2 on and submits nothing
+            // for them. A first round that left one blank can still fill it in later.
+            $standardWeightMb = $existing?->standard_weight_mb ?? ($data['standard_weight_mb'] ?? null);
             $lineLeaderName = $existing?->line_leader_name ?? ($data['line_leader_name'] ?? null);
             $codingMachine = $existing?->coding_machine ?? ($data['coding_machine'] ?? null);
             $weighingData = $existing?->weighing_data ?? ($data['weighing_data'] ?? null);
@@ -42,7 +43,7 @@ class SavePackingCheck
                 ['ipc_batch_id' => $batch->id],
                 [
                     ...$fields,
-                    'standard_weight_mb' => self::standardWeightMbFor($batch),
+                    'standard_weight_mb' => $standardWeightMb,
                     'line_leader_name' => $lineLeaderName,
                     'coding_machine' => $codingMachine,
                     'weighing_data' => $weighingData,
@@ -100,9 +101,8 @@ class SavePackingCheck
             // the revision snapshot above, so the live row is cleared back to blank immediately
             // after, ready for whoever records the next round (whether that's this same session
             // or a fresh page load later). Only the fields that are asked once and carried
-            // forward (line leader/coding machine) or re-derived fresh every time regardless of
-            // round (standard_weight_mb) survive; a finalized row is left untouched since that's
-            // the permanent record shown on the now-read-only page.
+            // forward (Std Bruto MB/line leader/coding machine/Data Timbang) survive; a finalized
+            // row is left untouched since that's the permanent record shown on the now-read-only page.
             if (! $finalize) {
                 $packingCheck->forceFill([
                     ...array_fill_keys(self::checklistFieldKeys(), null),
@@ -114,25 +114,6 @@ class SavePackingCheck
 
             return $packingCheck->fresh(['revisions.user']);
         });
-    }
-
-    /**
-     * "Standard weight MB" is the reference master-box weight, and the only numeric master-box
-     * reading captured anywhere earlier in the workflow is Start Inspection's BERAT_M.BOX sample
-     * set (startup_inspection_samples.weight_master_box). Legacy re-typed this by hand on the
-     * Packing form; this port reads the last filled sample instead so QC can't transcribe it
-     * wrong. Defaults to '0' when Start Inspection recorded no weights — those samples are
-     * optional (IPC can't do this weighing yet at this stage of rollout), so Packing Check must
-     * still be finalizable without it rather than being permanently blocked.
-     *
-     * Public/static so the controller can show the same value on the form before any save.
-     */
-    public static function standardWeightMbFor(IpcBatch $batch): string
-    {
-        return $batch->startupInspection?->samples()
-            ->whereNotNull('weight_master_box')
-            ->orderByDesc('sample_no')
-            ->value('weight_master_box') ?? '0';
     }
 
     /**
