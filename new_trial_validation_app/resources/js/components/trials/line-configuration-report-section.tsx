@@ -14,6 +14,7 @@ import {
 import { useRef, useState } from 'react';
 import TrialLineConfigurationReportController from '@/actions/App/Http/Controllers/TrialLineConfigurationReportController';
 import { Combobox } from '@/components/combobox';
+import InputError from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,35 @@ import type { TranslateFn } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 
 const TRIAL_STATUS_OPTIONS = ['Pass', 'No Trial'] as const;
+
+/**
+ * Lists every validation message for a row table — the backend reports each
+ * empty cell under its own key (e.g. `production_standard.0.line`), plus the
+ * bare key when the table has no filled rows at all.
+ */
+function SectionErrors({
+    errors,
+    prefix,
+}: {
+    errors: Record<string, string>;
+    prefix: string;
+}) {
+    const messages = Object.entries(errors)
+        .filter(([key]) => key === prefix || key.startsWith(`${prefix}.`))
+        .map(([, message]) => message);
+
+    if (messages.length === 0) {
+        return null;
+    }
+
+    return (
+        <ul className="list-inside list-disc space-y-0.5 text-sm text-destructive">
+            {messages.map((message, index) => (
+                <li key={index}>{message}</li>
+            ))}
+        </ul>
+    );
+}
 
 /** Display label for a stored trial_status value — the value itself is never translated. */
 function trialStatusLabel(t: TranslateFn, status: string): string {
@@ -568,6 +598,9 @@ function EditableLineConfigurationReport({
         >
             {({ processing, errors }) => (
                 <div className="space-y-6">
+                    <p className="text-sm text-muted-foreground">
+                        {t('line_config.validation.summary')}
+                    </p>
                     <div className="space-y-4 rounded-md border p-4">
                         <h4 className="text-sm font-semibold">
                             {t('line_config.sign_off.title')}
@@ -590,6 +623,9 @@ function EditableLineConfigurationReport({
                                     type="hidden"
                                     name="approved_pie_user_id"
                                     value={approvedPieUserId}
+                                />
+                                <InputError
+                                    message={errors.approved_pie_user_id}
                                 />
                                 <SignOffStatusHint
                                     field="approved_pie"
@@ -625,6 +661,9 @@ function EditableLineConfigurationReport({
                                     name="checked_prod_user_id"
                                     value={checkedProdUserId}
                                 />
+                                <InputError
+                                    message={errors.checked_prod_user_id}
+                                />
                                 <SignOffStatusHint
                                     field="checked_prod"
                                     report={report}
@@ -652,6 +691,7 @@ function EditableLineConfigurationReport({
                                     report?.report_date?.slice(0, 10) ?? ''
                                 }
                             />
+                            <InputError message={errors.report_date} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_client_name">
@@ -662,6 +702,7 @@ function EditableLineConfigurationReport({
                                 name="client_name"
                                 defaultValue={report?.client_name ?? ''}
                             />
+                            <InputError message={errors.client_name} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_validation_name">
@@ -672,6 +713,7 @@ function EditableLineConfigurationReport({
                                 name="validation_name"
                                 defaultValue={report?.validation_name ?? ''}
                             />
+                            <InputError message={errors.validation_name} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_pic">
@@ -682,6 +724,7 @@ function EditableLineConfigurationReport({
                                 name="pic"
                                 defaultValue={report?.pic ?? ''}
                             />
+                            <InputError message={errors.pic} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_operator">
@@ -692,6 +735,7 @@ function EditableLineConfigurationReport({
                                 name="operator"
                                 defaultValue={report?.operator ?? ''}
                             />
+                            <InputError message={errors.operator} />
                         </div>
                         {/* Label Speed is hidden from the form per user request;
                             kept as a hidden input so saving doesn't wipe an
@@ -719,6 +763,7 @@ function EditableLineConfigurationReport({
                                     );
                                 }}
                             />
+                            <InputError message={errors.total_qty} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_setting_qty">
@@ -738,6 +783,7 @@ function EditableLineConfigurationReport({
                                     );
                                 }}
                             />
+                            <InputError message={errors.setting_qty} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_pass_qty">
@@ -757,6 +803,7 @@ function EditableLineConfigurationReport({
                                     );
                                 }}
                             />
+                            <InputError message={errors.pass_qty} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_ng_qty">
@@ -769,6 +816,7 @@ function EditableLineConfigurationReport({
                                 value={ngQty}
                                 onChange={(e) => setNgQty(e.target.value)}
                             />
+                            <InputError message={errors.ng_qty} />
                             <p className="text-xs text-muted-foreground">
                                 {t('line_config.fields.ng_hint')}
                             </p>
@@ -872,11 +920,10 @@ function EditableLineConfigurationReport({
                                 ))}
                             </TableBody>
                         </Table>
-                        {errors.production_standard && (
-                            <p className="text-sm text-destructive">
-                                {errors.production_standard}
-                            </p>
-                        )}
+                        <SectionErrors
+                            errors={errors}
+                            prefix="production_standard"
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -1089,11 +1136,10 @@ function EditableLineConfigurationReport({
                                 )}
                             </TableBody>
                         </Table>
-                        {errors.line_configuration && (
-                            <p className="text-sm text-destructive">
-                                {errors.line_configuration}
-                            </p>
-                        )}
+                        <SectionErrors
+                            errors={errors}
+                            prefix="line_configuration"
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -1106,6 +1152,7 @@ function EditableLineConfigurationReport({
                             rows={4}
                             defaultValue={report?.opinion ?? ''}
                         />
+                        <InputError message={errors.opinion} />
                     </div>
 
                     <div className="flex justify-end">

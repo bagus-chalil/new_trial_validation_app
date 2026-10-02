@@ -77,6 +77,12 @@ return [
         'trial' => 'Trial',
     ],
 
+    'validation' => [
+        'rows_required' => 'At least one :section row must be filled in.',
+        'row_field_required' => 'Row :position — :attribute is required.',
+        'summary' => 'All fields are required, including both approvers.',
+    ],
+
     'total_workers' => 'Total Workers',
     'total_workers_inline' => 'Total workers:',
 

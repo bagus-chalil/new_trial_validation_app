@@ -77,6 +77,12 @@ return [
         'trial' => 'Trial',
     ],
 
+    'validation' => [
+        'rows_required' => 'Minimal satu baris :section harus diisi.',
+        'row_field_required' => 'Baris :position — :attribute wajib diisi.',
+        'summary' => 'Semua data wajib diisi, termasuk kedua approver.',
+    ],
+
     'total_workers' => 'Total Pekerja',
     'total_workers_inline' => 'Total pekerja:',
 

@@ -42,14 +42,9 @@ class TrialLineConfigurationReportController extends Controller
         $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
 
         $data = $request->validated();
-        $data['production_standard'] = $this->dropBlankRows($data['production_standard'] ?? []);
-        $data['line_configuration'] = $this->renumberRows(
-            // 'trial_status' is ignored the same way 'no' already is: the
-            // frontend's Pass/No Trial toggle always submits a real value
-            // (defaulting to 'No Trial'), so it alone must never keep an
-            // otherwise fully-empty "Tambah Baris" row from being dropped.
-            $this->dropBlankRows($data['line_configuration'] ?? [], ['no', 'trial_status']),
-        );
+        // Blank rows are already dropped in
+        // SaveTrialLineConfigurationReportRequest::prepareForValidation().
+        $data['line_configuration'] = $this->renumberRows($data['line_configuration']);
 
         $action($trial, $data, $request->user());
 
@@ -125,34 +120,6 @@ class TrialLineConfigurationReportController extends Controller
             'trial' => $trial,
             'report' => $report,
         ], "LineConfigurationReport-{$trial->trial_code}-v{$version}.pdf");
-    }
-
-    /**
-     * Drops any row whose fields are all blank — the frontend always renders
-     * a handful of empty rows by default, and there's no reason to persist
-     * rows the reviewer never actually filled in. `$ignoreKeys` excludes
-     * fields that are always populated regardless of user input (e.g. the
-     * Line Configuration table's auto-numbered `no` column) from that check.
-     *
-     * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<int, string>  $ignoreKeys
-     * @return array<int, array<string, mixed>>
-     */
-    private function dropBlankRows(array $rows, array $ignoreKeys = []): array
-    {
-        return array_values(array_filter($rows, function (array $row) use ($ignoreKeys) {
-            foreach ($row as $key => $value) {
-                if (in_array($key, $ignoreKeys, true)) {
-                    continue;
-                }
-
-                if (trim((string) $value) !== '') {
-                    return true;
-                }
-            }
-
-            return false;
-        }));
     }
 
     /**

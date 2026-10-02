@@ -77,6 +77,12 @@ return [
         'trial' => '트라이얼',
     ],
 
+    'validation' => [
+        'rows_required' => ':section 행을 최소 1개 이상 입력해야 합니다.',
+        'row_field_required' => ':position행 — :attribute 항목은 필수입니다.',
+        'summary' => '두 명의 승인자를 포함한 모든 항목은 필수입니다.',
+    ],
+
     'total_workers' => '총 인원',
     'total_workers_inline' => '총 인원:',
 

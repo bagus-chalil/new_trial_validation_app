@@ -54,25 +54,49 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
     }
 
     /**
+     * Blank "Tambah Baris" rows are dropped *before* validation (moved here
+     * from the controller), so the every-cell-required rules below only
+     * apply to rows the preparer actually started filling in — while a
+     * report with zero real rows still fails `min:1`.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'production_standard' => $this->dropBlankRows($this->input('production_standard', [])),
+            // 'trial_status' is ignored the same way 'no' already is: the
+            // frontend's Pass/No Trial toggle always submits a real value
+            // (defaulting to 'No Trial'), so it alone must never keep an
+            // otherwise fully-empty "Tambah Baris" row from being dropped.
+            'line_configuration' => $this->dropBlankRows($this->input('line_configuration', []), ['no', 'trial_status']),
+        ]);
+    }
+
+    /**
+     * Every field is required (tightened 2026-10-02 per user request): a
+     * report can no longer be saved half-filled or without both sign-off
+     * approvers assigned — saving *is* submitting into the approval chain
+     * (see TrialLineConfigurationReport::isSubmittedForApproval()). Only
+     * capacity_label stays optional, since it's hidden from the form.
+     *
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
         return [
-            'report_date' => ['nullable', 'date'],
-            'client_name' => ['nullable', 'string', 'max:150'],
-            'pic' => ['nullable', 'string', 'max:150'],
-            'operator' => ['nullable', 'string', 'max:150'],
-            'validation_name' => ['nullable', 'string', 'max:150'],
+            'report_date' => ['required', 'date'],
+            'client_name' => ['required', 'string', 'max:150'],
+            'pic' => ['required', 'string', 'max:150'],
+            'operator' => ['required', 'string', 'max:150'],
+            'validation_name' => ['required', 'string', 'max:150'],
             // Plain free text, not numbers — see the migration's doc comment:
             // real preparers often write "General Pcs" or "10 Pcs (14%)"
             // here, not a bare integer.
-            'total_qty' => ['nullable', 'string', 'max:50'],
-            'setting_qty' => ['nullable', 'string', 'max:50'],
-            'pass_qty' => ['nullable', 'string', 'max:50'],
-            'ng_qty' => ['nullable', 'string', 'max:50'],
+            'total_qty' => ['required', 'string', 'max:50'],
+            'setting_qty' => ['required', 'string', 'max:50'],
+            'pass_qty' => ['required', 'string', 'max:50'],
+            'ng_qty' => ['required', 'string', 'max:50'],
             'capacity_label' => ['nullable', 'string', 'max:50'],
-            'opinion' => ['nullable', 'string', 'max:5000'],
+            'opinion' => ['required', 'string', 'max:5000'],
 
             // Approved(PIE)/Checked(PROD) are no longer submitted here at
             // all — since the 2026-09-16 assign-an-approver-and-email
@@ -85,33 +109,119 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             // see LineConfigurationLane) instead of a hardcoded 'PROD'
             // literal — enforced here (not just filtered in the UI's
             // Combobox options), so a direct POST can't assign an
-            // ineligible user.
+            // ineligible user. Both are required: a report can't exist
+            // without an approval chain.
             'approved_pie_user_id' => [
-                'nullable', 'integer',
+                'required', 'integer',
                 Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
                     ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'approved_pie')),
             ],
             'checked_prod_user_id' => [
-                'nullable', 'integer',
+                'required', 'integer',
                 Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
                     ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'checked_prod')),
             ],
 
             // Return is its own dedicated, auto-stamped action now (see
             // ReturnTrialLineConfigurationReport) — not submitted here at all.
-            'production_standard' => ['nullable', 'array'],
-            'production_standard.*.line' => ['nullable', 'string', 'max:100'],
-            'production_standard.*.workers' => ['nullable', 'string', 'max:100'],
-            'production_standard.*.capacity' => ['nullable', 'string', 'max:100'],
-            'production_standard.*.remark' => ['nullable', 'string', 'max:500'],
+            'production_standard' => ['required', 'array', 'min:1'],
+            'production_standard.*.line' => ['required', 'string', 'max:100'],
+            'production_standard.*.workers' => ['required', 'string', 'max:100'],
+            'production_standard.*.capacity' => ['required', 'string', 'max:100'],
+            'production_standard.*.remark' => ['required', 'string', 'max:500'],
 
-            'line_configuration' => ['nullable', 'array'],
+            'line_configuration' => ['required', 'array', 'min:1'],
             'line_configuration.*.no' => ['nullable', 'string', 'max:20'],
-            'line_configuration.*.equipment' => ['nullable', 'string', 'max:150'],
-            'line_configuration.*.process' => ['nullable', 'string', 'max:150'],
-            'line_configuration.*.worker' => ['nullable', 'string', 'max:50'],
-            'line_configuration.*.trial_status' => ['nullable', 'string', 'max:50'],
-            'line_configuration.*.remark' => ['nullable', 'string', 'max:500'],
+            'line_configuration.*.equipment' => ['required', 'string', 'max:150'],
+            'line_configuration.*.process' => ['required', 'string', 'max:150'],
+            'line_configuration.*.worker' => ['required', 'string', 'max:50'],
+            'line_configuration.*.trial_status' => ['required', 'string', Rule::in(['Pass', 'No Trial'])],
+            'line_configuration.*.remark' => ['required', 'string', 'max:500'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        $standardRows = __('line_config.validation.rows_required', ['section' => __('line_config.sections.production_standard')]);
+        $configRows = __('line_config.validation.rows_required', ['section' => __('line_config.sections.line_configuration')]);
+
+        return [
+            'production_standard.required' => $standardRows,
+            'production_standard.min' => $standardRows,
+            'line_configuration.required' => $configRows,
+            'line_configuration.min' => $configRows,
+            'production_standard.*.*.required' => __('line_config.validation.row_field_required'),
+            'line_configuration.*.*.required' => __('line_config.validation.row_field_required'),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        $lanes = LineConfigurationLane::labels();
+
+        return [
+            'report_date' => __('line_config.fields.date'),
+            'client_name' => __('line_config.fields.client'),
+            'pic' => __('line_config.fields.pic'),
+            'operator' => __('line_config.fields.operator'),
+            'validation_name' => __('line_config.fields.validation'),
+            'total_qty' => __('line_config.fields.total'),
+            'setting_qty' => __('line_config.fields.setting'),
+            'pass_qty' => __('line_config.fields.pass'),
+            'ng_qty' => __('line_config.fields.ng'),
+            'opinion' => __('line_config.fields.opinion'),
+            'approved_pie_user_id' => $lanes['approved_pie'],
+            'checked_prod_user_id' => $lanes['checked_prod'],
+            'production_standard.*.line' => __('line_config.columns.line'),
+            'production_standard.*.workers' => __('line_config.columns.workers'),
+            'production_standard.*.capacity' => __('line_config.columns.capacity'),
+            'production_standard.*.remark' => __('line_config.columns.remark'),
+            'line_configuration.*.equipment' => __('line_config.columns.equipment'),
+            'line_configuration.*.process' => __('line_config.columns.process'),
+            'line_configuration.*.worker' => __('line_config.columns.worker'),
+            'line_configuration.*.trial_status' => __('line_config.columns.trial'),
+            'line_configuration.*.remark' => __('line_config.columns.remark'),
+        ];
+    }
+
+    /**
+     * Drops any row whose fields are all blank — the frontend always renders
+     * a handful of empty rows by default, and there's no reason to persist
+     * rows the reviewer never actually filled in. `$ignoreKeys` excludes
+     * fields that are always populated regardless of user input (e.g. the
+     * Line Configuration table's auto-numbered `no` column) from that check.
+     *
+     * @param  array<int, string>  $ignoreKeys
+     * @return array<int, mixed>
+     */
+    private function dropBlankRows(mixed $rows, array $ignoreKeys = []): array
+    {
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return array_values(array_filter($rows, function (mixed $row) use ($ignoreKeys): bool {
+            if (! is_array($row)) {
+                return false;
+            }
+
+            foreach ($row as $key => $value) {
+                if (in_array($key, $ignoreKeys, true)) {
+                    continue;
+                }
+
+                if (trim((string) $value) !== '') {
+                    return true;
+                }
+            }
+
+            return false;
+        }));
     }
 }
