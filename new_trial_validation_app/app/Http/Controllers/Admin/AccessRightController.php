@@ -105,14 +105,14 @@ class AccessRightController extends Controller
     public function updateRole(UpdateUserRoleRequest $request, User $user): RedirectResponse
     {
         if ($user->id === $request->user()->id) {
-            return back()->withErrors(['app_role' => 'Tidak bisa mengubah hak akses akun sendiri dari halaman ini.']);
+            return back()->withErrors(['app_role' => __('admin.validation.cannot_edit_self')]);
         }
 
         $data = $request->validated();
         $appRole = trim($data['app_role']);
 
         if (! in_array($appRole, User::roleCategories(), true)) {
-            return back()->withErrors(['app_role' => 'Kategori hak akses tidak valid.']);
+            return back()->withErrors(['app_role' => __('admin.validation.invalid_role')]);
         }
 
         // `department` is a legacy-shared attribute (see the 2026-09-14
@@ -146,7 +146,7 @@ class AccessRightController extends Controller
 
         $user->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Hak akses user berhasil diperbarui.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.role_updated')]);
 
         return to_route('admin.access-rights.index');
     }
@@ -157,7 +157,7 @@ class AccessRightController extends Controller
         $name = User::normalizeDepartment($data['name']);
 
         if ($name === '') {
-            return back()->withErrors(['name' => 'Nama kategori reviewer wajib diisi.']);
+            return back()->withErrors(['name' => __('admin.validation.department_name_required')]);
         }
 
         $option = MasterOption::firstWhere(['type' => 'reviewer_department', 'name' => $name])
@@ -168,7 +168,7 @@ class AccessRightController extends Controller
         $option->deleted_by = null;
         $option->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori reviewer berhasil disimpan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.department_saved')]);
 
         return to_route('admin.access-rights.index');
     }
@@ -193,7 +193,7 @@ class AccessRightController extends Controller
         }
         $reviewerDepartment->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori reviewer berhasil diperbarui.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.department_updated')]);
 
         return to_route('admin.access-rights.index');
     }
@@ -208,7 +208,7 @@ class AccessRightController extends Controller
         $reviewerDepartment->deleted_by = $request->user()->id;
         $reviewerDepartment->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Kategori reviewer berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.department_deleted')]);
 
         return to_route('admin.access-rights.index');
     }
@@ -231,11 +231,11 @@ class AccessRightController extends Controller
         $targetUser = $targetUserQuery->first();
 
         if (! $trial || ! $targetUser) {
-            return back()->withErrors(['trial_id' => 'Draft report atau user Staff tidak valid.']);
+            return back()->withErrors(['trial_id' => __('admin.validation.invalid_draft_or_staff')]);
         }
 
         if (strcasecmp(trim((string) $trial->created_by), trim($targetUser->email)) === 0) {
-            return back()->withErrors(['user_id' => 'Owner sudah memiliki akses edit Draft report tersebut.']);
+            return back()->withErrors(['user_id' => __('admin.validation.owner_already_has_access')]);
         }
 
         $permission = TrialEditPermission::firstOrNew(['trial_id' => $trial->id, 'user_id' => $targetUser->id]);
@@ -246,7 +246,7 @@ class AccessRightController extends Controller
         $permission->revoked_at = null;
         $permission->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Izin edit Draft report berhasil diberikan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.permission_granted')]);
 
         return to_route('admin.access-rights.index');
     }
@@ -261,7 +261,7 @@ class AccessRightController extends Controller
             $permission->revoked_at = Carbon::now();
             $permission->save();
 
-            Inertia::flash('toast', ['type' => 'success', 'message' => 'Izin edit Draft report berhasil dicabut.']);
+            Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.permission_revoked')]);
         }
 
         return to_route('admin.access-rights.index');

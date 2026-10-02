@@ -61,7 +61,7 @@ class UserController extends Controller
         $role = $data['role'];
 
         if ($role === 'Super Admin' && ! $request->user()->isSuperAdmin() && self::hasActiveSuperAdmin()) {
-            return back()->withErrors(['role' => 'Hanya Super Admin yang bisa membuat atau memberikan role Super Admin.'])->withInput();
+            return back()->withErrors(['role' => __('admin.validation.super_admin_only')])->withInput();
         }
 
         // The edit dialog identifies the row by id, not by email — email
@@ -99,7 +99,7 @@ class UserController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => $existing ? 'User berhasil diperbarui.' : 'User berhasil dibuat.',
+            'message' => $existing ? __('admin.toast.user_updated') : __('admin.toast.user_created'),
         ]);
 
         return to_route('admin.users.index');
@@ -114,7 +114,7 @@ class UserController extends Controller
         $user->deleted_by = $request->user()->id;
         $user->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'User berhasil dinonaktifkan.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.user_deactivated')]);
 
         return to_route('admin.users.index');
     }

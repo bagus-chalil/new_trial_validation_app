@@ -78,7 +78,7 @@ class TrashController extends Controller
         Gate::authorize('manage-settings');
 
         if (! $trial->deleted_at) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => 'Trial ini tidak dalam status terhapus.']);
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('master_data.toast.trial_not_deleted')]);
 
             return to_route('admin.trash.index');
         }
@@ -90,7 +90,7 @@ class TrashController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Trial '.$trial->trial_code.' berhasil direstore.',
+            'message' => __('master_data.toast.trial_restored', ['code' => $trial->trial_code]),
         ]);
 
         return to_route('admin.trash.index');

@@ -11,7 +11,14 @@ export function toUrl(url: NonNullable<InertiaLinkProps['href']>): string {
     return typeof url === 'string' ? url : url.url;
 }
 
-export function formatDate(dateString: string | null | undefined): string {
+/**
+ * Date + time in Jakarta time, written for the UI language (`intlLocale` is
+ * a BCP 47 tag; components get a pre-bound version from `useTranslation()`).
+ */
+export function formatDate(
+    dateString: string | null | undefined,
+    intlLocale: string = 'id-ID',
+): string {
     if (!dateString) {
         return '-';
     }
@@ -23,16 +30,21 @@ export function formatDate(dateString: string | null | undefined): string {
             return dateString;
         }
 
-        const formatted = new Intl.DateTimeFormat('id-ID', {
+        const formatted = new Intl.DateTimeFormat(intlLocale, {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
+            hourCycle: 'h23',
             timeZone: 'Asia/Jakarta',
         }).format(date);
 
-        return formatted.replace('pukul ', '').replace(/\./g, ':') + ' WIB';
+        if (intlLocale === 'id-ID') {
+            return formatted.replace('pukul ', '').replace(/\./g, ':') + ' WIB';
+        }
+
+        return formatted.replace(' at ', ', ') + ' WIB';
     } catch {
         return dateString;
     }

@@ -11,7 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { formatDate } from '@/lib/utils';
+import { translate, useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
 import { approved, index as reportsIndex } from '@/routes/reports';
 import { pdf as approvedPdf } from '@/routes/reports/approved';
@@ -33,15 +33,17 @@ type PageProps = {
 };
 
 export default function ReportsApproved({ items }: PageProps) {
+    const { t, formatDate } = useTranslation();
+
     return (
         <>
-            <Head title="Approved Report" />
+            <Head title={t('reports.approved.title')} />
 
             <div className="space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4 print:hidden">
                     <Heading
-                        title="Approved Report"
-                        description="Trial dengan status Approved."
+                        title={t('reports.approved.title')}
+                        description={t('reports.approved.description')}
                     />
                     <Button variant="outline" asChild>
                         <a
@@ -49,7 +51,7 @@ export default function ReportsApproved({ items }: PageProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            Unduh PDF
+                            {t('report.pdf.button')}
                         </a>
                     </Button>
                 </div>
@@ -59,14 +61,26 @@ export default function ReportsApproved({ items }: PageProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial ID</TableHead>
-                                    <TableHead>Product Name</TableHead>
-                                    <TableHead>Finish Good Code</TableHead>
-                                    <TableHead>Product Type</TableHead>
-                                    <TableHead>Approved Date</TableHead>
-                                    <TableHead>Approved By</TableHead>
+                                    <TableHead>
+                                        {t('report.info.trial_id')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.product_name')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.fg_code')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.product_type')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.decision.approved_at')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.decision.approved_by')}
+                                    </TableHead>
                                     <TableHead className="print:hidden">
-                                        Action
+                                        {t('trials.table.actions')}
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -100,7 +114,9 @@ export default function ReportsApproved({ items }: PageProps) {
                                                         reportShow(item.id).url
                                                     }
                                                 >
-                                                    View Report
+                                                    {t(
+                                                        'reports.actions.view_report',
+                                                    )}
                                                 </Link>
                                             </Button>
                                         </TableCell>
@@ -112,7 +128,7 @@ export default function ReportsApproved({ items }: PageProps) {
                                             colSpan={7}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada approved report.
+                                            {t('reports.approved.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -124,7 +140,7 @@ export default function ReportsApproved({ items }: PageProps) {
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}
-                            itemLabel="trials"
+                            itemLabel={t('trials.table.item_label')}
                         />
                     </CardContent>
                 </Card>
@@ -133,10 +149,17 @@ export default function ReportsApproved({ items }: PageProps) {
     );
 }
 
-ReportsApproved.layout = {
+// A layout callback (not a static object) so the last breadcrumb can be
+// translated from the shared strings; 'Dashboard'/'Report' are literal on
+// purpose — contextualBreadcrumbs() filters them out and adds its own
+// translated Reports root.
+ReportsApproved.layout = (props: { translations: Record<string, string> }) => ({
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
         { title: 'Report', href: reportsIndex() },
-        { title: 'Approved Report', href: approved() },
+        {
+            title: translate(props.translations, 'reports.approved.title'),
+            href: approved(),
+        },
     ],
-};
+});

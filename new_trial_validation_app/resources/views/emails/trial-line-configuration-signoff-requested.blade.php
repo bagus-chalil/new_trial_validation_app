@@ -1,19 +1,20 @@
+@php($report = '**'.__('line_config.title').'**')
 @component('mail::message')
-# Line Configuration Report: {{ $fieldLabel }} Sign-Off
+# {{ __('emails.line_config_signoff.heading', ['label' => $fieldLabel]) }}
 
-Hi {{ $assigneeName }},
+{{ __('emails.common.greeting', ['name' => $assigneeName]) }}
 
-You've been named **{{ $fieldLabel }}** on the **Line Configuration Report** for the trial below — this is the production-line setup form attached to the trial, not the trial's own review/approval decision. No action is needed on the overall trial itself, only a sign-off on this specific report.
+{{ __('emails.line_config_signoff.intro', ['label' => '**'.$fieldLabel.'**', 'report' => $report]) }}
 
-- **Trial Code:** {{ $trial->trial_code }}
-- **Product:** {{ $trial->product_name }}
+- **{{ __('emails.common.trial_code') }}:** {{ $trial->trial_code }}
+- **{{ __('emails.common.product') }}:** {{ $trial->product_name }}
 
 @component('mail::button', ['url' => $reportUrl])
-Open Line Configuration Report
+{{ __('emails.line_config_signoff.button') }}
 @endcomponent
 
-Please click the button above, scroll to the **Line Configuration Report** section, then use its **{{ $fieldLabel }}** button to confirm — the date will be recorded automatically.
+{{ __('emails.line_config_signoff.outro', ['label' => '**'.$fieldLabel.'**', 'report' => $report]) }}
 
-Thanks,<br>
+{{ __('emails.common.thanks') }}<br>
 {{ config('app.name') }}
 @endcomponent

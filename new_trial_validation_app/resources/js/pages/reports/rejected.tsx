@@ -11,7 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { formatDate } from '@/lib/utils';
+import { translate, useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
 import { index as reportsIndex, rejected } from '@/routes/reports';
 import { pdf as rejectedPdf } from '@/routes/reports/rejected';
@@ -34,15 +34,17 @@ type PageProps = {
 };
 
 export default function ReportsRejected({ items }: PageProps) {
+    const { t, formatDate } = useTranslation();
+
     return (
         <>
-            <Head title="Rejected Report" />
+            <Head title={t('reports.rejected.title')} />
 
             <div className="space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4 print:hidden">
                     <Heading
-                        title="Rejected Report"
-                        description="Trial yang ditolak final oleh Manager QAC."
+                        title={t('reports.rejected.title')}
+                        description={t('reports.rejected.description')}
                     />
                     <Button variant="outline" asChild>
                         <a
@@ -50,7 +52,7 @@ export default function ReportsRejected({ items }: PageProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            Unduh PDF
+                            {t('report.pdf.button')}
                         </a>
                     </Button>
                 </div>
@@ -60,15 +62,29 @@ export default function ReportsRejected({ items }: PageProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial ID</TableHead>
-                                    <TableHead>Product Name</TableHead>
-                                    <TableHead>Finish Good Code</TableHead>
-                                    <TableHead>Product Type</TableHead>
-                                    <TableHead>Rejected Date</TableHead>
-                                    <TableHead>Rejected By</TableHead>
-                                    <TableHead>Reason / Final Remark</TableHead>
+                                    <TableHead>
+                                        {t('report.info.trial_id')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.product_name')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.fg_code')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.product_type')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.decision.rejected_at')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.decision.rejected_by')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('reports.rejected.reason')}
+                                    </TableHead>
                                     <TableHead className="print:hidden">
-                                        Action
+                                        {t('trials.table.actions')}
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -105,7 +121,9 @@ export default function ReportsRejected({ items }: PageProps) {
                                                         reportShow(item.id).url
                                                     }
                                                 >
-                                                    View Report
+                                                    {t(
+                                                        'reports.actions.view_report',
+                                                    )}
                                                 </Link>
                                             </Button>
                                         </TableCell>
@@ -117,7 +135,7 @@ export default function ReportsRejected({ items }: PageProps) {
                                             colSpan={8}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada rejected report.
+                                            {t('reports.rejected.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -129,7 +147,7 @@ export default function ReportsRejected({ items }: PageProps) {
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}
-                            itemLabel="trials"
+                            itemLabel={t('trials.table.item_label')}
                         />
                     </CardContent>
                 </Card>
@@ -138,10 +156,14 @@ export default function ReportsRejected({ items }: PageProps) {
     );
 }
 
-ReportsRejected.layout = {
+// Layout callback so the last breadcrumb is translated; see approved.tsx.
+ReportsRejected.layout = (props: { translations: Record<string, string> }) => ({
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
         { title: 'Report', href: reportsIndex() },
-        { title: 'Rejected Report', href: rejected() },
+        {
+            title: translate(props.translations, 'reports.rejected.title'),
+            href: rejected(),
+        },
     ],
-};
+});

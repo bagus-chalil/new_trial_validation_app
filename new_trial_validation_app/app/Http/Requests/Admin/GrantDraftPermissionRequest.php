@@ -21,4 +21,15 @@ class GrantDraftPermissionRequest extends FormRequest
             'user_id' => ['required', 'integer', 'min:1'],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'trial_id' => __('admin.attributes.trial_id'),
+            'user_id' => __('admin.attributes.user_id'),
+        ];
+    }
 }

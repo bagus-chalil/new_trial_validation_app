@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { useCallback } from 'react';
+import { formatDate as formatDateIn } from '@/lib/utils';
 
 export type Locale = 'id' | 'en' | 'ko';
 
@@ -56,5 +57,12 @@ export function useTranslation() {
         [translations],
     );
 
-    return { t, locale, intlLocale: INTL_LOCALES[locale] ?? 'id-ID' };
+    const intlLocale = INTL_LOCALES[locale] ?? 'id-ID';
+
+    const formatDate = useCallback(
+        (value: string | null | undefined) => formatDateIn(value, intlLocale),
+        [intlLocale],
+    );
+
+    return { t, locale, intlLocale, formatDate };
 }

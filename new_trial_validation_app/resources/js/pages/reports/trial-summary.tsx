@@ -17,7 +17,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { TRIAL_STATUSES, trialStatusBadgeClassName } from '@/lib/trial-status';
+import { translate, useTranslation } from '@/hooks/use-translation';
+import {
+    TRIAL_STATUSES,
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { index as reportsIndex, trialSummary } from '@/routes/reports';
 import { pdf as trialSummaryPdf } from '@/routes/reports/trial-summary';
@@ -50,6 +55,18 @@ type Filters = {
     product_name: string;
 };
 
+// Stored current_step values (shared with the legacy app) -> display label
+// key. An unknown value is shown as-is.
+const CURRENT_STEP_KEYS: Record<string, string> = {
+    Header: 'header',
+    Validation: 'validation',
+    WeighingPackaging: 'weighing_packaging',
+    WeighingFilling: 'weighing_filling',
+    Attachment: 'attachment',
+    Review: 'review',
+    Approval: 'approval',
+};
+
 type PageProps = {
     items: Paginated<SummaryItem>;
     filters: Filters;
@@ -65,8 +82,15 @@ export default function ReportsTrialSummary({
     validationScopes,
     machines,
 }: PageProps) {
+    const { t } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const url = trialSummary().url;
+
+    function currentStepLabel(step: string): string {
+        const key = CURRENT_STEP_KEYS[step];
+
+        return key ? t(`reports.trial_summary.steps.${key}`) : step;
+    }
 
     function submit(e: FormEvent) {
         e.preventDefault();
@@ -83,54 +107,62 @@ export default function ReportsTrialSummary({
         router.get(url, next, { preserveState: true, replace: true });
     }
 
+    const labels = {
+        status: t('report.header.status'),
+        productType: t('report.info.product_type'),
+        validationScope: t('report.info.validation_scope'),
+        machineUsed: t('report.info.machine_used'),
+        productName: t('report.info.product_name'),
+    };
+
     const hasActiveFilters = Object.values(filters).some(Boolean);
     const activeChips: ActiveFilterChip[] = [
         filters.date_from && {
             key: 'date_from',
-            label: `Dari: ${filters.date_from}`,
+            label: `${t('trials.list.filters.chip_from')}: ${filters.date_from}`,
             onClear: () => clearFilter('date_from'),
         },
         filters.date_to && {
             key: 'date_to',
-            label: `Sampai: ${filters.date_to}`,
+            label: `${t('trials.list.filters.chip_to')}: ${filters.date_to}`,
             onClear: () => clearFilter('date_to'),
         },
         filters.status && {
             key: 'status',
-            label: `Status: ${filters.status}`,
+            label: `${labels.status}: ${trialStatusLabel(t, filters.status)}`,
             onClear: () => clearFilter('status'),
         },
         filters.product_type && {
             key: 'product_type',
-            label: `Product Type: ${filters.product_type}`,
+            label: `${labels.productType}: ${filters.product_type}`,
             onClear: () => clearFilter('product_type'),
         },
         filters.validation_scope && {
             key: 'validation_scope',
-            label: `Scope: ${filters.validation_scope}`,
+            label: `${labels.validationScope}: ${filters.validation_scope}`,
             onClear: () => clearFilter('validation_scope'),
         },
         filters.machine_used && {
             key: 'machine_used',
-            label: `Machine: ${filters.machine_used}`,
+            label: `${labels.machineUsed}: ${filters.machine_used}`,
             onClear: () => clearFilter('machine_used'),
         },
         filters.product_name && {
             key: 'product_name',
-            label: `Product: ${filters.product_name}`,
+            label: `${labels.productName}: ${filters.product_name}`,
             onClear: () => clearFilter('product_name'),
         },
     ].filter(Boolean) as ActiveFilterChip[];
 
     return (
         <>
-            <Head title="Trial Summary Report" />
+            <Head title={t('reports.trial_summary.title')} />
 
             <div className="space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4 print:hidden">
                     <Heading
-                        title="Trial Summary Report"
-                        description="Ringkasan semua trial validation."
+                        title={t('reports.trial_summary.title')}
+                        description={t('reports.trial_summary.description')}
                     />
                     <Button variant="outline" asChild>
                         <a
@@ -138,7 +170,7 @@ export default function ReportsTrialSummary({
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            Unduh PDF
+                            {t('report.pdf.button')}
                         </a>
                     </Button>
                 </div>
@@ -150,7 +182,7 @@ export default function ReportsTrialSummary({
                     hasActiveFilters={hasActiveFilters}
                     activeChips={activeChips}
                 >
-                    <FilterField label="Date From">
+                    <FilterField label={t('trials.list.filters.date_from')}>
                         <Input
                             type="date"
                             value={form.date_from}
@@ -162,7 +194,7 @@ export default function ReportsTrialSummary({
                             }
                         />
                     </FilterField>
-                    <FilterField label="Date To">
+                    <FilterField label={t('trials.list.filters.date_to')}>
                         <Input
                             type="date"
                             value={form.date_to}
@@ -172,43 +204,50 @@ export default function ReportsTrialSummary({
                         />
                     </FilterField>
                     <FilterSelect
-                        label="Status"
+                        label={labels.status}
                         value={form.status}
                         onChange={(value) =>
                             setForm({ ...form, status: value })
                         }
-                        options={[...TRIAL_STATUSES]}
+                        options={TRIAL_STATUSES.map((status) => ({
+                            value: status,
+                            label: trialStatusLabel(t, status),
+                        }))}
                     />
                     <FilterSelect
-                        label="Product Type"
+                        label={labels.productType}
                         value={form.product_type}
                         onChange={(value) =>
                             setForm({ ...form, product_type: value })
                         }
                         options={productTypes}
-                        placeholder="Semua product type"
+                        placeholder={t(
+                            'reports.trial_summary.all_product_types',
+                        )}
                     />
                     <FilterSelect
-                        label="Validation Scope"
+                        label={labels.validationScope}
                         value={form.validation_scope}
                         onChange={(value) =>
                             setForm({ ...form, validation_scope: value })
                         }
                         options={validationScopes}
-                        placeholder="Semua scope"
+                        placeholder={t('reports.trial_summary.all_scopes')}
                     />
                     <FilterSelect
-                        label="Machine Used"
+                        label={labels.machineUsed}
                         value={form.machine_used}
                         onChange={(value) =>
                             setForm({ ...form, machine_used: value })
                         }
                         options={machines}
-                        placeholder="Semua machine"
+                        placeholder={t('reports.trial_summary.all_machines')}
                     />
-                    <FilterField label="Product Name">
+                    <FilterField label={labels.productName}>
                         <Input
-                            placeholder="Product name"
+                            placeholder={t(
+                                'reports.trial_summary.product_name_placeholder',
+                            )}
                             value={form.product_name}
                             onChange={(e) =>
                                 setForm({
@@ -225,19 +264,35 @@ export default function ReportsTrialSummary({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial ID</TableHead>
-                                    <TableHead>Product Name</TableHead>
-                                    <TableHead>Finish Good Code</TableHead>
-                                    <TableHead>Product Type</TableHead>
-                                    <TableHead>Validation Scope</TableHead>
-                                    <TableHead>Machine Used</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Current Step</TableHead>
-                                    <TableHead>Created By</TableHead>
-                                    <TableHead>Created Date</TableHead>
-                                    <TableHead>Pending With</TableHead>
+                                    <TableHead>
+                                        {t('report.info.trial_id')}
+                                    </TableHead>
+                                    <TableHead>{labels.productName}</TableHead>
+                                    <TableHead>
+                                        {t('report.info.fg_code')}
+                                    </TableHead>
+                                    <TableHead>{labels.productType}</TableHead>
+                                    <TableHead>
+                                        {labels.validationScope}
+                                    </TableHead>
+                                    <TableHead>{labels.machineUsed}</TableHead>
+                                    <TableHead>{labels.status}</TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'reports.trial_summary.current_step',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.created_by')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.table.created_at')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.header.pending_with')}
+                                    </TableHead>
                                     <TableHead className="print:hidden">
-                                        Action
+                                        {t('trials.table.actions')}
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -272,11 +327,18 @@ export default function ReportsTrialSummary({
                                                     item.final_decision,
                                                 )}
                                             >
-                                                {item.progress_status}
+                                                {trialStatusLabel(
+                                                    t,
+                                                    item.progress_status,
+                                                )}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {item.current_step ?? '-'}
+                                            {item.current_step
+                                                ? currentStepLabel(
+                                                      item.current_step,
+                                                  )
+                                                : '-'}
                                         </TableCell>
                                         <TableCell>
                                             {item.created_by ?? '-'}
@@ -298,7 +360,9 @@ export default function ReportsTrialSummary({
                                                         reportShow(item.id).url
                                                     }
                                                 >
-                                                    View Summary
+                                                    {t(
+                                                        'reports.actions.view_summary',
+                                                    )}
                                                 </Link>
                                             </Button>
                                         </TableCell>
@@ -310,7 +374,7 @@ export default function ReportsTrialSummary({
                                             colSpan={12}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Tidak ada data trial.
+                                            {t('reports.trial_summary.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -323,7 +387,7 @@ export default function ReportsTrialSummary({
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}
-                            itemLabel="trials"
+                            itemLabel={t('trials.table.item_label')}
                         />
                     </CardContent>
                 </Card>
@@ -332,10 +396,16 @@ export default function ReportsTrialSummary({
     );
 }
 
-ReportsTrialSummary.layout = {
+// Layout callback so the last breadcrumb is translated; see approved.tsx.
+ReportsTrialSummary.layout = (props: {
+    translations: Record<string, string>;
+}) => ({
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
         { title: 'Report', href: reportsIndex() },
-        { title: 'Trial Summary Report', href: trialSummary() },
+        {
+            title: translate(props.translations, 'reports.trial_summary.title'),
+            href: trialSummary(),
+        },
     ],
-};
+});

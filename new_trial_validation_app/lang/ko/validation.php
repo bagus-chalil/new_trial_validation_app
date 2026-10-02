@@ -193,6 +193,11 @@ return [
         'approval_comment' => '승인 코멘트',
         'decision' => '결정',
         'signature_password' => '전자 서명 비밀번호',
+        'name' => '이름',
+        'email' => '이메일',
+        'password' => '비밀번호',
+        'password_confirmation' => '비밀번호 확인',
+        'current_password' => '현재 비밀번호',
     ],
 
 ];

@@ -193,6 +193,11 @@ return [
         'approval_comment' => 'Komentar approval',
         'decision' => 'Keputusan',
         'signature_password' => 'Password e-signature',
+        'name' => 'Nama',
+        'email' => 'Email',
+        'password' => 'Password',
+        'password_confirmation' => 'Konfirmasi password',
+        'current_password' => 'Password saat ini',
     ],
 
 ];

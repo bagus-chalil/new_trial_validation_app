@@ -55,7 +55,7 @@ class ProductController extends Controller
             if ($id) {
                 $product = Product::find($id);
                 if (! $product) {
-                    return back()->withErrors(['product_name' => 'Product tidak ditemukan, mungkin sudah dihapus pihak lain.'])->withInput();
+                    return back()->withErrors(['product_name' => __('master_data.errors.product_not_found')])->withInput();
                 }
                 $product->product_name = $data['product_name'];
                 $product->finish_good_code = $data['finish_good_code'];
@@ -73,12 +73,12 @@ class ProductController extends Controller
                 $product->save();
             }
         } catch (QueryException $e) {
-            return back()->withErrors(['product_name' => 'Product name sudah digunakan item lain.'])->withInput();
+            return back()->withErrors(['product_name' => __('master_data.errors.product_name_taken')])->withInput();
         }
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => $id ? 'Product berhasil diperbarui.' : 'Product berhasil ditambahkan.',
+            'message' => $id ? __('master_data.toast.product_updated') : __('master_data.toast.product_created'),
         ]);
 
         return to_route('admin.products.index');
@@ -93,7 +93,7 @@ class ProductController extends Controller
         $product->deleted_by = $request->user()->id;
         $product->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Product berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('master_data.toast.product_deleted')]);
 
         return to_route('admin.products.index');
     }

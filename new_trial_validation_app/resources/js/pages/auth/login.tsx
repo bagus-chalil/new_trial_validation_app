@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { useTranslation } from '@/hooks/use-translation';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -16,9 +17,11 @@ type Props = {
 };
 
 export default function Login({ status, canResetPassword }: Props) {
+    const { t } = useTranslation();
+
     return (
         <>
-            <Head title="Log in" />
+            <Head title={t('account.login.head')} />
 
             {status && (
                 <div className="mb-6 rounded-lg bg-emerald-50 px-4 py-2.5 text-center text-sm font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
@@ -35,7 +38,9 @@ export default function Login({ status, canResetPassword }: Props) {
                     <>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="email">
+                                    {t('account.login.email')}
+                                </Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -51,14 +56,16 @@ export default function Login({ status, canResetPassword }: Props) {
 
                             <div className="grid gap-2">
                                 <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
+                                    <Label htmlFor="password">
+                                        {t('account.login.password')}
+                                    </Label>
                                     {canResetPassword && (
                                         <TextLink
                                             href={request()}
                                             className="ml-auto text-sm"
                                             tabIndex={5}
                                         >
-                                            Forgot your password?
+                                            {t('account.login.forgot')}
                                         </TextLink>
                                     )}
                                 </div>
@@ -68,7 +75,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     required
                                     tabIndex={2}
                                     autoComplete="current-password"
-                                    placeholder="Password"
+                                    placeholder={t('account.login.password')}
                                 />
                                 <InputError message={errors.password} />
                             </div>
@@ -79,7 +86,9 @@ export default function Login({ status, canResetPassword }: Props) {
                                     name="remember"
                                     tabIndex={3}
                                 />
-                                <Label htmlFor="remember">Remember me</Label>
+                                <Label htmlFor="remember">
+                                    {t('account.login.remember')}
+                                </Label>
                             </div>
 
                             <Button
@@ -90,7 +99,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                 data-test="login-button"
                             >
                                 {processing && <Spinner />}
-                                Log in
+                                {t('account.login.submit')}
                             </Button>
                         </div>
                     </>
@@ -101,6 +110,6 @@ export default function Login({ status, canResetPassword }: Props) {
 }
 
 Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
+    title: 'account.login.title',
+    description: 'account.login.description',
 };

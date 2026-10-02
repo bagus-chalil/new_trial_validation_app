@@ -226,6 +226,11 @@ return [
         'approval_comment' => 'approval comment',
         'decision' => 'decision',
         'signature_password' => 'e-signature password',
+        'name' => 'name',
+        'email' => 'email',
+        'password' => 'password',
+        'password_confirmation' => 'password confirmation',
+        'current_password' => 'current password',
     ],
 
 ];

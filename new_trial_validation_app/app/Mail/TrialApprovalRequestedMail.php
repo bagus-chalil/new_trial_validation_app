@@ -22,11 +22,16 @@ class TrialApprovalRequestedMail extends Mailable
         public Trial $trial,
         public string $approverName,
         public string $approvalUrl,
-    ) {}
+    ) {
+        // Captured now, while the triggering request's locale (SetLocale) is
+        // active — the recipient's own language isn't stored anywhere, and a
+        // queued render would otherwise fall back to the config default.
+        $this->locale(app()->getLocale());
+    }
 
     public function build(): self
     {
-        return $this->subject("Trial {$this->trial->trial_code} Waiting for Your Approval")
+        return $this->subject(__('emails.approval_requested.subject', ['code' => $this->trial->trial_code]))
             ->markdown('emails.trial-approval-requested');
     }
 }

@@ -27,6 +27,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import type { Paginated } from '@/types';
 
@@ -60,6 +61,7 @@ type PageProps = {
 };
 
 export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
+    const { t } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const [selected, setSelected] = useState<number[]>([]);
     const [expanded, setExpanded] = useState<number | null>(null);
@@ -99,12 +101,12 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
 
     return (
         <>
-            <Head title="Activity Logs" />
+            <Head title={t('master_data.activity_logs.head_title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Activity Logs"
-                    description="Riwayat action penting pada aplikasi."
+                    title={t('master_data.activity_logs.title')}
+                    description={t('master_data.activity_logs.description')}
                 />
 
                 <Card>
@@ -114,7 +116,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                         >
                             <div className="grid gap-2">
-                                <Label htmlFor="date_from">Date From</Label>
+                                <Label htmlFor="date_from">
+                                    {t('master_data.activity_logs.date_from')}
+                                </Label>
                                 <Input
                                     id="date_from"
                                     type="date"
@@ -128,7 +132,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="date_to">Date To</Label>
+                                <Label htmlFor="date_to">
+                                    {t('master_data.activity_logs.date_to')}
+                                </Label>
                                 <Input
                                     id="date_to"
                                     type="date"
@@ -142,10 +148,14 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="user">User</Label>
+                                <Label htmlFor="user">
+                                    {t('master_data.activity_logs.user')}
+                                </Label>
                                 <Input
                                     id="user"
-                                    placeholder="User"
+                                    placeholder={t(
+                                        'master_data.activity_logs.user',
+                                    )}
                                     value={form.user}
                                     onChange={(e) =>
                                         setForm({
@@ -156,10 +166,14 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="role">Role</Label>
+                                <Label htmlFor="role">
+                                    {t('master_data.activity_logs.role')}
+                                </Label>
                                 <Input
                                     id="role"
-                                    placeholder="Role"
+                                    placeholder={t(
+                                        'master_data.activity_logs.role',
+                                    )}
                                     value={form.role}
                                     onChange={(e) =>
                                         setForm({
@@ -170,10 +184,14 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="module">Module</Label>
+                                <Label htmlFor="module">
+                                    {t('master_data.activity_logs.module')}
+                                </Label>
                                 <Input
                                     id="module"
-                                    placeholder="Module"
+                                    placeholder={t(
+                                        'master_data.activity_logs.module',
+                                    )}
                                     value={form.module}
                                     onChange={(e) =>
                                         setForm({
@@ -184,10 +202,14 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="action">Action</Label>
+                                <Label htmlFor="action">
+                                    {t('master_data.activity_logs.action')}
+                                </Label>
                                 <Input
                                     id="action"
-                                    placeholder="Action"
+                                    placeholder={t(
+                                        'master_data.activity_logs.action',
+                                    )}
                                     value={form.action}
                                     onChange={(e) =>
                                         setForm({
@@ -198,10 +220,14 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2 sm:col-span-2">
-                                <Label htmlFor="q">Search</Label>
+                                <Label htmlFor="q">
+                                    {t('master_data.activity_logs.search')}
+                                </Label>
                                 <Input
                                     id="q"
-                                    placeholder="Keyword"
+                                    placeholder={t(
+                                        'master_data.activity_logs.keyword',
+                                    )}
                                     value={form.q}
                                     onChange={(e) =>
                                         setForm({ ...form, q: e.target.value })
@@ -209,13 +235,15 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 />
                             </div>
                             <div className="flex items-end gap-2 lg:col-span-4">
-                                <Button type="submit">Filter</Button>
+                                <Button type="submit">
+                                    {t('master_data.actions.filter')}
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="secondary"
                                     onClick={reset}
                                 >
-                                    Reset
+                                    {t('common.actions.reset')}
                                 </Button>
                             </div>
                         </form>
@@ -225,7 +253,7 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
                         <h2 className="text-sm font-medium">
-                            Activity Log Data
+                            {t('master_data.activity_logs.data_title')}
                         </h2>
                         <Dialog>
                             <DialogTrigger asChild>
@@ -234,7 +262,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                     size="sm"
                                     disabled={selected.length === 0}
                                 >
-                                    Delete Selected
+                                    {t(
+                                        'master_data.activity_logs.delete_selected',
+                                    )}
                                     {selected.length > 0
                                         ? ` (${selected.length})`
                                         : ''}
@@ -242,17 +272,20 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogTitle>
-                                    Delete {selected.length} activity log(s)
-                                    permanently?
+                                    {t(
+                                        'master_data.activity_logs.bulk_delete_title',
+                                        { count: selected.length },
+                                    )}
                                 </DialogTitle>
                                 <DialogDescription>
-                                    These entries will be permanently removed.
-                                    This cannot be undone.
+                                    {t(
+                                        'master_data.activity_logs.bulk_delete_description',
+                                    )}
                                 </DialogDescription>
                                 <DialogFooter className="gap-2">
                                     <DialogClose asChild>
                                         <Button variant="secondary">
-                                            Cancel
+                                            {t('common.actions.cancel')}
                                         </Button>
                                     </DialogClose>
                                     <DialogClose asChild>
@@ -260,7 +293,7 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                             variant="destructive"
                                             onClick={deleteSelected}
                                         >
-                                            Delete
+                                            {t('master_data.actions.delete')}
                                         </Button>
                                     </DialogClose>
                                 </DialogFooter>
@@ -273,7 +306,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                 <TableRow>
                                     <TableHead>
                                         <Checkbox
-                                            aria-label="Select all activity logs"
+                                            aria-label={t(
+                                                'master_data.activity_logs.select_all',
+                                            )}
                                             checked={
                                                 logs.data.length > 0 &&
                                                 selected.length ===
@@ -286,14 +321,36 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                             }
                                         />
                                     </TableHead>
-                                    <TableHead>Date/Time</TableHead>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead>Action</TableHead>
-                                    <TableHead>Module</TableHead>
-                                    <TableHead>Record</TableHead>
-                                    <TableHead>IP Address</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.activity_logs.column_datetime',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.activity_logs.user')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.activity_logs.role')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.activity_logs.action')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.activity_logs.module')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.activity_logs.column_record',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.activity_logs.column_ip_address',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.columns.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -302,7 +359,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                         <TableRow>
                                             <TableCell>
                                                 <Checkbox
-                                                    aria-label="Select activity log"
+                                                    aria-label={t(
+                                                        'master_data.activity_logs.select_one',
+                                                    )}
                                                     checked={selected.includes(
                                                         log.id,
                                                     )}
@@ -350,7 +409,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                             )
                                                         }
                                                     >
-                                                        Detail
+                                                        {t(
+                                                            'master_data.actions.detail',
+                                                        )}
                                                     </Button>
                                                     <ConfirmDialog
                                                         trigger={
@@ -358,12 +419,20 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                                 variant="destructive"
                                                                 size="sm"
                                                             >
-                                                                Delete
+                                                                {t(
+                                                                    'master_data.actions.delete',
+                                                                )}
                                                             </Button>
                                                         }
-                                                        title="Delete this activity log permanently?"
-                                                        description="This entry will be permanently removed. This cannot be undone."
-                                                        confirmLabel="Delete"
+                                                        title={t(
+                                                            'master_data.activity_logs.delete_title',
+                                                        )}
+                                                        description={t(
+                                                            'master_data.activity_logs.delete_description',
+                                                        )}
+                                                        confirmLabel={t(
+                                                            'master_data.actions.delete',
+                                                        )}
                                                         formProps={ActivityLogController.destroy.form(
                                                             log.id,
                                                         )}
@@ -380,7 +449,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                     <div className="grid gap-4 sm:grid-cols-2">
                                                         <div>
                                                             <h3 className="mb-1 text-xs font-medium text-muted-foreground">
-                                                                Old Data
+                                                                {t(
+                                                                    'master_data.activity_logs.old_data',
+                                                                )}
                                                             </h3>
                                                             <pre className="overflow-x-auto rounded bg-background p-2 text-xs">
                                                                 {log.old_data ??
@@ -389,7 +460,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                         </div>
                                                         <div>
                                                             <h3 className="mb-1 text-xs font-medium text-muted-foreground">
-                                                                New Data
+                                                                {t(
+                                                                    'master_data.activity_logs.new_data',
+                                                                )}
                                                             </h3>
                                                             <pre className="overflow-x-auto rounded bg-background p-2 text-xs">
                                                                 {log.new_data ??
@@ -408,7 +481,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                             colSpan={9}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada activity log.
+                                            {t(
+                                                'master_data.activity_logs.empty',
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -421,7 +496,9 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                             currentPage={logs.current_page}
                             lastPage={logs.last_page}
                             total={logs.total}
-                            itemLabel="logs"
+                            itemLabel={t(
+                                'master_data.activity_logs.item_label',
+                            )}
                         />
                     </CardContent>
                 </Card>

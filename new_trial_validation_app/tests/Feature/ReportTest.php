@@ -335,8 +335,8 @@ test('the per-trial report PDF includes only the trial data by default', functio
 
     $html = $this->actingAs($owner)->get(route('trials.report.pdf', $trial))->assertOk()->getContent();
 
-    expect($html)->toContain('Validation Parameter')
-        ->not->toContain('Attachment Summary')
+    expect($html)->toContain(__('report.validation.title'))
+        ->not->toContain(__('report.attachments.title'))
         ->not->toContain('Line Configuration Report');
 });
 
@@ -346,8 +346,8 @@ test('the per-trial report PDF adds attachments when requested', function () {
 
     $html = $this->actingAs($owner)->get(route('trials.report.pdf', [$trial, 'attachments' => 1]))->assertOk()->getContent();
 
-    expect($html)->toContain('Attachment Summary')
-        ->toContain('Additional Attachment')
+    expect($html)->toContain(__('report.attachments.title'))
+        ->toContain(__('report.additional.title'))
         ->not->toContain('Line Configuration Report');
 });
 
@@ -362,7 +362,7 @@ test('the per-trial report PDF adds only the latest line configuration report ve
     expect($html)->toContain('Line Configuration Report')
         ->toContain('Latest Version Client')
         ->not->toContain('Old Version Client')
-        ->not->toContain('Attachment Summary');
+        ->not->toContain(__('report.attachments.title'));
 });
 
 test('a user without view access is forbidden from the per-trial report PDF', function () {

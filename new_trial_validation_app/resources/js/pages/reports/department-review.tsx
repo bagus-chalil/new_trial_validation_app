@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { translate, useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
 import { departmentReview, index as reportsIndex } from '@/routes/reports';
 import { pdf as departmentReviewPdf } from '@/routes/reports/department-review';
@@ -26,6 +27,13 @@ type DepartmentReviewItem = {
     review_status: string;
 };
 
+// Stored review statuses (shared with the legacy app) -> display label key.
+// Anything else (e.g. 'N/A') is shown as-is.
+const REVIEW_STATUS_KEYS: Record<string, string> = {
+    Pending: 'pending',
+    Reviewed: 'reviewed',
+};
+
 type PageProps = {
     items: Paginated<DepartmentReviewItem>;
     reviewerDepartments: string[];
@@ -35,15 +43,23 @@ export default function ReportsDepartmentReview({
     items,
     reviewerDepartments,
 }: PageProps) {
+    const { t } = useTranslation();
+
+    function reviewStatusLabel(status: string): string {
+        const key = REVIEW_STATUS_KEYS[status];
+
+        return key ? t(`report.review.statuses.${key}`) : status;
+    }
+
     return (
         <>
-            <Head title="Department Review Report" />
+            <Head title={t('reports.department_review.title')} />
 
             <div className="space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4 print:hidden">
                     <Heading
-                        title="Department Review Report"
-                        description="Progress review per department."
+                        title={t('reports.department_review.title')}
+                        description={t('reports.department_review.description')}
                     />
                     <Button variant="outline" asChild>
                         <a
@@ -51,7 +67,7 @@ export default function ReportsDepartmentReview({
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            Unduh PDF
+                            {t('report.pdf.button')}
                         </a>
                     </Button>
                 </div>
@@ -61,15 +77,27 @@ export default function ReportsDepartmentReview({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial ID</TableHead>
-                                    <TableHead>Product Name</TableHead>
+                                    <TableHead>
+                                        {t('report.info.trial_id')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('report.info.product_name')}
+                                    </TableHead>
                                     {reviewerDepartments.map((dept) => (
                                         <TableHead key={dept}>{dept}</TableHead>
                                     ))}
-                                    <TableHead>Review Status</TableHead>
-                                    <TableHead>Pending Department</TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'reports.department_review.review_status',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'reports.department_review.pending_department',
+                                        )}
+                                    </TableHead>
                                     <TableHead className="print:hidden">
-                                        Action
+                                        {t('trials.table.actions')}
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -82,12 +110,16 @@ export default function ReportsDepartmentReview({
                                         </TableCell>
                                         {reviewerDepartments.map((dept) => (
                                             <TableCell key={dept}>
-                                                {item.departments[dept] ??
-                                                    'N/A'}
+                                                {reviewStatusLabel(
+                                                    item.departments[dept] ??
+                                                        'N/A',
+                                                )}
                                             </TableCell>
                                         ))}
                                         <TableCell>
-                                            {item.review_status}
+                                            {reviewStatusLabel(
+                                                item.review_status,
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             {item.pending_with ?? '-'}
@@ -103,7 +135,9 @@ export default function ReportsDepartmentReview({
                                                         reportShow(item.id).url
                                                     }
                                                 >
-                                                    View Review
+                                                    {t(
+                                                        'reports.actions.view_review',
+                                                    )}
                                                 </Link>
                                             </Button>
                                         </TableCell>
@@ -117,7 +151,9 @@ export default function ReportsDepartmentReview({
                                             }
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada data review department.
+                                            {t(
+                                                'reports.department_review.empty',
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -129,7 +165,7 @@ export default function ReportsDepartmentReview({
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}
-                            itemLabel="trials"
+                            itemLabel={t('trials.table.item_label')}
                         />
                     </CardContent>
                 </Card>
@@ -138,10 +174,19 @@ export default function ReportsDepartmentReview({
     );
 }
 
-ReportsDepartmentReview.layout = {
+// Layout callback so the last breadcrumb is translated; see approved.tsx.
+ReportsDepartmentReview.layout = (props: {
+    translations: Record<string, string>;
+}) => ({
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
         { title: 'Report', href: reportsIndex() },
-        { title: 'Department Review Report', href: departmentReview() },
+        {
+            title: translate(
+                props.translations,
+                'reports.department_review.title',
+            ),
+            href: departmentReview(),
+        },
     ],
-};
+});

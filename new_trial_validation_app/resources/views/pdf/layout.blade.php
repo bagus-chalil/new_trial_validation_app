@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
 <meta charset="utf-8">
-<title>{{ $title ?? 'Report' }}</title>
+<title>{{ $title ?? __('report.title') }}</title>
 <style>
     * { box-sizing: border-box; }
     body {
         margin: 0;
-        font-family: 'Segoe UI', Arial, sans-serif;
+        /* CJK-capable fallbacks so Korean renders in headless Chromium (Noto on Linux, Malgun Gothic on Windows). */
+        font-family: 'Segoe UI', Arial, 'Noto Sans CJK KR', 'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
         color: #111827;
         font-size: 10px;
         line-height: 1.4;
@@ -160,7 +161,9 @@
     .muted { color: #6b7280; }
     .stats-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
     .stats-row span { border: 1px solid #d1d5db; padding: 2px 6px; border-radius: 4px; background: #f8fafc; }
-</style>
+
+    /* Korean wraps between syllables by default, splitting words mid-way. */
+    html:lang(ko) body { word-break: keep-all; overflow-wrap: anywhere; }</style>
 </head>
 <body>
     @php
@@ -175,10 +178,10 @@
                 <img src="{{ $logoDataUri }}" alt="Cosmax">
             @endif
         </div>
-        <div class="title">{{ $title ?? 'Report' }}</div>
+        <div class="title">{{ $title ?? __('report.title') }}</div>
         <div class="meta">
             <div class="form-number">FR.QSE.074.04</div>
-            <div>{{ now()->translatedFormat('d M Y H:i') }}</div>
+            <div>{{ \App\Services\Pdf\ExportFormat::dateTime(now()) }}</div>
         </div>
     </div>
 

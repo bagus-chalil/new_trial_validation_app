@@ -121,7 +121,7 @@ class TrialLineConfigurationReportController extends Controller
             ->firstOrFail();
 
         return $pdf->fromView('pdf.line-configuration-report-version', [
-            'title' => 'Line Configuration Report — '.$trial->trial_code.' (v'.$version.')',
+            'title' => __('exports.titles.line_config_version', ['code' => $trial->trial_code, 'version' => $version]),
             'trial' => $trial,
             'report' => $report,
         ], "LineConfigurationReport-{$trial->trial_code}-v{$version}.pdf");

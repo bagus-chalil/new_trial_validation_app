@@ -33,6 +33,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as usersIndex } from '@/routes/admin/users';
 import type { Auth, Paginated, User } from '@/types';
 
@@ -54,12 +55,16 @@ function UserFormDialog({
     editingUser: User | null;
     roleCategories: string[];
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {editingUser ? 'Edit User' : 'Add User'}
+                        {editingUser
+                            ? t('admin.users.edit')
+                            : t('admin.users.add')}
                     </DialogTitle>
                 </DialogHeader>
                 <Form
@@ -79,7 +84,9 @@ function UserFormDialog({
                                 />
                             )}
                             <div className="grid gap-2 sm:col-span-2">
-                                <Label htmlFor="name">Name</Label>
+                                <Label htmlFor="name">
+                                    {t('admin.fields.name')}
+                                </Label>
                                 <Input
                                     id="name"
                                     name="name"
@@ -90,7 +97,9 @@ function UserFormDialog({
                             </div>
 
                             <div className="grid gap-2 sm:col-span-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">
+                                    {t('admin.fields.email')}
+                                </Label>
                                 <Input
                                     id="email"
                                     name="email"
@@ -106,8 +115,7 @@ function UserFormDialog({
                                 />
                                 {editingUser && (
                                     <p className="text-xs text-muted-foreground">
-                                        Email tidak bisa diubah setelah user
-                                        dibuat.
+                                        {t('admin.users.email_locked')}
                                     </p>
                                 )}
                                 <InputError message={errors.email} />
@@ -115,7 +123,9 @@ function UserFormDialog({
 
                             <div className="grid gap-2 sm:col-span-2">
                                 <Label htmlFor="password">
-                                    {editingUser ? 'New Password' : 'Password'}
+                                    {editingUser
+                                        ? t('admin.users.new_password')
+                                        : t('admin.users.password')}
                                 </Label>
                                 <Input
                                     id="password"
@@ -124,7 +134,7 @@ function UserFormDialog({
                                     required
                                     placeholder={
                                         editingUser
-                                            ? 'Wajib diisi ulang untuk menyimpan perubahan'
+                                            ? t('admin.users.password_reenter')
                                             : undefined
                                     }
                                 />
@@ -132,7 +142,9 @@ function UserFormDialog({
                             </div>
 
                             <div className="grid gap-2 sm:col-span-2">
-                                <Label htmlFor="role">Role</Label>
+                                <Label htmlFor="role">
+                                    {t('admin.fields.role')}
+                                </Label>
                                 <Select
                                     name="role"
                                     defaultValue={
@@ -140,7 +152,9 @@ function UserFormDialog({
                                     }
                                 >
                                     <SelectTrigger id="role">
-                                        <SelectValue placeholder="Role" />
+                                        <SelectValue
+                                            placeholder={t('admin.fields.role')}
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {roleCategories.map((role) => (
@@ -151,16 +165,16 @@ function UserFormDialog({
                                     </SelectContent>
                                 </Select>
                                 <p className="text-xs text-muted-foreground">
-                                    Untuk menjadikan user ini reviewer
-                                    department tertentu, atur &quot;Review
-                                    Team&quot; di halaman Access Rights.
+                                    {t('admin.users.role_hint')}
                                 </p>
                                 <InputError message={errors.role} />
                             </div>
 
                             <DialogFooter className="sm:col-span-2">
                                 <Button type="submit" disabled={processing}>
-                                    {editingUser ? 'Save Changes' : 'Add User'}
+                                    {editingUser
+                                        ? t('admin.actions.save_changes')
+                                        : t('admin.users.add')}
                                 </Button>
                             </DialogFooter>
                         </>
@@ -177,6 +191,7 @@ export default function AdminUsersIndex({
     roleCategories,
     filters,
 }: PageProps) {
+    const { t } = useTranslation();
     const [search, setSearch] = useState(filters.q);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -198,12 +213,12 @@ export default function AdminUsersIndex({
 
     return (
         <>
-            <Head title="Users" />
+            <Head title={t('admin.users.title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Users"
-                    description="Manage user account dan role akses aplikasi."
+                    title={t('admin.users.title')}
+                    description={t('admin.users.description')}
                 />
 
                 <UserFormDialog
@@ -220,31 +235,45 @@ export default function AdminUsersIndex({
                             className="flex flex-1 items-end gap-2"
                         >
                             <div className="grid flex-1 gap-2 sm:max-w-sm">
-                                <Label htmlFor="q">Search User</Label>
+                                <Label htmlFor="q">
+                                    {t('admin.search_user.label')}
+                                </Label>
                                 <Input
                                     id="q"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Nama, email, role, department"
+                                    placeholder={t(
+                                        'admin.search_user.placeholder',
+                                    )}
                                 />
                             </div>
                             <Button type="submit" variant="secondary">
-                                Search
+                                {t('common.actions.search')}
                             </Button>
                         </form>
                         <Button type="button" onClick={openCreate}>
-                            Add User
+                            {t('admin.users.add')}
                         </Button>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead>Dept (Legacy)</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.name')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.email')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.role')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.dept_legacy')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -266,7 +295,9 @@ export default function AdminUsersIndex({
                                                             openEdit(usr)
                                                         }
                                                     >
-                                                        Edit
+                                                        {t(
+                                                            'admin.actions.edit',
+                                                        )}
                                                     </Button>
                                                 )}
                                                 {usr.id !== auth.user.id &&
@@ -280,12 +311,24 @@ export default function AdminUsersIndex({
                                                                     variant="destructive"
                                                                     size="sm"
                                                                 >
-                                                                    Delete
+                                                                    {t(
+                                                                        'admin.actions.delete',
+                                                                    )}
                                                                 </Button>
                                                             }
-                                                            title="Delete this user account?"
-                                                            description={`${usr.name} (${usr.email}) will be deactivated and won't be able to log in anymore.`}
-                                                            confirmLabel="Delete"
+                                                            title={t(
+                                                                'admin.users.delete_title',
+                                                            )}
+                                                            description={t(
+                                                                'admin.users.delete_description',
+                                                                {
+                                                                    name: usr.name,
+                                                                    email: usr.email,
+                                                                },
+                                                            )}
+                                                            confirmLabel={t(
+                                                                'admin.actions.delete',
+                                                            )}
                                                             formProps={UserController.destroy.form(
                                                                 usr.id,
                                                             )}
@@ -302,12 +345,24 @@ export default function AdminUsersIndex({
                                                                     variant="outline"
                                                                     size="sm"
                                                                 >
-                                                                    Login as
+                                                                    {t(
+                                                                        'admin.users.login_as',
+                                                                    )}
                                                                 </Button>
                                                             }
-                                                            title="Masuk sebagai user ini?"
-                                                            description={`Anda akan login sebagai ${usr.name} (${usr.email}) untuk debugging. Semua aksi akan tercatat atas nama user ini, dan sesi ini dicatat di Activity Log atas nama Anda. Jangan melakukan review/approval atas nama user.`}
-                                                            confirmLabel="Login as"
+                                                            title={t(
+                                                                'admin.users.login_as_title',
+                                                            )}
+                                                            description={t(
+                                                                'admin.users.login_as_description',
+                                                                {
+                                                                    name: usr.name,
+                                                                    email: usr.email,
+                                                                },
+                                                            )}
+                                                            confirmLabel={t(
+                                                                'admin.users.login_as',
+                                                            )}
                                                             confirmVariant="default"
                                                             formProps={ImpersonationController.store.form(
                                                                 usr.id,
@@ -324,7 +379,7 @@ export default function AdminUsersIndex({
                                             colSpan={5}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada user.
+                                            {t('admin.users.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -337,7 +392,7 @@ export default function AdminUsersIndex({
                             currentPage={users.current_page}
                             lastPage={users.last_page}
                             total={users.total}
-                            itemLabel="users"
+                            itemLabel={t('admin.items.users')}
                         />
                     </CardContent>
                 </Card>

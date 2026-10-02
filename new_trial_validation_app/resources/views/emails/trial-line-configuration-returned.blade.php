@@ -1,22 +1,25 @@
+@php($report = '**'.__('line_config.title').'**')
 @component('mail::message')
-# Line Configuration Report Returned for Revision
+# {{ __('emails.line_config_returned.heading') }}
 
-Hi {{ $drafterName }},
+{{ __('emails.common.greeting', ['name' => $drafterName]) }}
 
-The **Line Configuration Report** you filled in for the trial below has been sent back for revision{{ $returnedByStage ? " by {$returnedByStage}" : '' }} — this is only about that report, not the trial's own review/approval decision.
+{{ $returnedByStage
+    ? __('emails.line_config_returned.intro_by', ['report' => $report, 'stage' => $returnedByStage])
+    : __('emails.line_config_returned.intro', ['report' => $report]) }}
 
-- **Trial Code:** {{ $trial->trial_code }}
-- **Product:** {{ $trial->product_name }}
+- **{{ __('emails.common.trial_code') }}:** {{ $trial->trial_code }}
+- **{{ __('emails.common.product') }}:** {{ $trial->product_name }}
 
-**Reason for return:**
+**{{ __('emails.line_config_returned.reason') }}**
 {{ $reason }}
 
 @component('mail::button', ['url' => $reportUrl])
-Open Line Configuration Report
+{{ __('emails.line_config_returned.button') }}
 @endcomponent
 
-Please revise the report and resubmit it for sign-off.
+{{ __('emails.line_config_returned.outro') }}
 
-Thanks,<br>
+{{ __('emails.common.thanks') }}<br>
 {{ config('app.name') }}
 @endcomponent

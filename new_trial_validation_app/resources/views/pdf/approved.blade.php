@@ -1,15 +1,17 @@
 @extends('pdf.layout')
 
+@php($fmt = \App\Services\Pdf\ExportFormat::class)
+
 @section('content')
     <table>
         <thead>
             <tr>
-                <th>Trial ID</th>
-                <th>Product Name</th>
-                <th>Finish Good Code</th>
-                <th>Product Type</th>
-                <th>Approved Date</th>
-                <th>Approved By</th>
+                <th>{{ __('report.info.trial_id') }}</th>
+                <th>{{ __('report.info.product_name') }}</th>
+                <th>{{ __('report.info.fg_code') }}</th>
+                <th>{{ __('report.info.product_type') }}</th>
+                <th>{{ __('exports.columns.approved_date') }}</th>
+                <th>{{ __('report.decision.approved_by') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -19,12 +21,12 @@
                     <td>{{ $item['product_name'] }}</td>
                     <td>{{ $item['finish_good_code'] }}</td>
                     <td>{{ $item['product_type'] }}</td>
-                    <td>{{ $item['approved_at'] ?? '-' }}</td>
+                    <td>{{ $fmt::dateTime($item['approved_at'] ?? null) }}</td>
                     <td>{{ $item['approved_by'] ?? '-' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="muted">Belum ada approved report.</td>
+                    <td colspan="6" class="muted">{{ __('exports.empty.approved') }}</td>
                 </tr>
             @endforelse
         </tbody>

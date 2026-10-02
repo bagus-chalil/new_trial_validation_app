@@ -46,7 +46,7 @@ class NotificationController extends Controller
 
         $notification->delete();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Notification berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.notification_deleted')]);
 
         return to_route('admin.notifications.index');
     }

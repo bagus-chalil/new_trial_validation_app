@@ -3,21 +3,26 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import cosmaxLogo from '@/assets/cosmax-idn-logo.jpg';
 import cosmaxVertical from '@/assets/cosmax-vertical.png';
 import AppearanceToggleTab from '@/components/appearance-tabs';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { useTranslation } from '@/hooks/use-translation';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
 const highlights = [
-    'Form trial, validasi parameter & weighing',
-    'Review berjenjang per departemen',
-    'Approval, laporan, dan riwayat aktivitas',
+    'account.auth_layout.highlights.form',
+    'account.auth_layout.highlights.review',
+    'account.auth_layout.highlights.approval',
 ];
 
+// `title`/`description` come from each auth page's static `.layout` object,
+// so they are translation keys (e.g. `account.login.title`), translated here.
 export default function AuthSplitLayout({
     children,
     title,
     description,
 }: AuthLayoutProps) {
     const { name, portalUrl } = usePage().props;
+    const { t } = useTranslation();
 
     return (
         <div className="relative flex min-h-svh flex-col bg-background lg:flex-row">
@@ -56,9 +61,7 @@ export default function AuthSplitLayout({
                             {name}
                         </h2>
                         <p className="max-w-sm text-balance text-white/80">
-                            Pengelolaan trial produksi dari pengajuan, review
-                            lintas departemen, hingga approval dan pelaporan —
-                            dalam satu alur kerja.
+                            {t('account.auth_layout.tagline')}
                         </p>
                     </div>
                 </div>
@@ -70,14 +73,15 @@ export default function AuthSplitLayout({
                             className="flex items-start gap-3 text-sm text-white/90"
                         >
                             <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                            <span>{item}</span>
+                            <span>{t(item)}</span>
                         </li>
                     ))}
                 </ul>
 
                 <p className="relative z-10 text-xs text-white/60">
-                    &copy; {new Date().getFullYear()} Cosmax Indonesia. All
-                    rights reserved.
+                    {t('account.auth_layout.copyright', {
+                        year: new Date().getFullYear(),
+                    })}
                 </p>
             </div>
 
@@ -112,10 +116,13 @@ export default function AuthSplitLayout({
                             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <ArrowLeft className="size-4" />
-                            Kembali ke Portal
+                            {t('account.auth_layout.back_to_portal')}
                         </a>
                     </div>
-                    <AppearanceToggleTab className="scale-90" />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <LanguageSwitcher />
+                        <AppearanceToggleTab className="scale-90" />
+                    </div>
                 </div>
 
                 <div className="flex flex-1 items-center justify-center px-6 pb-12">
@@ -123,10 +130,10 @@ export default function AuthSplitLayout({
                         <div className="mb-8 space-y-2 text-center lg:text-left">
                             <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-gradient-to-r from-brand to-[#7a1014] lg:mx-0" />
                             <h1 className="text-2xl font-bold text-balance">
-                                {title}
+                                {title && t(title)}
                             </h1>
                             <p className="text-balance text-muted-foreground">
-                                {description}
+                                {description && t(description)}
                             </p>
                         </div>
                         {children}

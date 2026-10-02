@@ -18,7 +18,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { index as trashIndex } from '@/routes/admin/trash';
 import type { Paginated } from '@/types';
 
@@ -47,6 +51,7 @@ type PageProps = {
 };
 
 export default function AdminTrashIndex({ trials, filters }: PageProps) {
+    const { t } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
 
     function submit(e: FormEvent) {
@@ -63,12 +68,12 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
 
     return (
         <>
-            <Head title="Trash" />
+            <Head title={t('master_data.trash.head_title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Trash - Deleted Trials"
-                    description="Restore trial yang sudah terhapus. Hapus permanen belum tersedia di aplikasi baru ini."
+                    title={t('master_data.trash.title')}
+                    description={t('master_data.trash.description')}
                 />
 
                 <Card>
@@ -78,10 +83,14 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
                         >
                             <div className="grid gap-2 lg:col-span-2">
-                                <Label htmlFor="q">Search</Label>
+                                <Label htmlFor="q">
+                                    {t('master_data.trash.search')}
+                                </Label>
                                 <Input
                                     id="q"
-                                    placeholder="Trial code, product..."
+                                    placeholder={t(
+                                        'master_data.trash.search_placeholder',
+                                    )}
                                     value={form.q}
                                     onChange={(e) =>
                                         setForm({ ...form, q: e.target.value })
@@ -89,10 +98,14 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="deleted_by">Deleted by</Label>
+                                <Label htmlFor="deleted_by">
+                                    {t('master_data.trash.deleted_by')}
+                                </Label>
                                 <Input
                                     id="deleted_by"
-                                    placeholder="Nama user..."
+                                    placeholder={t(
+                                        'master_data.trash.deleted_by_placeholder',
+                                    )}
                                     value={form.deleted_by}
                                     onChange={(e) =>
                                         setForm({
@@ -103,7 +116,9 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="date_from">From</Label>
+                                <Label htmlFor="date_from">
+                                    {t('master_data.trash.date_from')}
+                                </Label>
                                 <Input
                                     id="date_from"
                                     type="date"
@@ -117,7 +132,9 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="date_to">To</Label>
+                                <Label htmlFor="date_to">
+                                    {t('master_data.trash.date_to')}
+                                </Label>
                                 <Input
                                     id="date_to"
                                     type="date"
@@ -131,13 +148,15 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                 />
                             </div>
                             <div className="flex items-end gap-2 lg:col-span-5">
-                                <Button type="submit">Filter</Button>
+                                <Button type="submit">
+                                    {t('master_data.actions.filter')}
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="secondary"
                                     onClick={reset}
                                 >
-                                    Reset
+                                    {t('common.actions.reset')}
                                 </Button>
                             </div>
                         </form>
@@ -149,14 +168,40 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial Code</TableHead>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>Product Type</TableHead>
-                                    <TableHead>Created By</TableHead>
-                                    <TableHead>Deleted By</TableHead>
-                                    <TableHead>Deleted At</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.trash.column_trial_code',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.trash.column_product')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.trash.column_product_type',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.trash.column_created_by',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.trash.column_deleted_by',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.trash.column_deleted_at',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.trash.column_status')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.columns.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -188,7 +233,10 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                                     trial.final_decision,
                                                 )}
                                             >
-                                                {trial.progress_status}
+                                                {trialStatusLabel(
+                                                    t,
+                                                    trial.progress_status,
+                                                )}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
@@ -198,12 +246,21 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                                         variant="outline"
                                                         size="sm"
                                                     >
-                                                        Restore
+                                                        {t(
+                                                            'master_data.actions.restore',
+                                                        )}
                                                     </Button>
                                                 }
-                                                title="Restore this trial?"
-                                                description={`${trial.trial_code} will be restored and become visible again in the normal trial list.`}
-                                                confirmLabel="Restore"
+                                                title={t(
+                                                    'master_data.trash.restore_title',
+                                                )}
+                                                description={t(
+                                                    'master_data.trash.restore_description',
+                                                    { code: trial.trial_code },
+                                                )}
+                                                confirmLabel={t(
+                                                    'master_data.actions.restore',
+                                                )}
                                                 confirmVariant="default"
                                                 formProps={TrashController.restore.form(
                                                     trial.id,
@@ -218,7 +275,7 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                             colSpan={8}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Tidak ada trial yang terhapus.
+                                            {t('master_data.trash.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -231,7 +288,7 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                             currentPage={trials.current_page}
                             lastPage={trials.last_page}
                             total={trials.total}
-                            itemLabel="trials"
+                            itemLabel={t('master_data.trash.item_label')}
                         />
                     </CardContent>
                 </Card>

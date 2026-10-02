@@ -24,7 +24,7 @@ class Locales
      * Laravel's own framework groups: used server-side only, never shipped
      * to the browser.
      */
-    private const SERVER_ONLY_GROUPS = ['auth', 'pagination', 'passwords', 'validation'];
+    private const SERVER_ONLY_GROUPS = ['auth', 'pagination', 'passwords', 'validation', 'exports', 'emails'];
 
     /**
      * @phpstan-assert-if-true string $locale

@@ -24,6 +24,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as productsIndex } from '@/routes/admin/products';
 import type { Paginated } from '@/types';
 
@@ -46,12 +47,16 @@ function ProductFormDialog({
     onOpenChange: (open: boolean) => void;
     editingProduct: Product | null;
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {editingProduct ? 'Edit Product' : 'Add Product'}
+                        {editingProduct
+                            ? t('master_data.products.edit_title')
+                            : t('master_data.products.add')}
                     </DialogTitle>
                 </DialogHeader>
                 <Form
@@ -73,7 +78,7 @@ function ProductFormDialog({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="product_name">
-                                    Product Name
+                                    {t('master_data.products.product_name')}
                                 </Label>
                                 <Input
                                     id="product_name"
@@ -88,7 +93,7 @@ function ProductFormDialog({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="finish_good_code">
-                                    Finish Good Code
+                                    {t('master_data.products.finish_good_code')}
                                 </Label>
                                 <Input
                                     id="finish_good_code"
@@ -104,8 +109,8 @@ function ProductFormDialog({
                             <DialogFooter>
                                 <Button type="submit" disabled={processing}>
                                     {editingProduct
-                                        ? 'Save Changes'
-                                        : 'Add Product'}
+                                        ? t('master_data.actions.save_changes')
+                                        : t('master_data.products.add')}
                                 </Button>
                             </DialogFooter>
                         </>
@@ -119,6 +124,7 @@ function ProductFormDialog({
 export default function AdminProductsIndex({ products }: PageProps) {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const { t } = useTranslation();
 
     function openCreate() {
         setEditingProduct(null);
@@ -132,12 +138,12 @@ export default function AdminProductsIndex({ products }: PageProps) {
 
     return (
         <>
-            <Head title="Products" />
+            <Head title={t('master_data.products.head_title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Products"
-                    description="Kelola product dan Finish Good Code untuk input trial."
+                    title={t('master_data.products.title')}
+                    description={t('master_data.products.description')}
                 />
 
                 <ProductFormDialog
@@ -149,16 +155,26 @@ export default function AdminProductsIndex({ products }: PageProps) {
                 <Card>
                     <CardHeader className="flex-row items-center justify-end">
                         <Button type="button" onClick={openCreate}>
-                            Add Product
+                            {t('master_data.products.add')}
                         </Button>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>FG Code</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.products.column_product',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.products.column_fg_code',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.columns.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -179,7 +195,9 @@ export default function AdminProductsIndex({ products }: PageProps) {
                                                         openEdit(product)
                                                     }
                                                 >
-                                                    Edit
+                                                    {t(
+                                                        'master_data.actions.edit',
+                                                    )}
                                                 </Button>
                                                 <ConfirmDialog
                                                     trigger={
@@ -187,12 +205,24 @@ export default function AdminProductsIndex({ products }: PageProps) {
                                                             variant="destructive"
                                                             size="sm"
                                                         >
-                                                            Delete
+                                                            {t(
+                                                                'master_data.actions.delete',
+                                                            )}
                                                         </Button>
                                                     }
-                                                    title="Delete this product?"
-                                                    description={`${product.product_name} (${product.finish_good_code}) will be removed from the template list. Existing trial data is not affected.`}
-                                                    confirmLabel="Delete"
+                                                    title={t(
+                                                        'master_data.products.delete_title',
+                                                    )}
+                                                    description={t(
+                                                        'master_data.products.delete_description',
+                                                        {
+                                                            name: product.product_name,
+                                                            code: product.finish_good_code,
+                                                        },
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'master_data.actions.delete',
+                                                    )}
                                                     formProps={ProductController.destroy.form(
                                                         product.id,
                                                     )}
@@ -207,7 +237,7 @@ export default function AdminProductsIndex({ products }: PageProps) {
                                             colSpan={3}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada product aktif.
+                                            {t('master_data.products.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -219,7 +249,7 @@ export default function AdminProductsIndex({ products }: PageProps) {
                             currentPage={products.current_page}
                             lastPage={products.last_page}
                             total={products.total}
-                            itemLabel="products"
+                            itemLabel={t('master_data.products.item_label')}
                         />
                     </CardContent>
                 </Card>

@@ -31,6 +31,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
+import type { TranslateFn } from '@/hooks/use-translation';
 import { index as mastersIndex } from '@/routes/admin/masters';
 import type { Paginated } from '@/types';
 
@@ -46,6 +48,15 @@ type PageProps = {
     types: string[];
 };
 
+// Display-only label for a stored master_options.type value; the raw value
+// stays the form value and is shown as-is when no label exists.
+function masterTypeLabel(t: TranslateFn, type: string): string {
+    const key = `master_data.masters.types.${type}`;
+    const label = t(key);
+
+    return label === key ? type : label;
+}
+
 function MasterOptionFormDialog({
     open,
     onOpenChange,
@@ -57,12 +68,16 @@ function MasterOptionFormDialog({
     editingOption: MasterOption | null;
     types: string[];
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {editingOption ? 'Edit Master Option' : 'Add Master'}
+                        {editingOption
+                            ? t('master_data.masters.edit_title')
+                            : t('master_data.masters.add')}
                     </DialogTitle>
                 </DialogHeader>
                 <Form
@@ -83,7 +98,9 @@ function MasterOptionFormDialog({
                             )}
 
                             <div className="grid gap-2">
-                                <Label htmlFor="type">Type</Label>
+                                <Label htmlFor="type">
+                                    {t('master_data.masters.type')}
+                                </Label>
                                 <Select
                                     name="type"
                                     defaultValue={
@@ -91,12 +108,16 @@ function MasterOptionFormDialog({
                                     }
                                 >
                                     <SelectTrigger id="type">
-                                        <SelectValue placeholder="Pilih type" />
+                                        <SelectValue
+                                            placeholder={t(
+                                                'master_data.masters.type_placeholder',
+                                            )}
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {types.map((type) => (
                                             <SelectItem key={type} value={type}>
-                                                {type}
+                                                {masterTypeLabel(t, type)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -105,7 +126,9 @@ function MasterOptionFormDialog({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
+                                <Label htmlFor="name">
+                                    {t('master_data.masters.name')}
+                                </Label>
                                 <Input
                                     id="name"
                                     name="name"
@@ -116,7 +139,9 @@ function MasterOptionFormDialog({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="sort_order">Sort</Label>
+                                <Label htmlFor="sort_order">
+                                    {t('master_data.columns.sort')}
+                                </Label>
                                 <Input
                                     id="sort_order"
                                     name="sort_order"
@@ -131,8 +156,8 @@ function MasterOptionFormDialog({
                             <DialogFooter>
                                 <Button type="submit" disabled={processing}>
                                     {editingOption
-                                        ? 'Save Changes'
-                                        : 'Add Master'}
+                                        ? t('master_data.actions.save_changes')
+                                        : t('master_data.masters.add')}
                                 </Button>
                             </DialogFooter>
                         </>
@@ -148,6 +173,7 @@ export default function AdminMastersIndex({ options, types }: PageProps) {
     const [editingOption, setEditingOption] = useState<MasterOption | null>(
         null,
     );
+    const { t } = useTranslation();
 
     function openCreate() {
         setEditingOption(null);
@@ -161,12 +187,12 @@ export default function AdminMastersIndex({ options, types }: PageProps) {
 
     return (
         <>
-            <Head title="Masters" />
+            <Head title={t('master_data.masters.head_title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Master Template"
-                    description="Kelola pilihan dropdown untuk trial validation."
+                    title={t('master_data.masters.title')}
+                    description={t('master_data.masters.description')}
                 />
 
                 <MasterOptionFormDialog
@@ -179,23 +205,33 @@ export default function AdminMastersIndex({ options, types }: PageProps) {
                 <Card>
                     <CardHeader className="flex-row items-center justify-end">
                         <Button type="button" onClick={openCreate}>
-                            Add Master
+                            {t('master_data.masters.add')}
                         </Button>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Sort</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t('master_data.masters.type')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.masters.name')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.columns.sort')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.columns.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {options.data.map((option) => (
                                     <TableRow key={option.id}>
-                                        <TableCell>{option.type}</TableCell>
+                                        <TableCell>
+                                            {masterTypeLabel(t, option.type)}
+                                        </TableCell>
                                         <TableCell>{option.name}</TableCell>
                                         <TableCell>
                                             {option.sort_order}
@@ -209,7 +245,9 @@ export default function AdminMastersIndex({ options, types }: PageProps) {
                                                         openEdit(option)
                                                     }
                                                 >
-                                                    Edit
+                                                    {t(
+                                                        'master_data.actions.edit',
+                                                    )}
                                                 </Button>
                                                 <ConfirmDialog
                                                     trigger={
@@ -217,12 +255,27 @@ export default function AdminMastersIndex({ options, types }: PageProps) {
                                                             variant="destructive"
                                                             size="sm"
                                                         >
-                                                            Delete
+                                                            {t(
+                                                                'master_data.actions.delete',
+                                                            )}
                                                         </Button>
                                                     }
-                                                    title="Delete this master option?"
-                                                    description={`${option.type} — ${option.name} will be removed from the dropdown list. Data lama yang sudah memakai nilai ini tidak ikut terhapus.`}
-                                                    confirmLabel="Delete"
+                                                    title={t(
+                                                        'master_data.masters.delete_title',
+                                                    )}
+                                                    description={t(
+                                                        'master_data.masters.delete_description',
+                                                        {
+                                                            type: masterTypeLabel(
+                                                                t,
+                                                                option.type,
+                                                            ),
+                                                            name: option.name,
+                                                        },
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'master_data.actions.delete',
+                                                    )}
                                                     formProps={MasterOptionController.destroy.form(
                                                         option.id,
                                                     )}
@@ -237,7 +290,7 @@ export default function AdminMastersIndex({ options, types }: PageProps) {
                                             colSpan={4}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada master option aktif.
+                                            {t('master_data.masters.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -249,7 +302,7 @@ export default function AdminMastersIndex({ options, types }: PageProps) {
                             currentPage={options.current_page}
                             lastPage={options.last_page}
                             total={options.total}
-                            itemLabel="options"
+                            itemLabel={t('master_data.masters.item_label')}
                         />
                     </CardContent>
                 </Card>

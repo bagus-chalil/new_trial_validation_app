@@ -23,11 +23,16 @@ class TrialReviewRequestedMail extends Mailable
         public string $reviewerName,
         public string $department,
         public string $reviewUrl,
-    ) {}
+    ) {
+        // Captured now, while the triggering request's locale (SetLocale) is
+        // active — the recipient's own language isn't stored anywhere, and a
+        // queued render would otherwise fall back to the config default.
+        $this->locale(app()->getLocale());
+    }
 
     public function build(): self
     {
-        return $this->subject("Trial {$this->trial->trial_code} Needs Your Review")
+        return $this->subject(__('emails.review_requested.subject', ['code' => $this->trial->trial_code]))
             ->markdown('emails.trial-review-requested');
     }
 }

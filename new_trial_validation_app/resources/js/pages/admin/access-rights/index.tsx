@@ -32,6 +32,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
 import type { Paginated, User } from '@/types';
 
@@ -96,6 +97,7 @@ function EditRoleDialog({
     // role tier lives in `app_role`, not the legacy-shared `role` column
     // (see User::effectiveRole()) — fall back to `role` only for a user
     // never yet saved through this screen (app_role still null).
+    const { t } = useTranslation();
     const currentAppRole = editingUser?.app_role ?? editingUser?.role ?? '';
 
     // An existing user's effective role may hold a value no longer offered
@@ -110,7 +112,9 @@ function EditRoleDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Edit Role & Review Team</DialogTitle>
+                    <DialogTitle>
+                        {t('admin.access_rights.roles.edit_title')}
+                    </DialogTitle>
                 </DialogHeader>
                 {editingUser && (
                     <Form
@@ -124,35 +128,43 @@ function EditRoleDialog({
                         {({ processing, errors }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label>User</Label>
+                                    <Label>{t('admin.fields.user')}</Label>
                                     <p className="text-sm text-muted-foreground">
                                         {editingUser.name} ({editingUser.email})
                                     </p>
                                     {editingUser.department && (
                                         <p className="text-xs text-muted-foreground">
-                                            Dept (legacy):{' '}
-                                            {editingUser.department} — hanya
-                                            referensi, dikelola di Aplikasi
-                                            Lama.
+                                            {t(
+                                                'admin.access_rights.roles.dept_legacy_note',
+                                                {
+                                                    department:
+                                                        editingUser.department,
+                                                },
+                                            )}
                                         </p>
                                     )}
                                     <p className="text-xs text-muted-foreground">
-                                        Role (legacy): {editingUser.role} —
-                                        nilai kolom asli yang dibaca Aplikasi
-                                        Lama, tidak diubah dari sini. Role
-                                        efektif di aplikasi ini diatur terpisah
-                                        di bawah.
+                                        {t(
+                                            'admin.access_rights.roles.role_legacy_note',
+                                            { role: editingUser.role },
+                                        )}
                                     </p>
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="app_role">Role</Label>
+                                    <Label htmlFor="app_role">
+                                        {t('admin.fields.role')}
+                                    </Label>
                                     <Select
                                         name="app_role"
                                         defaultValue={currentAppRole}
                                     >
                                         <SelectTrigger id="app_role">
-                                            <SelectValue placeholder="Role" />
+                                            <SelectValue
+                                                placeholder={t(
+                                                    'admin.fields.role',
+                                                )}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {roleOptions.map((role) => (
@@ -166,15 +178,16 @@ function EditRoleDialog({
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
-                                        Menentukan hak akses user di aplikasi
-                                        ini (Staff/Manager/Admin/dsb).
+                                        {t(
+                                            'admin.access_rights.roles.role_hint',
+                                        )}
                                     </p>
                                     <InputError message={errors.app_role} />
                                 </div>
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="review_team_id">
-                                        Review Team
+                                        {t('admin.fields.review_team')}
                                     </Label>
                                     <Select
                                         name="review_team_id"
@@ -187,11 +200,15 @@ function EditRoleDialog({
                                         }
                                     >
                                         <SelectTrigger id="review_team_id">
-                                            <SelectValue placeholder="Tidak ada" />
+                                            <SelectValue
+                                                placeholder={t(
+                                                    'admin.access_rights.none',
+                                                )}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="__none">
-                                                Tidak ada
+                                                {t('admin.access_rights.none')}
                                             </SelectItem>
                                             {reviewerDepartments.map(
                                                 (department) => (
@@ -208,10 +225,9 @@ function EditRoleDialog({
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
-                                        Tim review yang boleh ditugaskan
-                                        me-review trial dari department ini di
-                                        Review & Submit. Pilih &quot;Tidak
-                                        ada&quot; kalau user ini bukan reviewer.
+                                        {t(
+                                            'admin.access_rights.roles.review_team_hint',
+                                        )}
                                     </p>
                                     <InputError
                                         message={errors.review_team_id}
@@ -220,7 +236,7 @@ function EditRoleDialog({
 
                                 <DialogFooter>
                                     <Button type="submit" disabled={processing}>
-                                        Save Changes
+                                        {t('admin.actions.save_changes')}
                                     </Button>
                                 </DialogFooter>
                             </>
@@ -239,11 +255,15 @@ function ReviewerDepartmentFormDialog({
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Add Reviewer Department</DialogTitle>
+                    <DialogTitle>
+                        {t('admin.access_rights.departments.add_title')}
+                    </DialogTitle>
                 </DialogHeader>
                 <Form
                     {...AccessRightController.storeReviewerDepartment.form()}
@@ -255,13 +275,17 @@ function ReviewerDepartmentFormDialog({
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Nama Department</Label>
+                                <Label htmlFor="name">
+                                    {t('admin.access_rights.departments.name')}
+                                </Label>
                                 <Input id="name" name="name" required />
                                 <InputError message={errors.name} />
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="sort_order">Sort</Label>
+                                <Label htmlFor="sort_order">
+                                    {t('admin.fields.sort')}
+                                </Label>
                                 <Input
                                     id="sort_order"
                                     name="sort_order"
@@ -273,7 +297,7 @@ function ReviewerDepartmentFormDialog({
 
                             <DialogFooter>
                                 <Button type="submit" disabled={processing}>
-                                    Add Department
+                                    {t('admin.access_rights.departments.add')}
                                 </Button>
                             </DialogFooter>
                         </>
@@ -293,11 +317,15 @@ function ReviewerDepartmentEditDialog({
     onOpenChange: (open: boolean) => void;
     editingDepartment: ReviewerDepartment | null;
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Rename Reviewer Department</DialogTitle>
+                    <DialogTitle>
+                        {t('admin.access_rights.departments.rename_title')}
+                    </DialogTitle>
                 </DialogHeader>
                 {editingDepartment && (
                     <Form
@@ -312,7 +340,9 @@ function ReviewerDepartmentEditDialog({
                             <>
                                 <div className="grid gap-2">
                                     <Label htmlFor="edit_name">
-                                        Nama Department
+                                        {t(
+                                            'admin.access_rights.departments.name',
+                                        )}
                                     </Label>
                                     <Input
                                         id="edit_name"
@@ -322,17 +352,15 @@ function ReviewerDepartmentEditDialog({
                                     />
                                     <InputError message={errors.name} />
                                     <p className="text-xs text-muted-foreground">
-                                        Mengganti nama tidak mengubah data trial
-                                        yang sudah pernah dicatat dengan nama
-                                        lama (mis. riwayat review) — hanya
-                                        assignment/pilihan baru yang memakai
-                                        nama baru ini.
+                                        {t(
+                                            'admin.access_rights.departments.rename_hint',
+                                        )}
                                     </p>
                                 </div>
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="edit_sort_order">
-                                        Sort
+                                        {t('admin.fields.sort')}
                                     </Label>
                                     <Input
                                         id="edit_sort_order"
@@ -347,7 +375,7 @@ function ReviewerDepartmentEditDialog({
 
                                 <DialogFooter>
                                     <Button type="submit" disabled={processing}>
-                                        Save Changes
+                                        {t('admin.actions.save_changes')}
                                     </Button>
                                 </DialogFooter>
                             </>
@@ -370,11 +398,15 @@ function GrantPermissionFormDialog({
     draftTrials: DraftTrial[];
     staffUsers: StaffUser[];
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Grant Draft Report Edit Access</DialogTitle>
+                    <DialogTitle>
+                        {t('admin.access_rights.permissions.grant_title')}
+                    </DialogTitle>
                 </DialogHeader>
                 <Form
                     {...AccessRightController.grantPermission.form()}
@@ -385,10 +417,18 @@ function GrantPermissionFormDialog({
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
-                                <Label htmlFor="trial_id">Draft Report</Label>
+                                <Label htmlFor="trial_id">
+                                    {t(
+                                        'admin.access_rights.permissions.draft_report',
+                                    )}
+                                </Label>
                                 <Select name="trial_id">
                                     <SelectTrigger id="trial_id">
-                                        <SelectValue placeholder="Pilih Draft report" />
+                                        <SelectValue
+                                            placeholder={t(
+                                                'admin.access_rights.permissions.draft_report_placeholder',
+                                            )}
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {draftTrials.map((trial) => (
@@ -406,10 +446,18 @@ function GrantPermissionFormDialog({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="user_id">Staff User</Label>
+                                <Label htmlFor="user_id">
+                                    {t(
+                                        'admin.access_rights.permissions.staff_user',
+                                    )}
+                                </Label>
                                 <Select name="user_id">
                                     <SelectTrigger id="user_id">
-                                        <SelectValue placeholder="Pilih Staff" />
+                                        <SelectValue
+                                            placeholder={t(
+                                                'admin.access_rights.permissions.staff_user_placeholder',
+                                            )}
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {staffUsers.map((staff) => (
@@ -427,7 +475,7 @@ function GrantPermissionFormDialog({
 
                             <DialogFooter>
                                 <Button type="submit" disabled={processing}>
-                                    Grant Access
+                                    {t('admin.access_rights.permissions.grant')}
                                 </Button>
                             </DialogFooter>
                         </>
@@ -448,6 +496,7 @@ export default function AdminAccessRightsIndex({
     staffUsers,
     draftPermissions,
 }: PageProps) {
+    const { t } = useTranslation();
     const [search, setSearch] = useState(filters.q);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
@@ -466,12 +515,12 @@ export default function AdminAccessRightsIndex({
 
     return (
         <>
-            <Head title="Access Rights" />
+            <Head title={t('admin.access_rights.title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Access Rights"
-                    description="Super Admin only: atur role & review team, kelola master reviewer department, dan izin edit Draft report."
+                    title={t('admin.access_rights.title')}
+                    description={t('admin.access_rights.description')}
                 />
 
                 <EditRoleDialog
@@ -488,22 +537,28 @@ export default function AdminAccessRightsIndex({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>User Role & Review Team</CardTitle>
+                        <CardTitle>
+                            {t('admin.access_rights.roles.title')}
+                        </CardTitle>
                         <form
                             onSubmit={submitSearch}
                             className="flex items-end gap-2 pt-2"
                         >
                             <div className="grid gap-2 sm:max-w-sm">
-                                <Label htmlFor="q">Search User</Label>
+                                <Label htmlFor="q">
+                                    {t('admin.search_user.label')}
+                                </Label>
                                 <Input
                                     id="q"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Nama, email, role, department"
+                                    placeholder={t(
+                                        'admin.search_user.placeholder',
+                                    )}
                                 />
                             </div>
                             <Button type="submit" variant="secondary">
-                                Search
+                                {t('common.actions.search')}
                             </Button>
                         </form>
                     </CardHeader>
@@ -511,12 +566,24 @@ export default function AdminAccessRightsIndex({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead>Dept (Legacy)</TableHead>
-                                    <TableHead>Review Team</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.name')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.email')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.role')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.dept_legacy')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.review_team')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -542,7 +609,7 @@ export default function AdminAccessRightsIndex({
                                                         setEditingUser(usr)
                                                     }
                                                 >
-                                                    Edit
+                                                    {t('admin.actions.edit')}
                                                 </Button>
                                             )}
                                         </TableCell>
@@ -554,7 +621,7 @@ export default function AdminAccessRightsIndex({
                                             colSpan={6}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada user.
+                                            {t('admin.users.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -567,7 +634,7 @@ export default function AdminAccessRightsIndex({
                             currentPage={users.current_page}
                             lastPage={users.last_page}
                             total={users.total}
-                            itemLabel="users"
+                            itemLabel={t('admin.items.users')}
                         />
                     </CardContent>
                 </Card>
@@ -590,30 +657,35 @@ export default function AdminAccessRightsIndex({
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
                         <div>
-                            <CardTitle>Reviewer Department Master</CardTitle>
+                            <CardTitle>
+                                {t('admin.access_rights.departments.title')}
+                            </CardTitle>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Daftar tim/department (&quot;Team&quot;) yang
-                                bisa dipilih sebagai &quot;Review Team&quot;
-                                user dan muncul di daftar department review saat
-                                submit trial baru. Rename aman dipakai — trial
-                                yang sudah pernah disubmit tetap menyimpan nama
-                                lama di riwayatnya.
+                                {t(
+                                    'admin.access_rights.departments.description',
+                                )}
                             </p>
                         </div>
                         <Button
                             type="button"
                             onClick={() => setDepartmentDialogOpen(true)}
                         >
-                            Add Department
+                            {t('admin.access_rights.departments.add')}
                         </Button>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Sort</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.name')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.sort')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -634,7 +706,7 @@ export default function AdminAccessRightsIndex({
                                                         )
                                                     }
                                                 >
-                                                    Edit
+                                                    {t('admin.actions.edit')}
                                                 </Button>
                                                 <ConfirmDialog
                                                     trigger={
@@ -642,12 +714,23 @@ export default function AdminAccessRightsIndex({
                                                             variant="destructive"
                                                             size="sm"
                                                         >
-                                                            Delete
+                                                            {t(
+                                                                'admin.actions.delete',
+                                                            )}
                                                         </Button>
                                                     }
-                                                    title="Delete this reviewer department?"
-                                                    description={`${department.name} will be removed from the reviewer department list.`}
-                                                    confirmLabel="Delete"
+                                                    title={t(
+                                                        'admin.access_rights.departments.delete_title',
+                                                    )}
+                                                    description={t(
+                                                        'admin.access_rights.departments.delete_description',
+                                                        {
+                                                            name: department.name,
+                                                        },
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'admin.actions.delete',
+                                                    )}
                                                     formProps={AccessRightController.destroyReviewerDepartment.form(
                                                         department.id,
                                                     )}
@@ -662,8 +745,9 @@ export default function AdminAccessRightsIndex({
                                             colSpan={3}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada reviewer department
-                                            custom.
+                                            {t(
+                                                'admin.access_rights.departments.empty',
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -681,23 +765,43 @@ export default function AdminAccessRightsIndex({
 
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
-                        <CardTitle>Draft Report Edit Permission</CardTitle>
+                        <CardTitle>
+                            {t('admin.access_rights.permissions.title')}
+                        </CardTitle>
                         <Button
                             type="button"
                             onClick={() => setPermissionDialogOpen(true)}
                         >
-                            Grant Access
+                            {t('admin.access_rights.permissions.grant')}
                         </Button>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Draft Report</TableHead>
-                                    <TableHead>Owner</TableHead>
-                                    <TableHead>Granted To</TableHead>
-                                    <TableHead>Granted By</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'admin.access_rights.permissions.draft_report',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'admin.access_rights.permissions.owner',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'admin.access_rights.permissions.granted_to',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'admin.access_rights.permissions.granted_by',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -724,12 +828,29 @@ export default function AdminAccessRightsIndex({
                                                         variant="destructive"
                                                         size="sm"
                                                     >
-                                                        Revoke
+                                                        {t(
+                                                            'admin.access_rights.permissions.revoke',
+                                                        )}
                                                     </Button>
                                                 }
-                                                title="Revoke this edit permission?"
-                                                description={`${permission.user?.name} won't be able to edit ${permission.trial?.trial_code} anymore.`}
-                                                confirmLabel="Revoke"
+                                                title={t(
+                                                    'admin.access_rights.permissions.revoke_title',
+                                                )}
+                                                description={t(
+                                                    'admin.access_rights.permissions.revoke_description',
+                                                    {
+                                                        name:
+                                                            permission.user
+                                                                ?.name ?? '-',
+                                                        trial:
+                                                            permission.trial
+                                                                ?.trial_code ??
+                                                            '-',
+                                                    },
+                                                )}
+                                                confirmLabel={t(
+                                                    'admin.access_rights.permissions.revoke',
+                                                )}
                                                 formProps={AccessRightController.revokePermission.form(
                                                     permission.id,
                                                 )}
@@ -743,8 +864,9 @@ export default function AdminAccessRightsIndex({
                                             colSpan={5}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada izin edit Draft report
-                                            yang aktif.
+                                            {t(
+                                                'admin.access_rights.permissions.empty',
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )}

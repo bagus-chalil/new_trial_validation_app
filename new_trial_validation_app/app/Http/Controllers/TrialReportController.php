@@ -14,6 +14,7 @@ use App\Models\TrialReview;
 use App\Models\TrialWeighing;
 use App\Models\User;
 use App\Models\ValidationParameter;
+use App\Services\Pdf\ExportFormat;
 use App\Services\Pdf\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -300,7 +301,7 @@ class TrialReportController extends Controller
             : null;
 
         return $pdf->fromView('pdf.trial-report', [
-            'title' => 'Report — '.$trial->trial_code,
+            'title' => __('report.page_title', ['code' => $trial->trial_code]),
             'trial' => $trial,
             'results' => $core['results'],
             'weighingSections' => $core['weighingSections'],
@@ -352,39 +353,50 @@ class TrialReportController extends Controller
 
         $spreadsheet = new Spreadsheet;
 
-        $this->writeKeyValueSheet($spreadsheet->getActiveSheet(), 'Info Trial', 'Informasi Trial', [
-            ['Trial ID', $trial->trial_code],
-            ['Product Name', $trial->product_name],
-            ['FG Code', $trial->finish_good_code],
-            ['Validation Category', $trial->validation_category],
-            ['Validation Scope', implode(', ', $trial->validation_scope ?? [])],
-            ['Product Type', $trial->product_type],
-            ['Validation Date', $trial->validation_date],
-            ['Risk Level', $trial->risk_level],
-            ['Machine Used', implode(', ', $trial->machine_used ?? [])],
-            ['Batch Number', $trial->batch_number],
-            ['Bulk Code', $trial->bulk_code],
-            ['Estimate Qty', $trial->estimate_qty],
-            ['Support Team', $trial->support_team],
-            ['Initiated Person/Team', $trial->initiated_person_team],
-            ['Reason', $trial->reason],
-            ['B.O.M', $trial->bom],
-            ['Created By', $trial->created_by],
-            ['Status', $trial->progress_status],
-            ['Pending With', $trial->pending_with],
-            ['Selected Approver', $trial->approver ? ($trial->approver->name ?: $trial->approver->email) : null],
-            ['Revision No', $trial->revision_no],
-            ['Approval Status', $displayDecision],
+        // Labels follow the current UI language (reusing the Report page's
+        // report.* keys); stored values (statuses, decisions, departments,
+        // DB data) are written as-is.
+        $this->writeKeyValueSheet($spreadsheet->getActiveSheet(), $this->sheetTitle('info'), $this->label('exports.excel.info_title'), [
+            [$this->label('report.info.trial_id'), $trial->trial_code],
+            [$this->label('report.info.product_name'), $trial->product_name],
+            [$this->label('report.info.fg_code'), $trial->finish_good_code],
+            [$this->label('report.info.validation_category'), $trial->validation_category],
+            [$this->label('report.info.validation_scope'), implode(', ', $trial->validation_scope ?? [])],
+            [$this->label('report.info.product_type'), $trial->product_type],
+            [$this->label('report.info.validation_date'), $trial->validation_date ? ExportFormat::date($trial->validation_date) : null],
+            [$this->label('report.info.risk_level'), $trial->risk_level],
+            [$this->label('report.info.machine_used'), implode(', ', $trial->machine_used ?? [])],
+            [$this->label('report.header.batch_number'), $trial->batch_number],
+            [$this->label('report.header.bulk_code'), $trial->bulk_code],
+            [$this->label('report.header.estimate_qty'), $trial->estimate_qty],
+            [$this->label('report.header.support_team'), $trial->support_team],
+            [$this->label('report.header.initiated_person_team'), $trial->initiated_person_team],
+            [$this->label('report.header.reason'), $trial->reason],
+            [$this->label('report.header.bom'), $trial->bom],
+            [$this->label('report.info.created_by'), $trial->created_by],
+            [$this->label('report.header.status'), $trial->progress_status],
+            [$this->label('report.header.pending_with'), $trial->pending_with],
+            [$this->label('report.header.selected_approver'), $trial->approver ? ($trial->approver->name ?: $trial->approver->email) : null],
+            [$this->label('report.header.revision_no'), $trial->revision_no],
+            [$this->label('report.info.approval_status'), $displayDecision],
         ]);
 
-        $this->writeTableSheet($spreadsheet->createSheet(), 'Validasi', [
-            'Parameter', 'Spesifikasi', 'Decision', 'Hasil', 'Catatan',
+        $this->writeTableSheet($spreadsheet->createSheet(), $this->sheetTitle('validation'), [
+            $this->label('report.validation.parameter'),
+            $this->label('report.validation.specification'),
+            $this->label('report.validation.decision'),
+            $this->label('report.validation.result'),
+            $this->label('report.validation.remark'),
         ], $core['results']->map(fn (array $r) => [
             $r['parameter_name'], $r['specification'], $r['decision'], $r['result_value'], $r['remark'],
         ])->all());
 
-        $this->writeTableSheet($spreadsheet->createSheet(), 'Weighing', [
-            'Section', 'Total Sample', 'Rata-rata', 'Minimum', 'Maksimum',
+        $this->writeTableSheet($spreadsheet->createSheet(), $this->sheetTitle('weighing'), [
+            $this->label('exports.excel.section'),
+            $this->label('report.weighing.total_sample'),
+            $this->label('report.weighing.average'),
+            $this->label('report.weighing.minimum'),
+            $this->label('report.weighing.maximum'),
         ], $core['weighingSections']->map(fn (array $section) => [
             $section['section'],
             $section['stats']['count'],
@@ -393,22 +405,29 @@ class TrialReportController extends Controller
             $section['stats']['max'],
         ])->all());
 
-        $this->writeTableSheet($spreadsheet->createSheet(), 'Review Department', [
-            'Round', 'Department', 'Status', 'Reviewer', 'Direview Pada', 'Komentar',
+        $assigned = $this->label('report.review.assigned');
+
+        $this->writeTableSheet($spreadsheet->createSheet(), $this->sheetTitle('review'), [
+            $this->label('report.review.round'),
+            $this->label('report.review.department'),
+            $this->label('report.review.status'),
+            $this->label('exports.excel.reviewer'),
+            $this->label('report.review.reviewed_at'),
+            $this->label('report.review.comment'),
         ], $core['reviews']->map(fn (array $r) => [
-            $r['review_round'], $r['department'], $r['status'], $r['reviewer_name'] ?? ($r['assigned_to'] ? $r['assigned_to'].' (ditugaskan)' : null), $r['reviewed_at'], $r['comment'],
+            $r['review_round'], $r['department'], $r['status'], $r['reviewer_name'] ?? ($r['assigned_to'] ? $r['assigned_to'].' '.$assigned : null), $r['reviewed_at'] ? ExportFormat::dateTime($r['reviewed_at']) : null, $r['comment'],
         ])->all());
 
         $managerDecision = $trial->final_decision ?? $trial->progress_status;
         $decisionBy = $managerDecision === 'Approved' ? $core['approvedByName'] : $core['rejectedByName'];
         $decisionAt = $managerDecision === 'Approved' ? $trial->approved_at : $trial->rejected_at;
 
-        $this->writeKeyValueSheet($spreadsheet->createSheet(), 'Keputusan', 'Keputusan Manager QAC', [
-            ['Decision', $managerDecision],
-            ['Status', $trial->progress_status],
-            ['Diputuskan Oleh', $decisionBy],
-            ['Diputuskan Pada', $decisionAt],
-            ['Komentar', $trial->approval_comment],
+        $this->writeKeyValueSheet($spreadsheet->createSheet(), $this->sheetTitle('decision'), $this->label('report.decision.title'), [
+            [$this->label('report.decision.decision'), $managerDecision],
+            [$this->label('report.decision.status'), $trial->progress_status],
+            [$this->label('report.decision.decision_by'), $decisionBy],
+            [$this->label('report.decision.decision_at'), $decisionAt ? ExportFormat::dateTime($decisionAt) : null],
+            [$this->label('report.decision.comment'), $trial->approval_comment],
         ]);
 
         $spreadsheet->setActiveSheetIndex(0);
@@ -464,13 +483,31 @@ class TrialReportController extends Controller
         }
 
         if ($rows === []) {
-            $sheet->setCellValue('A2', 'Tidak ada data.');
+            $sheet->setCellValue('A2', $this->label('exports.excel.no_data'));
         }
 
         foreach (range(1, count($headers)) as $i) {
             $sheet->getColumnDimensionByColumn($i)->setAutoSize(true);
         }
         $sheet->freezePane('A2');
+    }
+
+    private function label(string $key): string
+    {
+        $line = __($key);
+
+        return is_string($line) ? $line : $key;
+    }
+
+    /**
+     * Translated worksheet name, kept within Excel's rules (max 31 chars,
+     * none of []:*?/\).
+     */
+    private function sheetTitle(string $sheet): string
+    {
+        $title = str_replace(['[', ']', ':', '*', '?', '/', '\\'], ' ', $this->label('exports.excel.sheets.'.$sheet));
+
+        return mb_substr(trim($title), 0, 31);
     }
 
     private function cellValue(mixed $value): string|int|float

@@ -71,7 +71,7 @@ class ReportController extends Controller
         $items = $this->approvedQuery($request)->get()->map($this->approvedRow(...));
 
         return $pdf->fromView('pdf.approved', [
-            'title' => 'Approved Report',
+            'title' => __('exports.titles.approved'),
             'items' => $items,
         ], 'Approved-Report.pdf');
     }
@@ -117,7 +117,7 @@ class ReportController extends Controller
         $items = $this->rejectedQuery($request)->get()->map($this->rejectedRow(...));
 
         return $pdf->fromView('pdf.rejected', [
-            'title' => 'Rejected Report',
+            'title' => __('exports.titles.rejected'),
             'items' => $items,
         ], 'Rejected-Report.pdf');
     }
@@ -170,7 +170,7 @@ class ReportController extends Controller
         $items = $this->trialSummaryQuery($request, $filters)->get();
 
         return $pdf->fromView('pdf.trial-summary', [
-            'title' => 'Trial Summary Report',
+            'title' => __('exports.titles.trial_summary'),
             'items' => $items,
         ], 'Trial-Summary-Report.pdf');
     }
@@ -238,7 +238,7 @@ class ReportController extends Controller
         $items = $this->departmentReviewQuery($request)->get()->map($this->departmentReviewRow(...));
 
         return $pdf->fromView('pdf.department-review', [
-            'title' => 'Department Review Report',
+            'title' => __('exports.titles.department_review'),
             'items' => $items,
             'reviewerDepartments' => User::reviewerDepartmentCodes(),
         ], 'Department-Review-Report.pdf');
@@ -293,11 +293,11 @@ class ReportController extends Controller
             'trial_code' => $log->trial?->trial_code,
             'user_email' => $log->user_email,
             'created_at' => $log->created_at?->toDateTimeString(),
-            'report_type' => $log->new_data['report_type'] ?? 'Report',
+            'report_type' => $log->new_data['report_type'] ?? __('exports.default_report_type'),
         ]);
 
         return $pdf->fromView('pdf.audit-print-log', [
-            'title' => 'Audit Print Log',
+            'title' => __('exports.titles.audit_print_log'),
             'items' => $items,
         ], 'Audit-Print-Log.pdf');
     }

@@ -37,7 +37,6 @@ import {
     trialStatusBadgeClassName,
     trialStatusLabel,
 } from '@/lib/trial-status';
-import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { edit as editTrial, index as trialsIndex } from '@/routes/trials';
 import { edit as reviewEdit } from '@/routes/trials/review';
@@ -238,7 +237,7 @@ export default function TrialReport({
     canCheckProdLineConfigurationReport,
     canReturnLineConfigurationReport,
 }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
         Boolean(trial.approval_comment) ||

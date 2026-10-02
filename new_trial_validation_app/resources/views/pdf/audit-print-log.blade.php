@@ -1,13 +1,15 @@
 @extends('pdf.layout')
 
+@php($fmt = \App\Services\Pdf\ExportFormat::class)
+
 @section('content')
     <table>
         <thead>
             <tr>
-                <th>Trial ID</th>
-                <th>Printed By</th>
-                <th>Printed At</th>
-                <th>Report Type</th>
+                <th>{{ __('report.info.trial_id') }}</th>
+                <th>{{ __('exports.columns.printed_by') }}</th>
+                <th>{{ __('exports.columns.printed_at') }}</th>
+                <th>{{ __('exports.columns.report_type') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -15,12 +17,12 @@
                 <tr>
                     <td>{{ $item['trial_code'] ?? '-' }}</td>
                     <td>{{ $item['user_email'] ?? '-' }}</td>
-                    <td>{{ $item['created_at'] ?? '-' }}</td>
-                    <td>{{ $item['report_type'] ?? 'Report' }}</td>
+                    <td>{{ $fmt::dateTime($item['created_at'] ?? null) }}</td>
+                    <td>{{ $item['report_type'] ?? __('exports.default_report_type') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4" class="muted">Belum ada audit print log.</td>
+                    <td colspan="4" class="muted">{{ __('exports.empty.audit_print_log') }}</td>
                 </tr>
             @endforelse
         </tbody>

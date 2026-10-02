@@ -74,7 +74,7 @@ class ActivityLogController extends Controller
 
         $activityLog->delete();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Activity log berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('master_data.toast.log_deleted')]);
 
         return to_route('admin.activity-logs.index');
     }
@@ -96,7 +96,7 @@ class ActivityLogController extends Controller
             ActivityLog::query()->whereIn('id', $ids)->delete();
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Activity log terpilih berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('master_data.toast.logs_deleted')]);
 
         return to_route('admin.activity-logs.index');
     }

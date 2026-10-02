@@ -14,6 +14,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as notificationsIndex } from '@/routes/admin/notifications';
 import type { Paginated } from '@/types';
 
@@ -34,14 +35,16 @@ type PageProps = {
 };
 
 export default function AdminNotificationsIndex({ notifications }: PageProps) {
+    const { t } = useTranslation();
+
     return (
         <>
-            <Head title="Notifications" />
+            <Head title={t('admin.notifications.title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Admin Notifications"
-                    description="Kontrol semua notification dan delete permanen jika diperlukan."
+                    title={t('admin.notifications.heading')}
+                    description={t('admin.notifications.description')}
                 />
 
                 <Card>
@@ -49,13 +52,27 @@ export default function AdminNotificationsIndex({ notifications }: PageProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>ID</TableHead>
-                                    <TableHead>Title</TableHead>
-                                    <TableHead>Target</TableHead>
-                                    <TableHead>Trial</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Created At</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t('admin.notifications.id')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.notifications.title_column')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.notifications.target')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.notifications.trial')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.notifications.type')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.notifications.created_at')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -94,12 +111,23 @@ export default function AdminNotificationsIndex({ notifications }: PageProps) {
                                                         variant="destructive"
                                                         size="sm"
                                                     >
-                                                        Delete
+                                                        {t(
+                                                            'admin.actions.delete',
+                                                        )}
                                                     </Button>
                                                 }
-                                                title="Delete this notification permanently?"
-                                                description={`"${notification.title}" will be permanently removed for every user who can see it. This cannot be undone.`}
-                                                confirmLabel="Delete"
+                                                title={t(
+                                                    'admin.notifications.delete_title',
+                                                )}
+                                                description={t(
+                                                    'admin.notifications.delete_description',
+                                                    {
+                                                        title: notification.title,
+                                                    },
+                                                )}
+                                                confirmLabel={t(
+                                                    'admin.actions.delete',
+                                                )}
                                                 formProps={NotificationController.destroy.form(
                                                     notification.id,
                                                 )}
@@ -113,7 +141,7 @@ export default function AdminNotificationsIndex({ notifications }: PageProps) {
                                             colSpan={7}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada notification.
+                                            {t('admin.notifications.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -125,7 +153,7 @@ export default function AdminNotificationsIndex({ notifications }: PageProps) {
                             currentPage={notifications.current_page}
                             lastPage={notifications.last_page}
                             total={notifications.total}
-                            itemLabel="notifications"
+                            itemLabel={t('admin.items.notifications')}
                         />
                     </CardContent>
                 </Card>

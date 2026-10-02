@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { translate, useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
 import { auditPrintLog, index as reportsIndex } from '@/routes/reports';
 import { pdf as auditPrintLogPdf } from '@/routes/reports/audit-print-log';
@@ -29,15 +30,17 @@ type PageProps = {
 };
 
 export default function ReportsAuditPrintLog({ items }: PageProps) {
+    const { t } = useTranslation();
+
     return (
         <>
-            <Head title="Audit Print Log" />
+            <Head title={t('reports.audit_print_log.title')} />
 
             <div className="space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4 print:hidden">
                     <Heading
-                        title="Audit Print Log"
-                        description="Log aktivitas print report jika tersedia."
+                        title={t('reports.audit_print_log.title')}
+                        description={t('reports.audit_print_log.description')}
                     />
                     <Button variant="outline" asChild>
                         <a
@@ -45,7 +48,7 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            Unduh PDF
+                            {t('report.pdf.button')}
                         </a>
                     </Button>
                 </div>
@@ -55,10 +58,24 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial ID</TableHead>
-                                    <TableHead>Printed By</TableHead>
-                                    <TableHead>Printed At</TableHead>
-                                    <TableHead>Report Type</TableHead>
+                                    <TableHead>
+                                        {t('report.info.trial_id')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'reports.audit_print_log.printed_by',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'reports.audit_print_log.printed_at',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'reports.audit_print_log.report_type',
+                                        )}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -73,6 +90,7 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
                                         <TableCell>
                                             {item.created_at ?? '-'}
                                         </TableCell>
+                                        {/* Stored audit value, not translated. */}
                                         <TableCell>
                                             {item.new_data?.report_type ??
                                                 'Report'}
@@ -85,7 +103,7 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
                                             colSpan={4}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada audit print log.
+                                            {t('reports.audit_print_log.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -97,7 +115,7 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}
-                            itemLabel="log"
+                            itemLabel={t('reports.audit_print_log.item_label')}
                         />
                     </CardContent>
                 </Card>
@@ -106,10 +124,19 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
     );
 }
 
-ReportsAuditPrintLog.layout = {
+// Layout callback so the last breadcrumb is translated; see approved.tsx.
+ReportsAuditPrintLog.layout = (props: {
+    translations: Record<string, string>;
+}) => ({
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
         { title: 'Report', href: reportsIndex() },
-        { title: 'Audit Print Log', href: auditPrintLog() },
+        {
+            title: translate(
+                props.translations,
+                'reports.audit_print_log.title',
+            ),
+            href: auditPrintLog(),
+        },
     ],
-};
+});

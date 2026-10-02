@@ -6,13 +6,16 @@ import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from '@/hooks/use-translation';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
 
 export default function ForgotPassword({ status }: { status?: string }) {
+    const { t } = useTranslation();
+
     return (
         <>
-            <Head title="Forgot password" />
+            <Head title={t('account.forgot_password.head')} />
 
             {status && (
                 <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-2.5 text-center text-sm font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
@@ -25,7 +28,9 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="email">
+                                    {t('account.forgot_password.email')}
+                                </Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -47,7 +52,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     {processing && (
                                         <LoaderCircle className="h-4 w-4 animate-spin" />
                                     )}
-                                    Email password reset link
+                                    {t('account.forgot_password.submit')}
                                 </Button>
                             </div>
                         </>
@@ -55,8 +60,10 @@ export default function ForgotPassword({ status }: { status?: string }) {
                 </Form>
 
                 <div className="space-x-1 text-center text-sm text-muted-foreground">
-                    <span>Or, return to</span>
-                    <TextLink href={login()}>log in</TextLink>
+                    <span>{t('account.forgot_password.return_to')}</span>
+                    <TextLink href={login()}>
+                        {t('account.forgot_password.log_in')}
+                    </TextLink>
                 </div>
             </div>
         </>
@@ -64,6 +71,6 @@ export default function ForgotPassword({ status }: { status?: string }) {
 }
 
 ForgotPassword.layout = {
-    title: 'Forgot password',
-    description: 'Enter your email to receive a password reset link',
+    title: 'account.forgot_password.title',
+    description: 'account.forgot_password.description',
 };

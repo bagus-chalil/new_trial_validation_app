@@ -21,4 +21,15 @@ class StoreReviewerDepartmentRequest extends FormRequest
             'sort_order' => ['nullable', 'integer'],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'name' => __('admin.attributes.department_name'),
+            'sort_order' => __('admin.attributes.sort_order'),
+        ];
+    }
 }

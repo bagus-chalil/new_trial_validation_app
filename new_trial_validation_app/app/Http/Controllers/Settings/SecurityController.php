@@ -34,7 +34,7 @@ class SecurityController extends Controller
             'password_hash' => Hash::make($request->password),
         ])->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('account.toast.password_updated')]);
 
         return back();
     }

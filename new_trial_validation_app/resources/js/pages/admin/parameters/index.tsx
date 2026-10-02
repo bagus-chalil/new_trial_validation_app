@@ -32,6 +32,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as parametersIndex } from '@/routes/admin/parameters';
 import type { Paginated } from '@/types';
 
@@ -59,12 +60,16 @@ function ParameterFormDialog({
     editingParameter: Parameter | null;
     productTypes: string[];
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {editingParameter ? 'Edit Parameter' : 'Add Parameter'}
+                        {editingParameter
+                            ? t('master_data.parameters.edit_title')
+                            : t('master_data.parameters.add')}
                     </DialogTitle>
                 </DialogHeader>
                 <Form
@@ -91,7 +96,7 @@ function ParameterFormDialog({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="product_type">
-                                    Product Type
+                                    {t('master_data.parameters.product_type')}
                                 </Label>
                                 <Select
                                     name="product_type"
@@ -101,7 +106,11 @@ function ParameterFormDialog({
                                     }
                                 >
                                     <SelectTrigger id="product_type">
-                                        <SelectValue placeholder="Pilih product type" />
+                                        <SelectValue
+                                            placeholder={t(
+                                                'master_data.parameters.product_type_placeholder',
+                                            )}
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {productTypes.map((type) => (
@@ -116,7 +125,7 @@ function ParameterFormDialog({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="parameter_name">
-                                    Parameter
+                                    {t('master_data.parameters.parameter')}
                                 </Label>
                                 <Input
                                     id="parameter_name"
@@ -130,7 +139,9 @@ function ParameterFormDialog({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="sort_order">Sort</Label>
+                                <Label htmlFor="sort_order">
+                                    {t('master_data.columns.sort')}
+                                </Label>
                                 <Input
                                     id="sort_order"
                                     name="sort_order"
@@ -144,7 +155,7 @@ function ParameterFormDialog({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="specification">
-                                    Specification
+                                    {t('master_data.parameters.specification')}
                                 </Label>
                                 <Textarea
                                     id="specification"
@@ -159,8 +170,8 @@ function ParameterFormDialog({
                             <DialogFooter>
                                 <Button type="submit" disabled={processing}>
                                     {editingParameter
-                                        ? 'Save Changes'
-                                        : 'Add Parameter'}
+                                        ? t('master_data.actions.save_changes')
+                                        : t('master_data.parameters.add')}
                                 </Button>
                             </DialogFooter>
                         </>
@@ -179,6 +190,7 @@ export default function AdminParametersIndex({
     const [editingParameter, setEditingParameter] = useState<Parameter | null>(
         null,
     );
+    const { t } = useTranslation();
 
     function openCreate() {
         setEditingParameter(null);
@@ -192,12 +204,12 @@ export default function AdminParametersIndex({
 
     return (
         <>
-            <Head title="Parameters" />
+            <Head title={t('master_data.parameters.head_title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Parameter Template"
-                    description="Kelola parameter validasi berdasarkan product type."
+                    title={t('master_data.parameters.title')}
+                    description={t('master_data.parameters.description')}
                 />
 
                 <ParameterFormDialog
@@ -210,18 +222,32 @@ export default function AdminParametersIndex({
                 <Card>
                     <CardHeader className="flex-row items-center justify-end">
                         <Button type="button" onClick={openCreate}>
-                            Add Parameter
+                            {t('master_data.parameters.add')}
                         </Button>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Product Type</TableHead>
-                                    <TableHead>Parameter</TableHead>
-                                    <TableHead>Specification</TableHead>
-                                    <TableHead>Sort</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.parameters.product_type',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.parameters.parameter')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t(
+                                            'master_data.parameters.specification',
+                                        )}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.columns.sort')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('master_data.columns.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -248,7 +274,9 @@ export default function AdminParametersIndex({
                                                         openEdit(parameter)
                                                     }
                                                 >
-                                                    Edit
+                                                    {t(
+                                                        'master_data.actions.edit',
+                                                    )}
                                                 </Button>
                                                 <ConfirmDialog
                                                     trigger={
@@ -256,12 +284,24 @@ export default function AdminParametersIndex({
                                                             variant="destructive"
                                                             size="sm"
                                                         >
-                                                            Delete
+                                                            {t(
+                                                                'master_data.actions.delete',
+                                                            )}
                                                         </Button>
                                                     }
-                                                    title="Delete this parameter?"
-                                                    description={`${parameter.product_type} — ${parameter.parameter_name} will be removed from the template list. Data lama hasil trial tidak ikut terhapus.`}
-                                                    confirmLabel="Delete"
+                                                    title={t(
+                                                        'master_data.parameters.delete_title',
+                                                    )}
+                                                    description={t(
+                                                        'master_data.parameters.delete_description',
+                                                        {
+                                                            type: parameter.product_type,
+                                                            name: parameter.parameter_name,
+                                                        },
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'master_data.actions.delete',
+                                                    )}
                                                     formProps={ParameterController.destroy.form(
                                                         parameter.id,
                                                     )}
@@ -276,7 +316,7 @@ export default function AdminParametersIndex({
                                             colSpan={5}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Belum ada parameter aktif.
+                                            {t('master_data.parameters.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -288,7 +328,7 @@ export default function AdminParametersIndex({
                             currentPage={parameters.current_page}
                             lastPage={parameters.last_page}
                             total={parameters.total}
-                            itemLabel="parameters"
+                            itemLabel={t('master_data.parameters.item_label')}
                         />
                     </CardContent>
                 </Card>

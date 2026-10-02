@@ -1,19 +1,19 @@
 @component('mail::message')
-# Trial Waiting for Your Approval
+# {{ __('emails.approval_requested.heading') }}
 
-Hi {{ $approverName }},
+{{ __('emails.common.greeting', ['name' => $approverName]) }}
 
-All department reviewers have completed their review for the following trial, and it is now waiting for your approval.
+{{ __('emails.approval_requested.intro') }}
 
-- **Trial Code:** {{ $trial->trial_code }}
-- **Product:** {{ $trial->product_name }}
+- **{{ __('emails.common.trial_code') }}:** {{ $trial->trial_code }}
+- **{{ __('emails.common.product') }}:** {{ $trial->product_name }}
 
 @component('mail::button', ['url' => $approvalUrl])
-Open & Approve Trial
+{{ __('emails.approval_requested.button') }}
 @endcomponent
 
-Please click the button above to view the trial details and submit your approval decision.
+{{ __('emails.approval_requested.outro') }}
 
-Thanks,<br>
+{{ __('emails.common.thanks') }}<br>
 {{ config('app.name') }}
 @endcomponent

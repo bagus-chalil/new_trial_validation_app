@@ -37,7 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useTranslation } from '@/hooks/use-translation';
 import type { TranslateFn } from '@/hooks/use-translation';
-import { cn, formatDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const TRIAL_STATUS_OPTIONS = ['Pass', 'No Trial'] as const;
 
@@ -244,7 +244,7 @@ export function LineConfigurationReportSection({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const [dialogOpen, setDialogOpen] = useState(false);
 
     if (!canEdit && !report) {
@@ -1126,7 +1126,7 @@ function SignOffStatusHint({
     field: StageField;
     report: LineConfigurationReportData;
 }) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const done = report?.[field] ?? false;
 
     if (!done) {
@@ -1167,7 +1167,7 @@ function ReadOnlyLineConfigurationReport({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
 
     if (!report) {
         return (
@@ -1474,7 +1474,7 @@ function SignOffFlow({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const stages: StageView[] = [
         {
             key: 'prepared',

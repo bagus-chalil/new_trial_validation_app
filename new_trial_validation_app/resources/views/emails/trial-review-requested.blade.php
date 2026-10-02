@@ -1,19 +1,19 @@
 @component('mail::message')
-# Trial Needs Your Review
+# {{ __('emails.review_requested.heading') }}
 
-Hi {{ $reviewerName }},
+{{ __('emails.common.greeting', ['name' => $reviewerName]) }}
 
-A trial has been submitted for review by the **{{ $department }}** department, and you have been assigned as the reviewer.
+{{ __('emails.review_requested.intro', ['department' => '**'.$department.'**']) }}
 
-- **Trial Code:** {{ $trial->trial_code }}
-- **Product:** {{ $trial->product_name }}
+- **{{ __('emails.common.trial_code') }}:** {{ $trial->trial_code }}
+- **{{ __('emails.common.product') }}:** {{ $trial->product_name }}
 
 @component('mail::button', ['url' => $reviewUrl])
-Open & Review Trial
+{{ __('emails.review_requested.button') }}
 @endcomponent
 
-Please click the button above to view the trial details and submit your review.
+{{ __('emails.review_requested.outro') }}
 
-Thanks,<br>
+{{ __('emails.common.thanks') }}<br>
 {{ config('app.name') }}
 @endcomponent

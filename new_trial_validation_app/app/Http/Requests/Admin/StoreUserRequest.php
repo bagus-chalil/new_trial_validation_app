@@ -48,4 +48,17 @@ class StoreUserRequest extends FormRequest
 
         return $data;
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'name' => __('admin.attributes.name'),
+            'email' => __('admin.attributes.email'),
+            'password' => __('admin.attributes.password'),
+            'role' => __('admin.attributes.role'),
+        ];
+    }
 }

@@ -27,7 +27,6 @@ import {
     trialStatusBadgeClassName,
     trialStatusLabel,
 } from '@/lib/trial-status';
-import { formatDate } from '@/lib/utils';
 import { edit as editTrial } from '@/routes/trials';
 import type { Paginated } from '@/types';
 
@@ -48,7 +47,10 @@ export type TrialRow = {
 
 const columnHelper = createColumnHelper<TrialRow>();
 
-function buildColumns(t: TranslateFn) {
+function buildColumns(
+    t: TranslateFn,
+    formatDate: (value: string | null | undefined) => string,
+) {
     return [
         columnHelper.accessor('trial_code', {
             header: t('trials.table.trial_code'),
@@ -153,8 +155,8 @@ export function TrialsTable({
     query,
     emptyMessage,
 }: TrialsTableProps) {
-    const { t } = useTranslation();
-    const columns = useMemo(() => buildColumns(t), [t]);
+    const { t, formatDate } = useTranslation();
+    const columns = useMemo(() => buildColumns(t, formatDate), [t, formatDate]);
     const table = useReactTable({
         data: trials.data,
         columns,

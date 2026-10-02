@@ -23,7 +23,6 @@ import {
     trialStatusBadgeClassName,
     trialStatusLabel,
 } from '@/lib/trial-status';
-import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import attachments from '@/routes/trials/attachments';
 import { show as reportShow } from '@/routes/trials/report';
@@ -85,7 +84,7 @@ export default function TrialReview({
     completeness,
     canEdit,
 }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const [approverId, setApproverId] = useState(
         selectedApproverId ? String(selectedApproverId) : '',
     );

@@ -25,7 +25,7 @@ class ImpersonationController extends Controller
 
     public function store(Request $request, User $user): RedirectResponse
     {
-        abort_if($request->session()->has(self::SESSION_KEY), 403, 'Kembali ke akun admin dulu sebelum masuk ke akun lain.');
+        abort_if($request->session()->has(self::SESSION_KEY), 403, __('admin.impersonation.already_active'));
 
         Gate::authorize('impersonate', $user);
 
@@ -36,7 +36,7 @@ class ImpersonationController extends Controller
         Auth::login($user);
         $request->session()->put(self::SESSION_KEY, $admin->id);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Anda sekarang login sebagai {$user->name}."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.impersonation_started', ['name' => $user->name])]);
 
         return to_route('dashboard');
     }
@@ -54,7 +54,7 @@ class ImpersonationController extends Controller
 
         $this->log($request, $admin, 'IMPERSONATE_END', $impersonated);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Kembali ke akun admin Anda.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.impersonation_ended')]);
 
         return to_route('admin.users.index');
     }

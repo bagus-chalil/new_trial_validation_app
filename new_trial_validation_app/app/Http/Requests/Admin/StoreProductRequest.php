@@ -22,4 +22,15 @@ class StoreProductRequest extends FormRequest
             'finish_good_code' => ['required', 'string', 'max:100'],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'product_name' => __('master_data.attributes.product_name'),
+            'finish_good_code' => __('master_data.attributes.finish_good_code'),
+        ];
+    }
 }

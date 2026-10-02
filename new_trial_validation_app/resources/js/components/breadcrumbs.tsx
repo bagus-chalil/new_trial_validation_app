@@ -37,6 +37,19 @@ const adminGroups: Record<string, string> = {
     'activity-logs': 'common.nav.system',
 };
 
+// Translated page title of each /admin/* page, keyed by its path segment.
+const adminTitles: Record<string, string> = {
+    users: 'common.nav.users',
+    'access-rights': 'common.nav.access_rights',
+    'lane-configuration': 'common.nav.line_configuration',
+    notifications: 'common.nav.notifications',
+    trash: 'common.nav.trash',
+    'activity-logs': 'common.nav.activity_logs',
+    products: 'common.nav.products',
+    parameters: 'common.nav.parameters',
+    masters: 'common.nav.masters',
+};
+
 // Top-level pages whose breadcrumb is just their own (translated) nav label.
 const singlePages: Record<string, string> = {
     '/dashboard': 'common.nav.dashboard',
@@ -97,15 +110,21 @@ function groupedBreadcrumbs(
     t: TranslateFn,
 ): BreadcrumbItemType[] | null {
     if (pathname.startsWith('/admin/')) {
-        const title = fallback.at(-1)?.title ?? 'Admin';
-        const group =
-            adminGroups[pathname.split('/')[2]] ?? 'common.nav.master_data';
+        const segment = pathname.split('/')[2];
+        const title = adminTitles[segment]
+            ? t(adminTitles[segment])
+            : (fallback.at(-1)?.title ?? 'Admin');
+        const group = adminGroups[segment] ?? 'common.nav.master_data';
 
         return [item(t(group), '#'), item(title, '#')];
     }
 
     if (pathname.startsWith('/settings/')) {
-        return [item(t('common.breadcrumb.settings'), '#'), ...fallback];
+        // Settings pages give their title as a translation key.
+        return [
+            item(t('common.breadcrumb.settings'), '#'),
+            ...fallback.map((entry) => ({ ...entry, title: t(entry.title) })),
+        ];
     }
 
     if (pathname === '/reports' || pathname.startsWith('/reports/')) {

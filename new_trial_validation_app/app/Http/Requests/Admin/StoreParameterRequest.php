@@ -24,4 +24,17 @@ class StoreParameterRequest extends FormRequest
             'sort_order' => ['nullable', 'integer'],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'product_type' => __('master_data.attributes.product_type'),
+            'parameter_name' => __('master_data.attributes.parameter_name'),
+            'specification' => __('master_data.attributes.specification'),
+            'sort_order' => __('master_data.attributes.sort_order'),
+        ];
+    }
 }

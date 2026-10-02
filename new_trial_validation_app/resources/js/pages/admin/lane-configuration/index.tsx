@@ -29,6 +29,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as laneConfigurationIndex } from '@/routes/admin/lane-configuration';
 
 type ReviewTeam = { id: number; name: string; sort_order: number };
@@ -56,11 +57,13 @@ function LaneEditDialog({
     editingLane: Lane | null;
     reviewTeams: ReviewTeam[];
 }) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Edit Lane</DialogTitle>
+                    <DialogTitle>{t('admin.lanes.edit_title')}</DialogTitle>
                 </DialogHeader>
                 {editingLane && (
                     <Form
@@ -75,7 +78,7 @@ function LaneEditDialog({
                             <>
                                 <div className="grid gap-2">
                                     <Label htmlFor="label">
-                                        Label Tampilan
+                                        {t('admin.lanes.label')}
                                     </Label>
                                     <Input
                                         id="label"
@@ -89,7 +92,7 @@ function LaneEditDialog({
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="required_team_id">
-                                        Tim yang Wajib
+                                        {t('admin.lanes.required_team')}
                                     </Label>
                                     <Select
                                         name="required_team_id"
@@ -102,11 +105,17 @@ function LaneEditDialog({
                                         }
                                     >
                                         <SelectTrigger id="required_team_id">
-                                            <SelectValue placeholder="Semua user" />
+                                            <SelectValue
+                                                placeholder={t(
+                                                    'admin.lanes.all_users',
+                                                )}
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="__none">
-                                                Semua user (tidak dibatasi)
+                                                {t(
+                                                    'admin.lanes.all_users_unrestricted',
+                                                )}
                                             </SelectItem>
                                             {reviewTeams.map((team) => (
                                                 <SelectItem
@@ -119,11 +128,7 @@ function LaneEditDialog({
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
-                                        User yang boleh ditugaskan/menyetujui di
-                                        tahap ini harus tergabung di tim ini
-                                        (Access Rights &rarr; Review Team).
-                                        Pilih &quot;Semua user&quot; untuk tidak
-                                        membatasi.
+                                        {t('admin.lanes.required_team_hint')}
                                     </p>
                                     <InputError
                                         message={errors.required_team_id}
@@ -132,7 +137,7 @@ function LaneEditDialog({
 
                                 <DialogFooter>
                                     <Button type="submit" disabled={processing}>
-                                        Save Changes
+                                        {t('admin.actions.save_changes')}
                                     </Button>
                                 </DialogFooter>
                             </>
@@ -148,21 +153,22 @@ export default function AdminLaneConfigurationIndex({
     lanes,
     reviewTeams,
 }: PageProps) {
+    const { t } = useTranslation();
     const [editingLane, setEditingLane] = useState<Lane | null>(null);
 
     const teamName = (teamId: number | null) =>
         teamId === null
-            ? 'Semua user'
-            : (reviewTeams.find((t) => t.id === teamId)?.name ?? '—');
+            ? t('admin.lanes.all_users')
+            : (reviewTeams.find((team) => team.id === teamId)?.name ?? '—');
 
     return (
         <>
-            <Head title="Lane Configuration" />
+            <Head title={t('admin.lanes.title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Lane Configuration"
-                    description="Super Admin only: atur label dan tim yang wajib untuk setiap tahap sign-off pada Line Configuration Report."
+                    title={t('admin.lanes.title')}
+                    description={t('admin.lanes.description')}
                 />
 
                 <LaneEditDialog
@@ -178,16 +184,24 @@ export default function AdminLaneConfigurationIndex({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Tahap Sign-off</CardTitle>
+                        <CardTitle>{t('admin.lanes.card_title')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Tahap</TableHead>
-                                    <TableHead>Label</TableHead>
-                                    <TableHead>Tim Wajib</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead>
+                                        {t('admin.lanes.stage')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.lanes.label_column')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.lanes.required_team')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('admin.fields.action')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -208,7 +222,7 @@ export default function AdminLaneConfigurationIndex({
                                                     setEditingLane(lane)
                                                 }
                                             >
-                                                Edit
+                                                {t('admin.actions.edit')}
                                             </Button>
                                         </TableCell>
                                     </TableRow>

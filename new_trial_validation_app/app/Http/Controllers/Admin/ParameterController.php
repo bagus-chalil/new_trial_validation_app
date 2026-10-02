@@ -75,7 +75,7 @@ class ParameterController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => $id ? 'Parameter berhasil diperbarui.' : 'Parameter berhasil ditambahkan.',
+            'message' => $id ? __('master_data.toast.parameter_updated') : __('master_data.toast.parameter_created'),
         ]);
 
         return to_route('admin.parameters.index');
@@ -90,7 +90,7 @@ class ParameterController extends Controller
         $parameter->deleted_by = $request->user()->id;
         $parameter->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Parameter berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('master_data.toast.parameter_deleted')]);
 
         return to_route('admin.parameters.index');
     }

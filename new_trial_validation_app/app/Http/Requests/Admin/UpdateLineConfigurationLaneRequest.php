@@ -45,4 +45,15 @@ class UpdateLineConfigurationLaneRequest extends FormRequest
             $this->merge(['required_team_id' => null]);
         }
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'label' => __('admin.attributes.label'),
+            'required_team_id' => __('admin.attributes.required_team_id'),
+        ];
+    }
 }

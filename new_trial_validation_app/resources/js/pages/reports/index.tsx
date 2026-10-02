@@ -14,6 +14,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
 import {
     approved,
@@ -24,61 +25,43 @@ import {
     trialSummary,
 } from '@/routes/reports';
 
+// `key` is the report's group in lang/{locale}/reports.php.
 const REPORTS = [
-    {
-        title: 'Approved Report',
-        description: 'Daftar trial yang sudah approved.',
-        href: approved(),
-        icon: FileCheck2,
-    },
-    {
-        title: 'Rejected Report',
-        description: 'Daftar trial rejected atau need revision.',
-        href: rejected(),
-        icon: FileWarning,
-    },
-    {
-        title: 'Trial Summary Report',
-        description: 'Ringkasan semua trial dengan filter.',
-        href: trialSummary(),
-        icon: ListChecks,
-    },
-    {
-        title: 'Department Review Report',
-        description: 'Progress review per department.',
-        href: departmentReview(),
-        icon: ClipboardList,
-    },
-    {
-        title: 'Audit Print Log',
-        description: 'Log print report jika tersedia.',
-        href: auditPrintLog(),
-        icon: Printer,
-    },
+    { key: 'approved', href: approved(), icon: FileCheck2 },
+    { key: 'rejected', href: rejected(), icon: FileWarning },
+    { key: 'trial_summary', href: trialSummary(), icon: ListChecks },
+    { key: 'department_review', href: departmentReview(), icon: ClipboardList },
+    { key: 'audit_print_log', href: auditPrintLog(), icon: Printer },
 ];
 
 export default function ReportsIndex() {
+    const { t } = useTranslation();
+
     return (
         <>
-            <Head title="Report" />
+            <Head title={t('reports.index.title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Report"
-                    description="Pilih jenis laporan trial validation."
+                    title={t('reports.index.title')}
+                    description={t('reports.index.description')}
                 />
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {REPORTS.map((report) => (
-                        <Link key={report.title} href={report.href.url}>
+                        <Link key={report.key} href={report.href.url}>
                             <Card className="h-full transition-colors hover:border-brand">
                                 <CardHeader className="flex flex-row items-center gap-3 space-y-0">
                                     <report.icon className="size-6 text-brand" />
-                                    <CardTitle>{report.title}</CardTitle>
+                                    <CardTitle>
+                                        {t(`reports.${report.key}.title`)}
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <CardDescription>
-                                        {report.description}
+                                        {t(
+                                            `reports.${report.key}.card_description`,
+                                        )}
                                     </CardDescription>
                                 </CardContent>
                             </Card>
@@ -90,6 +73,8 @@ export default function ReportsIndex() {
     );
 }
 
+// The reports breadcrumb trail is rebuilt (and translated) by
+// contextualBreadcrumbs(); these literal titles are filtered out there.
 ReportsIndex.layout = {
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },

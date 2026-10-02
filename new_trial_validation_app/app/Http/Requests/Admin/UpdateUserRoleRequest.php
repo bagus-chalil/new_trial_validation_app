@@ -45,4 +45,15 @@ class UpdateUserRoleRequest extends FormRequest
             ],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'app_role' => __('admin.attributes.app_role'),
+            'review_team_id' => __('admin.attributes.review_team_id'),
+        ];
+    }
 }

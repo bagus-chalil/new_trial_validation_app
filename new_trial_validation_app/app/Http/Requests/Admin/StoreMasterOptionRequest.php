@@ -32,6 +32,18 @@ class StoreMasterOptionRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'type' => __('master_data.attributes.type'),
+            'name' => __('master_data.attributes.name'),
+            'sort_order' => __('master_data.attributes.sort_order'),
+        ];
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
@@ -39,7 +51,7 @@ class StoreMasterOptionRequest extends FormRequest
             $name = $this->string('name')->toString();
 
             if (in_array($type, MasterOptionController::PRIVILEGED_TYPES, true) && strlen($name) > 50) {
-                $validator->errors()->add('name', 'Nama role/reviewer maksimal 50 karakter.');
+                $validator->errors()->add('name', __('master_data.errors.master_privileged_max'));
             }
         });
     }

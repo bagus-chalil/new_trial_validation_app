@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
 test('login screen can be rendered', function () {
@@ -52,6 +53,28 @@ test('users can not authenticate with invalid password', function () {
 
     $this->assertGuest();
 });
+
+test('the login screen ships the chosen UI language to guests', function () {
+    $this->withUnencryptedCookie('locale', 'ko')
+        ->get(route('login'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('locale', 'ko')
+            ->where('translations', fn ($t) => $t['account.login.submit'] === '로그인'));
+});
+
+test('a failed login message follows the UI language', function (?string $locale, string $message) {
+    $user = User::factory()->create();
+    $request = $locale === null ? $this : $this->withUnencryptedCookie('locale', $locale);
+
+    $request->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'wrong-password',
+    ])->assertSessionHasErrors(['email' => $message]);
+})->with([
+    'default (id)' => [null, 'Email atau password yang Anda masukkan tidak sesuai dengan data kami.'],
+    'en' => ['en', 'These credentials do not match our records.'],
+    'ko' => ['ko', '입력하신 이메일 또는 비밀번호가 등록된 정보와 일치하지 않습니다.'],
+]);
 
 test('users can logout', function () {
     $user = User::factory()->create();

@@ -148,6 +148,9 @@ User-reported bug, two parts, both traced to real trial 95 (`TRIAL-20260914-1244
 
 Verified live via an ad-hoc Playwright session (same precedent as prior UX passes) against trial 95 at several viewport widths before and after, not just by code inspection. Full Pest suite (277 tests, 274 passed/3 pre-existing skips), Pint, Larastan, ESLint, Prettier, tsc, `npm run build` all pass.
 
+### Multi-language UI — Indonesian / English / Korean (2026-10-02, complete)
+`new_trial_validation_app/` is fully translatable into `id` (default) / `en` / `ko`, switched from a header language picker (also on the login page) via an unencrypted `locale` cookie. Done in 3 phases the same day: Tahap 1 (shell, Dashboard, trial lists, queues, per-trial Report), Tahap 2 (wizard pages, workflow toasts, validation messages), Tahap 3 (Reports list pages, all admin/master-data pages, login/Settings, PDF + Excel exports, e-mails). Stored values shared with the legacy app (statuses, decisions, codes, DB data) are never translated, only displayed through label maps. Deploy note: Korean text in PDFs needs `fonts-noto-cjk` on the Ubuntu server. Full detail and the conventions to follow for new strings: `new_trial_validation_app/CLAUDE.md` → "Multi-language UI".
+
 ### Fase 4 — Decommission
 - [ ] Turn off legacy PHP app
 - [ ] Remove SSO bridge (`/sso/*` routes both sides, `sso_tickets` table)

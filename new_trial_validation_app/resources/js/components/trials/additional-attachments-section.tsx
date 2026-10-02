@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/use-translation';
-import { cn, formatDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 export type AdditionalAttachment = {
     id: number;
@@ -61,7 +61,7 @@ export function AdditionalAttachmentsSection({
     canUpload: boolean;
     limit: number;
 }) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const inputRef = useRef<HTMLInputElement>(null);
     const [selected, setSelected] = useState<File[]>([]);
     const [description, setDescription] = useState('');

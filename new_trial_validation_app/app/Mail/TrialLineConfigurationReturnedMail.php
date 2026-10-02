@@ -26,11 +26,16 @@ class TrialLineConfigurationReturnedMail extends Mailable
         public ?string $returnedByStage,
         public string $reason,
         public string $reportUrl,
-    ) {}
+    ) {
+        // Captured now, while the triggering request's locale (SetLocale) is
+        // active — the recipient's own language isn't stored anywhere, and a
+        // queued render would otherwise fall back to the config default.
+        $this->locale(app()->getLocale());
+    }
 
     public function build(): self
     {
-        return $this->subject("Line Configuration Report Returned for Revision ({$this->trial->trial_code})")
+        return $this->subject(__('emails.line_config_returned.subject', ['code' => $this->trial->trial_code]))
             ->markdown('emails.trial-line-configuration-returned');
     }
 }

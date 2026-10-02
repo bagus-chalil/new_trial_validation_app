@@ -54,8 +54,20 @@ class UpdateReviewerDepartmentRequest extends FormRequest
                 ->exists();
 
             if ($duplicate) {
-                $validator->errors()->add('name', 'Nama tim reviewer ini sudah dipakai.');
+                $validator->errors()->add('name', __('admin.validation.department_name_taken'));
             }
         });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'name' => __('admin.attributes.department_name'),
+            'sort_order' => __('admin.attributes.sort_order'),
+            'is_active' => __('admin.attributes.is_active'),
+        ];
     }
 }

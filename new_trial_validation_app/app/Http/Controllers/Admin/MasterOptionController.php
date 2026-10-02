@@ -83,7 +83,7 @@ class MasterOptionController extends Controller
             if ($id) {
                 $option = MasterOption::find($id);
                 if (! $option) {
-                    return back()->withErrors(['name' => 'Master option tidak ditemukan, mungkin sudah dihapus pihak lain.'])->withInput();
+                    return back()->withErrors(['name' => __('master_data.errors.master_not_found')])->withInput();
                 }
                 $option->type = $data['type'];
                 $option->name = $data['name'];
@@ -102,12 +102,12 @@ class MasterOptionController extends Controller
                 $option->save();
             }
         } catch (QueryException $e) {
-            return back()->withErrors(['name' => 'Master option dengan type dan name tersebut sudah ada.'])->withInput();
+            return back()->withErrors(['name' => __('master_data.errors.master_duplicate')])->withInput();
         }
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => $id ? 'Master option berhasil diperbarui.' : 'Master option berhasil ditambahkan.',
+            'message' => $id ? __('master_data.toast.master_updated') : __('master_data.toast.master_created'),
         ]);
 
         return to_route('admin.masters.index');
@@ -118,7 +118,7 @@ class MasterOptionController extends Controller
         Gate::authorize('manage-master');
 
         if (in_array($masterOption->type, self::PRIVILEGED_TYPES, true) && ! $request->user()->isSuperAdmin()) {
-            return back()->withErrors(['name' => 'Hanya Super Admin yang bisa menghapus role/reviewer master.']);
+            return back()->withErrors(['name' => __('master_data.errors.master_privileged_delete')]);
         }
 
         $masterOption->is_active = false;
@@ -126,7 +126,7 @@ class MasterOptionController extends Controller
         $masterOption->deleted_by = $request->user()->id;
         $masterOption->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Master option berhasil dihapus.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('master_data.toast.master_deleted')]);
 
         return to_route('admin.masters.index');
     }
