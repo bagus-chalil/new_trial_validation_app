@@ -165,7 +165,6 @@ class PackingCheck extends Model
     protected function casts(): array
     {
         return [
-            'standard_weight_mb' => 'decimal:4',
             'sum_weight_mb' => 'decimal:4',
             'completed_at' => 'datetime',
         ];

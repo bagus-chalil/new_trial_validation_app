@@ -352,8 +352,9 @@ export default function PackingCheckEdit({
                                 </Label>
                                 <Input
                                     id="standard_weight_mb"
-                                    type="number"
-                                    step="0.0001"
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="Contoh: 1920-2000"
                                     className={`${inputClass} ${errorFields.has('standard_weight_mb') ? errorBorder : ''}`}
                                     value={data.standard_weight_mb ?? ''}
                                     onChange={(e) => {

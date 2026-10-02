@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { AQL_DERIVED_FIELDS, aqlPlanForLotSize } from '@/lib/aql-sampling-plan';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Camera, Trash2 } from 'lucide-react';
@@ -157,7 +158,7 @@ export default function FinishedCheckEdit({
     }, {});
 
     const { data, setData, put, transform, processing, errors } = useForm<Record<string, string | Record<string, SampleData> | null>>({
-        quantity_wi: (finishedCheck?.quantity_wi as string) ?? '',
+        quantity_wi: finishedCheck?.quantity_wi != null ? String(finishedCheck.quantity_wi) : '',
         masterbox: (finishedCheck?.masterbox as string) ?? '',
         no_pallet_qty: (finishedCheck?.no_pallet_qty as string) ?? '',
         quantity_sampling_aql: (finishedCheck?.quantity_sampling_aql as string) ?? '',
@@ -200,6 +201,27 @@ export default function FinishedCheckEdit({
             if (!prev.has(key)) return prev;
             const next = new Set(prev);
             next.delete(key);
+            return next;
+        });
+    };
+
+    // Quantity WI is whole pieces only; every Sampling AQL / Special Inspection quantity follows
+    // from it through the AQL table (the server re-derives the same on save).
+    const setQuantityWi = (raw: string) => {
+        const digits = raw.replace(/\D/g, '');
+        const plan = digits ? aqlPlanForLotSize(Number(digits)) : null;
+        setData((current) => {
+            const next: typeof current = { ...current, quantity_wi: digits };
+            AQL_DERIVED_FIELDS.forEach((key) => {
+                next[key] = plan ? String(plan[key]) : '';
+            });
+            return next;
+        });
+        setErrorFields((prev) => {
+            const keys = ['quantity_wi', ...AQL_DERIVED_FIELDS];
+            if (!keys.some((key) => prev.has(key))) return prev;
+            const next = new Set(prev);
+            keys.forEach((key) => next.delete(key));
             return next;
         });
     };
@@ -421,11 +443,13 @@ export default function FinishedCheckEdit({
                                 </Label>
                                 <Input
                                     id="quantity_wi"
-                                    type="number"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    placeholder="Contoh: 5000"
                                     className={`${inputClass} ${errorFields.has('quantity_wi') ? errorBorder : ''}`}
                                     value={(data.quantity_wi as string) ?? ''}
-                                    onChange={(e) => setField('quantity_wi', e.target.value)}
+                                    onChange={(e) => setQuantityWi(e.target.value)}
                                     disabled={isReadOnly}
                                 />
                                 <InputError message={errors.quantity_wi} />
@@ -463,13 +487,14 @@ export default function FinishedCheckEdit({
                                 <InputError message={errors.no_pallet_qty} />
                             </div>
 
+                            <p className="text-muted-foreground/70 col-span-full -mb-1 text-[11.5px] font-medium">
+                                Quantity Sampling AQL & Special Inspection terisi otomatis dari tabel AQL sesuai Quantity WI.
+                            </p>
                             <div className="col-span-full grid grid-cols-2 gap-3 sm:grid-cols-4">
                                 <QuantityField
                                     label="Quantity Sampling AQL"
                                     id="quantity_sampling_aql"
                                     value={(data.quantity_sampling_aql as string) ?? ''}
-                                    onChange={(v) => setField('quantity_sampling_aql', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_sampling_aql}
                                     invalid={errorFields.has('quantity_sampling_aql')}
                                 />
@@ -477,8 +502,6 @@ export default function FinishedCheckEdit({
                                     label="CD"
                                     id="quantity_sample_aql_cd"
                                     value={(data.quantity_sample_aql_cd as string) ?? ''}
-                                    onChange={(v) => setField('quantity_sample_aql_cd', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_sample_aql_cd}
                                     invalid={errorFields.has('quantity_sample_aql_cd')}
                                 />
@@ -486,8 +509,6 @@ export default function FinishedCheckEdit({
                                     label="MD"
                                     id="quantity_sample_aql_md"
                                     value={(data.quantity_sample_aql_md as string) ?? ''}
-                                    onChange={(v) => setField('quantity_sample_aql_md', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_sample_aql_md}
                                     invalid={errorFields.has('quantity_sample_aql_md')}
                                 />
@@ -495,8 +516,6 @@ export default function FinishedCheckEdit({
                                     label="mD"
                                     id="quantity_sample_aql_mnd"
                                     value={(data.quantity_sample_aql_mnd as string) ?? ''}
-                                    onChange={(v) => setField('quantity_sample_aql_mnd', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_sample_aql_mnd}
                                     invalid={errorFields.has('quantity_sample_aql_mnd')}
                                 />
@@ -507,8 +526,6 @@ export default function FinishedCheckEdit({
                                     label="Quantity Special Inspection"
                                     id="quantity_special_inspection"
                                     value={(data.quantity_special_inspection as string) ?? ''}
-                                    onChange={(v) => setField('quantity_special_inspection', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_special_inspection}
                                     invalid={errorFields.has('quantity_special_inspection')}
                                 />
@@ -516,8 +533,6 @@ export default function FinishedCheckEdit({
                                     label="CD"
                                     id="quantity_special_inspection_cd"
                                     value={(data.quantity_special_inspection_cd as string) ?? ''}
-                                    onChange={(v) => setField('quantity_special_inspection_cd', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_special_inspection_cd}
                                     invalid={errorFields.has('quantity_special_inspection_cd')}
                                 />
@@ -525,8 +540,6 @@ export default function FinishedCheckEdit({
                                     label="MD"
                                     id="quantity_special_inspection_md"
                                     value={(data.quantity_special_inspection_md as string) ?? ''}
-                                    onChange={(v) => setField('quantity_special_inspection_md', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_special_inspection_md}
                                     invalid={errorFields.has('quantity_special_inspection_md')}
                                 />
@@ -534,8 +547,6 @@ export default function FinishedCheckEdit({
                                     label="mD"
                                     id="quantity_special_inspection_mnd"
                                     value={(data.quantity_special_inspection_mnd as string) ?? ''}
-                                    onChange={(v) => setField('quantity_special_inspection_mnd', v)}
-                                    disabled={isReadOnly}
                                     error={errors.quantity_special_inspection_mnd}
                                     invalid={errorFields.has('quantity_special_inspection_mnd')}
                                 />
@@ -695,23 +706,8 @@ function InfoField({ label, value, full }: { label: string; value: string; full?
     );
 }
 
-function QuantityField({
-    label,
-    id,
-    value,
-    onChange,
-    disabled,
-    error,
-    invalid,
-}: {
-    label: string;
-    id: string;
-    value: string;
-    onChange: (value: string) => void;
-    disabled?: boolean;
-    error?: string;
-    invalid?: boolean;
-}) {
+// Read-only: every quantity here is derived from Quantity WI (see setQuantityWi()).
+function QuantityField({ label, id, value, error, invalid }: { label: string; id: string; value: string; error?: string; invalid?: boolean }) {
     return (
         <div className="flex flex-col gap-1.5">
             <Label htmlFor={id} className="text-muted-foreground text-xs font-semibold">
@@ -719,13 +715,12 @@ function QuantityField({
             </Label>
             <Input
                 id={id}
-                type="number"
-                step="1"
-                min="0"
-                className={`${inputClass} ${invalid ? errorBorder : ''}`}
+                type="text"
+                readOnly
+                tabIndex={-1}
+                placeholder="Otomatis"
+                className={`${inputClass} bg-muted/50 cursor-default ${invalid ? errorBorder : ''}`}
                 value={value}
-                onChange={(e) => onChange(e.target.value)}
-                disabled={disabled}
             />
             <InputError message={error} />
         </div>

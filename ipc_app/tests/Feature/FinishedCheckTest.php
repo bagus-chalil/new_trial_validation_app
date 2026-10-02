@@ -11,6 +11,7 @@ use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
 use App\Models\User;
+use App\Services\AqlSamplingPlan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -195,7 +196,7 @@ class FinishedCheckTest extends TestCase
         $batch->refresh();
         $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->current_stage);
         $this->assertNull($batch->finishedCheck->completed_at);
-        $this->assertSame('100.00', $batch->finishedCheck->quantity_wi);
+        $this->assertSame(100, $batch->finishedCheck->quantity_wi);
     }
 
     /**
@@ -284,20 +285,57 @@ class FinishedCheckTest extends TestCase
     }
 
     /**
-     * Regression test: the AQL quantity fields are unsignedInteger columns (max 4294967295) but
-     * only had 'integer'/'min:0' rules with no upper bound — a value above that would pass
-     * validation and then crash with a raw SQL "out of range" error, the same crash class already
-     * fixed for quantity_wi/masterbox/no_pallet_qty (see SaveFinishedCheckRequest's max:4294967295
-     * comment). Covers one header field and one per-row sample field.
+     * Sampling AQL / Special Inspection follow Quantity WI through the paper AQL table (user,
+     * 2026-10-02) — whatever the client sends for them is replaced. WI 5000 is the user's own
+     * example: sample 200, CD 0 / MD 7 / mD 10, special inspection 5, its CD/MD/mD all 0.
      */
-    public function test_finalize_rejects_an_out_of_range_aql_quantity(): void
+    public function test_aql_quantities_are_derived_from_quantity_wi(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedPackingCheck();
-        $this->seedFinishedCheckPhotos($batch);
 
-        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['quantity_sampling_aql' => 4294967296]))
-            ->assertSessionHasErrors(['quantity_sampling_aql']);
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload([
+            'finalize' => false,
+            'quantity_wi' => 5000,
+            'quantity_sampling_aql' => 4294967296,
+            'quantity_special_inspection_md' => 9,
+        ]))->assertSessionHasNoErrors();
+
+        $finished = $batch->fresh()->finishedCheck;
+        $this->assertSame(
+            [200, 0, 7, 10, 5, 0, 0, 0],
+            [
+                $finished->quantity_sampling_aql, $finished->quantity_sample_aql_cd, $finished->quantity_sample_aql_md, $finished->quantity_sample_aql_mnd,
+                $finished->quantity_special_inspection, $finished->quantity_special_inspection_cd, $finished->quantity_special_inspection_md, $finished->quantity_special_inspection_mnd,
+            ],
+        );
+    }
+
+    public function test_aql_plan_table_boundaries(): void
+    {
+        $this->assertSame(20, AqlSamplingPlan::forLotSize(91)['quantity_sampling_aql']);
+        $this->assertSame(20, AqlSamplingPlan::forLotSize(150)['quantity_sampling_aql']);
+        $this->assertSame(32, AqlSamplingPlan::forLotSize(151)['quantity_sampling_aql']);
+        $this->assertSame(200, AqlSamplingPlan::forLotSize(10000)['quantity_sampling_aql']);
+        $this->assertSame(315, AqlSamplingPlan::forLotSize(10001)['quantity_sampling_aql']);
+        $this->assertSame(8, AqlSamplingPlan::forLotSize(35001)['quantity_special_inspection']);
+        $this->assertSame(1250, AqlSamplingPlan::forLotSize(2000000)['quantity_sampling_aql']);
+        $this->assertSame(21, AqlSamplingPlan::forLotSize(2000000)['quantity_sample_aql_mnd']);
+
+        // Below 91 pieces the whole lot is checked (100%), zero defects accepted.
+        $small = AqlSamplingPlan::forLotSize(60);
+        $this->assertSame(60, $small['quantity_sampling_aql']);
+        $this->assertSame(0, $small['quantity_sample_aql_md']);
+        $this->assertNull(AqlSamplingPlan::forLotSize(0));
+    }
+
+    public function test_quantity_wi_must_be_a_whole_number(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedPackingCheck();
+
+        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false, 'quantity_wi' => '5000.50']))
+            ->assertSessionHasErrors(['quantity_wi']);
 
         $this->assertNull($batch->fresh()->finishedCheck);
     }
@@ -336,7 +374,7 @@ class FinishedCheckTest extends TestCase
         $finishedCheck = $batch->finishedCheck()->first();
         $this->assertNotNull($finishedCheck->completed_at);
         $this->assertSame('Accepted', $finishedCheck->disposition);
-        $this->assertSame('500.00', $finishedCheck->quantity_wi);
+        $this->assertSame(500, $finishedCheck->quantity_wi);
 
         $tersierIdentity = $finishedCheck->samples()->where('parameter_key', 'tersier_identity')->first();
         $this->assertSame(13, $tersierIdentity->ac);
@@ -368,7 +406,7 @@ class FinishedCheckTest extends TestCase
 
         $firstRevision = $finishedCheck->revisions()->where('revision_no', 1)->first();
         $this->assertFalse($firstRevision->finalize);
-        $this->assertSame('100.00', $firstRevision->quantity_wi);
+        $this->assertSame(100, $firstRevision->quantity_wi);
         $this->assertNull($firstRevision->disposition);
 
         $secondRevision = $finishedCheck->revisions()->where('revision_no', 2)->first();

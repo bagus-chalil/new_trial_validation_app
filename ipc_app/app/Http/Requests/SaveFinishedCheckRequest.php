@@ -8,6 +8,7 @@ use App\Models\FinishedCheck;
 use App\Models\FinishedCheckSample;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
+use App\Services\AqlSamplingPlan;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -44,11 +45,19 @@ class SaveFinishedCheckRequest extends FormRequest
                 $this->merge([$field => preg_replace('/\s+/', '', $this->input($field))]);
             }
         }
+
+        // Sampling AQL / Special Inspection quantities follow Quantity WI through the AQL table
+        // (user, 2026-10-02) - derived here so a stale or tampered client value never lands.
+        $wi = $this->input('quantity_wi');
+        if ((is_int($wi) || (is_string($wi) && ctype_digit($wi))) && ($plan = AqlSamplingPlan::forLotSize((int) $wi))) {
+            $this->merge($plan);
+        }
     }
 
     public function messages(): array
     {
         return [
+            'quantity_wi.integer' => 'Quantity WI harus bilangan bulat (tanpa koma).',
             'masterbox.regex' => 'Masterbox harus berupa angka dipisah koma, contoh: 4,17,55,78.',
             'no_pallet_qty.regex' => 'No. Pallet & Qty harus berformat pallet/qty, contoh: 1/2016 (beberapa dipisah koma).',
         ];
@@ -62,10 +71,10 @@ class SaveFinishedCheckRequest extends FormRequest
         // disposition/remarks/photos stay finalize-only.
         $rules = [
             'finalize' => ['nullable', 'boolean'],
-            // max:9999999999.99 matches the finished_checks.quantity_wi decimal(12,2) column precision — without this, a value with more than 10 integer
-            // digits passes validation but then crashes with a raw SQL "out of range" error
-            // instead of a clean, visible validation message.
-            'quantity_wi' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            // Whole pieces only (user, 2026-10-02). max:9999999999 fits the decimal(12,2) column -
+            // without it, an 11+ digit value crashes with a raw SQL "out of range" error instead
+            // of a clean validation message.
+            'quantity_wi' => ['required', 'integer', 'min:1', 'max:9999999999'],
             // Free-text lists (columns are strings): masterbox "4,17,55,78", no_pallet_qty
             // "1/2016" or several pairs "1/2016,2/1800" (pallet number / quantity).
             'masterbox' => ['required', 'string', 'max:255', 'regex:/^\d+(,\d+)*$/'],

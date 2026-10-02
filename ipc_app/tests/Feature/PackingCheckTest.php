@@ -82,7 +82,7 @@ class PackingCheckTest extends TestCase
             ...$checklist,
             'finalize' => true,
             'sum_weight_mb' => 105.0,
-            'standard_weight_mb' => 98.5,
+            'standard_weight_mb' => '1920-2000',
             'line_leader_name' => 'Budi',
             'coding_machine' => 'CM-01',
             'weighing_data' => 'Ada',
@@ -358,11 +358,26 @@ class PackingCheckTest extends TestCase
         $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.7]);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
-        $this->assertSame('98.5000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
+        $this->assertSame('1920-2000', $batch->fresh()->packingCheck->standard_weight_mb);
 
         // Round 2 tries to change it — the round-1 value must survive.
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'standard_weight_mb' => 50]));
-        $this->assertSame('98.5000', (string) $batch->fresh()->packingCheck->standard_weight_mb);
+        $this->assertSame('1920-2000', $batch->fresh()->packingCheck->standard_weight_mb);
+    }
+
+    /** QC writes Std Bruto MB as a range (user, 2026-10-02); spaces around the dash are dropped. */
+    public function test_standard_weight_mb_accepts_a_range_or_single_value_only(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'standard_weight_mb' => '1330 abc']))
+            ->assertSessionHasErrors('standard_weight_mb');
+        $this->assertNull($batch->fresh()->packingCheck);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'standard_weight_mb' => ' 1330 - 1410 ']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('1330-1410', $batch->fresh()->packingCheck->standard_weight_mb);
     }
 
     public function test_missing_checklist_field_is_rejected(): void

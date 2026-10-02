@@ -42,7 +42,7 @@ class FinishedCheck extends Model
     protected function casts(): array
     {
         return [
-            'quantity_wi' => 'decimal:2',
+            'quantity_wi' => 'integer',
             'completed_at' => 'datetime',
         ];
     }

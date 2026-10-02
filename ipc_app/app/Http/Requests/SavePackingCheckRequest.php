@@ -19,6 +19,21 @@ class SavePackingCheckRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // "1920 - 2000" is fine to type — spaces are stripped before the format check and storage.
+        if (is_string($this->input('standard_weight_mb'))) {
+            $this->merge(['standard_weight_mb' => preg_replace('/\s+/', '', $this->input('standard_weight_mb'))]);
+        }
+    }
+
+    public function messages(): array
+    {
+        return [
+            'standard_weight_mb.regex' => 'Std Bruto MB harus berupa angka atau rentang, contoh: 1920-2000.',
+        ];
+    }
+
     public function rules(): array
     {
         // Draft saves (finalize=false) let QC record one inspection round and come back later in
@@ -46,7 +61,8 @@ class SavePackingCheckRequest extends FormRequest
             // it's wajib on every save — draft or final — not just on Selesaikan (user, 2026-10-01).
             'sum_weight_mb' => ['required', 'numeric', 'min:0'],
             // "Std Bruto MB": typed by QC once (user, 2026-10-02), no longer derived from Start Inspection.
-            'standard_weight_mb' => [$standardWeightMbRequired, 'numeric', 'min:0', 'max:999999.9999'],
+            // Usually a range, "1920-2000"; a single value is fine too. Spaces are stripped first.
+            'standard_weight_mb' => [$standardWeightMbRequired, 'string', 'max:50', 'regex:/^\d+([.,]\d+)?(-\d+([.,]\d+)?)?$/'],
             'line_leader_name' => [$lineLeaderRequired, 'string', 'max:255'],
             'coding_machine' => [$codingMachineRequired, 'string', 'max:255'],
             'weighing_data' => [$weighingDataRequired, 'in:'.implode(',', PackingCheck::WEIGHING_DATA_OPTIONS)],

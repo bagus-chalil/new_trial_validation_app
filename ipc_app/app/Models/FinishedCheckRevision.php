@@ -31,7 +31,7 @@ class FinishedCheckRevision extends Model
     {
         return [
             'finalize' => 'boolean',
-            'quantity_wi' => 'decimal:2',
+            'quantity_wi' => 'integer',
         ];
     }
 
