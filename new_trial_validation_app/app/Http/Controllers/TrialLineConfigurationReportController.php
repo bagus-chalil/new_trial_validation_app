@@ -14,6 +14,7 @@ use App\Services\Pdf\PdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -41,14 +42,16 @@ class TrialLineConfigurationReportController extends Controller
     {
         $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
 
-        $data = $request->validated();
+        $data = Arr::except($request->validated(), ['intent']);
         // Blank rows are already dropped in
         // SaveTrialLineConfigurationReportRequest::prepareForValidation().
         $data['line_configuration'] = $this->renumberRows($data['line_configuration']);
 
         $action($trial, $data, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.line_config_saved')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __($request->isDraft()
+            ? 'messages.toast.line_config_draft_saved'
+            : 'messages.toast.line_config_submitted')]);
 
         return to_route('trials.report.show', $trial->id);
     }

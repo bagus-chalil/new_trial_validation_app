@@ -8,6 +8,7 @@ use App\Models\TrialLineConfigurationReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * Validates a Line Configuration Report save. Deliberately authorized
@@ -61,6 +62,14 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        if ($this->isDraft()) {
+            // A draft never enters the approval chain, so it never carries
+            // approvers — assigning one is exactly what submits/locks the
+            // report (TrialLineConfigurationReport::isSubmittedForApproval())
+            // and emails the assignee.
+            $this->merge(['approved_pie_user_id' => null, 'checked_prod_user_id' => null]);
+        }
+
         $this->merge([
             'production_standard' => $this->dropBlankRows($this->input('production_standard', [])),
             // 'trial_status' is ignored the same way 'no' already is: the
@@ -72,31 +81,36 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
     }
 
     /**
-     * Every field is required (tightened 2026-10-02 per user request): a
-     * report can no longer be saved half-filled or without both sign-off
-     * approvers assigned — saving *is* submitting into the approval chain
-     * (see TrialLineConfigurationReport::isSubmittedForApproval()). Only
-     * capacity_label stays optional, since it's hidden from the form.
+     * Two save modes (2026-10-02, per user request): `intent=draft` keeps
+     * the old everything-optional rules so a preparer can save partial work
+     * without entering the approval chain; `intent=submit` (the default, so
+     * a missing intent is never the lenient path) requires every field and
+     * both approvers — saving that way *is* submitting into the approval
+     * chain (see TrialLineConfigurationReport::isSubmittedForApproval()).
+     * capacity_label always stays optional, since it's hidden from the form.
      *
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
+        $required = $this->isDraft() ? 'nullable' : 'required';
+
         return [
-            'report_date' => ['required', 'date'],
-            'client_name' => ['required', 'string', 'max:150'],
-            'pic' => ['required', 'string', 'max:150'],
-            'operator' => ['required', 'string', 'max:150'],
-            'validation_name' => ['required', 'string', 'max:150'],
+            'intent' => ['nullable', Rule::in(['draft', 'submit'])],
+            'report_date' => [$required, 'date'],
+            'client_name' => [$required, 'string', 'max:150'],
+            'pic' => [$required, 'string', 'max:150'],
+            'operator' => [$required, 'string', 'max:150'],
+            'validation_name' => [$required, 'string', 'max:150'],
             // Plain free text, not numbers — see the migration's doc comment:
             // real preparers often write "General Pcs" or "10 Pcs (14%)"
             // here, not a bare integer.
-            'total_qty' => ['required', 'string', 'max:50'],
-            'setting_qty' => ['required', 'string', 'max:50'],
-            'pass_qty' => ['required', 'string', 'max:50'],
-            'ng_qty' => ['required', 'string', 'max:50'],
+            'total_qty' => [$required, 'string', 'max:50'],
+            'setting_qty' => [$required, 'string', 'max:50'],
+            'pass_qty' => [$required, 'string', 'max:50'],
+            'ng_qty' => [$required, 'string', 'max:50'],
             'capacity_label' => ['nullable', 'string', 'max:50'],
-            'opinion' => ['required', 'string', 'max:5000'],
+            'opinion' => [$required, 'string', 'max:5000'],
 
             // Approved(PIE)/Checked(PROD) are no longer submitted here at
             // all — since the 2026-09-16 assign-an-approver-and-email
@@ -109,34 +123,34 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             // see LineConfigurationLane) instead of a hardcoded 'PROD'
             // literal — enforced here (not just filtered in the UI's
             // Combobox options), so a direct POST can't assign an
-            // ineligible user. Both are required: a report can't exist
-            // without an approval chain.
+            // ineligible user. Both are required on submit; a draft never
+            // carries them (see prepareForValidation()).
             'approved_pie_user_id' => [
-                'required', 'integer',
+                $required, 'integer',
                 Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
                     ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'approved_pie')),
             ],
             'checked_prod_user_id' => [
-                'required', 'integer',
+                $required, 'integer',
                 Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
                     ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'checked_prod')),
             ],
 
             // Return is its own dedicated, auto-stamped action now (see
             // ReturnTrialLineConfigurationReport) — not submitted here at all.
-            'production_standard' => ['required', 'array', 'min:1'],
-            'production_standard.*.line' => ['required', 'string', 'max:100'],
-            'production_standard.*.workers' => ['required', 'string', 'max:100'],
-            'production_standard.*.capacity' => ['required', 'string', 'max:100'],
-            'production_standard.*.remark' => ['required', 'string', 'max:500'],
+            'production_standard' => [$required, 'array', ...($this->isDraft() ? [] : ['min:1'])],
+            'production_standard.*.line' => [$required, 'string', 'max:100'],
+            'production_standard.*.workers' => [$required, 'string', 'max:100'],
+            'production_standard.*.capacity' => [$required, 'string', 'max:100'],
+            'production_standard.*.remark' => [$required, 'string', 'max:500'],
 
-            'line_configuration' => ['required', 'array', 'min:1'],
+            'line_configuration' => [$required, 'array', ...($this->isDraft() ? [] : ['min:1'])],
             'line_configuration.*.no' => ['nullable', 'string', 'max:20'],
-            'line_configuration.*.equipment' => ['required', 'string', 'max:150'],
-            'line_configuration.*.process' => ['required', 'string', 'max:150'],
-            'line_configuration.*.worker' => ['required', 'string', 'max:50'],
-            'line_configuration.*.trial_status' => ['required', 'string', Rule::in(['Pass', 'No Trial'])],
-            'line_configuration.*.remark' => ['required', 'string', 'max:500'],
+            'line_configuration.*.equipment' => [$required, 'string', 'max:150'],
+            'line_configuration.*.process' => [$required, 'string', 'max:150'],
+            'line_configuration.*.worker' => [$required, 'string', 'max:50'],
+            'line_configuration.*.trial_status' => [$required, 'string', Rule::in(['Pass', 'No Trial'])],
+            'line_configuration.*.remark' => [$required, 'string', 'max:500'],
         ];
     }
 
@@ -188,6 +202,35 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             'line_configuration.*.trial_status' => __('line_config.columns.trial'),
             'line_configuration.*.remark' => __('line_config.columns.remark'),
         ];
+    }
+
+    /**
+     * An already-submitted report (only reachable here by an Admin
+     * override) can't be demoted back to a draft — that would silently
+     * clear its assigned approvers mid-approval.
+     *
+     * @return array<int, \Closure>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if (! $this->isDraft()) {
+                    return;
+                }
+
+                $report = TrialLineConfigurationReport::where('trial_id', $this->route('trial'))->where('is_locked', false)->first();
+
+                if ($report?->isSubmittedForApproval()) {
+                    $validator->errors()->add('intent', __('line_config.validation.already_submitted'));
+                }
+            },
+        ];
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->input('intent') === 'draft';
     }
 
     /**

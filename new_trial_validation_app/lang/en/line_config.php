@@ -8,6 +8,7 @@ return [
     'no_data' => 'No data available.',
 
     'badge' => [
+        'draft' => 'Draft',
         'signed_off' => 'Sign-off Complete',
         'in_approval' => 'Approval in Progress',
     ],
@@ -18,6 +19,8 @@ return [
         'add_row' => 'Add Row',
         'remove_row' => 'Remove row',
         'save' => 'Save Line Configuration Report',
+        'save_draft' => 'Save Draft',
+        'submit' => 'Save & Submit for Approval',
         'approve' => 'Approve',
         'mark_checked' => 'Mark as Checked',
         'return' => 'Return',
@@ -80,7 +83,9 @@ return [
     'validation' => [
         'rows_required' => 'At least one :section row must be filled in.',
         'row_field_required' => 'Row :position — :attribute is required.',
-        'summary' => 'All fields are required, including both approvers.',
+        'summary' => 'A draft may be incomplete. To submit for approval, every field is required, including both approvers.',
+        'already_submitted' => 'This report has already been submitted for approval and cannot be turned back into a draft.',
+        'draft_hint' => 'Approvers are only saved when submitting for approval.',
     ],
 
     'total_workers' => 'Total Workers',

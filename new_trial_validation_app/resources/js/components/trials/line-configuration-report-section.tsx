@@ -312,13 +312,20 @@ export function LineConfigurationReportSection({
                                 >
                                     {t('line_config.badge.signed_off')}
                                 </Badge>
+                            ) : locked ? (
+                                <Badge
+                                    variant="outline"
+                                    className="border-amber-500/40 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                >
+                                    {t('line_config.badge.in_approval')}
+                                </Badge>
                             ) : (
-                                locked && (
+                                report && (
                                     <Badge
                                         variant="outline"
-                                        className="border-amber-500/40 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                        className="border-slate-400/40 bg-slate-100 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300"
                                     >
-                                        {t('line_config.badge.in_approval')}
+                                        {t('line_config.badge.draft')}
                                     </Badge>
                                 )
                             )}
@@ -484,6 +491,7 @@ export function LineConfigurationReportSection({
                             approvers={approvers}
                             prodApprovers={prodApprovers}
                             lanes={lanes}
+                            submitted={locked}
                             onSaved={() => setDialogOpen(false)}
                         />
                     </DialogContent>
@@ -499,6 +507,7 @@ function EditableLineConfigurationReport({
     approvers,
     prodApprovers,
     lanes,
+    submitted,
     onSaved,
 }: {
     trialId: number;
@@ -506,9 +515,17 @@ function EditableLineConfigurationReport({
     approvers: LineConfigurationApproverOption[];
     prodApprovers: LineConfigurationApproverOption[];
     lanes: LineConfigurationLanes;
+    /** Already in the approval chain (only an Admin can still edit it) — no draft option then. */
+    submitted: boolean;
     onSaved: () => void;
 }) {
     const { t } = useTranslation();
+    /**
+     * Written straight to the DOM (not via state) by each submit button's
+     * onClick, so the value is already in place when Inertia's Form reads
+     * the FormData during that same click's submit event.
+     */
+    const intentRef = useRef<HTMLInputElement>(null);
     const standardCounter = useRef(report?.production_standard?.length ?? 2);
     const configCounter = useRef(report?.line_configuration?.length ?? 3);
 
@@ -676,6 +693,11 @@ function EditableLineConfigurationReport({
                                 second: lanes.checked_prod,
                             })}
                         </p>
+                        {!submitted && (
+                            <p className="text-xs text-muted-foreground">
+                                {t('line_config.validation.draft_hint')}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-3">
@@ -1155,9 +1177,40 @@ function EditableLineConfigurationReport({
                         <InputError message={errors.opinion} />
                     </div>
 
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={processing}>
-                            {t('line_config.actions.save')}
+                    <InputError message={errors.intent} />
+                    <div className="flex flex-wrap justify-end gap-2">
+                        <input
+                            ref={intentRef}
+                            type="hidden"
+                            name="intent"
+                            defaultValue="submit"
+                        />
+                        {!submitted && (
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                disabled={processing}
+                                onClick={() => {
+                                    if (intentRef.current) {
+                                        intentRef.current.value = 'draft';
+                                    }
+                                }}
+                            >
+                                {t('line_config.actions.save_draft')}
+                            </Button>
+                        )}
+                        <Button
+                            type="submit"
+                            disabled={processing}
+                            onClick={() => {
+                                if (intentRef.current) {
+                                    intentRef.current.value = 'submit';
+                                }
+                            }}
+                        >
+                            {submitted
+                                ? t('line_config.actions.save')
+                                : t('line_config.actions.submit')}
                         </Button>
                     </div>
                 </div>

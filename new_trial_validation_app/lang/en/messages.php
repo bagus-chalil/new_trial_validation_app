@@ -18,6 +18,8 @@ return [
         'additional_none_uploaded' => 'No files were uploaded.',
         'additional_deleted' => 'Additional attachment deleted successfully.',
         'line_config_saved' => 'Line Configuration Report saved successfully.',
+        'line_config_draft_saved' => 'Line Configuration Report draft saved.',
+        'line_config_submitted' => 'Line Configuration Report submitted for approval.',
         'line_config_confirmed' => ':label confirmed successfully.',
         'line_config_returned' => 'Line Configuration Report returned for revision.',
     ],

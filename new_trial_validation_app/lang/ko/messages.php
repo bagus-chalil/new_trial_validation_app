@@ -18,6 +18,8 @@ return [
         'additional_none_uploaded' => '업로드된 파일이 없습니다.',
         'additional_deleted' => '추가 첨부 파일이 삭제되었습니다.',
         'line_config_saved' => '라인 구성 보고서가 저장되었습니다.',
+        'line_config_draft_saved' => '라인 구성 보고서 임시 저장이 완료되었습니다.',
+        'line_config_submitted' => '라인 구성 보고서가 승인 요청되었습니다.',
         'line_config_confirmed' => ':label 확인이 완료되었습니다.',
         'line_config_returned' => '라인 구성 보고서가 수정 요청으로 반송되었습니다.',
     ],

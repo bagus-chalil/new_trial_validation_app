@@ -18,6 +18,8 @@ return [
         'additional_none_uploaded' => 'Tidak ada file yang berhasil diunggah.',
         'additional_deleted' => 'Lampiran tambahan berhasil dihapus.',
         'line_config_saved' => 'Line Configuration Report berhasil disimpan.',
+        'line_config_draft_saved' => 'Draft Line Configuration Report berhasil disimpan.',
+        'line_config_submitted' => 'Line Configuration Report berhasil dikirim untuk approval.',
         'line_config_confirmed' => ':label berhasil dikonfirmasi.',
         'line_config_returned' => 'Line Configuration Report dikembalikan untuk revisi.',
     ],

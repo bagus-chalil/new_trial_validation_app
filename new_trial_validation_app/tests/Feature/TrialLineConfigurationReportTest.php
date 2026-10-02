@@ -812,3 +812,63 @@ test('both row tables need at least one fully-filled row', function () {
 
     expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->exists())->toBeFalse();
 });
+
+test('a draft can be saved incomplete, stays editable for the drafter, and never assigns approvers or sends email', function () {
+    Mail::fake();
+
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $pieUser = User::factory()->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)
+        ->put(route('trials.line-configuration.update', $trial->id), [
+            'intent' => 'draft',
+            'client_name' => 'Half done',
+            'approved_pie_user_id' => $pieUser->id,
+            'production_standard' => [['line' => 'F', 'workers' => '', 'capacity' => '', 'remark' => '']],
+        ])
+        ->assertRedirect(route('trials.report.show', $trial->id))
+        ->assertInertiaFlash('toast.message', __('messages.toast.line_config_draft_saved'));
+
+    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
+    expect($report->client_name)->toBe('Half done');
+    expect($report->approved_pie_user_id)->toBeNull();
+    expect($report->isSubmittedForApproval())->toBeFalse();
+    Mail::assertNothingSent();
+
+    $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id))
+        ->assertInertia(fn ($p) => $p
+            ->where('canEditLineConfigurationReport', true)
+            ->where('lineConfigurationReportLocked', false));
+
+    // Submitting the same draft later still needs everything filled in.
+    $this->actingAs($reviewer)
+        ->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'submit', 'client_name' => 'Half done'])
+        ->assertInvalid(['pic', 'approved_pie_user_id', 'checked_prod_user_id']);
+
+    $this->actingAs($reviewer)
+        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
+            'intent' => 'submit',
+            'approved_pie_user_id' => $pieUser->id,
+        ]))
+        ->assertRedirect(route('trials.report.show', $trial->id));
+
+    expect($report->fresh()->isSubmittedForApproval())->toBeTrue();
+    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($mail) => $mail->hasTo($pieUser->email));
+});
+
+test('an already-submitted report cannot be turned back into a draft, even by an admin', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $admin = User::factory()->role('Admin')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload());
+
+    $this->actingAs($admin)
+        ->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'draft', 'client_name' => 'Demoted'])
+        ->assertInvalid(['intent']);
+
+    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
+    expect($report->client_name)->toBe('JUV');
+    expect($report->isSubmittedForApproval())->toBeTrue();
+});

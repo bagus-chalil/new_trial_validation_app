@@ -8,6 +8,7 @@ return [
     'no_data' => '데이터가 없습니다.',
 
     'badge' => [
+        'draft' => '임시 저장',
         'signed_off' => '결재 완료',
         'in_approval' => '승인 진행 중',
     ],
@@ -18,6 +19,8 @@ return [
         'add_row' => '행 추가',
         'remove_row' => '행 삭제',
         'save' => '라인 구성 보고서 저장',
+        'save_draft' => '임시 저장',
+        'submit' => '저장 및 승인 요청',
         'approve' => '승인',
         'mark_checked' => '확인 완료 처리',
         'return' => '반송',
@@ -80,7 +83,9 @@ return [
     'validation' => [
         'rows_required' => ':section 행을 최소 1개 이상 입력해야 합니다.',
         'row_field_required' => ':position행 — :attribute 항목은 필수입니다.',
-        'summary' => '두 명의 승인자를 포함한 모든 항목은 필수입니다.',
+        'summary' => '임시 저장은 미완성이어도 됩니다. 승인 요청 시에는 두 명의 승인자를 포함한 모든 항목이 필수입니다.',
+        'already_submitted' => '이 보고서는 이미 승인 요청되어 임시 저장 상태로 되돌릴 수 없습니다.',
+        'draft_hint' => '승인자는 승인 요청 시에만 저장됩니다.',
     ],
 
     'total_workers' => '총 인원',

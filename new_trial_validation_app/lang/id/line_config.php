@@ -8,6 +8,7 @@ return [
     'no_data' => 'Tidak ada data.',
 
     'badge' => [
+        'draft' => 'Draft',
         'signed_off' => 'Selesai Sign-off',
         'in_approval' => 'Dalam Proses Approval',
     ],
@@ -18,6 +19,8 @@ return [
         'add_row' => 'Tambah Baris',
         'remove_row' => 'Hapus baris',
         'save' => 'Simpan Line Configuration Report',
+        'save_draft' => 'Simpan Draft',
+        'submit' => 'Simpan & Kirim Approval',
         'approve' => 'Approve',
         'mark_checked' => 'Tandai Checked',
         'return' => 'Return',
@@ -80,7 +83,9 @@ return [
     'validation' => [
         'rows_required' => 'Minimal satu baris :section harus diisi.',
         'row_field_required' => 'Baris :position — :attribute wajib diisi.',
-        'summary' => 'Semua data wajib diisi, termasuk kedua approver.',
+        'summary' => 'Simpan Draft boleh belum lengkap. Untuk Kirim Approval, semua data wajib diisi, termasuk kedua approver.',
+        'already_submitted' => 'Report ini sudah dikirim untuk approval, tidak bisa dikembalikan menjadi draft.',
+        'draft_hint' => 'Approver hanya disimpan saat Kirim Approval.',
     ],
 
     'total_workers' => 'Total Pekerja',
