@@ -209,7 +209,9 @@ class SaveDepartmentReview
 
     private function editReview(TrialReview $review, string $comment, User $reviewer): Trial
     {
-        return DB::transaction(function () use ($review, $comment, $reviewer) {
+        $becameReadyForApproval = false;
+
+        $trial = DB::transaction(function () use ($review, $comment, $reviewer, &$becameReadyForApproval) {
             $review->reviewer_name = $reviewer->name ?: $reviewer->email;
             $review->reviewer_email = $reviewer->email;
             $review->comment = $comment;
@@ -218,6 +220,14 @@ class SaveDepartmentReview
             $review->save();
 
             $trial = Trial::whereNull('deleted_at')->findOrFail($review->trial_id);
+
+            // A Pending alias row (e.g. "PRD" next to this "PROD") left over
+            // from a review submitted before closeAliasSiblings() existed
+            // would otherwise keep the round open forever — close it here
+            // too, and only then re-run round completion.
+            if ($this->closeAliasSiblings($review) > 0 && $trial->progress_status === 'In Review') {
+                $becameReadyForApproval = $this->recomputeRound($trial);
+            }
 
             ActivityLog::create([
                 'user_id' => $reviewer->id,
@@ -238,5 +248,11 @@ class SaveDepartmentReview
 
             return $trial;
         });
+
+        if ($becameReadyForApproval) {
+            $this->notifyReadyForApproval($trial);
+        }
+
+        return $trial;
     }
 }

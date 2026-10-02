@@ -66,7 +66,10 @@ function is_staff(){return role()==='Staff'||is_admin();}
 function is_manager_qac(){return role()==='Manager QAC';}
 function is_viewer(){return role()==='Viewer';}
 function reviewer_department_codes(){
- $defaults=['PRD','RNI','QAC','PRNI','PI'];
+ // 'PROD' (not the old 'PRD' code) so the submit-for-review picker never
+ // offers both aliases of the same department — matches the new app's
+ // User::defaultReviewerDepartmentCodes().
+ $defaults=['PROD','RNI','QAC','PRNI','PI'];
  try{
   $codes=$defaults;
   foreach(opts('reviewer_department') as $option){
@@ -89,10 +92,18 @@ function user_department(){
 function review_departments_for_user(){
  $codes=reviewer_department_codes();
  $items=[];
+ // 'PRD' was renamed to 'PROD': resolve a user still stored as 'PRD' to
+ // 'PROD', and keep matching historical review rows stored as 'PRD'.
+ $aliases=['PRD'=>'PROD'];
  $role=normalize_department(role());
  $dept=user_department();
+ $role=$aliases[$role]??$role;
+ $dept=$aliases[$dept]??$dept;
  if(in_array($role,$codes,true)) $items[]=$role;
  if(in_array($dept,$codes,true)) $items[]=$dept;
+ foreach($aliases as $old=>$new){
+  if(in_array($new,$items,true)) $items[]=$old;
+ }
  return array_values(array_unique($items));
 }
 function is_reviewer(){return !is_manager_qac()&&count(review_departments_for_user())>0;}

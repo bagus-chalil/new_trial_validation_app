@@ -289,6 +289,22 @@ test('reviewing a department also closes its Pending alias row so it leaves the 
     expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
 });
 
+test('editing an already-submitted review also closes a stuck Pending alias row', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeInReviewTrial(['pending_with' => 'PRD']);
+    $stuck = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed', 'comment' => 'Lama', 'reviewer_name' => 'Dian']);
+
+    $this->actingAs($reviewer)
+        ->put(route('reviews.update', $review->id), ['comment' => 'Revisi komentar'])
+        ->assertRedirect(route('reviews.index'));
+
+    expect($review->fresh()->edit_count)->toBe(1);
+    expect($stuck->fresh()->status)->toBe('Reviewed');
+    expect($stuck->fresh()->comment)->toBe('Revisi komentar');
+    expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
+});
+
 test('the repair command closes a stuck Pending alias row next to an already-Reviewed one', function () {
     $trial = makeInReviewTrial(['pending_with' => 'PRD']);
     $stuck = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
