@@ -143,7 +143,9 @@ class TrialReportController extends Controller
 
         $approvalBlockedNote = null;
         if ($trial->progress_status === 'Ready for Approval' && ! $canApprove && $user->canApproveTrials()) {
-            $approvalBlockedNote = 'Menunggu approval oleh '.($trial->pending_with ?: 'approver lain').', bukan giliran Anda.';
+            $approvalBlockedNote = __('report.notes.approval_blocked', [
+                'name' => $trial->pending_with ?: __('report.notes.other_approver'),
+            ]);
         }
 
         $reviewCompletedNote = null;
@@ -151,7 +153,7 @@ class TrialReportController extends Controller
             $myDepartments = $user->reviewDepartmentsForUser();
             foreach ($reviewByDept as $dept => $entry) {
                 if ($entry['status'] === 'Reviewed' && in_array(User::normalizeReviewDepartment($dept), $myDepartments, true)) {
-                    $reviewCompletedNote = 'Anda sudah menyelesaikan review department Anda untuk trial ini.';
+                    $reviewCompletedNote = __('report.notes.review_completed');
                     break;
                 }
             }

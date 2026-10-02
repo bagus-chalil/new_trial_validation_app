@@ -15,6 +15,8 @@ declare module '@inertiajs/core' {
             auth: Auth;
             impersonator: { name: string; email: string } | null;
             canReviewTrials: boolean;
+            locale: 'id' | 'en' | 'ko';
+            translations: Record<string, string>;
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

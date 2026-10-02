@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QAC Super Apps</title>
+<title data-i18n="portal.title">QAC Super Apps</title>
 <meta name="theme-color" content="#EA1D22">
 <meta name="description" content="Portal internal QAC: Trial Validation dan IPC.">
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="QAC Apps">
+<script src="i18n.js"></script>
 <style>
   :root {
     --brand: #EA1D22;
@@ -56,7 +57,7 @@
       radial-gradient(1100px 550px at 12% -10%, var(--bg-accent-1), transparent 60%),
       radial-gradient(1100px 550px at 88% 0%, var(--bg-accent-2), transparent 60%),
       var(--bg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     color: var(--text);
     display: flex;
     flex-direction: column;
@@ -70,6 +71,12 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: flex-end;
+    margin: -32px 0 16px;
   }
 
   .brand-row {
@@ -344,33 +351,35 @@
 </head>
 <body>
   <div class="page">
+    <div class="topbar"><div data-lang-switch></div></div>
+
     <div class="brand-row">
       <div class="brand-mark">QAC</div>
       <div class="brand-name">Super Apps</div>
     </div>
 
-    <h1>Satu pintu untuk semua sistem <span>QAC</span></h1>
-    <p class="subtitle">Pilih aplikasi yang ingin dibuka. Setiap sistem memiliki login terpisah sesuai kebutuhan tim Anda.</p>
+    <h1 data-i18n="portal.heading">Portal Terpadu Sistem <span>QAC</span></h1>
+    <p class="subtitle" data-i18n="portal.subtitle"></p>
 
     <div class="notice" id="setup-notice" hidden>
       <div>
-        <strong>Perangkat ini belum memasang sertifikat QAC</strong>
-        <span class="muted" id="setup-text">Pasang sekali supaya peringatan "Tidak aman" hilang, kamera bisa dipakai, dan portal bisa diinstal sebagai aplikasi.</span>
+        <strong data-i18n="setup.title"></strong>
+        <span class="muted" id="setup-text" data-i18n="setup.text"></span>
       </div>
       <div class="actions">
-        <button type="button" class="btn" id="setup-windows" hidden>Setup Otomatis</button>
-        <a class="btn secondary" id="setup-guide" href="sertifikat.html">Cara pasang</a>
+        <button type="button" class="btn" id="setup-windows" data-i18n="setup.auto" hidden></button>
+        <a class="btn secondary" id="setup-guide" href="sertifikat.html" data-i18n="setup.guide"></a>
       </div>
       <p class="error" id="setup-error"></p>
     </div>
 
     <div class="notice" id="install-notice" style="--notice-accent: #15803d;" hidden>
       <div>
-        <strong>Install QAC Super Apps</strong>
-        <span class="muted" id="install-text">Buka portal langsung dari ikon di desktop / home screen, tanpa mengetik alamat.</span>
+        <strong data-i18n="install.title"></strong>
+        <span class="muted" id="install-text" data-i18n="install.text"></span>
       </div>
       <div class="actions">
-        <button type="button" class="btn" id="install-button" hidden>Install Aplikasi</button>
+        <button type="button" class="btn" id="install-button" data-i18n="install.button" hidden></button>
       </div>
     </div>
 
@@ -378,39 +387,39 @@
       <a class="card" id="link-trial-validation" href="#" style="--card-accent: #EA1D22;">
         <div class="card-top">
           <div class="icon">TV</div>
-          <span class="status"><span class="dot"></span>Aktif</span>
+          <span class="status"><span class="dot"></span><span data-i18n="card.status"></span></span>
         </div>
         <h2>Trial Validation</h2>
-        <p class="desc">Pengelolaan trial produksi dari pengajuan, review lintas departemen, hingga approval dan pelaporan.</p>
+        <p class="desc" data-i18n="tv.desc"></p>
         <ul class="features">
-          <li>Form trial, validasi parameter &amp; weighing</li>
-          <li>Review berjenjang per departemen</li>
-          <li>Approval, laporan, dan riwayat aktivitas</li>
+          <li data-i18n="tv.f1"></li>
+          <li data-i18n="tv.f2"></li>
+          <li data-i18n="tv.f3"></li>
         </ul>
-        <span class="cta">Buka aplikasi <span class="arrow">&rarr;</span></span>
+        <span class="cta"><span data-i18n="card.open"></span> <span class="arrow">&rarr;</span></span>
       </a>
 
       <a class="card" id="link-ipc" href="#" style="--card-accent: #2563eb;">
         <div class="card-top">
           <div class="icon">IPC</div>
-          <span class="status"><span class="dot"></span>Aktif</span>
+          <span class="status"><span class="dot"></span><span data-i18n="card.status"></span></span>
         </div>
         <h2>IPC</h2>
-        <p class="desc">In Process Control &mdash; inspeksi kualitas produksi dari startup check hingga produk jadi.</p>
+        <p class="desc" data-i18n="ipc.desc"></p>
         <ul class="features">
-          <li>Startup Check, Filling, dan Packing Check</li>
-          <li>Finished Good &amp; Approval</li>
-          <li>Print hasil inspeksi per batch</li>
+          <li data-i18n="ipc.f1"></li>
+          <li data-i18n="ipc.f2"></li>
+          <li data-i18n="ipc.f3"></li>
         </ul>
-        <span class="cta">Buka aplikasi <span class="arrow">&rarr;</span></span>
+        <span class="cta"><span data-i18n="card.open"></span> <span class="arrow">&rarr;</span></span>
       </a>
     </div>
   </div>
 
   <footer>
-    QAC Super Apps &mdash; portal internal Quality Assurance &amp; Compliance
+    <span data-i18n="footer.text"></span>
     <br>
-    <a href="sertifikat.html" id="cert-link">Muncul "Tidak aman"? Pasang sertifikat QAC</a>
+    <a href="sertifikat.html" id="cert-link" data-i18n="footer.cert"></a>
   </footer>
 
   <script src="config.js"></script>
@@ -420,6 +429,7 @@
     document.getElementById('link-ipc').href = window.PORTAL_CONFIG.ipcUrl;
 
     var qac = window.QacSetup;
+    var i18n = window.QacI18n;
     var os = qac.platform();
     var setupNotice = document.getElementById('setup-notice');
     var installNotice = document.getElementById('install-notice');
@@ -432,8 +442,7 @@
         document.getElementById('cert-link').hidden = true;
         // iOS has no install prompt API: explain the manual Share step instead.
         if (os === 'ios' && !qac.isStandalone()) {
-          document.getElementById('install-text').innerHTML =
-            'Di Safari, tap tombol <b>Share</b> lalu pilih <b>Add to Home Screen</b>.';
+          i18n.set(document.getElementById('install-text'), 'install.ios');
           installNotice.hidden = false;
         }
         return;
@@ -461,9 +470,7 @@
       button.disabled = true;
       error.textContent = '';
       qac.downloadWindowsSetup().then(function () {
-        document.getElementById('setup-text').innerHTML =
-          'Buka file <b>setup-sertifikat-qac.cmd</b> yang baru diunduh. Kalau muncul peringatan, pilih ' +
-          '<b>Keep</b> di browser dan <b>More info &rarr; Run anyway</b> di Windows, lalu klik <b>Yes</b>.';
+        i18n.set(document.getElementById('setup-text'), 'setup.downloaded');
       }, function (err) {
         error.textContent = err.message;
       }).then(function () {

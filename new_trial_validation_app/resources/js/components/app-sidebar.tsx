@@ -32,6 +32,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
@@ -54,38 +55,39 @@ export function AppSidebar() {
         canReviewTrials: boolean;
         canApproveTrials: boolean;
     }>().props;
+    const { t } = useTranslation();
     const isSuperAdmin = auth.user.role === 'Super Admin';
     const isAdmin = auth.user.role === 'Admin' || isSuperAdmin;
     const canManageTemplates = isAdmin || auth.user.role === 'Staff';
 
     const navGroups: NavGroup[] = [
         {
-            label: 'Overview',
+            label: t('common.nav.overview'),
             items: [
                 {
-                    title: 'Dashboard',
+                    title: t('common.nav.dashboard'),
                     href: dashboard(),
                     icon: LayoutGrid,
                 },
             ],
         },
         {
-            label: 'Trials',
+            label: t('common.nav.trials'),
             items: [
                 {
-                    title: 'My Work',
+                    title: t('common.nav.my_work'),
                     href: '/my-work',
                     icon: BriefcaseBusiness,
                 },
                 {
-                    title: 'Tracking Proses',
+                    title: t('common.nav.tracking'),
                     href: trialsIndex('tracking'),
                     icon: Search,
                 },
                 ...(canReviewTrials
                     ? [
                           {
-                              title: 'Need Review',
+                              title: t('common.nav.need_review'),
                               href: reviewsIndex(),
                               icon: ClipboardCheck,
                           },
@@ -94,60 +96,63 @@ export function AppSidebar() {
                 ...(canApproveTrials
                     ? [
                           {
-                              title: 'Need Approval',
+                              title: t('common.nav.need_approval'),
                               href: approvalsIndex(),
                               icon: CircleCheckBig,
                           },
                       ]
                     : []),
                 {
-                    title: 'Need Revision',
+                    title: t('common.nav.need_revision'),
                     href: trialsIndex('need-revision'),
+                    trialStatuses: ['Need Revision'],
                     icon: AlertTriangle,
                 },
             ],
         },
         {
-            label: 'Hasil',
+            label: t('common.nav.results'),
             items: [
                 {
-                    title: 'Approved',
+                    title: t('common.nav.approved'),
                     href: trialsIndex('approved'),
+                    trialStatuses: ['Approved'],
                     icon: CheckCircle2,
                 },
                 {
-                    title: 'Rejected',
+                    title: t('common.nav.rejected'),
                     href: trialsIndex('rejected'),
+                    trialStatuses: ['Rejected'],
                     icon: XCircle,
                 },
             ],
         },
         {
-            label: 'Report',
+            label: t('common.nav.report'),
             items: [
                 {
-                    title: 'Reports',
+                    title: t('common.nav.reports'),
                     href: reportsIndex(),
                     icon: Printer,
                 },
             ],
         },
         {
-            label: 'Master Data',
+            label: t('common.nav.master_data'),
             items: canManageTemplates
                 ? [
                       {
-                          title: 'Products',
+                          title: t('common.nav.products'),
                           href: productsIndex(),
                           icon: Package,
                       },
                       {
-                          title: 'Parameters',
+                          title: t('common.nav.parameters'),
                           href: parametersIndex(),
                           icon: FlaskConical,
                       },
                       {
-                          title: 'Masters',
+                          title: t('common.nav.masters'),
                           href: mastersIndex(),
                           icon: ListTree,
                       },
@@ -155,12 +160,12 @@ export function AppSidebar() {
                 : [],
         },
         {
-            label: 'User Management',
+            label: t('common.nav.user_management'),
             items: [
                 ...(isAdmin
                     ? [
                           {
-                              title: 'Users',
+                              title: t('common.nav.users'),
                               href: usersIndex(),
                               icon: Users,
                           },
@@ -169,12 +174,12 @@ export function AppSidebar() {
                 ...(isSuperAdmin
                     ? [
                           {
-                              title: 'Access Rights',
+                              title: t('common.nav.access_rights'),
                               href: accessRightsIndex(),
                               icon: KeyRound,
                           },
                           {
-                              title: 'Line Configuration',
+                              title: t('common.nav.line_configuration'),
                               href: laneConfigurationIndex(),
                               icon: RouteIcon,
                           },
@@ -183,21 +188,21 @@ export function AppSidebar() {
             ],
         },
         {
-            label: 'System',
+            label: t('common.nav.system'),
             items: isAdmin
                 ? [
                       {
-                          title: 'Notifications',
+                          title: t('common.nav.notifications'),
                           href: notificationsIndex(),
                           icon: Bell,
                       },
                       {
-                          title: 'Trash',
+                          title: t('common.nav.trash'),
                           href: trashIndex(),
                           icon: Trash2,
                       },
                       {
-                          title: 'Activity Logs',
+                          title: t('common.nav.activity_logs'),
                           href: activityLogsIndex(),
                           icon: History,
                       },
@@ -229,13 +234,13 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton
                             asChild
-                            tooltip={{ children: 'Buka Aplikasi Lama' }}
+                            tooltip={{ children: t('common.nav.open_old_app') }}
                         >
                             {/* plain anchor, not Inertia Link: this hits a redirect to another
                                 origin (the legacy app), which an Inertia XHR visit can't follow */}
                             <a href="/sso/to-old">
                                 <ArrowLeftRight />
-                                <span>Aplikasi Lama</span>
+                                <span>{t('common.nav.old_app')}</span>
                             </a>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

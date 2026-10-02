@@ -10,7 +10,11 @@ import TrialReportController from '@/actions/App/Http/Controllers/TrialReportCon
 import { TrialStepProgress } from '@/components/trial-step-progress';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { index as approvalsIndex } from '@/routes/approvals';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { edit as editTrial } from '@/routes/trials';
@@ -115,6 +119,8 @@ function OwnTrialCard({
     editable: boolean;
     actionHint?: string;
 }) {
+    const { t } = useTranslation();
+
     return (
         <Card>
             <CardHeader className="flex-row items-center gap-2 space-y-0">
@@ -143,7 +149,7 @@ function OwnTrialCard({
                                         null,
                                     )}
                                 >
-                                    {trial.progress_status}
+                                    {trialStatusLabel(t, trial.progress_status)}
                                 </Badge>
                             </div>
                             <div className="text-sm text-muted-foreground">
@@ -152,7 +158,9 @@ function OwnTrialCard({
                             <TrialStepProgress trial={trial} />
                             {trial.pending_with && (
                                 <div className="text-xs text-muted-foreground">
-                                    Menunggu: {trial.pending_with}
+                                    {t('dashboard.my_work.waiting', {
+                                        name: trial.pending_with,
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -160,7 +168,9 @@ function OwnTrialCard({
                 )}
                 {total > trials.length && (
                     <p className="text-xs text-muted-foreground">
-                        +{total - trials.length} trial lainnya.
+                        {t('dashboard.my_work.more', {
+                            count: total - trials.length,
+                        })}
                     </p>
                 )}
                 {actionHint && trials.length > 0 && (
@@ -178,6 +188,7 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
         canReviewTrials: boolean;
         canApproveTrials: boolean;
     }>().props;
+    const { t } = useTranslation();
 
     const showDrafts = myWork.draftTrialsTotal > 0;
     const showNeedsRevision = myWork.needsRevisionTrialsTotal > 0;
@@ -197,41 +208,41 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
 
     return (
         <section className="space-y-3">
-            <h2 className="text-lg font-semibold">My Work</h2>
+            <h2 className="text-lg font-semibold">{t('common.nav.my_work')}</h2>
             <div className="grid gap-4 lg:grid-cols-3">
                 {showDrafts && (
                     <OwnTrialCard
                         icon={FileEdit}
-                        title="Draft Saya (Lanjutkan)"
-                        emptyMessage="Tidak ada draft yang perlu dilanjutkan."
+                        title={t('dashboard.my_work.drafts_title')}
+                        emptyMessage={t('dashboard.my_work.drafts_empty')}
                         trials={myWork.draftTrials}
                         total={myWork.draftTrialsTotal}
                         editable
-                        actionHint="Klik Trial ID untuk melanjutkan pengisian form."
+                        actionHint={t('dashboard.my_work.drafts_hint')}
                     />
                 )}
 
                 {showNeedsRevision && (
                     <OwnTrialCard
                         icon={AlertTriangle}
-                        title="Perlu Direvisi"
-                        emptyMessage="Tidak ada trial yang perlu direvisi."
+                        title={t('dashboard.my_work.revision_title')}
+                        emptyMessage={t('dashboard.my_work.revision_empty')}
                         trials={myWork.needsRevisionTrials}
                         total={myWork.needsRevisionTrialsTotal}
                         editable
-                        actionHint="Klik Trial ID untuk memperbaiki dan submit ulang."
+                        actionHint={t('dashboard.my_work.revision_hint')}
                     />
                 )}
 
                 {showInProgress && (
                     <OwnTrialCard
                         icon={Clock}
-                        title="Sedang Berjalan"
-                        emptyMessage="Tidak ada trial Anda yang sedang berjalan."
+                        title={t('dashboard.my_work.in_progress_title')}
+                        emptyMessage={t('dashboard.my_work.in_progress_empty')}
                         trials={myWork.inProgressTrials}
                         total={myWork.inProgressTrialsTotal}
                         editable={false}
-                        actionHint="Sedang menunggu review/approval — tidak ada aksi Anda saat ini."
+                        actionHint={t('dashboard.my_work.in_progress_hint')}
                     />
                 )}
 
@@ -240,14 +251,14 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
                         <CardHeader className="flex-row items-center gap-2 space-y-0">
                             <ClipboardCheck className="size-4 text-muted-foreground" />
                             <CardTitle className="text-sm">
-                                Perlu Review Saya ({myWork.pendingReviewsTotal})
+                                {t('dashboard.my_work.reviews_title')} (
+                                {myWork.pendingReviewsTotal})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {myWork.pendingReviews.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
-                                    Tidak ada review yang menunggu Anda saat
-                                    ini.
+                                    {t('dashboard.my_work.reviews_empty')}
                                 </p>
                             ) : (
                                 myWork.pendingReviews.map((item) => (
@@ -275,13 +286,15 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
                                     href={reviewsIndex().url}
                                     className="text-xs underline underline-offset-2"
                                 >
-                                    Lihat semua Need Review
+                                    {t('dashboard.my_work.reviews_view_all')}
                                 </Link>
                                 {myWork.recentlyReviewed.length > 0 && (
                                     <span className="text-xs text-muted-foreground">
-                                        Terakhir:{' '}
-                                        {myWork.recentlyReviewed[0]
-                                            .trial_code ?? '-'}
+                                        {t('dashboard.my_work.last', {
+                                            code:
+                                                myWork.recentlyReviewed[0]
+                                                    .trial_code ?? '-',
+                                        })}
                                     </span>
                                 )}
                             </div>
@@ -294,15 +307,14 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
                         <CardHeader className="flex-row items-center gap-2 space-y-0">
                             <CircleCheckBig className="size-4 text-muted-foreground" />
                             <CardTitle className="text-sm">
-                                Perlu Approval Saya (
+                                {t('dashboard.my_work.approvals_title')} (
                                 {myWork.pendingApprovalsTotal})
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {myWork.pendingApprovals.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
-                                    Tidak ada trial yang menunggu approval Anda
-                                    saat ini.
+                                    {t('dashboard.my_work.approvals_empty')}
                                 </p>
                             ) : (
                                 myWork.pendingApprovals.map((item) => (
@@ -322,17 +334,19 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
                                     href={approvalsIndex().url}
                                     className="text-xs underline underline-offset-2"
                                 >
-                                    Lihat semua Need Approval
+                                    {t('dashboard.my_work.approvals_view_all')}
                                 </Link>
                                 {myWork.recentlyDecided.length > 0 && (
                                     <span className="text-xs text-muted-foreground">
-                                        Terakhir:{' '}
-                                        {myWork.recentlyDecided[0].trial_code} (
-                                        {
-                                            myWork.recentlyDecided[0]
-                                                .final_decision
-                                        }
-                                        )
+                                        {t('dashboard.my_work.last_decided', {
+                                            code: myWork.recentlyDecided[0]
+                                                .trial_code,
+                                            decision: trialStatusLabel(
+                                                t,
+                                                myWork.recentlyDecided[0]
+                                                    .final_decision ?? '-',
+                                            ),
+                                        })}
                                     </span>
                                 )}
                             </div>

@@ -4,6 +4,11 @@
 (function () {
   'use strict';
 
+  // i18n.js is loaded first on both pages; fall back to the key otherwise.
+  function t(key, params) {
+    return window.QacI18n ? window.QacI18n.t(key, params) : key;
+  }
+
   function platform() {
     var ua = navigator.userAgent;
     if (/android/i.test(ua)) return 'android';
@@ -70,7 +75,7 @@
   function downloadWindowsSetup() {
     return fetch('qac-root-ca.crt', { cache: 'no-store' })
       .then(function (response) {
-        if (!response.ok) throw new Error('Sertifikat belum tersedia di server (HTTP ' + response.status + ').');
+        if (!response.ok) throw new Error(t('err.notAvailable', { status: response.status }));
         return response.text();
       })
       .then(function (pem) {
@@ -78,16 +83,16 @@
         var valid = lines[0] === '-----BEGIN CERTIFICATE-----'
           && lines[lines.length - 1] === '-----END CERTIFICATE-----'
           && lines.slice(1, -1).every(function (line) { return /^[A-Za-z0-9+/=]+$/.test(line); });
-        if (!valid) throw new Error('File sertifikat di server tidak valid.');
+        if (!valid) throw new Error(t('err.invalid'));
 
         var portalUrl = location.origin + location.pathname.replace(/[^/]*$/, '');
         var script = [
           '@echo off',
           'setlocal',
-          'title Setup Sertifikat QAC',
+          'title ' + t('cmd.title'),
           'echo.',
-          'echo  Memasang sertifikat QAC ke Trusted Root (akun Windows Anda)...',
-          'echo  Klik YES pada jendela peringatan keamanan Windows yang muncul.',
+          'echo  ' + t('cmd.installing'),
+          'echo  ' + t('cmd.clickYes'),
           'echo.',
           'set "CRT=%TEMP%\\qac-root-ca.crt"',
           '> "%CRT%" (',
@@ -97,15 +102,15 @@
           'set "RC=%ERRORLEVEL%"',
           'del "%CRT%" >nul 2>&1',
           'if not "%RC%"=="0" (',
-          '  echo  GAGAL memasang sertifikat. Jalankan ulang file ini dan klik YES.',
+          '  echo  ' + t('cmd.failed'),
           '  echo.',
           '  pause',
           '  exit /b 1',
           ')',
-          'echo  Berhasil! Sertifikat QAC sudah terpasang.',
+          'echo  ' + t('cmd.success'),
           'echo.',
-          'echo  Sekarang TUTUP SEMUA jendela Chrome / Edge,',
-          'echo  lalu tekan tombol apa saja di sini untuk membuka portal lagi.',
+          'echo  ' + t('cmd.closeBrowsers'),
+          'echo  ' + t('cmd.pressKey'),
           'echo.',
           'pause >nul',
           'start "" "' + portalUrl + '"',

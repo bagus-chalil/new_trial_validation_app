@@ -9,16 +9,25 @@ export type TrialWizardStepKey =
 export type TrialWizardStep = {
     key: TrialWizardStepKey;
     number: number;
-    label: string;
+    /** Translation key, e.g. t(step.labelKey). */
+    labelKey: string;
 };
 
 export const TRIAL_WIZARD_STEPS: TrialWizardStep[] = [
-    { key: 'header', number: 1, label: 'Informasi Header' },
-    { key: 'validation', number: 2, label: 'Validation' },
-    { key: 'weighing-packaging', number: 3, label: 'Weighing (Packaging)' },
-    { key: 'weighing-filling', number: 4, label: 'Weighing (Filling)' },
-    { key: 'attachments', number: 5, label: 'Attachments' },
-    { key: 'review', number: 6, label: 'Review & Submit' },
+    { key: 'header', number: 1, labelKey: 'common.wizard.header' },
+    { key: 'validation', number: 2, labelKey: 'common.wizard.validation' },
+    {
+        key: 'weighing-packaging',
+        number: 3,
+        labelKey: 'common.wizard.weighing_packaging',
+    },
+    {
+        key: 'weighing-filling',
+        number: 4,
+        labelKey: 'common.wizard.weighing_filling',
+    },
+    { key: 'attachments', number: 5, labelKey: 'common.wizard.attachments' },
+    { key: 'review', number: 6, labelKey: 'common.wizard.review' },
 ];
 
 export type TrialWizardTrial = {

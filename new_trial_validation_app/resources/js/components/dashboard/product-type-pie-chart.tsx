@@ -7,6 +7,7 @@ import {
     ChartTooltipContent,
 } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import { useTranslation } from '@/hooks/use-translation';
 
 export type ProductTypePieDatum = {
     label: string;
@@ -33,8 +34,12 @@ const SLOT_COLOR_VARS = [
 ];
 const OTHER_COLOR_VAR = 'var(--muted-foreground)';
 
+// The backend's catch-all bucket label (Trial::productTypeBreakdown) — a
+// fixed value, translated for display only.
+const OTHER_BUCKET = 'Lainnya';
+
 function colorFor(label: string, index: number): string {
-    if (label === 'Lainnya') {
+    if (label === OTHER_BUCKET) {
         return OTHER_COLOR_VAR;
     }
 
@@ -45,7 +50,17 @@ export function ProductTypePieChart({
     data,
     emptyMessage,
 }: ProductTypePieChartProps) {
-    const nonZero = data.filter((row) => row.count > 0);
+    const { t } = useTranslation();
+    const nonZero = data
+        .filter((row) => row.count > 0)
+        .map((row, index) => ({
+            ...row,
+            color: colorFor(row.label, index),
+            label:
+                row.label === OTHER_BUCKET
+                    ? t('dashboard.charts.other')
+                    : row.label,
+        }));
     const total = nonZero.reduce((sum, row) => sum + row.count, 0);
 
     // ChartLegendContent looks up each entry's label in `config` by its
@@ -54,10 +69,10 @@ export function ProductTypePieChart({
     // categories are whatever product types are in the data, so the config
     // has to be built to match at render time instead.
     const chartConfig: ChartConfig = {};
-    nonZero.forEach((row, index) => {
+    nonZero.forEach((row) => {
         chartConfig[row.label] = {
             label: row.label,
-            color: colorFor(row.label, index),
+            color: row.color,
         };
     });
 
@@ -89,11 +104,8 @@ export function ProductTypePieChart({
                     }
                     labelLine={false}
                 >
-                    {nonZero.map((row, index) => (
-                        <Cell
-                            key={row.label}
-                            fill={colorFor(row.label, index)}
-                        />
+                    {nonZero.map((row) => (
+                        <Cell key={row.label} fill={row.color} />
                     ))}
                 </Pie>
                 <ChartLegend content={<ChartLegendContent nameKey="label" />} />

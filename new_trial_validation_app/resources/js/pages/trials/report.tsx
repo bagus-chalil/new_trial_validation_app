@@ -30,9 +30,12 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { useTranslation } from '@/hooks/use-translation';
+import type { TranslateFn } from '@/hooks/use-translation';
 import {
     trialListGroupFor,
     trialStatusBadgeClassName,
+    trialStatusLabel,
 } from '@/lib/trial-status';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -148,24 +151,58 @@ type PageProps = {
     canReturnLineConfigurationReport: boolean;
 };
 
+// `value` is the decision sent to the server and must never be translated.
 const APPROVAL_DECISIONS = [
-    { value: 'Approved', label: 'Approve', variant: 'default' as const },
+    {
+        value: 'Approved',
+        labelKey: 'report.approval.approve',
+        variant: 'default' as const,
+    },
     {
         value: 'Need Revision',
-        label: 'Need Revision',
+        labelKey: 'report.approval.need_revision',
         variant: 'outline' as const,
     },
-    { value: 'Rejected', label: 'Reject', variant: 'destructive' as const },
+    {
+        value: 'Rejected',
+        labelKey: 'report.approval.reject',
+        variant: 'destructive' as const,
+    },
 ];
 
-const DECISION_LABEL: Record<string, { by: string; at: string }> = {
-    Approved: { by: 'Approved By', at: 'Approved At' },
-    'Need Revision': {
-        by: 'Revision Requested By',
-        at: 'Revision Requested At',
+const DECISION_LABEL_KEYS: Record<string, { by: string; at: string }> = {
+    Approved: {
+        by: 'report.decision.approved_by',
+        at: 'report.decision.approved_at',
     },
-    Rejected: { by: 'Rejected By', at: 'Rejected At' },
+    'Need Revision': {
+        by: 'report.decision.revision_by',
+        at: 'report.decision.revision_at',
+    },
+    Rejected: {
+        by: 'report.decision.rejected_by',
+        at: 'report.decision.rejected_at',
+    },
 };
+
+const REVIEW_STATUS_KEYS: Record<string, string> = {
+    Pending: 'report.review.statuses.pending',
+    Reviewed: 'report.review.statuses.reviewed',
+};
+
+const WEIGHING_SECTION_KEYS: Record<string, string> = {
+    Packaging: 'report.weighing.sections.packaging',
+    Filling: 'report.weighing.sections.filling',
+};
+
+// Display label for a stored value; unknown values are shown as-is.
+function labelFor(
+    t: TranslateFn,
+    keys: Record<string, string>,
+    value: string,
+): string {
+    return keys[value] ? t(keys[value]) : value;
+}
 
 function formatNumber(value: number | null): string {
     return value === null ? '-' : value.toFixed(2);
@@ -201,6 +238,7 @@ export default function TrialReport({
     canCheckProdLineConfigurationReport,
     canReturnLineConfigurationReport,
 }: PageProps) {
+    const { t } = useTranslation();
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
         Boolean(trial.approval_comment) ||
@@ -210,9 +248,9 @@ export default function TrialReport({
         managerDecision === 'Approved' ? approvedByName : rejectedByName;
     const decisionAt =
         managerDecision === 'Approved' ? trial.approved_at : trial.rejected_at;
-    const decisionLabel = DECISION_LABEL[managerDecision] ?? {
-        by: 'Decision By',
-        at: 'Decision At',
+    const decisionLabelKeys = DECISION_LABEL_KEYS[managerDecision] ?? {
+        by: 'report.decision.decision_by',
+        at: 'report.decision.decision_at',
     };
     const displayDecision =
         trial.progress_status === 'Approved' ||
@@ -223,13 +261,13 @@ export default function TrialReport({
 
     return (
         <>
-            <Head title={`Report — ${trial.trial_code}`} />
+            <Head title={t('report.page_title', { code: trial.trial_code })} />
 
             <div className="mx-auto max-w-6xl space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4 print:hidden">
                     <Heading
-                        title="Report Summary"
-                        description="Trial validation summary dan attachment evidence."
+                        title={t('report.title')}
+                        description={t('report.description')}
                     />
                     <div className="flex gap-2">
                         <Button asChild variant="outline">
@@ -238,7 +276,7 @@ export default function TrialReport({
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
-                                Export Excel
+                                {t('report.actions.export_excel')}
                             </a>
                         </Button>
                         <ReportPdfDownloadDialog
@@ -253,7 +291,9 @@ export default function TrialReport({
 
                 {approvalBlockedNote && (
                     <Alert className="print:hidden">
-                        <AlertTitle>Belum giliran Anda</AlertTitle>
+                        <AlertTitle>
+                            {t('report.notes.not_your_turn_title')}
+                        </AlertTitle>
                         <AlertDescription>
                             {approvalBlockedNote}
                         </AlertDescription>
@@ -262,7 +302,9 @@ export default function TrialReport({
 
                 {reviewCompletedNote && (
                     <Alert className="print:hidden">
-                        <AlertTitle>Review Anda sudah selesai</AlertTitle>
+                        <AlertTitle>
+                            {t('report.notes.review_done_title')}
+                        </AlertTitle>
                         <AlertDescription>
                             {reviewCompletedNote}
                         </AlertDescription>
@@ -282,18 +324,18 @@ export default function TrialReport({
                                     ).url
                                 }
                             >
-                                Kembali
+                                {t('common.actions.back')}
                             </Link>
                         </Button>
                         <Button variant="secondary" asChild>
                             <Link href={editTrial({ trial: trial.id }).url}>
-                                Edit Trial
+                                {t('report.actions.edit_trial')}
                             </Link>
                         </Button>
                         {completeness.length > 0 ? (
                             <Alert variant="destructive" className="flex-1">
                                 <AlertTitle>
-                                    Belum siap submit review
+                                    {t('report.notes.not_ready_title')}
                                 </AlertTitle>
                                 <AlertDescription>
                                     <ul className="list-inside list-disc">
@@ -311,7 +353,7 @@ export default function TrialReport({
                                             reviewEdit({ trial: trial.id }).url
                                         }
                                     >
-                                        Submit for Review
+                                        {t('report.actions.submit_for_review')}
                                     </Link>
                                 </Button>
                             )
@@ -324,7 +366,7 @@ export default function TrialReport({
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4">
                             <div>
                                 <h2 className="text-lg font-semibold">
-                                    Trial Validation System Report
+                                    {t('report.document_title')}
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
                                     FR.QSE.074.04
@@ -337,44 +379,47 @@ export default function TrialReport({
                                     trial.final_decision,
                                 )}
                             >
-                                {trial.progress_status}
+                                {trialStatusLabel(t, trial.progress_status)}
                             </Badge>
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-3">
                             {[
-                                ['Trial ID', trial.trial_code],
-                                ['Product Name', trial.product_name],
-                                ['FG Code', trial.finish_good_code],
+                                ['trial_id', trial.trial_code],
+                                ['product_name', trial.product_name],
+                                ['fg_code', trial.finish_good_code],
                                 [
-                                    'Validation Category',
+                                    'validation_category',
                                     trial.validation_category,
                                 ],
                                 [
-                                    'Validation Scope',
+                                    'validation_scope',
                                     (trial.validation_scope ?? []).join(', '),
                                 ],
-                                ['Product Type', trial.product_type],
+                                ['product_type', trial.product_type],
                                 [
-                                    'Validation Date',
+                                    'validation_date',
                                     formatDate(trial.validation_date),
                                 ],
-                                ['Risk Level', trial.risk_level],
+                                ['risk_level', trial.risk_level],
                                 [
-                                    'Machine Used',
+                                    'machine_used',
                                     (trial.machine_used ?? []).join(', '),
                                 ],
-                                ['Created By', trial.created_by ?? '-'],
-                                ['Estimate Qty', trial.estimate_qty ?? '-'],
-                                ['Approval Status', displayDecision],
-                                ['Approval Authority', approvalAuthority],
-                            ].map(([label, value]) => (
+                                ['created_by', trial.created_by ?? '-'],
+                                ['estimate_qty', trial.estimate_qty ?? '-'],
+                                [
+                                    'approval_status',
+                                    trialStatusLabel(t, displayDecision),
+                                ],
+                                ['approval_authority', approvalAuthority],
+                            ].map(([labelKey, value]) => (
                                 <div
-                                    key={label}
+                                    key={labelKey}
                                     className="rounded-md border p-3"
                                 >
                                     <div className="text-xs tracking-wide text-muted-foreground uppercase">
-                                        {label}
+                                        {t(`report.info.${labelKey}`)}
                                     </div>
                                     <div className="font-medium">
                                         {value || '-'}
@@ -385,19 +430,19 @@ export default function TrialReport({
 
                         <div>
                             <h3 className="mb-2 text-base font-semibold">
-                                Header Detail
+                                {t('report.header.title')}
                             </h3>
                             <Table>
                                 <TableBody>
                                     <TableRow>
                                         <TableCell className="font-medium">
-                                            Batch Number
+                                            {t('report.header.batch_number')}
                                         </TableCell>
                                         <TableCell>
                                             {trial.batch_number ?? '-'}
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            Bulk Code
+                                            {t('report.header.bulk_code')}
                                         </TableCell>
                                         <TableCell>
                                             {trial.bulk_code ?? '-'}
@@ -405,7 +450,7 @@ export default function TrialReport({
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">
-                                            Estimate Qty
+                                            {t('report.header.estimate_qty')}
                                         </TableCell>
                                         <TableCell colSpan={3}>
                                             {trial.estimate_qty ?? '-'}
@@ -413,13 +458,15 @@ export default function TrialReport({
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">
-                                            Support Team
+                                            {t('report.header.support_team')}
                                         </TableCell>
                                         <TableCell>
                                             {trial.support_team ?? '-'}
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            Initiated person/team
+                                            {t(
+                                                'report.header.initiated_person_team',
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             {trial.initiated_person_team ?? '-'}
@@ -427,7 +474,7 @@ export default function TrialReport({
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">
-                                            Reason
+                                            {t('report.header.reason')}
                                         </TableCell>
                                         <TableCell colSpan={3}>
                                             {trial.reason ?? '-'}
@@ -435,7 +482,7 @@ export default function TrialReport({
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">
-                                            B.O.M
+                                            {t('report.header.bom')}
                                         </TableCell>
                                         <TableCell
                                             colSpan={3}
@@ -446,13 +493,16 @@ export default function TrialReport({
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">
-                                            Status
+                                            {t('report.header.status')}
                                         </TableCell>
                                         <TableCell>
-                                            {trial.progress_status}
+                                            {trialStatusLabel(
+                                                t,
+                                                trial.progress_status,
+                                            )}
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            Pending With
+                                            {t('report.header.pending_with')}
                                         </TableCell>
                                         <TableCell>
                                             {trial.pending_with ?? '-'}
@@ -461,7 +511,9 @@ export default function TrialReport({
                                     {trial.approver && (
                                         <TableRow>
                                             <TableCell className="font-medium">
-                                                Selected Approver
+                                                {t(
+                                                    'report.header.selected_approver',
+                                                )}
                                             </TableCell>
                                             <TableCell colSpan={3}>
                                                 {trial.approver.name ||
@@ -471,16 +523,21 @@ export default function TrialReport({
                                     )}
                                     <TableRow>
                                         <TableCell className="font-medium">
-                                            Revision No
+                                            {t('report.header.revision_no')}
                                         </TableCell>
                                         <TableCell>
                                             {trial.revision_no ?? 0}
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            Final Decision
+                                            {t('report.header.final_decision')}
                                         </TableCell>
                                         <TableCell>
-                                            {trial.final_decision ?? '-'}
+                                            {trial.final_decision
+                                                ? trialStatusLabel(
+                                                      t,
+                                                      trial.final_decision,
+                                                  )
+                                                : '-'}
                                         </TableCell>
                                     </TableRow>
                                 </TableBody>
@@ -489,16 +546,28 @@ export default function TrialReport({
 
                         <div>
                             <h3 className="mb-2 text-base font-semibold">
-                                Validation Parameter
+                                {t('report.validation.title')}
                             </h3>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Parameter</TableHead>
-                                        <TableHead>Spec</TableHead>
-                                        <TableHead>Decision</TableHead>
-                                        <TableHead>Result</TableHead>
-                                        <TableHead>Remark</TableHead>
+                                        <TableHead>
+                                            {t('report.validation.parameter')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t(
+                                                'report.validation.specification',
+                                            )}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.validation.decision')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.validation.result')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.validation.remark')}
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -534,7 +603,7 @@ export default function TrialReport({
                                                 colSpan={5}
                                                 className="text-center text-muted-foreground"
                                             >
-                                                Belum ada data validation.
+                                                {t('report.validation.empty')}
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -544,19 +613,37 @@ export default function TrialReport({
 
                         <div className="space-y-4">
                             <h3 className="text-base font-semibold">
-                                Weighing
+                                {t('report.weighing.title')}
                             </h3>
                             {weighingSections.map((section) => (
                                 <Card key={section.section}>
                                     <CardHeader>
                                         <CardTitle className="text-sm">
-                                            {section.section} Weighing
+                                            {t(
+                                                'report.weighing.section_title',
+                                                {
+                                                    section: labelFor(
+                                                        t,
+                                                        WEIGHING_SECTION_KEYS,
+                                                        section.section,
+                                                    ),
+                                                },
+                                            )}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         {section.stats.count === 0 ? (
                                             <p className="font-medium">
-                                                {section.section} Weighing: N/A
+                                                {t(
+                                                    'report.weighing.not_available',
+                                                    {
+                                                        section: labelFor(
+                                                            t,
+                                                            WEIGHING_SECTION_KEYS,
+                                                            section.section,
+                                                        ),
+                                                    },
+                                                )}
                                             </p>
                                         ) : (
                                             <>
@@ -575,7 +662,9 @@ export default function TrialReport({
                                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                                     <div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            Total Sample
+                                                            {t(
+                                                                'report.weighing.total_sample',
+                                                            )}
                                                         </div>
                                                         <div className="font-medium">
                                                             {
@@ -586,7 +675,9 @@ export default function TrialReport({
                                                     </div>
                                                     <div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            Average
+                                                            {t(
+                                                                'report.weighing.average',
+                                                            )}
                                                         </div>
                                                         <div className="font-medium">
                                                             {formatNumber(
@@ -597,7 +688,9 @@ export default function TrialReport({
                                                     </div>
                                                     <div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            Minimum
+                                                            {t(
+                                                                'report.weighing.minimum',
+                                                            )}
                                                         </div>
                                                         <div className="font-medium">
                                                             {formatNumber(
@@ -608,7 +701,9 @@ export default function TrialReport({
                                                     </div>
                                                     <div>
                                                         <div className="text-xs text-muted-foreground">
-                                                            Maximum
+                                                            {t(
+                                                                'report.weighing.maximum',
+                                                            )}
                                                         </div>
                                                         <div className="font-medium">
                                                             {formatNumber(
@@ -627,11 +722,11 @@ export default function TrialReport({
 
                         <div>
                             <h3 className="mb-2 text-base font-semibold">
-                                Attachment Summary
+                                {t('report.attachments.title')}
                             </h3>
                             {Object.keys(attachments).length === 0 ? (
                                 <p className="text-muted-foreground">
-                                    Tidak ada attachment.
+                                    {t('report.attachments.empty')}
                                 </p>
                             ) : (
                                 <div className="space-y-4">
@@ -685,17 +780,29 @@ export default function TrialReport({
 
                         <div>
                             <h3 className="mb-2 text-base font-semibold">
-                                Department Review
+                                {t('report.review.title')}
                             </h3>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Round</TableHead>
-                                        <TableHead>Dept</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Reviewer Name</TableHead>
-                                        <TableHead>Reviewed At</TableHead>
-                                        <TableHead>Comment</TableHead>
+                                        <TableHead>
+                                            {t('report.review.round')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.department')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.status')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.reviewer_name')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.reviewed_at')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('report.review.comment')}
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -707,14 +814,22 @@ export default function TrialReport({
                                             <TableCell>
                                                 {r.department}
                                             </TableCell>
-                                            <TableCell>{r.status}</TableCell>
+                                            <TableCell>
+                                                {labelFor(
+                                                    t,
+                                                    REVIEW_STATUS_KEYS,
+                                                    r.status,
+                                                )}
+                                            </TableCell>
                                             <TableCell>
                                                 {r.reviewer_name ??
                                                     (r.assigned_to ? (
                                                         <span>
                                                             {r.assigned_to}{' '}
                                                             <span className="text-xs text-muted-foreground">
-                                                                (ditugaskan)
+                                                                {t(
+                                                                    'report.review.assigned',
+                                                                )}
                                                             </span>
                                                         </span>
                                                     ) : (
@@ -736,7 +851,7 @@ export default function TrialReport({
                         {pendingReviews.length > 0 && (
                             <div className="print:hidden">
                                 <h3 className="mb-2 text-base font-semibold">
-                                    Review Department Anda
+                                    {t('report.review.my_review_title')}
                                 </h3>
                                 <div className="space-y-4">
                                     {pendingReviews.map((pending) => (
@@ -750,9 +865,13 @@ export default function TrialReport({
                                                 <Card>
                                                     <CardHeader>
                                                         <CardTitle className="text-sm">
-                                                            Submit review untuk
-                                                            department{' '}
-                                                            {pending.department}
+                                                            {t(
+                                                                'report.review.submit_for_department',
+                                                                {
+                                                                    department:
+                                                                        pending.department,
+                                                                },
+                                                            )}
                                                         </CardTitle>
                                                     </CardHeader>
                                                     <CardContent className="space-y-3">
@@ -768,7 +887,9 @@ export default function TrialReport({
                                                         <Textarea
                                                             name="comment"
                                                             required
-                                                            placeholder="Comment review..."
+                                                            placeholder={t(
+                                                                'report.review.comment_placeholder',
+                                                            )}
                                                         />
                                                         <div className="flex justify-end">
                                                             <Button
@@ -777,7 +898,9 @@ export default function TrialReport({
                                                                     processing
                                                                 }
                                                             >
-                                                                Submit Review
+                                                                {t(
+                                                                    'report.review.submit',
+                                                                )}
                                                             </Button>
                                                         </div>
                                                     </CardContent>
@@ -792,7 +915,7 @@ export default function TrialReport({
                         {editableReviews.length > 0 && (
                             <div className="print:hidden">
                                 <h3 className="mb-2 text-base font-semibold">
-                                    Edit Review Department Anda
+                                    {t('report.review.edit_title')}
                                 </h3>
                                 <div className="space-y-4">
                                     {editableReviews.map((review) => (
@@ -806,9 +929,13 @@ export default function TrialReport({
                                                 <Card>
                                                     <CardHeader>
                                                         <CardTitle className="text-sm">
-                                                            Comment review
-                                                            department{' '}
-                                                            {review.department}
+                                                            {t(
+                                                                'report.review.edit_card_title',
+                                                                {
+                                                                    department:
+                                                                        review.department,
+                                                                },
+                                                            )}
                                                         </CardTitle>
                                                     </CardHeader>
                                                     <CardContent className="space-y-3">
@@ -828,15 +955,18 @@ export default function TrialReport({
                                                                 review.comment ??
                                                                 ''
                                                             }
-                                                            placeholder="Comment review..."
+                                                            placeholder={t(
+                                                                'report.review.comment_placeholder',
+                                                            )}
                                                         />
                                                         <div className="flex items-center justify-between">
                                                             <p className="text-xs text-muted-foreground">
-                                                                Sisa{' '}
-                                                                {
-                                                                    review.editsRemaining
-                                                                }{' '}
-                                                                kali edit.
+                                                                {t(
+                                                                    'report.review.edits_remaining',
+                                                                    {
+                                                                        count: review.editsRemaining,
+                                                                    },
+                                                                )}
                                                             </p>
                                                             <Button
                                                                 type="submit"
@@ -844,7 +974,9 @@ export default function TrialReport({
                                                                     processing
                                                                 }
                                                             >
-                                                                Simpan Perubahan
+                                                                {t(
+                                                                    'report.review.save_changes',
+                                                                )}
                                                             </Button>
                                                         </div>
                                                     </CardContent>
@@ -859,7 +991,7 @@ export default function TrialReport({
                         {canApprove && (
                             <div className="print:hidden">
                                 <h3 className="mb-2 text-base font-semibold">
-                                    Keputusan Approval
+                                    {t('report.approval.title')}
                                 </h3>
                                 <Card>
                                     <CardContent className="flex flex-wrap gap-2 pt-6">
@@ -873,12 +1005,24 @@ export default function TrialReport({
                                                             decision.variant
                                                         }
                                                     >
-                                                        {decision.label}
+                                                        {t(decision.labelKey)}
                                                     </Button>
                                                 }
-                                                title={`${decision.label} — ${trial.trial_code}`}
-                                                description="Masukkan comment dan password akun Anda sebagai e-signature untuk mengonfirmasi keputusan ini."
-                                                confirmLabel={decision.label}
+                                                title={t(
+                                                    'report.approval.dialog_title',
+                                                    {
+                                                        decision: t(
+                                                            decision.labelKey,
+                                                        ),
+                                                        code: trial.trial_code,
+                                                    },
+                                                )}
+                                                description={t(
+                                                    'report.approval.dialog_description',
+                                                )}
+                                                confirmLabel={t(
+                                                    decision.labelKey,
+                                                )}
                                                 confirmVariant={
                                                     decision.variant
                                                 }
@@ -899,13 +1043,17 @@ export default function TrialReport({
                                                             <Label
                                                                 htmlFor={`approval_comment_${decision.value}`}
                                                             >
-                                                                Comment
+                                                                {t(
+                                                                    'report.approval.comment',
+                                                                )}
                                                             </Label>
                                                             <Textarea
                                                                 id={`approval_comment_${decision.value}`}
                                                                 name="approval_comment"
                                                                 required
-                                                                placeholder="Comment approval..."
+                                                                placeholder={t(
+                                                                    'report.approval.comment_placeholder',
+                                                                )}
                                                             />
                                                             {errors.approval_comment && (
                                                                 <p className="text-sm text-destructive">
@@ -919,8 +1067,9 @@ export default function TrialReport({
                                                             <Label
                                                                 htmlFor={`signature_password_${decision.value}`}
                                                             >
-                                                                Password
-                                                                e-signature
+                                                                {t(
+                                                                    'report.approval.password',
+                                                                )}
                                                             </Label>
                                                             <Input
                                                                 id={`signature_password_${decision.value}`}
@@ -956,33 +1105,39 @@ export default function TrialReport({
                         {hasDecision && (
                             <div>
                                 <h3 className="mb-2 text-base font-semibold">
-                                    Manager QAC Decision
+                                    {t('report.decision.title')}
                                 </h3>
                                 <Table>
                                     <TableBody>
                                         <TableRow>
                                             <TableCell className="font-medium">
-                                                Decision
+                                                {t('report.decision.decision')}
                                             </TableCell>
                                             <TableCell>
-                                                {managerDecision}
+                                                {trialStatusLabel(
+                                                    t,
+                                                    managerDecision,
+                                                )}
                                             </TableCell>
                                             <TableCell className="font-medium">
-                                                Status
+                                                {t('report.decision.status')}
                                             </TableCell>
                                             <TableCell>
-                                                {trial.progress_status}
+                                                {trialStatusLabel(
+                                                    t,
+                                                    trial.progress_status,
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
                                             <TableCell className="font-medium">
-                                                {decisionLabel.by}
+                                                {t(decisionLabelKeys.by)}
                                             </TableCell>
                                             <TableCell>
                                                 {decisionBy ?? '-'}
                                             </TableCell>
                                             <TableCell className="font-medium">
-                                                {decisionLabel.at}
+                                                {t(decisionLabelKeys.at)}
                                             </TableCell>
                                             <TableCell>
                                                 {formatDate(decisionAt)}
@@ -990,7 +1145,7 @@ export default function TrialReport({
                                         </TableRow>
                                         <TableRow>
                                             <TableCell className="font-medium">
-                                                Comment
+                                                {t('report.decision.comment')}
                                             </TableCell>
                                             <TableCell colSpan={3}>
                                                 {trial.approval_comment ?? '-'}

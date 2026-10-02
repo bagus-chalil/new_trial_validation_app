@@ -1,8 +1,10 @@
+import { useTranslation } from '@/hooks/use-translation';
 import {
-    PROCESS_STAGE_LABELS,
+    PROCESS_STAGES,
     resolveTrialProcessStage,
 } from '@/lib/trial-process-stage';
 import type { TrialProcessTrial } from '@/lib/trial-process-stage';
+import { trialStatusLabel } from '@/lib/trial-status';
 import { cn } from '@/lib/utils';
 
 const DOT_CLASSNAMES: Record<string, string> = {
@@ -26,6 +28,7 @@ const LABEL_CLASSNAMES: Record<string, string> = {
  * (see TrialStepProgress for that, which only means something during Draft).
  */
 export function TrialProcessProgress({ trial }: { trial: TrialProcessTrial }) {
+    const { t } = useTranslation();
     const stage = resolveTrialProcessStage(trial);
 
     if (!stage) {
@@ -37,7 +40,7 @@ export function TrialProcessProgress({ trial }: { trial: TrialProcessTrial }) {
     return (
         <div className="w-40 space-y-1.5">
             <div className="flex items-center">
-                {PROCESS_STAGE_LABELS.map((label, i) => (
+                {PROCESS_STAGES.map((label, i) => (
                     <div
                         key={label}
                         className="flex flex-1 items-center last:flex-none"
@@ -50,7 +53,7 @@ export function TrialProcessProgress({ trial }: { trial: TrialProcessTrial }) {
                                     : 'border-muted-foreground/30 bg-muted',
                             )}
                         />
-                        {i < PROCESS_STAGE_LABELS.length - 1 && (
+                        {i < PROCESS_STAGES.length - 1 && (
                             <div
                                 className={cn(
                                     'h-0.5 flex-1',
@@ -67,7 +70,9 @@ export function TrialProcessProgress({ trial }: { trial: TrialProcessTrial }) {
                     LABEL_CLASSNAMES[stage.tone],
                 )}
             >
-                {stage.label}
+                {stage.status === 'Need Revision'
+                    ? t('common.process.revision_back_to_draft')
+                    : trialStatusLabel(t, stage.status)}
             </div>
         </div>
     );

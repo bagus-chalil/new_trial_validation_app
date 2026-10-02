@@ -170,3 +170,9 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Korean wraps between syllables by default, splitting words mid-way. */
+html:lang(ko) body {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}

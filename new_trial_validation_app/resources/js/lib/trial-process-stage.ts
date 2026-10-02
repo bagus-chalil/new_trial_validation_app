@@ -8,7 +8,8 @@ export type TrialProcessTone = 'active' | 'success' | 'warning' | 'danger';
 export type TrialProcessStage = {
     index: number;
     tone: TrialProcessTone;
-    label: string;
+    /** progress_status to label this stage with (see trialStatusLabel()). */
+    status: string;
 };
 
 /**
@@ -18,7 +19,7 @@ export type TrialProcessStage = {
  * selesai" for everything past Draft, which doesn't answer "how far along in
  * the review/approval process is this trial"
  */
-export const PROCESS_STAGE_LABELS = [
+export const PROCESS_STAGES = [
     'Draft',
     'In Review',
     'Ready for Approval',
@@ -36,25 +37,21 @@ export function resolveTrialProcessStage(
         trial.progress_status === 'Rejected' ||
         trial.final_decision === 'Rejected'
     ) {
-        return { index: 2, tone: 'danger', label: 'Rejected' };
+        return { index: 2, tone: 'danger', status: 'Rejected' };
     }
 
     switch (trial.progress_status) {
         case 'Draft':
-            return { index: 0, tone: 'active', label: 'Draft' };
+            return { index: 0, tone: 'active', status: 'Draft' };
         case 'In Review':
-            return { index: 1, tone: 'active', label: 'In Review' };
+            return { index: 1, tone: 'active', status: 'In Review' };
         case 'Ready for Approval':
-            return { index: 2, tone: 'active', label: 'Ready for Approval' };
+            return { index: 2, tone: 'active', status: 'Ready for Approval' };
         case 'Approved':
-            return { index: 3, tone: 'success', label: 'Approved' };
+            return { index: 3, tone: 'success', status: 'Approved' };
         case 'Need Revision':
-            return {
-                index: 0,
-                tone: 'warning',
-                label: 'Revisi (kembali ke Draft)',
-            };
+            return { index: 0, tone: 'warning', status: 'Need Revision' };
         default:
-            return { index: 0, tone: 'active', label: trial.progress_status };
+            return { index: 0, tone: 'active', status: trial.progress_status };
     }
 }

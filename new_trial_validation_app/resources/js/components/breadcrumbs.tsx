@@ -8,6 +8,8 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import type { TranslateFn } from '@/hooks/use-translation';
+import { trialStatusLabel } from '@/lib/trial-status';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 type TrialContext = {
@@ -25,77 +27,95 @@ const trialGroups: Record<string, string> = {
     Rejected: 'rejected',
 };
 
+// Sidebar group of each /admin/* page, keyed by its path segment.
+const adminGroups: Record<string, string> = {
+    users: 'common.nav.user_management',
+    'access-rights': 'common.nav.user_management',
+    'lane-configuration': 'common.nav.user_management',
+    notifications: 'common.nav.system',
+    trash: 'common.nav.system',
+    'activity-logs': 'common.nav.system',
+};
+
+// Top-level pages whose breadcrumb is just their own (translated) nav label.
+const singlePages: Record<string, string> = {
+    '/dashboard': 'common.nav.dashboard',
+    '/my-work': 'common.nav.my_work',
+};
+
 function item(title: string, href: string): BreadcrumbItemType {
     return { title, href };
 }
 
-function trialStatusLabel(status: string | undefined): string {
-    return status ?? 'Draft';
-}
-
-function trialDetailLabel(segments: string[]): string {
+function trialDetailLabel(segments: string[], t: TranslateFn): string {
     switch (segments[2]) {
         case 'edit':
-            return 'Edit Form Trial';
+            return t('common.breadcrumb.edit_trial');
         case 'validation':
-            return 'Validation';
+            return t('common.breadcrumb.validation');
         case 'weighing':
-            return `${segments[3] ?? 'Packaging'} Weighing`;
+            return t('common.breadcrumb.weighing', {
+                section: segments[3] ?? 'Packaging',
+            });
         case 'attachments':
-            return 'Attachments';
+            return t('common.breadcrumb.attachments');
         case 'review':
-            return 'Review';
+            return t('common.breadcrumb.review');
         case 'report':
-            return 'Trial Report';
+            return t('common.breadcrumb.trial_report');
         default:
-            return 'Trial Detail';
+            return t('common.breadcrumb.trial_detail');
     }
+}
+
+function statusTrials(status: string, t: TranslateFn): string {
+    return t('common.breadcrumb.status_trials', {
+        status: trialStatusLabel(t, status),
+    });
 }
 
 function trialBreadcrumbs(
     segments: string[],
     trial: TrialContext,
+    t: TranslateFn,
 ): BreadcrumbItemType[] {
-    const group =
-        trialGroups[trialStatusLabel(trial.progress_status)] ?? 'draft';
-    const statusTitle = trialStatusLabel(trial.progress_status);
+    const status = trial.progress_status ?? 'Draft';
+    const group = trialGroups[status] ?? 'draft';
 
     return [
-        item('Trials', `/trials/${group}`),
-        item(`${statusTitle} Trials`, `/trials/${group}`),
-        item(trialDetailLabel(segments), '#'),
+        item(t('common.breadcrumb.trials'), `/trials/${group}`),
+        item(statusTrials(status, t), `/trials/${group}`),
+        item(trialDetailLabel(segments, t), '#'),
     ];
 }
 
 function groupedBreadcrumbs(
     pathname: string,
     fallback: BreadcrumbItemType[],
+    t: TranslateFn,
 ): BreadcrumbItemType[] | null {
     if (pathname.startsWith('/admin/')) {
         const title = fallback.at(-1)?.title ?? 'Admin';
-        let group = 'Master Data';
+        const group =
+            adminGroups[pathname.split('/')[2]] ?? 'common.nav.master_data';
 
-        if (['Users', 'Access Rights'].includes(title)) {
-            group = 'User Management';
-        } else if (
-            ['Notifications', 'Trash', 'Activity Logs'].includes(title)
-        ) {
-            group = 'System';
-        }
-
-        return [item(group, '#'), item(title, '#')];
+        return [item(t(group), '#'), item(title, '#')];
     }
 
     if (pathname.startsWith('/settings/')) {
-        return [item('Settings', '#'), ...fallback];
+        return [item(t('common.breadcrumb.settings'), '#'), ...fallback];
     }
 
     if (pathname === '/reports' || pathname.startsWith('/reports/')) {
+        const reports = t('common.nav.reports');
+
         return [
-            item('Report', '/reports'),
+            item(reports, '/reports'),
             ...fallback.filter(
                 (entry) =>
-                    entry.title !== 'Dashboard' && entry.title !== 'Report',
+                    entry.title !== 'Dashboard' &&
+                    entry.title !== 'Report' &&
+                    entry.title !== reports,
             ),
         ];
     }
@@ -106,50 +126,64 @@ function groupedBreadcrumbs(
 export function contextualBreadcrumbs(
     url: string,
     fallback: BreadcrumbItemType[],
-    trial?: TrialContext,
+    trial: TrialContext | undefined,
+    t: TranslateFn,
 ): BreadcrumbItemType[] {
     const pathname = new URL(url, 'http://localhost').pathname;
     const segments = pathname.split('/').filter(Boolean);
+    const trials = t('common.breadcrumb.trials');
 
     if (segments[0] === 'trials') {
         if (segments[1] === 'create') {
-            return [item('Trials', '/trials/draft'), item('New Trial', '#')];
+            return [
+                item(trials, '/trials/draft'),
+                item(t('common.breadcrumb.new_trial'), '#'),
+            ];
         }
 
-        if (segments.length === 2 && trialGroups[segments[1]]) {
-            const title =
-                Object.entries(trialGroups).find(
-                    ([, group]) => group === segments[1],
-                )?.[0] ?? 'Trials';
-
+        if (segments[1] === 'tracking') {
             return [
-                item('Trials', '/trials/draft'),
-                item(`${title} Trials`, '#'),
+                item(trials, '/trials/draft'),
+                item(t('common.nav.tracking'), '#'),
+            ];
+        }
+
+        const status = Object.entries(trialGroups).find(
+            ([, group]) => group === segments[1],
+        )?.[0];
+
+        if (segments.length === 2 && status) {
+            return [
+                item(trials, '/trials/draft'),
+                item(statusTrials(status, t), '#'),
             ];
         }
 
         if (trial && segments[1] && /^\d+$/.test(segments[1])) {
-            return trialBreadcrumbs(segments, trial);
+            return trialBreadcrumbs(segments, trial, t);
         }
     }
 
-    if (pathname === '/reviews') {
+    if (singlePages[pathname]) {
+        return [item(t(singlePages[pathname]), pathname)];
+    }
+
+    if (pathname === '/reviews' || pathname === '/approvals') {
         return [
-            item('Trials', '/trials/tracking'),
-            item('Tracking Proses', '/trials/tracking'),
-            item('Need Review', '#'),
+            item(trials, '/trials/tracking'),
+            item(t('common.nav.tracking'), '/trials/tracking'),
+            item(
+                t(
+                    pathname === '/reviews'
+                        ? 'common.nav.need_review'
+                        : 'common.nav.need_approval',
+                ),
+                '#',
+            ),
         ];
     }
 
-    if (pathname === '/approvals') {
-        return [
-            item('Trials', '/trials/tracking'),
-            item('Tracking Proses', '/trials/tracking'),
-            item('Need Approval', '#'),
-        ];
-    }
-
-    return groupedBreadcrumbs(pathname, fallback) ?? fallback;
+    return groupedBreadcrumbs(pathname, fallback, t) ?? fallback;
 }
 
 export function Breadcrumbs({
@@ -166,7 +200,7 @@ export function Breadcrumbs({
                             const isLast = index === breadcrumbs.length - 1;
 
                             return (
-                                <Fragment key={item.title}>
+                                <Fragment key={`${index}-${item.title}`}>
                                     <BreadcrumbItem>
                                         {isLast ? (
                                             <BreadcrumbPage>

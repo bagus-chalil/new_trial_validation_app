@@ -13,6 +13,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from '@/hooks/use-translation';
 
 type Props = {
     trialId: number;
@@ -28,6 +29,7 @@ export function ReportPdfDownloadDialog({
     trialId,
     hasLineConfigurationReport,
 }: Props) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [attachments, setAttachments] = useState(false);
     const [lineConfiguration, setLineConfiguration] = useState(false);
@@ -47,15 +49,13 @@ export function ReportPdfDownloadDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>Unduh PDF</Button>
+                <Button>{t('report.pdf.button')}</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Unduh PDF</DialogTitle>
+                    <DialogTitle>{t('report.pdf.title')}</DialogTitle>
                     <DialogDescription>
-                        Data trial (header, validation, weighing, review, dan
-                        keputusan) selalu disertakan. Pilih tambahan yang ingin
-                        ikut diunduh.
+                        {t('report.pdf.description')}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -67,10 +67,11 @@ export function ReportPdfDownloadDialog({
                             onCheckedChange={(v) => setAttachments(v === true)}
                         />
                         <div className="space-y-1">
-                            <Label htmlFor="pdf-attachments">Attachment</Label>
+                            <Label htmlFor="pdf-attachments">
+                                {t('report.pdf.attachments')}
+                            </Label>
                             <p className="text-sm text-muted-foreground">
-                                Foto evidence dan Additional Attachment
-                                (gambar). File PDF hanya dicantumkan namanya.
+                                {t('report.pdf.attachments_hint')}
                             </p>
                         </div>
                     </div>
@@ -86,12 +87,12 @@ export function ReportPdfDownloadDialog({
                         />
                         <div className="space-y-1">
                             <Label htmlFor="pdf-line-configuration">
-                                Line Configuration Report
+                                {t('report.pdf.line_configuration')}
                             </Label>
                             <p className="text-sm text-muted-foreground">
                                 {hasLineConfigurationReport
-                                    ? 'Hanya versi paling baru. Versi lama tetap bisa diunduh satu per satu dari bagian Line Configuration.'
-                                    : 'Trial ini belum punya Line Configuration Report.'}
+                                    ? t('report.pdf.line_configuration_hint')
+                                    : t('report.pdf.line_configuration_none')}
                             </p>
                         </div>
                     </div>
@@ -99,7 +100,9 @@ export function ReportPdfDownloadDialog({
 
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button variant="outline">Batal</Button>
+                        <Button variant="outline">
+                            {t('common.actions.cancel')}
+                        </Button>
                     </DialogClose>
                     <Button asChild>
                         <a
@@ -108,7 +111,7 @@ export function ReportPdfDownloadDialog({
                             rel="noopener noreferrer"
                             onClick={() => setOpen(false)}
                         >
-                            Unduh
+                            {t('report.pdf.download')}
                         </a>
                     </Button>
                 </DialogFooter>

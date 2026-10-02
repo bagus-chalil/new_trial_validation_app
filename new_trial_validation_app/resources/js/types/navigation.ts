@@ -12,6 +12,8 @@ export type NavItem = {
     icon?: LucideIcon | null;
     isActive?: boolean;
     activePath?: string;
+    /** Trial progress_status values whose detail pages highlight this item. */
+    trialStatuses?: string[];
 };
 
 export type NavGroup = {

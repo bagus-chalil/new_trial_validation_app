@@ -7,20 +7,12 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { toUrl } from '@/lib/utils';
 import type { NavGroup } from '@/types';
 
 export function NavMain({ groups = [] }: { readonly groups: NavGroup[] }) {
     const { isCurrentUrl } = useCurrentUrl();
     const { trial } = usePage<{ trial?: { progress_status?: string } }>().props;
-
-    const statusNavTitles: Record<string, string> = {
-        Draft: 'Draft',
-        'In Review': 'In Review',
-        'Ready for Approval': 'Ready for Approval',
-        Approved: 'Approved',
-        'Need Revision': 'Need Revision',
-        Rejected: 'Rejected',
-    };
 
     function isItemActive(item: NavGroup['items'][number]) {
         if (isCurrentUrl(item.href)) {
@@ -29,7 +21,7 @@ export function NavMain({ groups = [] }: { readonly groups: NavGroup[] }) {
 
         return Boolean(
             trial?.progress_status &&
-            statusNavTitles[trial.progress_status] === item.title,
+            item.trialStatuses?.includes(trial.progress_status),
         );
     }
 
@@ -42,7 +34,7 @@ export function NavMain({ groups = [] }: { readonly groups: NavGroup[] }) {
                             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                             <SidebarMenu>
                                 {group.items.map((item) => (
-                                    <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuItem key={toUrl(item.href)}>
                                         <SidebarMenuButton
                                             asChild
                                             isActive={isItemActive(item)}

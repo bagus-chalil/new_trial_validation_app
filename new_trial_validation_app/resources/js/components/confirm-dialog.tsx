@@ -11,6 +11,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { useTranslation } from '@/hooks/use-translation';
 
 type FormRenderProps = { processing: boolean; errors: Record<string, string> };
 
@@ -29,11 +30,12 @@ export function ConfirmDialog({
     trigger,
     title,
     description,
-    confirmLabel = 'Confirm',
+    confirmLabel,
     confirmVariant = 'destructive',
     formProps,
     children,
 }: ConfirmDialogProps) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
 
     return (
@@ -53,7 +55,7 @@ export function ConfirmDialog({
                             <DialogFooter className="mt-4 gap-2">
                                 <DialogClose asChild>
                                     <Button type="button" variant="secondary">
-                                        Cancel
+                                        {t('common.actions.cancel')}
                                     </Button>
                                 </DialogClose>
                                 <Button
@@ -61,7 +63,8 @@ export function ConfirmDialog({
                                     variant={confirmVariant}
                                     disabled={processing}
                                 >
-                                    {confirmLabel}
+                                    {confirmLabel ??
+                                        t('common.actions.confirm')}
                                 </Button>
                             </DialogFooter>
                         </>

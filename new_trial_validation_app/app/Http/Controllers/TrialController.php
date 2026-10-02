@@ -30,8 +30,9 @@ use Inertia\Response;
 class TrialController extends Controller
 {
     /**
-     * URL segment => [internal status group, page title, page subtitle].
-     * Copied verbatim from the legacy $map array (public/index.php:223-229),
+     * URL segment => [internal status group, lang key under trials.list.groups].
+     * The title/subtitle text lives in the `trials` lang group and started
+     * from the legacy $map array (public/index.php:223-229),
      * plus a 'draft' group Fase 3 needs so a newly-created trial has
      * somewhere to be listed (Trial::scopeVisibleTo() already supports it).
      *
@@ -44,11 +45,11 @@ class TrialController extends Controller
      * page, never here.
      */
     private const GROUPS = [
-        'approved' => ['approved', 'Approved Trials', 'Daftar trial dengan status approved.'],
-        'tracking' => ['tracking', 'Tracking Proses', 'Pantau semua trial yang sedang berjalan (In Review & Ready for Approval) — halaman ini untuk memantau saja, aksi review/approve dilakukan lewat Need Review / Need Approval.'],
-        'need-revision' => ['need-revision', 'Need Revision Trials', 'Trial yang dikembalikan ke Staff untuk direvisi.'],
-        'rejected' => ['rejected', 'Rejected Trials', 'Trial yang ditolak final.'],
-        'draft' => ['draft', 'Draft Trials', 'Trial yang masih berupa draft.'],
+        'approved' => ['approved', 'approved'],
+        'tracking' => ['tracking', 'tracking'],
+        'need-revision' => ['need-revision', 'need_revision'],
+        'rejected' => ['rejected', 'rejected'],
+        'draft' => ['draft', 'draft'],
     ];
 
     /**
@@ -135,7 +136,7 @@ class TrialController extends Controller
     {
         abort_unless(array_key_exists($group, self::GROUPS), 404);
 
-        [$statusGroup, $title, $subtitle] = self::GROUPS[$group];
+        [$statusGroup, $langKey] = self::GROUPS[$group];
         $user = $request->user();
 
         $filters = [
@@ -177,8 +178,8 @@ class TrialController extends Controller
             'filters' => $filters,
             'productTypes' => $option('product_type'),
             'validationScopes' => $option('validation_scope'),
-            'pageTitle' => $title,
-            'pageSubtitle' => $subtitle,
+            'pageTitle' => __("trials.list.groups.{$langKey}.title"),
+            'pageSubtitle' => __("trials.list.groups.{$langKey}.subtitle"),
             'group' => $group,
             'canCreateTrial' => Gate::forUser($user)->allows('create', Trial::class),
         ]);

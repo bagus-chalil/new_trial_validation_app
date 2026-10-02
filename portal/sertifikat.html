@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pasang Sertifikat QAC</title>
+<title data-i18n="cert.title">Pemasangan Sertifikat QAC</title>
 <meta name="theme-color" content="#EA1D22">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<script src="i18n.js"></script>
 <style>
   :root {
     --brand: #EA1D22;
@@ -38,7 +39,7 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     line-height: 1.55;
   }
 
@@ -48,9 +49,17 @@
     padding: 32px 16px 48px;
   }
 
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
   .back {
     display: inline-block;
-    margin-bottom: 20px;
     color: var(--muted);
     font-size: 0.9rem;
     text-decoration: none;
@@ -153,10 +162,13 @@
 </head>
 <body>
   <div class="page">
-    <a class="back" href="./">&larr; Kembali ke Portal</a>
+    <div class="topbar">
+      <a class="back" href="./" data-i18n="cert.back"></a>
+      <div data-lang-switch></div>
+    </div>
 
-    <h1>Pasang sertifikat QAC</h1>
-    <p class="lead">Cukup sekali per perangkat. Setelah terpasang, peringatan "Tidak aman" hilang dari semua aplikasi QAC, kamera (OCR IPC) bisa dipakai, dan portal bisa diinstal sebagai aplikasi.</p>
+    <h1 data-i18n="cert.heading"></h1>
+    <p class="lead" data-i18n="cert.lead"></p>
 
     <div class="status" id="status" hidden></div>
 
@@ -168,65 +180,65 @@
 
     <section data-os="windows" hidden>
       <h2>Windows (Chrome / Edge)</h2>
-      <button type="button" class="btn" id="setup-windows">Download Setup Otomatis</button>
+      <button type="button" class="btn" id="setup-windows" data-i18n="cert.win.download"></button>
       <p class="error" id="setup-error"></p>
       <ol>
-        <li>Klik tombol di atas. Kalau browser bertanya, pilih <b>Keep</b> / <b>Simpan</b>.</li>
-        <li>Buka file <b>setup-sertifikat-qac.cmd</b>. Kalau muncul "Windows protected your PC", klik <b>More info &rarr; Run anyway</b>.</li>
-        <li>Klik <b>Yes</b> pada peringatan keamanan Windows.</li>
-        <li>Tutup <b>semua</b> jendela Chrome / Edge, lalu tekan tombol apa saja di jendela setup. Portal terbuka lagi dengan gembok normal.</li>
-        <li>Klik <b>Install Aplikasi</b> di portal.</li>
+        <li data-i18n="cert.win.s1"></li>
+        <li data-i18n="cert.win.s2"></li>
+        <li data-i18n="cert.win.s3"></li>
+        <li data-i18n="cert.win.s4"></li>
+        <li data-i18n="cert.win.s5"></li>
       </ol>
-      <p class="hint">Tidak butuh akses admin. Sertifikat dipasang untuk akun Windows Anda saja.</p>
+      <p class="hint" data-i18n="cert.win.hint"></p>
 
       <details>
-        <summary>Cara manual (kalau file setup diblokir)</summary>
+        <summary data-i18n="cert.win.manual"></summary>
         <ol>
-          <li><a href="qac-root-ca.crt" download>Unduh qac-root-ca.crt</a>, buka filenya, lalu klik <b>Install Certificate</b>.</li>
-          <li>Pilih <b>Current User</b> &rarr; Next.</li>
-          <li>Pilih <b>Place all certificates in the following store</b> &rarr; Browse &rarr; <b>Trusted Root Certification Authorities</b>. <b>Jangan</b> pilih "Automatically select the certificate store", karena sertifikat akan masuk ke tempat yang salah dan peringatan tidak hilang.</li>
-          <li>Finish &rarr; klik <b>Yes</b> pada peringatan keamanan, lalu tutup dan buka lagi browser.</li>
+          <li data-i18n="cert.win.m1"></li>
+          <li data-i18n="cert.win.m2"></li>
+          <li data-i18n="cert.win.m3"></li>
+          <li data-i18n="cert.win.m4"></li>
         </ol>
       </details>
     </section>
 
     <section data-os="android" hidden>
       <h2>Android (Chrome)</h2>
-      <a class="btn" href="qac-root-ca.crt" download>Download Sertifikat</a>
-      <h3>1. Pasang sertifikat</h3>
+      <a class="btn" href="qac-root-ca.crt" download data-i18n="cert.download"></a>
+      <h3 data-i18n="cert.step1"></h3>
       <ol>
-        <li>Tap tombol di atas. File <b>qac-root-ca.crt</b> tersimpan di Downloads.</li>
-        <li>Buka <b>Settings</b>, cari <b>"CA certificate"</b> di kolom pencarian Settings. Atau lewat <b>Security &rarr; More security settings &rarr; Encryption &amp; credentials &rarr; Install a certificate &rarr; CA certificate</b>. Nama menu berbeda sedikit per merk.</li>
-        <li>Tap <b>Install anyway</b>, lalu pilih file <b>qac-root-ca.crt</b> dari Downloads.</li>
-        <li>Kalau diminta, buat PIN / pola kunci layar dulu. Android mewajibkan ini.</li>
+        <li data-i18n="cert.and.s1"></li>
+        <li data-i18n="cert.and.s2"></li>
+        <li data-i18n="cert.and.s3"></li>
+        <li data-i18n="cert.and.s4"></li>
       </ol>
-      <h3>2. Install aplikasi</h3>
+      <h3 data-i18n="cert.and.step2"></h3>
       <ol>
-        <li>Tutup Chrome sepenuhnya (geser dari daftar aplikasi terbuka), lalu buka lagi portal.</li>
-        <li>Pastikan halaman ini menampilkan "Sertifikat sudah terpasang".</li>
-        <li>Di portal, tap <b>Install Aplikasi</b>. Ikon QAC muncul di home screen.</li>
+        <li data-i18n="cert.and.i1"></li>
+        <li data-i18n="cert.and.i2"></li>
+        <li data-i18n="cert.and.i3"></li>
       </ol>
-      <p class="hint">Membuka file .crt langsung dari notifikasi download tidak akan berhasil di Android 11 ke atas. Harus lewat menu Settings di atas.</p>
+      <p class="hint" data-i18n="cert.and.hint"></p>
     </section>
 
     <section data-os="ios" hidden>
       <h2>iPad / iPhone</h2>
-      <a class="btn" href="qac-root-ca.crt">Download Sertifikat</a>
-      <h3>1. Pasang sertifikat</h3>
+      <a class="btn" href="qac-root-ca.crt" data-i18n="cert.download"></a>
+      <h3 data-i18n="cert.step1"></h3>
       <ol>
-        <li>Buka halaman ini di <b>Safari</b> (bukan Chrome), lalu tap tombol di atas. Pilih <b>Allow</b>, lalu <b>Close</b>.</li>
-        <li>Buka <b>Settings</b>. Di bagian atas muncul <b>Profile Downloaded</b>, tap lalu <b>Install</b> (masukkan passcode) &rarr; <b>Install</b> &rarr; <b>Done</b>. Kalau tidak muncul: <b>General &rarr; VPN &amp; Device Management</b>.</li>
-        <li><b>Wajib, sering terlewat:</b> <b>Settings &rarr; General &rarr; About &rarr; Certificate Trust Settings</b>, aktifkan <b>QAC Internal Root CA</b> &rarr; Continue.</li>
+        <li data-i18n="cert.ios.s1"></li>
+        <li data-i18n="cert.ios.s2"></li>
+        <li data-i18n="cert.ios.s3"></li>
       </ol>
-      <h3>2. Tambahkan ke home screen</h3>
+      <h3 data-i18n="cert.ios.step2"></h3>
       <ol>
-        <li>Tutup lalu buka lagi Safari, buka portal.</li>
-        <li>Tap tombol <b>Share</b> (kotak dengan panah ke atas) &rarr; <b>Add to Home Screen</b> &rarr; <b>Add</b>.</li>
+        <li data-i18n="cert.ios.i1"></li>
+        <li data-i18n="cert.ios.i2"></li>
       </ol>
-      <p class="hint">iPad tidak punya tombol install otomatis; langkah Share di atas adalah satu-satunya cara.</p>
+      <p class="hint" data-i18n="cert.ios.hint"></p>
     </section>
 
-    <p class="note">Sertifikat ini hanya berlaku untuk server internal QAC. Kalau ada kendala saat memasang, hubungi tim IT.</p>
+    <p class="note" data-i18n="cert.note"></p>
   </div>
 
   <script src="setup.js"></script>
@@ -258,9 +270,9 @@
       status.hidden = false;
       if (trusted) {
         status.className = 'status ok';
-        status.textContent = '✓ Sertifikat sudah terpasang di perangkat ini. Kembali ke portal untuk menginstal aplikasi.';
+        window.QacI18n.set(status, 'cert.statusOk');
       } else {
-        status.textContent = 'Perangkat ini belum memercayai sertifikat QAC. Ikuti langkah di bawah.';
+        window.QacI18n.set(status, 'cert.statusMissing');
       }
     });
 

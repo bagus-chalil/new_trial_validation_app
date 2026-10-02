@@ -35,9 +35,24 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useTranslation } from '@/hooks/use-translation';
+import type { TranslateFn } from '@/hooks/use-translation';
 import { cn, formatDate } from '@/lib/utils';
 
 const TRIAL_STATUS_OPTIONS = ['Pass', 'No Trial'] as const;
+
+/** Display label for a stored trial_status value — the value itself is never translated. */
+function trialStatusLabel(t: TranslateFn, status: string): string {
+    if (status === 'Pass') {
+        return t('line_config.trial_status.pass');
+    }
+
+    if (status === 'No Trial') {
+        return t('line_config.trial_status.no_trial');
+    }
+
+    return status;
+}
 
 export type ProductionStandardRow = {
     line?: string | null;
@@ -229,6 +244,7 @@ export function LineConfigurationReportSection({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
+    const { t } = useTranslation();
     const [dialogOpen, setDialogOpen] = useState(false);
 
     if (!canEdit && !report) {
@@ -249,7 +265,7 @@ export function LineConfigurationReportSection({
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-base font-semibold">
-                                Line Configuration Report
+                                {t('line_config.title')}
                             </h3>
                             {report && (
                                 <Badge
@@ -264,7 +280,7 @@ export function LineConfigurationReportSection({
                                     variant="outline"
                                     className="border-green-600/30 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
                                 >
-                                    Selesai Sign-off
+                                    {t('line_config.badge.signed_off')}
                                 </Badge>
                             ) : (
                                 locked && (
@@ -272,15 +288,16 @@ export function LineConfigurationReportSection({
                                         variant="outline"
                                         className="border-amber-500/40 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
                                     >
-                                        Dalam Proses Approval
+                                        {t('line_config.badge.in_approval')}
                                     </Badge>
                                 )
                             )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            Production — konfigurasi line, standar produksi, dan
-                            sign-off {lanes.approved_pie} &rarr;{' '}
-                            {lanes.checked_prod}.
+                            {t('line_config.subtitle', {
+                                first: lanes.approved_pie,
+                                second: lanes.checked_prod,
+                            })}
                         </p>
                     </div>
                 </div>
@@ -293,8 +310,8 @@ export function LineConfigurationReportSection({
                     >
                         <Pencil className="size-3.5" />
                         {report
-                            ? 'Edit Report'
-                            : 'Buat Line Configuration Report'}
+                            ? t('line_config.actions.edit')
+                            : t('line_config.actions.create')}
                     </Button>
                 )}
             </div>
@@ -305,7 +322,7 @@ export function LineConfigurationReportSection({
                         <RotateCcw className="mt-0.5 size-4 shrink-0 text-red-600" />
                         <div className="min-w-0 space-y-0.5">
                             <p className="text-sm font-medium text-red-700 dark:text-red-400">
-                                Dikembalikan untuk Revisi
+                                {t('line_config.return_note.title')}
                             </p>
                             <p className="text-sm wrap-break-word whitespace-pre-line">
                                 {returnNote.reason}
@@ -313,7 +330,10 @@ export function LineConfigurationReportSection({
                             {(returnNote.by || returnNote.at) && (
                                 <p className="text-xs text-muted-foreground">
                                     {[
-                                        returnNote.by || 'Approver',
+                                        returnNote.by ||
+                                            t(
+                                                'line_config.return_note.approver',
+                                            ),
                                         returnNote.at &&
                                             formatDate(returnNote.at),
                                     ]
@@ -339,12 +359,11 @@ export function LineConfigurationReportSection({
                         <div className="mb-1 flex items-center gap-2">
                             <History className="size-4 text-muted-foreground" />
                             <h4 className="text-sm font-semibold">
-                                Riwayat Versi
+                                {t('line_config.versions.title')}
                             </h4>
                         </div>
                         <p className="mb-3 text-xs text-muted-foreground">
-                            Versi yang sudah di-Return terkunci di sini — hanya
-                            bisa diunduh, tidak bisa diedit lagi.
+                            {t('line_config.versions.hint')}
                         </p>
                         <ul className="divide-y rounded-lg border">
                             {versions.map((v) => (
@@ -363,7 +382,14 @@ export function LineConfigurationReportSection({
                                             {v.return_reason ?? '-'}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            Dikunci {formatDate(v.locked_at)}
+                                            {t(
+                                                'line_config.versions.locked_at',
+                                                {
+                                                    date: formatDate(
+                                                        v.locked_at,
+                                                    ),
+                                                },
+                                            )}
                                         </p>
                                     </div>
                                     <Button asChild variant="ghost" size="sm">
@@ -380,7 +406,9 @@ export function LineConfigurationReportSection({
                                             rel="noopener noreferrer"
                                         >
                                             <Download className="size-3.5" />
-                                            PDF
+                                            {t(
+                                                'line_config.actions.download_pdf',
+                                            )}
                                         </a>
                                     </Button>
                                 </li>
@@ -394,13 +422,13 @@ export function LineConfigurationReportSection({
                     <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl lg:max-w-6xl">
                         <DialogHeader>
                             <DialogTitle>
-                                Line Configuration Report (Production)
+                                {t('line_config.dialog_title')}
                             </DialogTitle>
                         </DialogHeader>
                         {returnNote && (
                             <Alert variant="destructive">
                                 <AlertTitle>
-                                    Dikembalikan untuk Revisi
+                                    {t('line_config.return_note.title')}
                                 </AlertTitle>
                                 <AlertDescription>
                                     <span className="whitespace-pre-line">
@@ -408,7 +436,11 @@ export function LineConfigurationReportSection({
                                     </span>
                                     {(returnNote.by || returnNote.at) && (
                                         <div className="mt-1 text-xs opacity-80">
-                                            — {returnNote.by || 'Approver'}
+                                            —{' '}
+                                            {returnNote.by ||
+                                                t(
+                                                    'line_config.return_note.approver',
+                                                )}
                                             {returnNote.at &&
                                                 `, ${formatDate(returnNote.at)}`}
                                         </div>
@@ -446,6 +478,7 @@ function EditableLineConfigurationReport({
     lanes: LineConfigurationLanes;
     onSaved: () => void;
 }) {
+    const { t } = useTranslation();
     const standardCounter = useRef(report?.production_standard?.length ?? 2);
     const configCounter = useRef(report?.line_configuration?.length ?? 3);
 
@@ -536,7 +569,9 @@ function EditableLineConfigurationReport({
             {({ processing, errors }) => (
                 <div className="space-y-6">
                     <div className="space-y-4 rounded-md border p-4">
-                        <h4 className="text-sm font-semibold">Sign-off</h4>
+                        <h4 className="text-sm font-semibold">
+                            {t('line_config.sign_off.title')}
+                        </h4>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-2">
                                 <Label>{lanes.approved_pie}</Label>
@@ -544,8 +579,12 @@ function EditableLineConfigurationReport({
                                     options={approverOptions}
                                     value={approvedPieUserId}
                                     onChange={setApprovedPieUserId}
-                                    placeholder="Pilih user..."
-                                    searchPlaceholder="Cari user..."
+                                    placeholder={t(
+                                        'line_config.sign_off.select_user',
+                                    )}
+                                    searchPlaceholder={t(
+                                        'line_config.sign_off.search_user',
+                                    )}
                                 />
                                 <input
                                     type="hidden"
@@ -561,17 +600,24 @@ function EditableLineConfigurationReport({
                                 <Label>{lanes.checked_prod}</Label>
                                 {prodApproverOptions.length === 0 ? (
                                     <p className="text-xs text-destructive">
-                                        Belum ada user yang memenuhi tim untuk{' '}
-                                        {lanes.checked_prod}. Atur di Access
-                                        Rights / Lane Configuration.
+                                        {t(
+                                            'line_config.sign_off.no_eligible_users',
+                                            {
+                                                lane: lanes.checked_prod,
+                                            },
+                                        )}
                                     </p>
                                 ) : (
                                     <Combobox
                                         options={prodApproverOptions}
                                         value={checkedProdUserId}
                                         onChange={setCheckedProdUserId}
-                                        placeholder="Pilih user..."
-                                        searchPlaceholder="Cari user..."
+                                        placeholder={t(
+                                            'line_config.sign_off.select_user',
+                                        )}
+                                        searchPlaceholder={t(
+                                            'line_config.sign_off.search_user',
+                                        )}
                                     />
                                 )}
                                 <input
@@ -586,19 +632,18 @@ function EditableLineConfigurationReport({
                             </div>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            User yang dipilih akan menerima email, lalu
-                            approve/checked sendiri di halaman ini (berjenjang —{' '}
-                            {lanes.checked_prod} baru bisa setelah{' '}
-                            {lanes.approved_pie} selesai) — tanggal tercatat
-                            otomatis saat itu. Begitu salah satu di-assign, form
-                            ini terkunci (tidak bisa diedit lagi) sampai
-                            di-Return.
+                            {t('line_config.sign_off.hint', {
+                                first: lanes.approved_pie,
+                                second: lanes.checked_prod,
+                            })}
                         </p>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-3">
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_report_date">Date</Label>
+                            <Label htmlFor="lcr_report_date">
+                                {t('line_config.fields.date')}
+                            </Label>
                             <Input
                                 id="lcr_report_date"
                                 type="date"
@@ -609,7 +654,9 @@ function EditableLineConfigurationReport({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_client_name">Client</Label>
+                            <Label htmlFor="lcr_client_name">
+                                {t('line_config.fields.client')}
+                            </Label>
                             <Input
                                 id="lcr_client_name"
                                 name="client_name"
@@ -618,7 +665,7 @@ function EditableLineConfigurationReport({
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lcr_validation_name">
-                                Validation
+                                {t('line_config.fields.validation')}
                             </Label>
                             <Input
                                 id="lcr_validation_name"
@@ -627,7 +674,9 @@ function EditableLineConfigurationReport({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_pic">PIC</Label>
+                            <Label htmlFor="lcr_pic">
+                                {t('line_config.fields.pic')}
+                            </Label>
                             <Input
                                 id="lcr_pic"
                                 name="pic"
@@ -635,7 +684,9 @@ function EditableLineConfigurationReport({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_operator">Operator</Label>
+                            <Label htmlFor="lcr_operator">
+                                {t('line_config.fields.operator')}
+                            </Label>
                             <Input
                                 id="lcr_operator"
                                 name="operator"
@@ -651,7 +702,9 @@ function EditableLineConfigurationReport({
                             defaultValue={report?.capacity_label ?? ''}
                         />
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_total_qty">Total</Label>
+                            <Label htmlFor="lcr_total_qty">
+                                {t('line_config.fields.total')}
+                            </Label>
                             <Input
                                 id="lcr_total_qty"
                                 name="total_qty"
@@ -668,7 +721,9 @@ function EditableLineConfigurationReport({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_setting_qty">Setting</Label>
+                            <Label htmlFor="lcr_setting_qty">
+                                {t('line_config.fields.setting')}
+                            </Label>
                             <Input
                                 id="lcr_setting_qty"
                                 name="setting_qty"
@@ -685,7 +740,9 @@ function EditableLineConfigurationReport({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_pass_qty">PASS</Label>
+                            <Label htmlFor="lcr_pass_qty">
+                                {t('line_config.fields.pass')}
+                            </Label>
                             <Input
                                 id="lcr_pass_qty"
                                 name="pass_qty"
@@ -702,7 +759,9 @@ function EditableLineConfigurationReport({
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="lcr_ng_qty">NG</Label>
+                            <Label htmlFor="lcr_ng_qty">
+                                {t('line_config.fields.ng')}
+                            </Label>
                             <Input
                                 id="lcr_ng_qty"
                                 name="ng_qty"
@@ -711,8 +770,7 @@ function EditableLineConfigurationReport({
                                 onChange={(e) => setNgQty(e.target.value)}
                             />
                             <p className="text-xs text-muted-foreground">
-                                Otomatis dihitung dari Total − Setting − PASS
-                                (bisa diedit manual bila perlu).
+                                {t('line_config.fields.ng_hint')}
                             </p>
                         </div>
                     </div>
@@ -720,7 +778,7 @@ function EditableLineConfigurationReport({
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-semibold">
-                                Production Standard
+                                {t('line_config.sections.production_standard')}
                             </h4>
                             <Button
                                 type="button"
@@ -736,16 +794,24 @@ function EditableLineConfigurationReport({
                                     ])
                                 }
                             >
-                                Tambah Baris
+                                {t('line_config.actions.add_row')}
                             </Button>
                         </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Line</TableHead>
-                                    <TableHead>Workers</TableHead>
-                                    <TableHead>Kapasitas/Speed</TableHead>
-                                    <TableHead>Remark</TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.line')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.workers')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.capacity')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.remark')}
+                                    </TableHead>
                                     <TableHead className="w-10" />
                                 </TableRow>
                             </TableHeader>
@@ -787,6 +853,9 @@ function EditableLineConfigurationReport({
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
+                                                aria-label={t(
+                                                    'line_config.actions.remove_row',
+                                                )}
                                                 onClick={() =>
                                                     setStandardRows((prev) =>
                                                         prev.filter(
@@ -813,7 +882,7 @@ function EditableLineConfigurationReport({
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-semibold">
-                                Line Configuration
+                                {t('line_config.sections.line_configuration')}
                             </h4>
                             <Button
                                 type="button"
@@ -835,20 +904,30 @@ function EditableLineConfigurationReport({
                                     }));
                                 }}
                             >
-                                Tambah Baris
+                                {t('line_config.actions.add_row')}
                             </Button>
                         </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-14 text-center">
-                                        No
+                                        {t('line_config.columns.no')}
                                     </TableHead>
-                                    <TableHead>Equipment</TableHead>
-                                    <TableHead>Process</TableHead>
-                                    <TableHead>Worker</TableHead>
-                                    <TableHead>Trial</TableHead>
-                                    <TableHead>Remark</TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.equipment')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.process')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.worker')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.trial')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.remark')}
+                                    </TableHead>
                                     <TableHead className="w-10" />
                                 </TableRow>
                             </TableHeader>
@@ -934,7 +1013,10 @@ function EditableLineConfigurationReport({
                                                                     'data-[state=on]:border-slate-600 data-[state=on]:bg-slate-600 data-[state=on]:text-white dark:data-[state=on]:border-slate-500 dark:data-[state=on]:bg-slate-500',
                                                             )}
                                                         >
-                                                            {option}
+                                                            {trialStatusLabel(
+                                                                t,
+                                                                option,
+                                                            )}
                                                         </ToggleGroupItem>
                                                     ),
                                                 )}
@@ -956,6 +1038,9 @@ function EditableLineConfigurationReport({
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
+                                                aria-label={t(
+                                                    'line_config.actions.remove_row',
+                                                )}
                                                 onClick={() => {
                                                     setConfigRows((prev) =>
                                                         prev.filter(
@@ -994,7 +1079,7 @@ function EditableLineConfigurationReport({
                                             colSpan={3}
                                             className="text-right font-semibold"
                                         >
-                                            Total Workers
+                                            {t('line_config.total_workers')}
                                         </TableCell>
                                         <TableCell className="font-semibold">
                                             {totalWorkers}
@@ -1012,7 +1097,9 @@ function EditableLineConfigurationReport({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="lcr_opinion">Opinion</Label>
+                        <Label htmlFor="lcr_opinion">
+                            {t('line_config.fields.opinion')}
+                        </Label>
                         <Textarea
                             id="lcr_opinion"
                             name="opinion"
@@ -1023,7 +1110,7 @@ function EditableLineConfigurationReport({
 
                     <div className="flex justify-end">
                         <Button type="submit" disabled={processing}>
-                            Simpan Line Configuration Report
+                            {t('line_config.actions.save')}
                         </Button>
                     </div>
                 </div>
@@ -1039,11 +1126,14 @@ function SignOffStatusHint({
     field: StageField;
     report: LineConfigurationReportData;
 }) {
+    const { t } = useTranslation();
     const done = report?.[field] ?? false;
 
     if (!done) {
         return (
-            <p className="text-xs text-muted-foreground">Belum dikonfirmasi.</p>
+            <p className="text-xs text-muted-foreground">
+                {t('line_config.sign_off.not_confirmed')}
+            </p>
         );
     }
 
@@ -1052,8 +1142,12 @@ function SignOffStatusHint({
 
     return (
         <p className="text-xs text-green-600 dark:text-green-400">
-            Dikonfirmasi oleh {by || '-'}
-            {at && ` pada ${formatDate(at)}`}
+            {at
+                ? t('line_config.sign_off.confirmed_by_at', {
+                      name: by || '-',
+                      date: formatDate(at),
+                  })
+                : t('line_config.sign_off.confirmed_by', { name: by || '-' })}
         </p>
     );
 }
@@ -1073,10 +1167,12 @@ function ReadOnlyLineConfigurationReport({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
+    const { t } = useTranslation();
+
     if (!report) {
         return (
             <p className="p-6 text-center text-sm text-muted-foreground">
-                Belum ada Line Configuration Report.
+                {t('line_config.empty')}
             </p>
         );
     }
@@ -1113,11 +1209,17 @@ function ReadOnlyLineConfigurationReport({
             <div className="space-y-4 border-b p-4">
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
                     {[
-                        ['Date', formatDate(report.report_date)],
-                        ['Client', report.client_name],
-                        ['Validation', report.validation_name],
-                        ['PIC', report.pic],
-                        ['Operator', report.operator],
+                        [
+                            t('line_config.fields.date'),
+                            formatDate(report.report_date),
+                        ],
+                        [t('line_config.fields.client'), report.client_name],
+                        [
+                            t('line_config.fields.validation'),
+                            report.validation_name,
+                        ],
+                        [t('line_config.fields.pic'), report.pic],
+                        [t('line_config.fields.operator'), report.operator],
                     ].map(([label, value]) => (
                         <div key={label} className="min-w-0">
                             <dt className="text-xs text-muted-foreground">
@@ -1134,19 +1236,23 @@ function ReadOnlyLineConfigurationReport({
                 </dl>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
-                        { label: 'Total', value: report.total_qty, tone: '' },
                         {
-                            label: 'Setting',
+                            label: t('line_config.fields.total'),
+                            value: report.total_qty,
+                            tone: '',
+                        },
+                        {
+                            label: t('line_config.fields.setting'),
                             value: report.setting_qty,
                             tone: '',
                         },
                         {
-                            label: 'PASS',
+                            label: t('line_config.fields.pass'),
                             value: report.pass_qty,
                             tone: 'text-green-700 dark:text-green-400',
                         },
                         {
-                            label: 'NG',
+                            label: t('line_config.fields.ng'),
                             value: report.ng_qty,
                             tone: 'text-red-600 dark:text-red-400',
                         },
@@ -1174,19 +1280,25 @@ function ReadOnlyLineConfigurationReport({
             <div className="space-y-4 p-4">
                 <div className="min-w-0">
                     <h4 className="mb-2 text-sm font-semibold">
-                        Production Standard
+                        {t('line_config.sections.production_standard')}
                     </h4>
                     <div className="overflow-x-auto rounded-lg border">
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
-                                    <TableHead>Line</TableHead>
-                                    <TableHead>Workers</TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.line')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.workers')}
+                                    </TableHead>
                                     <TableHead>
                                         {report.capacity_label ||
-                                            'Kapasitas/Speed'}
+                                            t('line_config.columns.capacity')}
                                     </TableHead>
-                                    <TableHead>Remark</TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.remark')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1210,7 +1322,7 @@ function ReadOnlyLineConfigurationReport({
                                             colSpan={4}
                                             className="text-center text-muted-foreground"
                                         >
-                                            Tidak ada data.
+                                            {t('line_config.no_data')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -1222,11 +1334,11 @@ function ReadOnlyLineConfigurationReport({
                 <div className="min-w-0">
                     <div className="mb-2 flex items-center justify-between gap-2">
                         <h4 className="text-sm font-semibold">
-                            Line Configuration
+                            {t('line_config.sections.line_configuration')}
                         </h4>
                         {lineRows.length > 0 && (
                             <span className="text-xs text-muted-foreground">
-                                Total workers:{' '}
+                                {t('line_config.total_workers_inline')}{' '}
                                 <span className="font-semibold text-foreground tabular-nums">
                                     {totalWorkers}
                                 </span>
@@ -1238,13 +1350,23 @@ function ReadOnlyLineConfigurationReport({
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
                                     <TableHead className="w-10 text-center">
-                                        No
+                                        {t('line_config.columns.no')}
                                     </TableHead>
-                                    <TableHead>Equipment</TableHead>
-                                    <TableHead>Process</TableHead>
-                                    <TableHead>Worker</TableHead>
-                                    <TableHead>Trial</TableHead>
-                                    <TableHead>Remark</TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.equipment')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.process')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.worker')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.trial')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('line_config.columns.remark')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1271,7 +1393,11 @@ function ReadOnlyLineConfigurationReport({
                                                         : 'text-muted-foreground'
                                                 }
                                             >
-                                                {row.trial_status || 'No Trial'}
+                                                {trialStatusLabel(
+                                                    t,
+                                                    row.trial_status ||
+                                                        'No Trial',
+                                                )}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
@@ -1285,7 +1411,7 @@ function ReadOnlyLineConfigurationReport({
                                             colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
-                                            Tidak ada data.
+                                            {t('line_config.no_data')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -1297,7 +1423,9 @@ function ReadOnlyLineConfigurationReport({
 
             {report.opinion && (
                 <div className="border-t p-4">
-                    <h4 className="mb-1 text-sm font-semibold">Opinion</h4>
+                    <h4 className="mb-1 text-sm font-semibold">
+                        {t('line_config.fields.opinion')}
+                    </h4>
                     <p className="text-sm wrap-break-word whitespace-pre-line text-foreground/90">
                         {report.opinion}
                     </p>
@@ -1346,12 +1474,13 @@ function SignOffFlow({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
+    const { t } = useTranslation();
     const stages: StageView[] = [
         {
             key: 'prepared',
-            label: 'Prepared (PIE)',
+            label: t('line_config.stage.prepared'),
             state: report.pic ? 'done' : 'idle',
-            detail: report.pic || 'Belum diisi',
+            detail: report.pic || t('line_config.stage.not_filled'),
             assignee: null,
             at: null,
             comment: null,
@@ -1365,19 +1494,24 @@ function SignOffFlow({
                 field === 'checked_prod' && !report.approved_pie && !done;
 
             let state: StageState = 'idle';
-            let detail = 'Belum ditentukan';
+            let detail = t('line_config.stage.not_assigned');
 
             if (done) {
                 state = 'done';
-                detail = report[`${field}_by`] || 'Dikonfirmasi';
+                detail =
+                    report[`${field}_by`] || t('line_config.stage.confirmed');
             } else if (waitingOnPrevious) {
-                detail = `Menunggu ${lanes.approved_pie}`;
+                detail = t('line_config.stage.waiting_for', {
+                    name: lanes.approved_pie,
+                });
             } else if (canConfirm || canReturn) {
                 state = 'action';
-                detail = 'Menunggu tindakan Anda';
+                detail = t('line_config.stage.awaiting_you');
             } else if (assignedUser) {
                 state = 'waiting';
-                detail = `Menunggu ${assignedUser.name}`;
+                detail = t('line_config.stage.waiting_for', {
+                    name: assignedUser.name,
+                });
             }
 
             return {
@@ -1430,7 +1564,9 @@ function SignOffFlow({
                         )}
                         {stage.state === 'action' && stage.assignee && (
                             <p className="text-xs text-muted-foreground">
-                                Ditugaskan ke {stage.assignee}
+                                {t('line_config.stage.assigned_to', {
+                                    name: stage.assignee,
+                                })}
                             </p>
                         )}
                         {stage.comment && (
@@ -1504,6 +1640,7 @@ function SignOffActionPanel({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
+    const { t } = useTranslation();
     const [note, setNote] = useState('');
     const wordCount = countWords(note);
     const reasonOk = wordCount >= MIN_RETURN_REASON_WORDS;
@@ -1521,7 +1658,9 @@ function SignOffActionPanel({
 
     const label = lanes[field];
     const confirmLabel =
-        field === 'approved_pie' ? 'Approve' : 'Tandai Checked';
+        field === 'approved_pie'
+            ? t('line_config.actions.approve')
+            : t('line_config.actions.mark_checked');
     const confirmFormProps =
         field === 'approved_pie'
             ? TrialLineConfigurationReportController.approvePie.form(trialId)
@@ -1535,25 +1674,28 @@ function SignOffActionPanel({
                 <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
                 <div>
                     <h4 className="text-sm font-semibold">
-                        Tindakan Diperlukan: {label}
+                        {t('line_config.action_panel.title', { lane: label })}
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                        Konfirmasi {label} untuk report ini, atau kembalikan
-                        untuk revisi.
+                        {t('line_config.action_panel.description', {
+                            lane: label,
+                        })}
                     </p>
                 </div>
             </div>
 
             <div className="grid gap-1.5">
                 <Label htmlFor="lcr_sign_off_comment" className="sr-only">
-                    Komentar
+                    {t('line_config.action_panel.comment')}
                 </Label>
                 <Textarea
                     id="lcr_sign_off_comment"
                     rows={3}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="Komentar (opsional untuk konfirmasi, wajib untuk Return)..."
+                    placeholder={t(
+                        'line_config.action_panel.comment_placeholder',
+                    )}
                     className="bg-background"
                 />
             </div>
@@ -1567,7 +1709,9 @@ function SignOffActionPanel({
                             : 'text-amber-700 dark:text-amber-400',
                     )}
                 >
-                    Return butuh minimal {MIN_RETURN_REASON_WORDS} kata —{' '}
+                    {t('line_config.action_panel.min_words', {
+                        count: MIN_RETURN_REASON_WORDS,
+                    })}{' '}
                     <span className="tabular-nums">
                         {wordCount}/{MIN_RETURN_REASON_WORDS}
                     </span>
@@ -1589,7 +1733,7 @@ function SignOffActionPanel({
                                         disabled={processing || !reasonOk}
                                     >
                                         <RotateCcw className="size-4" />
-                                        Return
+                                        {t('line_config.actions.return')}
                                     </Button>
                                     {errors.reason && (
                                         <p className="text-xs text-destructive">

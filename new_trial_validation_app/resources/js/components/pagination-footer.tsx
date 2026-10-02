@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from '@/hooks/use-translation';
 
 type PaginationFooterProps = {
     url: string;
@@ -18,6 +19,8 @@ export function PaginationFooter({
     total,
     itemLabel,
 }: PaginationFooterProps) {
+    const { t } = useTranslation();
+
     function goToPage(page: number) {
         router.get(
             url,
@@ -29,7 +32,12 @@ export function PaginationFooter({
     return (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-                Page {currentPage} of {lastPage} ({total} {itemLabel})
+                {t('common.pagination.summary', {
+                    current: currentPage,
+                    last: lastPage,
+                    total,
+                    items: itemLabel,
+                })}
             </span>
             <div className="flex gap-2">
                 <Button
@@ -38,7 +46,7 @@ export function PaginationFooter({
                     disabled={currentPage <= 1}
                     onClick={() => goToPage(currentPage - 1)}
                 >
-                    Previous
+                    {t('common.actions.previous')}
                 </Button>
                 <Button
                     variant="outline"
@@ -46,7 +54,7 @@ export function PaginationFooter({
                     disabled={currentPage >= lastPage}
                     onClick={() => goToPage(currentPage + 1)}
                 >
-                    Next
+                    {t('common.actions.next')}
                 </Button>
             </div>
         </div>

@@ -16,6 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useTranslation } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 
 const ALL_VALUE = '__all__';
@@ -68,8 +69,13 @@ export function FilterSelect({
     placeholder,
     className,
 }: FilterSelectProps) {
+    const { t, locale } = useTranslation();
     const normalized = normalizeOptions(options);
-    const allLabel = placeholder ?? `Semua ${label.toLowerCase()}`;
+    const allLabel =
+        placeholder ??
+        t('common.filter.all', {
+            label: locale === 'ko' ? label : label.toLowerCase(),
+        });
 
     return (
         <FilterField label={label} className={className}>
@@ -121,7 +127,7 @@ type FilterBarProps = {
 export function FilterBar({
     searchValue,
     onSearchChange,
-    searchPlaceholder = 'Cari...',
+    searchPlaceholder,
     onSubmit,
     onReset,
     hasActiveFilters,
@@ -129,6 +135,8 @@ export function FilterBar({
     children,
     className,
 }: FilterBarProps) {
+    const { t } = useTranslation();
+
     return (
         <Card className={cn('border-none bg-muted/40 shadow-none', className)}>
             <CardContent>
@@ -136,7 +144,7 @@ export function FilterBar({
                     <div className="flex flex-wrap items-end gap-3">
                         {onSearchChange && (
                             <FilterField
-                                label="Search"
+                                label={t('common.actions.search')}
                                 className="min-w-56 flex-1 sm:max-w-sm"
                             >
                                 <div className="relative">
@@ -146,7 +154,12 @@ export function FilterBar({
                                         onChange={(e) =>
                                             onSearchChange(e.target.value)
                                         }
-                                        placeholder={searchPlaceholder}
+                                        placeholder={
+                                            searchPlaceholder ??
+                                            t(
+                                                'common.filter.search_placeholder',
+                                            )
+                                        }
                                         className="pl-9"
                                     />
                                 </div>
@@ -158,7 +171,7 @@ export function FilterBar({
                         <div className="ml-auto flex shrink-0 gap-2">
                             <Button type="submit" className="gap-1.5">
                                 <SearchIcon className="size-4" />
-                                Search
+                                {t('common.actions.search')}
                             </Button>
                             {hasActiveFilters && (
                                 <Button
@@ -168,7 +181,7 @@ export function FilterBar({
                                     className="gap-1.5 text-muted-foreground"
                                 >
                                     <RotateCcw className="size-4" />
-                                    Reset
+                                    {t('common.actions.reset')}
                                 </Button>
                             )}
                         </div>
@@ -178,7 +191,7 @@ export function FilterBar({
                         <div className="flex flex-wrap items-center gap-2 border-t pt-3">
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <SlidersHorizontal className="size-3.5" />
-                                Filter aktif:
+                                {t('common.filter.active')}
                             </span>
                             {activeChips.map((chip) => (
                                 <Badge
@@ -191,7 +204,9 @@ export function FilterBar({
                                         type="button"
                                         onClick={chip.onClear}
                                         className="rounded-full p-0.5 hover:bg-muted-foreground/20"
-                                        aria-label={`Hapus filter ${chip.label}`}
+                                        aria-label={t('common.filter.remove', {
+                                            label: chip.label,
+                                        })}
                                     >
                                         <ClearIcon className="size-3" />
                                     </button>

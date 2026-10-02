@@ -13,6 +13,8 @@ import {
     ChartTooltipContent,
 } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import { useTranslation } from '@/hooks/use-translation';
+import { trialStatusLabel } from '@/lib/trial-status';
 
 export type StatusDatum = {
     status: string;
@@ -35,13 +37,19 @@ const STATUS_COLOR_VAR: Record<string, string> = {
     Rejected: 'var(--chart-status-rejected)',
 };
 
-const chartConfig = {
-    count: { label: 'Jumlah Trial' },
-} satisfies ChartConfig;
-
 export function StatusDistributionChart({
     data,
 }: StatusDistributionChartProps) {
+    const { t } = useTranslation();
+    const chartConfig = {
+        count: { label: t('dashboard.charts.count_label') },
+    } satisfies ChartConfig;
+    // `status` stays the stored value (color lookup); `label` is display-only.
+    const rows = data.map((row) => ({
+        ...row,
+        label: trialStatusLabel(t, row.status),
+    }));
+
     return (
         <ChartContainer
             config={chartConfig}
@@ -49,7 +57,7 @@ export function StatusDistributionChart({
             style={{ height: Math.max(224, data.length * 40) }}
         >
             <BarChart
-                data={data}
+                data={rows}
                 layout="vertical"
                 margin={{ left: 8, right: 24 }}
                 barCategoryGap="22%"
@@ -58,7 +66,7 @@ export function StatusDistributionChart({
                 <XAxis type="number" hide allowDecimals={false} />
                 <YAxis
                     type="category"
-                    dataKey="status"
+                    dataKey="label"
                     tickLine={false}
                     axisLine={false}
                     width={120}
@@ -68,7 +76,7 @@ export function StatusDistributionChart({
                     content={<ChartTooltipContent hideLabel />}
                 />
                 <Bar dataKey="count" radius={4} barSize={26}>
-                    {data.map((row) => (
+                    {rows.map((row) => (
                         <Cell
                             key={row.status}
                             fill={

@@ -5,6 +5,7 @@ import {
     ChartTooltipContent,
 } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import { useTranslation } from '@/hooks/use-translation';
 
 export type TrendDatum = {
     period: string; // "YYYY-MM"
@@ -15,26 +16,26 @@ type TrendChartProps = {
     data: TrendDatum[];
 };
 
-const chartConfig = {
-    count: {
-        label: 'Trial Dibuat',
-        color: 'var(--brand)',
-    },
-} satisfies ChartConfig;
-
-function monthLabel(period: string): string {
+function monthLabel(period: string, intlLocale: string): string {
     const [year, month] = period.split('-').map(Number);
 
-    return new Intl.DateTimeFormat('id-ID', {
+    return new Intl.DateTimeFormat(intlLocale, {
         month: 'short',
         year: 'numeric',
     }).format(new Date(year, month - 1, 1));
 }
 
 export function TrendChart({ data }: TrendChartProps) {
+    const { t, intlLocale } = useTranslation();
+    const chartConfig = {
+        count: {
+            label: t('dashboard.charts.trend_series'),
+            color: 'var(--brand)',
+        },
+    } satisfies ChartConfig;
     const formatted = data.map((row) => ({
         ...row,
-        label: monthLabel(row.period),
+        label: monthLabel(row.period, intlLocale),
     }));
 
     return (

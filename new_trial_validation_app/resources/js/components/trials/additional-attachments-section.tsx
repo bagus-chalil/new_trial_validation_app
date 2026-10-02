@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useTranslation } from '@/hooks/use-translation';
 import { cn, formatDate } from '@/lib/utils';
 
 export type AdditionalAttachment = {
@@ -60,6 +61,7 @@ export function AdditionalAttachmentsSection({
     canUpload: boolean;
     limit: number;
 }) {
+    const { t } = useTranslation();
     const inputRef = useRef<HTMLInputElement>(null);
     const [selected, setSelected] = useState<File[]>([]);
     const [description, setDescription] = useState('');
@@ -87,9 +89,13 @@ export function AdditionalAttachmentsSection({
 
         for (const file of Array.from(list)) {
             if (!ACCEPTED_MIME.includes(file.type)) {
-                rejected.push(`${file.name}: hanya PDF atau gambar`);
+                rejected.push(
+                    t('report.additional.error_type', { name: file.name }),
+                );
             } else if (file.size > MAX_SIZE_BYTES) {
-                rejected.push(`${file.name}: melebihi 10 MB`);
+                rejected.push(
+                    t('report.additional.error_size', { name: file.name }),
+                );
             } else {
                 accepted.push(file);
             }
@@ -99,7 +105,10 @@ export function AdditionalAttachmentsSection({
 
         if (accepted.length > room) {
             rejected.push(
-                `Hanya ${room} slot tersisa — ${accepted.length - room} file diabaikan`,
+                t('report.additional.error_room', {
+                    room,
+                    ignored: accepted.length - room,
+                }),
             );
         }
 
@@ -161,24 +170,24 @@ export function AdditionalAttachmentsSection({
                     <div>
                         <div className="flex items-center gap-2">
                             <h3 className="text-base font-semibold">
-                                Additional Attachment
+                                {t('report.additional.title')}
                             </h3>
                             <Badge variant="outline" className="tabular-nums">
                                 {attachments.length}/{limit}
                             </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            Dokumen pendukung (PDF / gambar) dari drafter &amp;
-                            reviewer — bisa ditambahkan kapan saja, tidak
-                            terikat status trial.
+                            {t('report.additional.description')}
                         </p>
                     </div>
                 </div>
                 <div className="w-full max-w-48 space-y-1 sm:w-48">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Kuota terpakai</span>
+                        <span>{t('report.additional.quota_used')}</span>
                         <span className="tabular-nums">
-                            {remaining} slot tersisa
+                            {t('report.additional.slots_left', {
+                                count: remaining,
+                            })}
                         </span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -220,11 +229,12 @@ export function AdditionalAttachmentsSection({
                         >
                             <UploadCloud className="size-7 text-muted-foreground" />
                             <span className="text-sm font-medium">
-                                Klik atau seret file ke sini
+                                {t('report.additional.drop_hint')}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                                PDF, JPG, PNG, WEBP, GIF · maks. 10 MB per file
-                                · {slotsLeft} slot tersedia
+                                {t('report.additional.file_rules', {
+                                    count: slotsLeft,
+                                })}
                             </span>
                         </button>
                         <input
@@ -277,7 +287,10 @@ export function AdditionalAttachmentsSection({
                                                 }
                                                 disabled={processing}
                                                 className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                aria-label={`Hapus ${file.name} dari pilihan`}
+                                                aria-label={t(
+                                                    'report.additional.remove_selected',
+                                                    { name: file.name },
+                                                )}
                                             >
                                                 <X className="size-3.5" />
                                             </button>
@@ -291,7 +304,9 @@ export function AdditionalAttachmentsSection({
                                             setDescription(e.target.value)
                                         }
                                         maxLength={500}
-                                        placeholder="Keterangan (opsional), mis. COA supplier, hasil uji tambahan..."
+                                        placeholder={t(
+                                            'report.additional.description_placeholder',
+                                        )}
                                         disabled={processing}
                                     />
                                     <Button
@@ -303,9 +318,24 @@ export function AdditionalAttachmentsSection({
                                         <UploadCloud className="size-4" />
                                         {processing
                                             ? progress !== null
-                                                ? `Mengupload ${Math.round(progress)}%`
-                                                : 'Mengupload...'
-                                            : `Upload ${selected.length} file`}
+                                                ? t(
+                                                      'report.additional.uploading_progress',
+                                                      {
+                                                          percent:
+                                                              Math.round(
+                                                                  progress,
+                                                              ),
+                                                      },
+                                                  )
+                                                : t(
+                                                      'report.additional.uploading',
+                                                  )
+                                            : t(
+                                                  'report.additional.upload_count',
+                                                  {
+                                                      count: selected.length,
+                                                  },
+                                              )}
                                     </Button>
                                 </div>
                             </div>
@@ -315,14 +345,13 @@ export function AdditionalAttachmentsSection({
 
                 {canUpload && remaining === 0 && (
                     <div className="border-b px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-                        Kuota {limit} additional attachment sudah penuh. Hapus
-                        salah satu file Anda untuk menambah yang baru.
+                        {t('report.additional.quota_full', { limit })}
                     </div>
                 )}
 
                 {attachments.length === 0 ? (
                     <p className="p-6 text-center text-sm text-muted-foreground">
-                        Belum ada additional attachment.
+                        {t('report.additional.empty')}
                     </p>
                 ) : (
                     <ul className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -338,7 +367,12 @@ export function AdditionalAttachmentsSection({
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex size-full flex-col items-center justify-center gap-0.5 bg-red-50 text-red-600 dark:bg-red-950/30"
-                                            aria-label={`Buka ${file.original_name}`}
+                                            aria-label={t(
+                                                'report.additional.open_file',
+                                                {
+                                                    name: file.original_name,
+                                                },
+                                            )}
                                         >
                                             <FileText className="size-6" />
                                             <span className="text-[10px] font-semibold">
@@ -390,7 +424,7 @@ export function AdditionalAttachmentsSection({
                                             variant="ghost"
                                             size="icon"
                                             className="size-7"
-                                            title="Buka"
+                                            title={t('report.additional.open')}
                                         >
                                             <a
                                                 href={file.url}
@@ -405,7 +439,9 @@ export function AdditionalAttachmentsSection({
                                             variant="ghost"
                                             size="icon"
                                             className="size-7"
-                                            title="Unduh"
+                                            title={t(
+                                                'report.additional.download',
+                                            )}
                                         >
                                             <a href={`${file.url}?download=1`}>
                                                 <Download className="size-3.5" />
@@ -419,14 +455,20 @@ export function AdditionalAttachmentsSection({
                                                         variant="ghost"
                                                         size="icon"
                                                         className="size-7 text-destructive hover:text-destructive"
-                                                        title="Hapus"
+                                                        title={t(
+                                                            'report.additional.delete',
+                                                        )}
                                                     >
                                                         <Trash2 className="size-3.5" />
                                                     </Button>
                                                 }
-                                                title="Hapus additional attachment?"
+                                                title={t(
+                                                    'report.additional.delete_title',
+                                                )}
                                                 description={file.original_name}
-                                                confirmLabel="Hapus"
+                                                confirmLabel={t(
+                                                    'report.additional.delete',
+                                                )}
                                                 formProps={TrialAdditionalAttachmentController.destroy.form(
                                                     {
                                                         trial: trialId,

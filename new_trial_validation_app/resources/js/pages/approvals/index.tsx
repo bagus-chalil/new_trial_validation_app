@@ -16,7 +16,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { index as approvalsIndex } from '@/routes/approvals';
 import type { Paginated } from '@/types';
 
@@ -41,6 +45,7 @@ type PageProps = {
 };
 
 export default function ApprovalsIndex({ items, filters }: PageProps) {
+    const { t } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const url = approvalsIndex().url;
 
@@ -55,18 +60,18 @@ export default function ApprovalsIndex({ items, filters }: PageProps) {
 
     return (
         <>
-            <Head title="Need Approval" />
+            <Head title={t('trials.approvals.title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Need Approval"
-                    description="Trial yang menunggu keputusan final Manager QAC / approver — semua approver yang ditunjuk bisa melakukan aksi approve di sini."
+                    title={t('trials.approvals.title')}
+                    description={t('trials.approvals.description')}
                 />
 
                 <FilterBar
                     searchValue={form.q}
                     onSearchChange={(value) => setForm({ q: value })}
-                    searchPlaceholder="Cari trial atau product"
+                    searchPlaceholder={t('trials.queue.search_placeholder')}
                     onSubmit={submit}
                     onReset={reset}
                     hasActiveFilters={Boolean(filters.q)}
@@ -77,12 +82,26 @@ export default function ApprovalsIndex({ items, filters }: PageProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial</TableHead>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>Product Type</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Approver</TableHead>
-                                    <TableHead></TableHead>
+                                    <TableHead>
+                                        {t('trials.queue.trial')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.queue.product')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.queue.product_type')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.queue.status')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.approvals.approver')}
+                                    </TableHead>
+                                    <TableHead>
+                                        <span className="sr-only">
+                                            {t('trials.table.actions')}
+                                        </span>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -114,7 +133,10 @@ export default function ApprovalsIndex({ items, filters }: PageProps) {
                                                     item.final_decision,
                                                 )}
                                             >
-                                                {item.progress_status}
+                                                {trialStatusLabel(
+                                                    t,
+                                                    item.progress_status,
+                                                )}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
@@ -132,7 +154,9 @@ export default function ApprovalsIndex({ items, filters }: PageProps) {
                                                         ).url
                                                     }
                                                 >
-                                                    Tinjau & Putuskan
+                                                    {t(
+                                                        'trials.approvals.action',
+                                                    )}
                                                 </Link>
                                             </Button>
                                         </TableCell>
@@ -144,8 +168,7 @@ export default function ApprovalsIndex({ items, filters }: PageProps) {
                                             colSpan={6}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Tidak ada trial yang menunggu
-                                            approval.
+                                            {t('trials.approvals.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -158,7 +181,7 @@ export default function ApprovalsIndex({ items, filters }: PageProps) {
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}
-                            itemLabel="trials"
+                            itemLabel={t('trials.table.item_label')}
                         />
                     </CardContent>
                 </Card>

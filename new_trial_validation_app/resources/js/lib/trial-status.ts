@@ -1,3 +1,5 @@
+import type { TranslateFn } from '@/hooks/use-translation';
+
 // Port of status_class()/status_badge() in the legacy app's app/bootstrap.php.
 export const TRIAL_STATUSES = [
     'Draft',
@@ -7,6 +9,26 @@ export const TRIAL_STATUSES = [
     'Need Revision',
     'Rejected',
 ] as const;
+
+const STATUS_KEYS: Record<string, string> = {
+    Draft: 'draft',
+    'In Review': 'in_review',
+    'Ready for Approval': 'ready_for_approval',
+    Approved: 'approved',
+    'Need Revision': 'need_revision',
+    Rejected: 'rejected',
+};
+
+/**
+ * Display label for a stored progress_status value. The stored value itself
+ * is shared with the legacy app and never changes; an unknown value is shown
+ * as-is.
+ */
+export function trialStatusLabel(t: TranslateFn, status: string): string {
+    const key = STATUS_KEYS[status];
+
+    return key ? t(`common.status.${key}`) : status;
+}
 
 // Port of legacy's group mapping in TrialController::GROUPS — maps a trial's
 // status to the sidebar list group it belongs to, for "back to list" links.

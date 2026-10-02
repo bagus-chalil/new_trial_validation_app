@@ -15,6 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/use-translation';
 import { index as reviewsIndex } from '@/routes/reviews';
 import type { Paginated } from '@/types';
 
@@ -40,8 +41,19 @@ type PageProps = {
 };
 
 export default function ReviewsIndex({ items, filters }: PageProps) {
+    const { t } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const url = reviewsIndex().url;
+
+    // trials_review.status is a stored value shared with the legacy app;
+    // only its displayed label is translated.
+    function reviewStatusLabel(status: string): string {
+        const key = status.toLowerCase();
+
+        return key === 'pending' || key === 'reviewed'
+            ? t(`trials.reviews.status.${key}`)
+            : status;
+    }
 
     function submit(e: FormEvent) {
         e.preventDefault();
@@ -54,18 +66,18 @@ export default function ReviewsIndex({ items, filters }: PageProps) {
 
     return (
         <>
-            <Head title="Need Review" />
+            <Head title={t('trials.reviews.title')} />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="Need Review"
-                    description="Trial yang perlu direview oleh department Anda — semua departemen yang terlibat bisa melakukan aksi review di sini."
+                    title={t('trials.reviews.title')}
+                    description={t('trials.reviews.description')}
                 />
 
                 <FilterBar
                     searchValue={form.q}
                     onSearchChange={(value) => setForm({ q: value })}
-                    searchPlaceholder="Cari trial atau product"
+                    searchPlaceholder={t('trials.queue.search_placeholder')}
                     onSubmit={submit}
                     onReset={reset}
                     hasActiveFilters={Boolean(filters.q)}
@@ -76,13 +88,29 @@ export default function ReviewsIndex({ items, filters }: PageProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Trial</TableHead>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>Round</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Reviewer</TableHead>
-                                    <TableHead>Comment</TableHead>
-                                    <TableHead></TableHead>
+                                    <TableHead>
+                                        {t('trials.queue.trial')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.queue.product')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.reviews.round')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.queue.status')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.reviews.reviewer')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('trials.reviews.comment')}
+                                    </TableHead>
+                                    <TableHead>
+                                        <span className="sr-only">
+                                            {t('trials.table.actions')}
+                                        </span>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -106,7 +134,9 @@ export default function ReviewsIndex({ items, filters }: PageProps) {
                                         <TableCell>
                                             {item.review_round}
                                         </TableCell>
-                                        <TableCell>{item.status}</TableCell>
+                                        <TableCell>
+                                            {reviewStatusLabel(item.status)}
+                                        </TableCell>
                                         <TableCell>
                                             {item.reviewer_name ?? '-'}
                                         </TableCell>
@@ -123,7 +153,9 @@ export default function ReviewsIndex({ items, filters }: PageProps) {
                                                             ).url
                                                         }
                                                     >
-                                                        Tinjau & Review
+                                                        {t(
+                                                            'trials.reviews.action',
+                                                        )}
                                                     </Link>
                                                 </Button>
                                             )}
@@ -136,7 +168,7 @@ export default function ReviewsIndex({ items, filters }: PageProps) {
                                             colSpan={7}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            Tidak ada review pending.
+                                            {t('trials.reviews.empty')}
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -149,7 +181,7 @@ export default function ReviewsIndex({ items, filters }: PageProps) {
                             currentPage={items.current_page}
                             lastPage={items.last_page}
                             total={items.total}
-                            itemLabel="reviews"
+                            itemLabel={t('trials.reviews.item_label')}
                         />
                     </CardContent>
                 </Card>

@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Check } from 'lucide-react';
+import { useTranslation } from '@/hooks/use-translation';
 import {
     resolveTrialCompletedSteps,
     TRIAL_WIZARD_STEPS,
@@ -48,6 +49,7 @@ export function TrialWizardSteps({
     currentStep: number;
     trial?: TrialWizardTrial | null;
 }) {
+    const { t } = useTranslation();
     const completedSteps = resolveTrialCompletedSteps(trial);
     const showProgressNote =
         completedSteps !== null && completedSteps > currentStep;
@@ -66,7 +68,10 @@ export function TrialWizardSteps({
     return (
         <nav aria-label="Trial progress" className="mb-2">
             <p className="mb-3 text-sm font-medium text-muted-foreground">
-                Step {currentStep} of {TRIAL_WIZARD_STEPS.length}
+                {t('common.wizard.step_of', {
+                    current: currentStep,
+                    total: TRIAL_WIZARD_STEPS.length,
+                })}
             </p>
             <ol className="flex flex-wrap items-start gap-x-1 gap-y-4">
                 {TRIAL_WIZARD_STEPS.map((step, i) => {
@@ -110,7 +115,7 @@ export function TrialWizardSteps({
                                             )}
                                         </span>
                                         <span className="text-xs leading-tight text-muted-foreground">
-                                            {step.label}
+                                            {t(step.labelKey)}
                                         </span>
                                     </>
                                 );
@@ -136,7 +141,7 @@ export function TrialWizardSteps({
                 <p className="mt-2 text-xs text-muted-foreground">
                     Trial ini sudah berjalan sampai tahap{' '}
                     <strong>
-                        {TRIAL_WIZARD_STEPS[completedSteps - 1].label}
+                        {t(TRIAL_WIZARD_STEPS[completedSteps - 1].labelKey)}
                     </strong>{' '}
                     di sistem lama; layar ini hanya mengedit data header.
                 </p>

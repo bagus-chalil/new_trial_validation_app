@@ -8,6 +8,8 @@ import { TrialsTable } from '@/components/trials-table';
 import type { TrialRow } from '@/components/trials-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useTranslation } from '@/hooks/use-translation';
+import { trialStatusLabel } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { create as createTrial, index as trialsIndex } from '@/routes/trials';
 import type { Paginated } from '@/types';
@@ -42,6 +44,7 @@ export default function TrialsIndex({
     group,
     canCreateTrial,
 }: PageProps) {
+    const { t } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const url = trialsIndex(group).url;
 
@@ -64,32 +67,32 @@ export default function TrialsIndex({
     const activeChips: ActiveFilterChip[] = [
         filters.q && {
             key: 'q',
-            label: `Search: ${filters.q}`,
+            label: `${t('trials.list.filters.search')}: ${filters.q}`,
             onClear: () => clearFilter('q'),
         },
         filters.status && {
             key: 'status',
-            label: `Status: ${filters.status}`,
+            label: `${t('trials.list.filters.status')}: ${trialStatusLabel(t, filters.status)}`,
             onClear: () => clearFilter('status'),
         },
         filters.product_type && {
             key: 'product_type',
-            label: `Product Type: ${filters.product_type}`,
+            label: `${t('trials.list.filters.product_type')}: ${filters.product_type}`,
             onClear: () => clearFilter('product_type'),
         },
         filters.validation_scope && {
             key: 'validation_scope',
-            label: `Jenis Trial: ${filters.validation_scope}`,
+            label: `${t('trials.list.filters.validation_scope')}: ${filters.validation_scope}`,
             onClear: () => clearFilter('validation_scope'),
         },
         filters.date_from && {
             key: 'date_from',
-            label: `Dari: ${filters.date_from}`,
+            label: `${t('trials.list.filters.chip_from')}: ${filters.date_from}`,
             onClear: () => clearFilter('date_from'),
         },
         filters.date_to && {
             key: 'date_to',
-            label: `Sampai: ${filters.date_to}`,
+            label: `${t('trials.list.filters.chip_to')}: ${filters.date_to}`,
             onClear: () => clearFilter('date_to'),
         },
     ].filter(Boolean) as ActiveFilterChip[];
@@ -103,7 +106,9 @@ export default function TrialsIndex({
                     <Heading title={pageTitle} description={pageSubtitle} />
                     {canCreateTrial && (
                         <Button asChild>
-                            <Link href={createTrial().url}>New Trial</Link>
+                            <Link href={createTrial().url}>
+                                {t('trials.list.new_trial')}
+                            </Link>
                         </Button>
                     )}
                 </div>
@@ -111,7 +116,7 @@ export default function TrialsIndex({
                 <FilterBar
                     searchValue={form.q}
                     onSearchChange={(value) => setForm({ ...form, q: value })}
-                    searchPlaceholder="Trial, product, FG code, scope, machine"
+                    searchPlaceholder={t('trials.list.search_placeholder')}
                     onSubmit={submit}
                     onReset={reset}
                     hasActiveFilters={hasActiveFilters}
@@ -119,17 +124,21 @@ export default function TrialsIndex({
                 >
                     {group === 'tracking' && (
                         <FilterSelect
-                            label="Status"
+                            label={t('trials.list.filters.status')}
                             value={form.status}
                             onChange={(value) =>
                                 setForm({ ...form, status: value })
                             }
-                            options={['In Review', 'Ready for Approval']}
-                            placeholder="Semua status"
+                            options={['In Review', 'Ready for Approval'].map(
+                                (status) => ({
+                                    value: status,
+                                    label: trialStatusLabel(t, status),
+                                }),
+                            )}
                         />
                     )}
                     <FilterSelect
-                        label="Product Type"
+                        label={t('trials.list.filters.product_type')}
                         value={form.product_type}
                         onChange={(value) =>
                             setForm({ ...form, product_type: value })
@@ -137,15 +146,17 @@ export default function TrialsIndex({
                         options={productTypes}
                     />
                     <FilterSelect
-                        label="Jenis Trial"
+                        label={t('trials.list.filters.validation_scope')}
                         value={form.validation_scope}
                         onChange={(value) =>
                             setForm({ ...form, validation_scope: value })
                         }
                         options={validationScopes}
-                        placeholder="Semua jenis trial"
+                        placeholder={t(
+                            'trials.list.filters.all_validation_scopes',
+                        )}
                     />
-                    <FilterField label="Tanggal Dari">
+                    <FilterField label={t('trials.list.filters.date_from')}>
                         <Input
                             type="date"
                             value={form.date_from}
@@ -157,7 +168,7 @@ export default function TrialsIndex({
                             }
                         />
                     </FilterField>
-                    <FilterField label="Tanggal Sampai">
+                    <FilterField label={t('trials.list.filters.date_to')}>
                         <Input
                             type="date"
                             value={form.date_to}
@@ -172,7 +183,7 @@ export default function TrialsIndex({
                     trials={trials}
                     url={url}
                     query={filters}
-                    emptyMessage="Tidak ada trial pada halaman ini."
+                    emptyMessage={t('trials.list.empty')}
                 />
             </div>
         </>

@@ -12,6 +12,7 @@ import {
     ChartTooltipContent,
 } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import { useTranslation } from '@/hooks/use-translation';
 
 export type CategoryBarDatum = {
     label: string;
@@ -23,13 +24,6 @@ type CategoryBarChartProps = {
     emptyMessage: string;
 };
 
-const chartConfig = {
-    count: {
-        label: 'Jumlah Trial',
-        color: 'var(--brand)',
-    },
-} satisfies ChartConfig;
-
 // Single-hue horizontal bars: the axis labels already carry each category's
 // identity, so a rainbow of categorical colors here would be decorative, not
 // informative — see the dataviz skill's "magnitude comparison" guidance.
@@ -37,6 +31,13 @@ export function CategoryBarChart({
     data,
     emptyMessage,
 }: CategoryBarChartProps) {
+    const { t } = useTranslation();
+    const chartConfig = {
+        count: {
+            label: t('dashboard.charts.count_label'),
+            color: 'var(--brand)',
+        },
+    } satisfies ChartConfig;
     const nonZero = data.filter((row) => row.count > 0);
 
     if (nonZero.length === 0) {

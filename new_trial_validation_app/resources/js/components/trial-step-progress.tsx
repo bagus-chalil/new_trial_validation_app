@@ -1,3 +1,4 @@
+import { useTranslation } from '@/hooks/use-translation';
 import {
     resolveTrialCompletedSteps,
     TRIAL_WIZARD_STEPS,
@@ -12,6 +13,7 @@ import type { TrialWizardTrial } from '@/lib/trial-wizard';
  * steps, so this renders as "selesai" rather than a step count.
  */
 export function TrialStepProgress({ trial }: { trial: TrialWizardTrial }) {
+    const { t } = useTranslation();
     const completed = resolveTrialCompletedSteps(trial);
 
     if (completed === null) {
@@ -22,8 +24,8 @@ export function TrialStepProgress({ trial }: { trial: TrialWizardTrial }) {
     const pct = Math.round((completed / total) * 100);
     const label =
         trial.progress_status !== 'Draft'
-            ? 'Wizard selesai'
-            : `Step ${completed} dari ${total}`;
+            ? t('common.wizard.completed')
+            : t('common.wizard.step_of', { current: completed, total });
 
     return (
         <div className="w-28 space-y-1">
