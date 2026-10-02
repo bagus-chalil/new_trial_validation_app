@@ -3,7 +3,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, ScanText, Sun, Trash2, UserRound, Users } from 'lucide-react';
+import { Archive, FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, ScanText, Sun, Trash2, UserRound, Users } from 'lucide-react';
 
 interface AppItem {
     label: string;
@@ -66,6 +66,7 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   {
                       title: 'Data',
                       items: [
+                          { label: 'Arsip', icon: Archive, color: '#b45309', bg: '#fffbeb', href: route('archive.index') },
                           { label: 'Tempat Sampah', icon: Trash2, color: '#71717a', bg: '#f4f4f5', href: route('recycle-bin.index') },
                           { label: 'Master Line', icon: MapPin, color: '#2563eb', bg: '#eff6ff', href: route('master-lines.index') },
                           { label: 'Master Produk', icon: Package, color: '#16a34a', bg: '#f0fdf4', href: route('master-products.index') },

@@ -56,6 +56,7 @@ class IpcBatch extends Model
     protected $casts = [
         'mixing_date' => 'date',
         'exp_date' => 'date',
+        'archived_at' => 'datetime',
     ];
 
     public function masterProduct()
@@ -87,6 +88,27 @@ class IpcBatch extends Model
     public function deletedByUser()
     {
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function archivedByUser()
+    {
+        return $this->belongsTo(User::class, 'archived_by');
+    }
+
+    /** Only finished batches can be archived — in-progress ones are deleted instead. */
+    public function isArchivable(): bool
+    {
+        return $this->current_stage === self::STAGE_COMPLETED && $this->archived_at === null;
+    }
+
+    /** @param  bool|null  $archived  true = archived only, false = active only, null = both */
+    public function scopeArchived(Builder $query, ?bool $archived = true): Builder
+    {
+        return match ($archived) {
+            true => $query->whereNotNull('archived_at'),
+            false => $query->whereNull('archived_at'),
+            null => $query,
+        };
     }
 
     public function startupCheck()
@@ -137,9 +159,11 @@ class IpcBatch extends Model
      *
      * @return array{0: Builder, 1: Builder} [by no_batch, by product name], unordered
      */
-    public static function searchBranches(string $q, ?string $stage = null): array
+    public static function searchBranches(string $q, ?string $stage = null, ?bool $archived = null): array
     {
-        $base = fn () => static::query()->when($stage, fn ($query) => $query->where('current_stage', $stage));
+        $base = fn () => static::query()
+            ->when($stage, fn ($query) => $query->where('current_stage', $stage))
+            ->archived($archived);
 
         return [
             $base()->where('no_batch', 'like', static::escapeLike($q).'%'),
@@ -158,9 +182,9 @@ class IpcBatch extends Model
     }
 
     /** Ids of the newest matching batches, newest first: `$take` rows after skipping `$skip`. */
-    public static function searchIds(string $q, ?string $stage, int $take, int $skip = 0): array
+    public static function searchIds(string $q, ?string $stage, int $take, int $skip = 0, ?bool $archived = null): array
     {
-        [$byNo, $byProduct] = static::searchBranches($q, $stage);
+        [$byNo, $byProduct] = static::searchBranches($q, $stage, $archived);
         $n = $skip + $take;
 
         return $byNo->select('id')->orderByDesc('id')->limit($n)
@@ -175,9 +199,9 @@ class IpcBatch extends Model
     }
 
     /** Exact match count as |A| + |B| - |A∩B| — three index-only counts, no big dedupe. */
-    public static function searchCount(string $q, ?string $stage): int
+    public static function searchCount(string $q, ?string $stage, ?bool $archived = null): int
     {
-        [$byNo, $byProduct] = static::searchBranches($q, $stage);
+        [$byNo, $byProduct] = static::searchBranches($q, $stage, $archived);
 
         return (clone $byNo)->count()
             + $byProduct->count()

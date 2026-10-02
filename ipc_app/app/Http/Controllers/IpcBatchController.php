@@ -32,6 +32,7 @@ class IpcBatchController extends Controller
         if ($q === '') {
             $batches = $query
                 ->when($stage, fn ($query) => $query->where('current_stage', $stage))
+                ->archived(false)
                 ->latest('id')
                 ->paginate($perPage)
                 ->withQueryString();
@@ -39,10 +40,10 @@ class IpcBatchController extends Controller
             // Searched: page ids and total come from IpcBatch's index-driven search helpers
             // (see IpcBatch::searchBranches for why a plain OR query can't be used at 1M rows).
             $page = LengthAwarePaginator::resolveCurrentPage();
-            $ids = IpcBatch::searchIds($q, $stage, $perPage, ($page - 1) * $perPage);
+            $ids = IpcBatch::searchIds($q, $stage, $perPage, ($page - 1) * $perPage, archived: false);
             $items = $query->whereIn('id', $ids)->latest('id')->get();
 
-            $batches = (new LengthAwarePaginator($items, IpcBatch::searchCount($q, $stage), $perPage, $page, [
+            $batches = (new LengthAwarePaginator($items, IpcBatch::searchCount($q, $stage, archived: false), $perPage, $page, [
                 'path' => LengthAwarePaginator::resolveCurrentPath(),
             ]))->withQueryString();
         }
@@ -166,5 +167,19 @@ class IpcBatchController extends Controller
         });
 
         return redirect()->route('startup-check.edit', $batch)->with('success', 'Batch dibuat. Lanjutkan ke Startup Check.');
+    }
+
+    /** Soft delete — the batch lands in the Recycle Bin (Tempat Sampah) and can be restored there. */
+    public function destroy(Request $request, IpcBatch $batch): RedirectResponse
+    {
+        $batch->deleted_by = $request->user()->id;
+        $batch->save();
+        $batch->delete();
+
+        // Deleting from the batch's own page would bounce back to a now-404 page.
+        $previous = url()->previous();
+        $target = str_starts_with($previous, route('batches.show', $batch)) ? route('batches.index') : $previous;
+
+        return redirect()->to($target)->with('success', "Batch {$batch->no_batch} dipindahkan ke Tempat Sampah.");
     }
 }

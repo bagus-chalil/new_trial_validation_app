@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ApprovalQueueController;
+use App\Http\Controllers\BatchArchiveController;
 use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
@@ -25,6 +26,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('batches/create', [IpcBatchController::class, 'create'])->name('batches.create');
     Route::post('batches', [IpcBatchController::class, 'store'])->name('batches.store');
     Route::get('batches/{batch}', [IpcBatchController::class, 'show'])->name('batches.show');
+
+    // Archive + delete (soft, restorable from the Recycle Bin) — Admin only, same as the
+    // Recycle Bin itself, so whoever can delete a batch can also bring it back.
+    Route::middleware('can:manage-master')->group(function () {
+        Route::delete('batches/{batch}', [IpcBatchController::class, 'destroy'])->name('batches.destroy');
+
+        Route::get('archive', [BatchArchiveController::class, 'index'])->name('archive.index');
+        Route::post('batches/{batch}/archive', [BatchArchiveController::class, 'store'])->name('archive.store');
+        Route::delete('batches/{batch}/archive', [BatchArchiveController::class, 'destroy'])->name('archive.destroy');
+    });
 
     Route::get('batches/{batch}/startup-check', [StartupCheckController::class, 'edit'])->name('startup-check.edit');
     Route::put('batches/{batch}/startup-check', [StartupCheckController::class, 'update'])

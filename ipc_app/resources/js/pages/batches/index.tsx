@@ -1,3 +1,4 @@
+import { BatchActionsMenu } from '@/components/ipc/batch-actions-menu';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useInitials } from '@/hooks/use-initials';
@@ -59,27 +60,34 @@ function cardStatusText(batch: Batch): string {
     return 'Menunggu diisi';
 }
 
-function BatchCard({ batch }: { batch: Batch }) {
+function BatchCard({ batch, canManage }: { batch: Batch; canManage: boolean }) {
     const cta = cardCta(batch);
 
+    // Stretched link (the Link's ::after covers the card) instead of wrapping the card in the
+    // Link, so the admin ⋮ menu can sit on top without nesting a button inside an <a>.
     return (
-        <Link
-            href={`/batches/${batch.id}`}
-            className="border-border-soft bg-card hover:border-border flex flex-col gap-3 rounded-[20px] border p-4 transition-colors"
-        >
+        <div className="border-border-soft bg-card hover:border-border relative flex flex-col gap-3 rounded-[20px] border p-4 transition-colors">
             <div className="flex items-start justify-between gap-2.5">
                 <div className="min-w-0">
-                    <p className="text-[16.5px] font-bold tracking-tight">{batch.no_batch}</p>
+                    <Link
+                        href={`/batches/${batch.id}`}
+                        className="text-[16.5px] font-bold tracking-tight after:absolute after:inset-0 after:rounded-[20px]"
+                    >
+                        {batch.no_batch}
+                    </Link>
                     <p className="text-muted-foreground mt-0.5 truncate text-[13px] font-medium">
                         {batch.master_product.product_name} &middot; {batch.master_product.fg_code}
                     </p>
                 </div>
-                <span
-                    className="shrink-0 rounded-full px-[11px] py-[5px] text-[11.5px] font-bold whitespace-nowrap"
-                    style={stageBadgeStyle(batch.current_stage)}
-                >
-                    {stageLabel(batch.current_stage)}
-                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                    <span
+                        className="rounded-full px-[11px] py-[5px] text-[11.5px] font-bold whitespace-nowrap"
+                        style={stageBadgeStyle(batch.current_stage)}
+                    >
+                        {stageLabel(batch.current_stage)}
+                    </span>
+                    {canManage && <BatchActionsMenu batch={batch} />}
+                </div>
             </div>
 
             <div className="text-muted-foreground/70 flex items-center gap-1.5 text-[12.5px] font-medium">
@@ -102,7 +110,7 @@ function BatchCard({ batch }: { batch: Batch }) {
                     {cta.primary && <ChevronRight className="size-3.5" strokeWidth={2.4} />}
                 </span>
             </div>
-        </Link>
+        </div>
     );
 }
 
@@ -125,6 +133,8 @@ function BatchListPane({
     onClearSearch: () => void;
     onSetStage: (stage?: string) => void;
 }) {
+    const { canManageMaster } = usePage<SharedData>().props;
+
     return (
         <div className="flex flex-1 flex-col gap-4 p-5 md:p-5">
             <form onSubmit={onSubmitSearch}>
@@ -173,7 +183,7 @@ function BatchListPane({
 
             <div className="flex flex-col gap-3">
                 {batches.data.map((batch) => (
-                    <BatchCard key={batch.id} batch={batch} />
+                    <BatchCard key={batch.id} batch={batch} canManage={!!canManageMaster} />
                 ))}
 
                 {batches.data.length === 0 && (
