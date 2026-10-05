@@ -95,7 +95,7 @@ class DashboardTest extends TestCase
         $approverResponse = $this->actingAs(User::factory()->approver()->create())->get('/dashboard');
         $approverResponse->assertInertia(fn ($page) => $page
             ->where('needsAction.0.no_batch', 'BATCH-001')
-            ->where('needsAction.0.reason', 'Menunggu approval: '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_STARTUP].', '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED])
+            ->where('needsAction.0.reason', 'Menunggu approval: '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED])
             ->where('stats.needsActionCount', 1)
         );
     }

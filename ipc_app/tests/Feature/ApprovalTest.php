@@ -219,6 +219,23 @@ class ApprovalTest extends TestCase
         $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
     }
 
+    public function test_approving_filling_packing_and_finished_advances_batch_to_print_without_startup(): void
+    {
+        // Startup is hidden from the Approval overview, so it must not gate the batch —
+        // regression for batches stuck at Approval with every visible stage Approved.
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->approver()->create();
+
+        foreach (IpcApproval::APPROVAL_REQUIRED_STAGES as $stage) {
+            $this->actingAs($user)
+                ->put("/batches/{$batch->id}/approval/{$stage}", ['decision' => 'Approved'])
+                ->assertRedirect();
+        }
+
+        $this->assertDatabaseMissing('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => 'startup']);
+        $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+    }
+
     public function test_approving_all_three_stages_advances_batch_to_print(): void
     {
         $batch = $this->makeBatchAtApprovalStage();

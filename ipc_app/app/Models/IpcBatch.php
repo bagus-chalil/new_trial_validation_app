@@ -218,7 +218,7 @@ class IpcBatch extends Model
      * of loading every finished batch into PHP.
      *
      * Candidate narrowing (keeps it index-driven at ~1M batches): a batch only reaches
-     * print/completed once all three stages are Approved (SaveApproval), so a print/completed
+     * print/completed once every APPROVAL_REQUIRED_STAGES entry is Approved (SaveApproval), so a print/completed
      * batch can be pending again only if one of its approvals was later re-decided to
      * something other than Approved. Everything else is still in active work.
      */
@@ -232,14 +232,13 @@ class IpcBatch extends Model
                 $query->whereNotIn('current_stage', [self::STAGE_PRINT, self::STAGE_COMPLETED])
                     ->orWhereIn('id', IpcApproval::query()
                         ->select('ipc_batch_id')
+                        ->whereIn('stage', IpcApproval::APPROVAL_REQUIRED_STAGES)
                         ->where(fn ($q) => $q->where('decision', '!=', IpcApproval::DECISION_APPROVED)->orWhereNull('decision')));
             })
             ->whereHas('finishedCheck', $completed)
             ->where(function ($query) use ($approvedFor, $completed) {
                 $query
-                    ->where(fn ($q) => $q->whereHas('startupCheck', $completed)
-                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_STARTUP)))
-                    ->orWhere(fn ($q) => $q->whereHas('fillingCheck', $completed)
+                    ->where(fn ($q) => $q->whereHas('fillingCheck', $completed)
                         ->whereHas('packingCheck', $completed)
                         ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
                     ->orWhereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FINISHED));

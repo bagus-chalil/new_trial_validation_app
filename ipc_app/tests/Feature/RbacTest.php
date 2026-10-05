@@ -185,7 +185,6 @@ class RbacTest extends TestCase
                 ->has('queue.data', 1)
                 ->where('queue.data.0.batch.id', $batch->id)
                 ->where('queue.data.0.pendingStages', [
-                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_STARTUP],
                     IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING_PACKING],
                     IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED],
                 ]));

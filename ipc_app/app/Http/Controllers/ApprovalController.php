@@ -160,8 +160,7 @@ class ApprovalController extends Controller
         // still reachable directly, this only removes its card from this list. Print's own
         // overview (PrintController::stagesSummary(), a separate method) is untouched — the user
         // scoped this to Approval only.
-        return collect(IpcApproval::STAGES)
-            ->reject(fn (string $stage) => $stage === IpcApproval::STAGE_STARTUP)
+        return collect(IpcApproval::APPROVAL_REQUIRED_STAGES)
             ->map(fn (string $stage) => [
                 'stage' => $stage,
                 'label' => IpcApproval::STAGE_LABELS[$stage],

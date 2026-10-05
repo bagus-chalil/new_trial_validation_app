@@ -19,6 +19,18 @@ class IpcApproval extends Model
         self::STAGE_FINISHED,
     ];
 
+    /**
+     * Stages that must be Approved before a batch advances to Print. Startup is excluded since
+     * 2026-09-23, when its card was hidden from the Approval overview per direct user request —
+     * with no way to reach it from the overview, requiring it left batches stuck at Approval
+     * forever even after every visible stage was Approved. Its detail page still exists and an
+     * optional Startup decision is still recorded, it just no longer gates the batch.
+     */
+    public const APPROVAL_REQUIRED_STAGES = [
+        self::STAGE_FILLING_PACKING,
+        self::STAGE_FINISHED,
+    ];
+
     public const STAGE_LABELS = [
         self::STAGE_STARTUP => 'Startup',
         self::STAGE_FILLING_PACKING => 'Filling & Packing',
@@ -86,14 +98,14 @@ class IpcApproval extends Model
     }
 
     /**
-     * Which of the 3 approval stages are ready to decide but not yet Approved for this batch.
+     * Which required approval stages are ready to decide but not yet Approved for this batch.
      * Requires `approvals` to already be eager-loaded on $batch to avoid N+1 queries.
      */
     public static function pendingStagesFor(IpcBatch $batch): Collection
     {
         $approvals = $batch->approvals->keyBy('stage');
 
-        return collect(self::STAGES)->filter(
+        return collect(self::APPROVAL_REQUIRED_STAGES)->filter(
             fn (string $stage) => self::stageReady($batch, $stage)
                 && optional($approvals->get($stage))->decision !== self::DECISION_APPROVED
         )->values();
