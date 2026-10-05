@@ -216,7 +216,7 @@ export default function PrintStartup({
                                                     ) : (
                                                         <XCircle className="size-3.5" strokeWidth={2.4} />
                                                     )}
-                                                    {t.name}
+                                                    {t.label}
                                                 </span>
                                             ))}
                                         </div>

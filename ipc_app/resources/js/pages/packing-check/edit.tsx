@@ -8,6 +8,7 @@ import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { lineLabel } from '@/lib/batch-line';
@@ -29,8 +30,15 @@ interface Batch {
     no_batch: string;
     bulk_code: string;
     created_at: string;
+    master_line_id: number | null;
     master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string } | null;
+}
+
+interface LineOption {
+    id: number;
+    code: string;
+    name: string;
 }
 
 interface PackingCheckRevision {
@@ -49,6 +57,8 @@ interface PackingCheckData {
     completed_at: string | null;
     created_at: string;
     save_count: number;
+    master_line_id: number | null;
+    master_line?: { name: string; code: string } | null;
     standard_weight_mb: string | null;
     line_leader_name: string | null;
     coding_machine: string | null;
@@ -86,6 +96,7 @@ export default function PackingCheckEdit({
     decisions,
     weighingDataOptions,
     photoUrls,
+    lines,
     canFillMasterBox,
     maxThProgress,
     previousStageCompleted,
@@ -97,6 +108,7 @@ export default function PackingCheckEdit({
     decisions: string[];
     weighingDataOptions: string[];
     photoUrls: Record<string, string | null>;
+    lines: LineOption[];
     canFillMasterBox: boolean;
     maxThProgress: number;
     previousStageCompleted: boolean;
@@ -124,6 +136,8 @@ export default function PackingCheckEdit({
     const { data, setData, put, transform, processing, errors } = useForm<Record<string, string | null>>({
         ...initialChecklistValues,
         sum_weight_mb: (packingCheck?.sum_weight_mb as string) ?? '',
+        // Packing line defaults to the batch's (Filling) line; QC can switch it on any round.
+        master_line_id: String(packingCheck?.master_line_id ?? batch.master_line_id ?? ''),
         standard_weight_mb: packingCheck?.standard_weight_mb ?? '',
         line_leader_name: packingCheck?.line_leader_name ?? '',
         coding_machine: packingCheck?.coding_machine ?? '',
@@ -145,6 +159,7 @@ export default function PackingCheckEdit({
     // Used both to decide the "Parameter Packing" card's default open/collapsed state and to
     // show its "Selesai" badge — every field this screen actually requires to finalize.
     const parameterPackingComplete =
+        Boolean(data.master_line_id) &&
         Boolean(data.sum_weight_mb?.toString().trim()) &&
         Boolean(data.standard_weight_mb?.toString().trim()) &&
         Boolean(data.line_leader_name?.trim()) &&
@@ -161,6 +176,7 @@ export default function PackingCheckEdit({
         const empty = new Set<string>();
         if (!data.remarks?.trim()) empty.add('remarks');
         if (!data.decision) empty.add('decision');
+        if (!data.master_line_id) empty.add('master_line_id');
         // Only wajib on the round that actually sets them — once locked they're carried forward
         // by the server and don't need re-entry, matching SavePackingCheckRequest's server-side rule.
         if (!standardWeightMbLocked && !data.standard_weight_mb?.toString().trim()) empty.add('standard_weight_mb');
@@ -205,6 +221,7 @@ export default function PackingCheckEdit({
     const blankRoundForm = () => ({
         ...allChecklistKeys.reduce<Record<string, string>>((acc, key) => ({ ...acc, [key]: '' }), {}),
         sum_weight_mb: '',
+        master_line_id: data.master_line_id,
         // Always carried forward, never blanked: whatever was just typed either becomes the
         // locked value server-side (first non-blank round) or is still freely editable next
         // round either way, so there's no case where wiping it here is correct. Using the
@@ -290,7 +307,7 @@ export default function PackingCheckEdit({
                             <InfoField label="FG Code" value={batch.master_product.fg_code} />
                             <InfoField label="No. Batch" value={batch.no_batch} />
                             <InfoField label="Bulk Code" value={batch.bulk_code} />
-                            <InfoField label="Line" value={lineLabel(batch.master_line)} />
+                            <InfoField label="Line Filling" value={lineLabel(batch.master_line)} />
                             <InfoField label="IPC ID" value={inspectorName} />
                             <InfoField label="TH Progress" value={`${packingCheck?.save_count ?? 0} / ${maxThProgress}`} />
                             <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
@@ -347,6 +364,38 @@ export default function PackingCheckEdit({
                         })}
 
                         <AccordionCard title="Parameter Packing" complete={parameterPackingComplete} defaultOpen={!parameterPackingComplete}>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="master_line_id" className="text-muted-foreground text-xs font-semibold">
+                                    Line Packing
+                                </Label>
+                                <Select
+                                    value={data.master_line_id ?? ''}
+                                    onValueChange={(value) => {
+                                        setData('master_line_id', value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('master_line_id');
+                                            return n;
+                                        });
+                                    }}
+                                    disabled={isReadOnly}
+                                >
+                                    <SelectTrigger
+                                        id="master_line_id"
+                                        className={`${inputClass} ${errorFields.has('master_line_id') ? errorBorder : ''}`}
+                                    >
+                                        <SelectValue placeholder="Pilih line packing" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {lines.map((line) => (
+                                            <SelectItem key={line.id} value={String(line.id)}>
+                                                {line.code} — {line.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.master_line_id} />
+                            </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="standard_weight_mb" className="text-muted-foreground text-xs font-semibold">
                                     Std Bruto MB{standardWeightMbLocked && ' (terkunci sejak TH Progress 1)'}

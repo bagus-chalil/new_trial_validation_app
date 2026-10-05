@@ -74,6 +74,7 @@ class PrintController extends Controller
             'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'fillingCheck.revisions.user',
             'packingCheck.user',
+            'packingCheck.masterLine',
             'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'packingCheck.revisions.user',
             'approvals.approver',

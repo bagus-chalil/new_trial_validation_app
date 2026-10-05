@@ -666,4 +666,46 @@ class PackingCheckTest extends TestCase
 
         $this->assertSame('Tidak Ada', $batch->fresh()->packingCheck->weighing_data);
     }
+
+    public function test_packing_line_defaults_to_the_batch_line(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($batch->master_line_id, $batch->fresh()->packingCheck->master_line_id);
+    }
+
+    public function test_packing_line_can_differ_from_filling_line_and_change_between_rounds(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $lineA = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'PK 01', 'name' => 'Packing 01', 'is_active' => true]);
+        $lineB = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'PK 02', 'name' => 'Packing 02', 'is_active' => true]);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'master_line_id' => $lineA->id]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame($lineA->id, $batch->fresh()->packingCheck->master_line_id);
+
+        // Survives the draft-round reset, and the page preselects it.
+        $this->get("/batches/{$batch->id}/packing-check")
+            ->assertInertia(fn ($page) => $page->where('packingCheck.master_line_id', $lineA->id)->where('batch.master_line_id', $batch->master_line_id));
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'master_line_id' => $lineB->id]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame($lineB->id, $batch->fresh()->packingCheck->master_line_id);
+        $this->assertNotSame($lineB->id, $batch->fresh()->master_line_id);
+    }
+
+    public function test_inactive_packing_line_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $inactive = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'PK 09', 'name' => 'Old Line', 'is_active' => false]);
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'master_line_id' => $inactive->id]))
+            ->assertSessionHasErrors('master_line_id');
+    }
 }

@@ -21,7 +21,9 @@ use Illuminate\Database\Seeder;
  * SWING_TEST, TAPE_TEST, HARDESS_TEST (6); Attribute unchanged (4). TORSI/DROP_TEST_P/
  * DROP_TEST_S moved from Functional to Leakage accordingly. Uses updateOrCreate (not
  * firstOrCreate) specifically so re-running this seeder corrects any row already seeded with
- * the old, wrong category.
+ * the old, wrong category. SHRINK/BODY_LABEL/BOTTOM_LABEL (Attribute) and PUMP_TEST
+ * (Functional) were added at the user's request 2026-10-05 (also inserted on deploy by the
+ * 2026_10_05_100001 migration) — 19 in total now.
  */
 class MasterDataSeeder extends Seeder
 {
@@ -70,10 +72,14 @@ class MasterDataSeeder extends Seeder
             'SWING_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
             'TAPE_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
             'HARDESS_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
+            'PUMP_TEST' => MasterTestType::CATEGORY_FUNCTIONAL,
             'SECURITY_SEAL' => MasterTestType::CATEGORY_ATTRIBUTE,
             'SHADE_LABEL' => MasterTestType::CATEGORY_ATTRIBUTE,
             'QR_CODE' => MasterTestType::CATEGORY_ATTRIBUTE,
             'HOLOGRAM' => MasterTestType::CATEGORY_ATTRIBUTE,
+            'SHRINK' => MasterTestType::CATEGORY_ATTRIBUTE,
+            'BODY_LABEL' => MasterTestType::CATEGORY_ATTRIBUTE,
+            'BOTTOM_LABEL' => MasterTestType::CATEGORY_ATTRIBUTE,
         ];
 
         foreach ($testTypes as $name => $category) {

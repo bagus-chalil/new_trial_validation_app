@@ -12,6 +12,7 @@ use App\Models\StartupInspection;
 use App\Models\StartupInspectionItem;
 use App\Models\StartupInspectionSample;
 use App\Models\User;
+use Database\Seeders\MasterDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -293,5 +294,63 @@ class StartupInspectionTest extends TestCase
 
         $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 250]))
             ->assertForbidden();
+    }
+
+    public function test_sekunder_accepts_na_but_other_items_do_not(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $items = $this->validItemsPayload();
+        $items['primer']['status'] = StartupInspectionItem::STATUS_NA;
+
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $items, 'samples' => $this->validSamplesPayload()])
+            ->assertSessionHasErrors('items.primer.status');
+
+        $items = $this->validItemsPayload();
+        $items['sekunder']['status'] = StartupInspectionItem::STATUS_NA;
+
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $items, 'samples' => $this->validSamplesPayload()])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            StartupInspectionItem::STATUS_NA,
+            $batch->fresh()->startupInspection->items()->where('parameter_key', 'sekunder')->value('status'),
+        );
+    }
+
+    public function test_form_offers_na_for_sekunder_and_new_test_types(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+        $this->seed(MasterDataSeeder::class);
+
+        $this->get("/batches/{$batch->id}/startup-inspection")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('notApplicableKeys', ['sekunder'])
+                ->where('notApplicableStatus', StartupInspectionItem::STATUS_NA)
+                ->where('testTypes', fn ($types) => collect($types)->pluck('name')->intersect(['SHRINK', 'BODY_LABEL', 'BOTTOM_LABEL', 'PUMP_TEST'])->count() === 4));
+    }
+
+    public function test_several_test_types_in_one_category_can_be_selected(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+        $shrink = $this->makeTestType('SHRINK', MasterTestType::CATEGORY_ATTRIBUTE);
+        $bodyLabel = $this->makeTestType('BODY_LABEL', MasterTestType::CATEGORY_ATTRIBUTE);
+        $bottomLabel = $this->makeTestType('BOTTOM_LABEL', MasterTestType::CATEGORY_ATTRIBUTE);
+
+        $this->put("/batches/{$batch->id}/startup-inspection", [
+            ...$this->validPayload(),
+            'test_results' => [
+                $shrink->id => ['is_performed' => true],
+                $bodyLabel->id => ['is_performed' => true],
+                $bottomLabel->id => ['is_performed' => false],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $performed = $batch->fresh()->startupInspection->testResults()->where('is_performed', true)->pluck('master_test_type_id')->sort()->values()->all();
+        $this->assertSame([$shrink->id, $bodyLabel->id], $performed);
     }
 }

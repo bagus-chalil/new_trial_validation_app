@@ -172,6 +172,7 @@ trait BuildsIpcReportPayloads
             'testTypesByCategory' => $testTypesByCategory->map(fn ($rows) => $rows->map(fn ($type) => [
                 'id' => $type->id,
                 'name' => $type->name,
+                'label' => $type->label,
                 'is_performed' => (bool) ($testResultsByTypeId->get($type->id)?->is_performed ?? false),
             ])->values()),
         ];
@@ -241,6 +242,7 @@ trait BuildsIpcReportPayloads
                         'fillingCheck.revisions.user',
                         'fillingCheck.revisions.samples',
                         'packingCheck.user',
+                        'packingCheck.masterLine',
                         'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'packingCheck.revisions.user',
                         'packingCheck.revisions.photos',

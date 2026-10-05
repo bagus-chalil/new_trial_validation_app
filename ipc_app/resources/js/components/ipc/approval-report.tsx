@@ -46,6 +46,7 @@ export interface StageInfo {
 export interface TestTypeRow {
     id: number;
     name: string;
+    label: string;
     is_performed: boolean;
 }
 

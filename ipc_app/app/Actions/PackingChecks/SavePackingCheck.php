@@ -26,7 +26,11 @@ class SavePackingCheck
         return DB::transaction(function () use ($batch, $user, $data) {
             $finalize = (bool) ($data['finalize'] ?? false);
             $existing = $batch->packingCheck;
-            $fields = collect($data)->except(['finalize', 'standard_weight_mb', 'line_leader_name', 'coding_machine', 'weighing_data'])->all();
+            $fields = collect($data)->except(['finalize', 'master_line_id', 'standard_weight_mb', 'line_leader_name', 'coding_machine', 'weighing_data'])->all();
+
+            // Packing line: not locked like the fields below — QC can switch it on any round. A
+            // save that doesn't send one keeps the current value, else defaults to the batch line.
+            $masterLineId = ($data['master_line_id'] ?? null) ?: ($existing?->master_line_id ?? $batch->master_line_id);
 
             // Asked once on the first round, then carried forward untouched — Std Bruto MB, the
             // coding machine, line leader and Data Timbang don't change between inspection rounds
@@ -43,6 +47,7 @@ class SavePackingCheck
                 ['ipc_batch_id' => $batch->id],
                 [
                     ...$fields,
+                    'master_line_id' => $masterLineId,
                     'standard_weight_mb' => $standardWeightMb,
                     'line_leader_name' => $lineLeaderName,
                     'coding_machine' => $codingMachine,

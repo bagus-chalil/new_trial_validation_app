@@ -50,6 +50,7 @@ interface StartupInspectionData {
 interface TestType {
     id: number;
     name: string;
+    label: string;
     category: string;
 }
 
@@ -70,24 +71,6 @@ const CATEGORY_TITLES: Record<string, string> = {
     Leakage: 'Leakage Test',
     Functional: 'Function Test',
     Attribute: 'Attribute',
-};
-
-const TEST_NAME_LABELS: Record<string, string> = {
-    VACCUM: 'Vaccum',
-    TORSI: 'Torsi',
-    PRESS_TEST: 'Press Test',
-    DROP_TEST_P: 'Drop Test (Primary)',
-    DROP_TEST_S: 'Drop Test (Secondary)',
-    SPRAY: 'Spray',
-    FLIP_TOP: 'Flip Top',
-    RUB_TEST: 'Rub Test',
-    SWING_TEST: 'Swing Test',
-    TAPE_TEST: 'Tape Test',
-    HARDESS_TEST: 'Hardess Test',
-    SECURITY_SEAL: 'Security Seal',
-    SHADE_LABEL: 'Shade Label',
-    QR_CODE: 'QR Code',
-    HOLOGRAM: 'Hologram',
 };
 
 const SAMPLE_NUMBERS = Array.from({ length: 30 }, (_, i) => i + 1);
@@ -126,6 +109,8 @@ export default function StartupInspectionEdit({
     isReadOnly,
     parameterKeys,
     statusOptions,
+    notApplicableKeys,
+    notApplicableStatus,
     testTypes,
     masterBoxOnly,
 }: {
@@ -134,6 +119,9 @@ export default function StartupInspectionEdit({
     isReadOnly: boolean;
     parameterKeys: string[];
     statusOptions: string[];
+    // Items that also get an N/A chip (e.g. Sekunder — not every product has secondary packaging).
+    notApplicableKeys: string[];
+    notApplicableStatus: string;
     testTypes: TestType[];
     // Start Inspection is already completed, but Weight Master Box was left empty and the batch
     // is now at Packing: everything is read-only except that one card (see
@@ -327,7 +315,7 @@ export default function StartupInspectionEdit({
                                     <div className={errorFields.has(key) ? 'outline-destructive rounded-xl outline outline-2' : ''}>
                                         <ChipToggleGroup
                                             name={PARAMETER_LABELS[key] ?? key}
-                                            options={statusOptions}
+                                            options={notApplicableKeys.includes(key) ? [...statusOptions, notApplicableStatus] : statusOptions}
                                             value={data.items[key]?.status ?? ''}
                                             onChange={(value) => setItemField(key, 'status', value)}
                                             disabled={isReadOnly}
@@ -429,7 +417,7 @@ export default function StartupInspectionEdit({
                                                             : 'border-border bg-background text-muted-foreground',
                                                     )}
                                                 >
-                                                    {TEST_NAME_LABELS[type.name] ?? type.name}
+                                                    {type.label}
                                                 </button>
                                             );
                                         })}

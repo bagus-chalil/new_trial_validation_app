@@ -9,6 +9,7 @@ use App\Models\IpcBatch;
 use App\Models\PackingCheck;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SavePackingCheckRequest extends FormRequest
 {
@@ -57,6 +58,10 @@ class SavePackingCheckRequest extends FormRequest
 
         $rules = [
             'finalize' => ['required', 'boolean'],
+            // Packing line — prefilled with the batch's (Filling) line, changeable on any round
+            // until Packing is finalized, since packing can run on another line (user, 2026-10-05).
+            // Omitted = keep the current one / fall back to the batch line (see SavePackingCheck).
+            'master_line_id' => ['nullable', 'integer', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             // "Weight of MB" (sum_weight_mb column): weighed fresh every TH_PROGRESS round, so
             // it's wajib on every save — draft or final — not just on Selesaikan (user, 2026-10-01).
             'sum_weight_mb' => ['required', 'numeric', 'min:0'],

@@ -60,6 +60,7 @@ interface PackingCheckRevision extends RevisionRow {
 
 interface PackingCheckData {
     [field: string]: unknown;
+    master_line?: { name: string; code: string } | null;
     standard_weight_mb: string | null;
     sum_weight_mb: string | null;
     line_leader_name: string | null;
@@ -171,6 +172,7 @@ export default function PrintFillingPacking({
                     {packingCheck ? (
                         <AccordionCard title="B. Packing Inspection" defaultOpen={false}>
                             <InfoField label="QC" value={packingCheck.user?.name ?? '—'} />
+                            <InfoField label="Line Packing" value={lineLabel(packingCheck.master_line ?? batch.master_line)} />
                             <InfoField label="Line Leader" value={packingCheck.line_leader_name ?? '—'} />
                             <InfoField label="Machines Coding" value={packingCheck.coding_machine ?? '—'} />
                             <InfoField label="Std Bruto MB" value={packingCheck.standard_weight_mb ?? '—'} />

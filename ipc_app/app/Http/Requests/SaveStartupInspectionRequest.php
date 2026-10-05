@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\StartupInspectionItem;
 use App\Models\StartupInspectionSample;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class SaveStartupInspectionRequest extends FormRequest
@@ -21,11 +22,10 @@ class SaveStartupInspectionRequest extends FormRequest
         // All 10 checklist items required, unlike legacy which only enforces 7 of them (very
         // likely a legacy bug — see ipc_app/CLAUDE.md). Deliberate improvement, not a port.
         foreach (StartupInspectionItem::PARAMETER_KEYS as $key) {
-            $rules["items.{$key}.status"] = ['required', 'in:'.implode(',', [
-                StartupInspectionItem::STATUS_OK,
-                StartupInspectionItem::STATUS_PARTIAL_OK,
-                StartupInspectionItem::STATUS_NOT_OK,
-            ])];
+            $statuses = in_array($key, StartupInspectionItem::NOT_APPLICABLE_KEYS, true)
+                ? [...StartupInspectionItem::STATUSES, StartupInspectionItem::STATUS_NA]
+                : StartupInspectionItem::STATUSES;
+            $rules["items.{$key}.status"] = ['required', Rule::in($statuses)];
             $rules["items.{$key}.remark"] = ['nullable', 'string'];
         }
 

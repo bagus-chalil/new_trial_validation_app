@@ -33,11 +33,9 @@ class StartupInspectionController extends Controller
             'startupInspection' => $inspection,
             'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $inspection?->completed_at,
             'parameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
-            'statusOptions' => [
-                StartupInspectionItem::STATUS_OK,
-                StartupInspectionItem::STATUS_PARTIAL_OK,
-                StartupInspectionItem::STATUS_NOT_OK,
-            ],
+            'statusOptions' => StartupInspectionItem::STATUSES,
+            'notApplicableKeys' => StartupInspectionItem::NOT_APPLICABLE_KEYS,
+            'notApplicableStatus' => StartupInspectionItem::STATUS_NA,
             'testTypes' => $testTypes,
             'masterBoxOnly' => Gate::allows('update', $batch) && self::masterBoxLockReason($batch) === null,
         ]);

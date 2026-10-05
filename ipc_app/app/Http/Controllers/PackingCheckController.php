@@ -7,6 +7,7 @@ use App\Http\Requests\SavePackingCheckRequest;
 use App\Http\Requests\UploadPackingCheckPhotoRequest;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
+use App\Models\MasterLine;
 use App\Models\PackingCheck;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -39,6 +40,7 @@ class PackingCheckController extends Controller
             'masterProduct',
             'masterLine',
             'packingCheck.user',
+            'packingCheck.masterLine',
             'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'packingCheck.revisions.user',
         ]);
@@ -68,6 +70,12 @@ class PackingCheckController extends Controller
             'decisions' => PackingCheck::DECISIONS,
             'weighingDataOptions' => PackingCheck::WEIGHING_DATA_OPTIONS,
             'photoUrls' => $photoUrls,
+            // Active lines, plus the one already saved on this check even if it was deactivated
+            // since — otherwise the select would show blank for it.
+            'lines' => MasterLine::query()
+                ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $batch->packingCheck?->master_line_id))
+                ->orderBy('name')
+                ->get(['id', 'code', 'name']),
             'canFillMasterBox' => Gate::allows('update', $batch) && StartupInspectionController::masterBoxLockReason($batch) === null,
             'maxThProgress' => IpcBatch::MAX_TH_PROGRESS,
             'previousStageCompleted' => (bool) $batch->fillingCheck->completed_at,

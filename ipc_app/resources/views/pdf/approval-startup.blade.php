@@ -250,7 +250,7 @@
                         <td style="width: 16%;"><strong>{{ $category }}</strong></td>
                         <td>
                             @foreach ($types as $t)
-                                <span class="status-pill {{ $t['is_performed'] ? 'ok' : 'muted' }}">{{ $t['name'] }}</span>
+                                <span class="status-pill {{ $t['is_performed'] ? 'ok' : 'muted' }}">{{ $t['label'] }}</span>
                             @endforeach
                         </td>
                     </tr>
@@ -260,7 +260,7 @@
         <p class="muted" style="font-size: 8px;">
             <strong>NOTE:</strong>
             @foreach ($testTypesByCategory as $category => $types)
-                {{ strtoupper($category) }} = {{ collect($types)->pluck('name')->implode(', ') }}{{ ! $loop->last ? ' | ' : '' }}
+                {{ strtoupper($category) }} = {{ collect($types)->pluck('label')->implode(', ') }}{{ ! $loop->last ? ' | ' : '' }}
             @endforeach
         </p>
 

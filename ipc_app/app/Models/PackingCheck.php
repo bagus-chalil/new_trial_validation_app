@@ -134,6 +134,7 @@ class PackingCheck extends Model
     protected $fillable = [
         'ipc_batch_id',
         'user_id',
+        'master_line_id',
         'primary_bulk_status',
         'primary_packaging_status',
         'primary_capping_sealing_status',
@@ -183,5 +184,15 @@ class PackingCheck extends Model
     public function revisions()
     {
         return $this->hasMany(PackingCheckRevision::class);
+    }
+
+    /**
+     * The line packing actually ran on, which can differ from the batch's (Filling) line
+     * (user, 2026-10-05). Null on rows saved before it existed — display falls back to
+     * $batch->masterLine.
+     */
+    public function masterLine()
+    {
+        return $this->belongsTo(MasterLine::class);
     }
 }

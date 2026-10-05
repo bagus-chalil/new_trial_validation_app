@@ -136,7 +136,7 @@
     @if ($packingCheck)
         <div class="info-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div><span>Date / Shift Packing</span><strong>{{ optional($packingCheck->completed_at ?? $packingCheck->updated_at)->translatedFormat('d/m/Y H:i') ?? '—' }}</strong></div>
-            <div><span>Machines / Lines</span><strong>{{ $batch->masterLine->name ?? '—' }} ({{ $batch->masterLine->code ?? '—' }})</strong></div>
+            <div><span>Machines / Lines</span><strong>{{ ($packingCheck->masterLine ?? $batch->masterLine)->name ?? '—' }} ({{ ($packingCheck->masterLine ?? $batch->masterLine)->code ?? '—' }})</strong></div>
             <div><span>Machines Coding</span><strong>{{ $packingCheck->coding_machine ?? '—' }}</strong></div>
             <div><span>TH Progress</span><strong>{{ $packingCheck->save_count ?? 0 }}</strong></div>
             <div><span>QC</span><strong>{{ $packingCheck->user->name ?? '—' }}</strong></div>
