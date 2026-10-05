@@ -31,7 +31,7 @@ interface StartupInspectionItemData {
 interface StartupInspectionSampleData {
     sample_no: number;
     volume_weight: string | null;
-    weight_master_box: string | null;
+    weight_master_box: number | null;
 }
 
 interface StartupInspectionTestResultData {
@@ -174,7 +174,7 @@ export default function StartupInspectionEdit({
         return {
             sample_no: n,
             volume_weight: existing?.volume_weight ?? '',
-            weight_master_box: existing?.weight_master_box ?? '',
+            weight_master_box: existing?.weight_master_box != null ? String(existing.weight_master_box) : '',
         };
     });
 
@@ -207,8 +207,8 @@ export default function StartupInspectionEdit({
     };
 
     const setSampleField = (sampleNo: number, field: 'volume_weight' | 'weight_master_box', rawValue: string) => {
-        // Max 2 digits after the decimal point — extra digits are dropped as they're typed.
-        const value = limitDecimals(rawValue);
+        // Volume/Weight: max 2 decimals. Weight Master Box: whole numbers only — the decimal part is dropped as it's typed.
+        const value = field === 'weight_master_box' ? rawValue.split(/[.,]/)[0] : limitDecimals(rawValue);
         setData(
             'samples',
             data.samples.map((sample) => (sample.sample_no === sampleNo ? { ...sample, [field]: value } : sample)),
@@ -394,7 +394,8 @@ export default function StartupInspectionEdit({
                                             <span className="text-muted-foreground w-5 shrink-0 text-[11px] font-semibold">{n}</span>
                                             <Input
                                                 type="number"
-                                                step="0.01"
+                                                step="1"
+                                                inputMode="numeric"
                                                 className={inputClass}
                                                 value={sample.weight_master_box}
                                                 onChange={(e) => setSampleField(n, 'weight_master_box', e.target.value)}

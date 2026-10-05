@@ -17,7 +17,7 @@ class SaveStartupInspectionMasterBoxRequest extends FormRequest
         return [
             'samples' => ['required', 'array'],
             'samples.*.sample_no' => ['required', 'integer', 'between:1,30'],
-            'samples.*.weight_master_box' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
+            'samples.*.weight_master_box' => ['nullable', 'integer', 'min:0'],
         ];
     }
 

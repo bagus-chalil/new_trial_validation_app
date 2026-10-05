@@ -56,7 +56,7 @@ interface StartupInspectionItemRow {
 interface StartupInspectionSampleRow {
     sample_no: number;
     volume_weight: string | null;
-    weight_master_box: string | null;
+    weight_master_box: number | null;
 }
 
 interface StartupInspectionData {

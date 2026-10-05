@@ -133,14 +133,14 @@ class StartupInspectionTest extends TestCase
         $this->assertNull($batch->fresh()->startupInspection);
     }
 
-    public function test_sample_values_allow_at_most_two_decimal_places(): void
+    public function test_volume_weight_allows_two_decimals_and_master_box_whole_numbers_only(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
         $samples = $this->validSamplesPayload();
         $samples[0]['volume_weight'] = 10.123;
-        $samples[1]['weight_master_box'] = 5.5555;
+        $samples[1]['weight_master_box'] = 5.5;
 
         $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload(), 'samples' => $samples])
             ->assertSessionHasErrors(['samples.0.volume_weight', 'samples.1.weight_master_box']);
@@ -229,12 +229,12 @@ class StartupInspectionTest extends TestCase
         $this->get("/batches/{$batch->id}/startup-inspection")
             ->assertInertia(fn ($page) => $page->where('masterBoxOnly', true)->where('isReadOnly', true));
 
-        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 250.5, 2 => 251]))
+        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 2607, 2 => 2610]))
             ->assertRedirect("/batches/{$batch->id}/packing-check");
 
         $samples = $batch->startupInspection->samples()->orderBy('sample_no')->get();
-        $this->assertSame('250.50', $samples[0]->weight_master_box);
-        $this->assertSame('251.00', $samples[1]->weight_master_box);
+        $this->assertSame(2607, $samples[0]->weight_master_box);
+        $this->assertSame(2610, $samples[1]->weight_master_box);
         // Volume/Weight is untouched by the late fill.
         $this->assertSame('10.00', $samples[0]->volume_weight);
 

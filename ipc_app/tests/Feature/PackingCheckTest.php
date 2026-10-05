@@ -53,7 +53,7 @@ class PackingCheckTest extends TestCase
     private function seedPackingFinalizePrereqs(IpcBatch $batch): void
     {
         $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by]);
-        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.5]);
+        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 2600]);
 
         $this->seedPackingPhotos($batch);
     }
@@ -355,7 +355,7 @@ class PackingCheckTest extends TestCase
 
         // Start Inspection weights no longer feed this field.
         $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by]);
-        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 12.7]);
+        $inspection->samples()->create(['sample_no' => 1, 'weight_master_box' => 2610]);
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]));
         $this->assertSame('1920-2000', $batch->fresh()->packingCheck->standard_weight_mb);

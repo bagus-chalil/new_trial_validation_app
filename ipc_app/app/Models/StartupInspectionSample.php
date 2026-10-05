@@ -19,7 +19,7 @@ class StartupInspectionSample extends Model
     {
         return [
             'volume_weight' => 'decimal:2',
-            'weight_master_box' => 'decimal:2',
+            'weight_master_box' => 'integer',
         ];
     }
 
