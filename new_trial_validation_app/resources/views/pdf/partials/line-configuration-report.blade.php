@@ -82,7 +82,7 @@
                     <td>{{ $row['line'] ?? '-' }}</td>
                     <td>{{ $row['workers'] ?? '-' }}</td>
                     <td>{{ $row['capacity'] ?? '-' }}</td>
-                    <td>{{ $row['remark'] ?? '-' }}</td>
+                    <td>{{ filled($row['remark'] ?? null) ? $row['remark'] : '-' }}</td>
                 </tr>
             @empty
                 <tr><td colspan="4">{{ __('line_config.no_data') }}</td></tr>
@@ -106,11 +106,11 @@
             @forelse (($report->line_configuration ?? []) as $i => $row)
                 <tr>
                     <td>{{ $row['no'] ?? $i + 1 }}</td>
-                    <td>{{ $row['equipment'] ?? '-' }}</td>
-                    <td>{{ $row['process'] ?? '-' }}</td>
-                    <td>{{ $row['worker'] ?? '-' }}</td>
+                    <td>{{ filled($row['equipment'] ?? null) ? $row['equipment'] : '-' }}</td>
+                    <td>{{ filled($row['process'] ?? null) ? $row['process'] : '-' }}</td>
+                    <td>{{ filled($row['worker'] ?? null) ? $row['worker'] : '-' }}</td>
                     <td>{{ $fmt::lineTrialStatus($row['trial_status'] ?? null) }}</td>
-                    <td>{{ $row['remark'] ?? '-' }}</td>
+                    <td>{{ filled($row['remark'] ?? null) ? $row['remark'] : '-' }}</td>
                 </tr>
             @empty
                 <tr><td colspan="6">{{ __('line_config.no_data') }}</td></tr>

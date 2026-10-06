@@ -144,13 +144,18 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             'production_standard.*.capacity' => [$required, 'string', 'max:100'],
             'production_standard.*.remark' => [$required, 'string', 'max:500'],
 
-            'line_configuration' => [$required, 'array', ...($this->isDraft() ? [] : ['min:1'])],
+            // The Line Configuration table is optional even on submit
+            // (2026-10-06, per user request): real lines often have steps
+            // with no equipment/worker/remark, so any blank cell — or the
+            // whole table — is allowed and simply rendered as "-" in the
+            // report/PDF instead of blocking the save.
+            'line_configuration' => ['nullable', 'array'],
             'line_configuration.*.no' => ['nullable', 'string', 'max:20'],
-            'line_configuration.*.equipment' => [$required, 'string', 'max:150'],
-            'line_configuration.*.process' => [$required, 'string', 'max:150'],
-            'line_configuration.*.worker' => [$required, 'string', 'max:50'],
-            'line_configuration.*.trial_status' => [$required, 'string', Rule::in(['Pass', 'No Trial'])],
-            'line_configuration.*.remark' => [$required, 'string', 'max:500'],
+            'line_configuration.*.equipment' => ['nullable', 'string', 'max:150'],
+            'line_configuration.*.process' => ['nullable', 'string', 'max:150'],
+            'line_configuration.*.worker' => ['nullable', 'string', 'max:50'],
+            'line_configuration.*.trial_status' => ['nullable', 'string', Rule::in(['Pass', 'No Trial'])],
+            'line_configuration.*.remark' => ['nullable', 'string', 'max:500'],
         ];
     }
 

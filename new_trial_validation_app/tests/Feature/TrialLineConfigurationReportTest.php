@@ -786,31 +786,47 @@ test('a line configuration report cannot be saved with any field left empty, inc
     expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->exists())->toBeFalse();
 });
 
-test('both row tables need at least one fully-filled row', function () {
+test('production standard needs at least one fully-filled row', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
 
-    // Only blank "Tambah Baris" rows: dropped, so the tables count as empty.
+    // Only blank "Tambah Baris" rows: dropped, so the table counts as empty.
     $this->actingAs($reviewer)
         ->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
             'production_standard' => [['line' => '', 'workers' => '', 'capacity' => '', 'remark' => '']],
-            'line_configuration' => [['equipment' => '', 'process' => '', 'worker' => '', 'trial_status' => 'No Trial', 'remark' => '']],
         ]))
-        ->assertInvalid(['production_standard', 'line_configuration']);
+        ->assertInvalid(['production_standard']);
 
     // A partially-filled row is rejected cell by cell.
     $this->actingAs($reviewer)
         ->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
             'production_standard' => [['line' => 'F', 'workers' => '', 'capacity' => '70', 'remark' => 'x']],
-            'line_configuration' => [['equipment' => 'SC', 'process' => '', 'worker' => '1', 'trial_status' => 'Pass', 'remark' => '']],
         ]))
-        ->assertInvalid([
-            'production_standard.0.workers',
-            'line_configuration.0.process',
-            'line_configuration.0.remark',
-        ]);
+        ->assertInvalid(['production_standard.0.workers']);
 
     expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->exists())->toBeFalse();
+});
+
+test('line configuration cells and the table itself are optional on submit', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)
+        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
+            'line_configuration' => [
+                ['equipment' => 'SC', 'process' => '', 'worker' => '', 'trial_status' => 'Pass', 'remark' => ''],
+                ['equipment' => '', 'process' => '', 'worker' => '', 'trial_status' => 'No Trial', 'remark' => ''],
+            ],
+        ]))
+        ->assertValid();
+
+    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
+    expect($report->line_configuration)->toHaveCount(1)
+        ->and($report->line_configuration[0]['equipment'])->toBe('SC')
+        ->and($report->line_configuration[0]['process'])->toBeNull();
+
+    $html = view('pdf.partials.line-configuration-report', ['report' => $report])->render();
+    expect($html)->toContain('<td>-</td>');
 });
 
 test('a draft can be saved incomplete, stays editable for the drafter, and never assigns approvers or sends email', function () {

@@ -1416,7 +1416,7 @@ function ReadOnlyLineConfigurationReport({
                                             {row.capacity ?? '-'}
                                         </TableCell>
                                         <TableCell>
-                                            {row.remark ?? '-'}
+                                            {row.remark || '-'}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -1480,13 +1480,13 @@ function ReadOnlyLineConfigurationReport({
                                             {i + 1}
                                         </TableCell>
                                         <TableCell>
-                                            {row.equipment ?? '-'}
+                                            {row.equipment || '-'}
                                         </TableCell>
                                         <TableCell>
-                                            {row.process ?? '-'}
+                                            {row.process || '-'}
                                         </TableCell>
                                         <TableCell>
-                                            {row.worker ?? '-'}
+                                            {row.worker || '-'}
                                         </TableCell>
                                         <TableCell>
                                             <Badge
@@ -1505,7 +1505,7 @@ function ReadOnlyLineConfigurationReport({
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {row.remark ?? '-'}
+                                            {row.remark || '-'}
                                         </TableCell>
                                     </TableRow>
                                 ))}
