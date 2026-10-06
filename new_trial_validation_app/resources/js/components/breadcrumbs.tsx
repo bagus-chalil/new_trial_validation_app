@@ -34,6 +34,7 @@ const adminGroups: Record<string, string> = {
     'lane-configuration': 'common.nav.user_management',
     notifications: 'common.nav.system',
     trash: 'common.nav.system',
+    archive: 'common.nav.system',
     'activity-logs': 'common.nav.system',
 };
 
@@ -44,6 +45,7 @@ const adminTitles: Record<string, string> = {
     'lane-configuration': 'common.nav.line_configuration',
     notifications: 'common.nav.notifications',
     trash: 'common.nav.trash',
+    archive: 'common.nav.archive',
     'activity-logs': 'common.nav.activity_logs',
     products: 'common.nav.products',
     parameters: 'common.nav.parameters',

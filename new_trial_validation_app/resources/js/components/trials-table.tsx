@@ -6,7 +6,10 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 import { useMemo } from 'react';
+import TrialArchiveController from '@/actions/App/Http/Controllers/Admin/TrialArchiveController';
+import TrialController from '@/actions/App/Http/Controllers/TrialController';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PaginationFooter } from '@/components/pagination-footer';
 import { TrialProcessProgress } from '@/components/trial-process-progress';
 import { TrialStepProgress } from '@/components/trial-step-progress';
@@ -43,6 +46,8 @@ export type TrialRow = {
     created_at: string;
     pending_with: string | null;
     can_edit: boolean;
+    can_delete: boolean;
+    can_archive: boolean;
 };
 
 const columnHelper = createColumnHelper<TrialRow>();
@@ -128,16 +133,74 @@ function buildColumns(
         columnHelper.display({
             id: 'actions',
             header: t('trials.table.actions'),
-            cell: (info) =>
-                info.row.original.can_edit ? (
-                    <Button asChild variant="outline" size="sm">
-                        <Link href={editTrial(info.row.original.id).url}>
-                            {t('trials.table.edit')}
-                        </Link>
-                    </Button>
-                ) : (
-                    '-'
-                ),
+            cell: (info) => {
+                const trial = info.row.original;
+
+                if (
+                    !trial.can_edit &&
+                    !trial.can_delete &&
+                    !trial.can_archive
+                ) {
+                    return '-';
+                }
+
+                return (
+                    <div className="flex flex-col items-start gap-1.5">
+                        {trial.can_edit && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={editTrial(trial.id).url}>
+                                    {t('trials.table.edit')}
+                                </Link>
+                            </Button>
+                        )}
+                        {trial.can_delete && (
+                            <ConfirmDialog
+                                trigger={
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        {t('trials.table.delete')}
+                                    </Button>
+                                }
+                                title={t('trials.table.delete_title')}
+                                description={t(
+                                    'trials.table.delete_description',
+                                    {
+                                        code: trial.trial_code,
+                                    },
+                                )}
+                                confirmLabel={t('trials.table.delete')}
+                                formProps={TrialController.destroy.form(
+                                    trial.id,
+                                )}
+                            />
+                        )}
+                        {trial.can_archive && (
+                            <ConfirmDialog
+                                trigger={
+                                    <Button variant="outline" size="sm">
+                                        {t('trials.table.archive')}
+                                    </Button>
+                                }
+                                title={t('trials.table.archive_title')}
+                                description={t(
+                                    'trials.table.archive_description',
+                                    {
+                                        code: trial.trial_code,
+                                    },
+                                )}
+                                confirmLabel={t('trials.table.archive')}
+                                confirmVariant="default"
+                                formProps={TrialArchiveController.store.form(
+                                    trial.id,
+                                )}
+                            />
+                        )}
+                    </div>
+                );
+            },
         }),
     ];
 }

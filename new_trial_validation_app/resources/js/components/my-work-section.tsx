@@ -6,9 +6,12 @@ import {
     Clock,
     FileEdit,
 } from 'lucide-react';
+import TrialController from '@/actions/App/Http/Controllers/TrialController';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { TrialStepProgress } from '@/components/trial-step-progress';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from '@/hooks/use-translation';
 import {
@@ -26,6 +29,7 @@ type MyTrial = {
     progress_status: string;
     current_step: string | null;
     pending_with: string | null;
+    can_delete?: boolean;
 };
 
 type PendingReview = {
@@ -142,15 +146,46 @@ function OwnTrialCard({
                         >
                             <div className="flex items-center justify-between gap-2">
                                 {ownTrialLink(trial, editable)}
-                                <Badge
-                                    variant="outline"
-                                    className={trialStatusBadgeClassName(
-                                        trial.progress_status,
-                                        null,
+                                <div className="flex items-center gap-2">
+                                    <Badge
+                                        variant="outline"
+                                        className={trialStatusBadgeClassName(
+                                            trial.progress_status,
+                                            null,
+                                        )}
+                                    >
+                                        {trialStatusLabel(
+                                            t,
+                                            trial.progress_status,
+                                        )}
+                                    </Badge>
+                                    {trial.can_delete && (
+                                        <ConfirmDialog
+                                            trigger={
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-auto px-2 py-0.5 text-xs text-destructive hover:text-destructive"
+                                                >
+                                                    {t('trials.table.delete')}
+                                                </Button>
+                                            }
+                                            title={t(
+                                                'trials.table.delete_title',
+                                            )}
+                                            description={t(
+                                                'trials.table.delete_description',
+                                                { code: trial.trial_code },
+                                            )}
+                                            confirmLabel={t(
+                                                'trials.table.delete',
+                                            )}
+                                            formProps={TrialController.destroy.form(
+                                                trial.id,
+                                            )}
+                                        />
                                     )}
-                                >
-                                    {trialStatusLabel(t, trial.progress_status)}
-                                </Badge>
+                                </div>
                             </div>
                             <div className="text-sm text-muted-foreground">
                                 {trial.product_name}

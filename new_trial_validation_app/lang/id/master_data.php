@@ -10,6 +10,8 @@ return [
         'filter' => 'Terapkan Filter',
         'restore' => 'Pulihkan',
         'detail' => 'Detail',
+        'archive' => 'Arsipkan',
+        'unarchive' => 'Keluarkan dari Arsip',
     ],
 
     'columns' => [
@@ -97,6 +99,24 @@ return [
         'item_label' => 'trial',
     ],
 
+    'archive' => [
+        'head_title' => 'Arsip',
+        'title' => 'Arsip - Trial Selesai',
+        'description' => 'Trial Approved/Rejected yang diarsipkan disembunyikan dari daftar trial biasa, tapi datanya tetap utuh dan bisa dikeluarkan dari arsip kapan saja.',
+        'search' => 'Cari',
+        'search_placeholder' => 'Kode trial, produk...',
+        'column_trial_code' => 'Kode Trial',
+        'column_product' => 'Produk',
+        'column_product_type' => 'Tipe Produk',
+        'column_archived_by' => 'Diarsipkan Oleh',
+        'column_archived_at' => 'Waktu Diarsipkan',
+        'column_status' => 'Status',
+        'unarchive_title' => 'Keluarkan trial ini dari arsip?',
+        'unarchive_description' => ':code akan kembali tampil di daftar trial biasa.',
+        'empty' => 'Belum ada trial yang diarsipkan.',
+        'item_label' => 'trial',
+    ],
+
     'activity_logs' => [
         'head_title' => 'Log Aktivitas',
         'title' => 'Log Aktivitas',
@@ -138,6 +158,8 @@ return [
         'master_deleted' => 'Master option berhasil dihapus.',
         'trial_restored' => 'Trial :code berhasil dipulihkan.',
         'trial_not_deleted' => 'Trial ini tidak dalam status terhapus.',
+        'trial_archived' => 'Trial :code dipindahkan ke Arsip.',
+        'trial_unarchived' => 'Trial :code dikeluarkan dari Arsip.',
         'log_deleted' => 'Log aktivitas berhasil dihapus.',
         'logs_deleted' => 'Log aktivitas terpilih berhasil dihapus.',
     ],

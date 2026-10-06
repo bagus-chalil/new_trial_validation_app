@@ -10,6 +10,8 @@ return [
         'filter' => '필터 적용',
         'restore' => '복원',
         'detail' => '상세',
+        'archive' => '보관함으로 이동',
+        'unarchive' => '보관함에서 복원',
     ],
 
     'columns' => [
@@ -97,6 +99,24 @@ return [
         'item_label' => '트라이얼',
     ],
 
+    'archive' => [
+        'head_title' => '보관함',
+        'title' => '보관함 - 완료된 트라이얼',
+        'description' => '보관함으로 이동된 Approved/Rejected 트라이얼은 일반 트라이얼 목록에서 숨겨지지만 데이터는 그대로 유지되며 언제든지 복원할 수 있습니다.',
+        'search' => '검색',
+        'search_placeholder' => '트라이얼 코드, 제품...',
+        'column_trial_code' => '트라이얼 코드',
+        'column_product' => '제품',
+        'column_product_type' => '제품 유형',
+        'column_archived_by' => '보관 처리자',
+        'column_archived_at' => '보관 일시',
+        'column_status' => '상태',
+        'unarchive_title' => '이 트라이얼을 보관함에서 복원하시겠습니까?',
+        'unarchive_description' => ':code 트라이얼이 일반 트라이얼 목록에 다시 표시됩니다.',
+        'empty' => '보관된 트라이얼이 없습니다.',
+        'item_label' => '트라이얼',
+    ],
+
     'activity_logs' => [
         'head_title' => '활동 로그',
         'title' => '활동 로그',
@@ -138,6 +158,8 @@ return [
         'master_deleted' => '마스터 항목이 삭제되었습니다.',
         'trial_restored' => ':code 트라이얼이 복원되었습니다.',
         'trial_not_deleted' => '이 트라이얼은 삭제된 상태가 아닙니다.',
+        'trial_archived' => ':code 트라이얼이 보관함으로 이동되었습니다.',
+        'trial_unarchived' => ':code 트라이얼이 보관함에서 복원되었습니다.',
         'log_deleted' => '활동 로그가 삭제되었습니다.',
         'logs_deleted' => '선택한 활동 로그가 삭제되었습니다.',
     ],

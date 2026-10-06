@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
     Route::post('/', [TrialController::class, 'store'])->name('store');
     Route::get('{trial}/edit', [TrialController::class, 'edit'])->whereNumber('trial')->name('edit');
     Route::put('{trial}', [TrialController::class, 'update'])->whereNumber('trial')->name('update');
+    Route::delete('{trial}', [TrialController::class, 'destroy'])->whereNumber('trial')->name('destroy');
 
     Route::get('{trial}/validation', [TrialValidationController::class, 'edit'])->whereNumber('trial')->name('validation.edit');
     Route::put('{trial}/validation', [TrialValidationController::class, 'update'])->whereNumber('trial')->name('validation.update');

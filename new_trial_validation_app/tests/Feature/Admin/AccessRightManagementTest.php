@@ -390,5 +390,10 @@ test('reviewDepartmentsForUser() reflects a team rename immediately via review_t
     $team->update(['name' => 'PIE']);
 
     expect($byId->fresh()->reviewDepartmentsForUser())->toBe(['PIE']);
-    expect($byUnit->fresh()->reviewDepartmentsForUser())->toBe(['PI']);
+    // The free-text review_unit fallback is now orphaned: reviewerDepartmentCodes()
+    // is fully dynamic against master_options (so a deleted/renamed department
+    // really disappears everywhere, including the Review & Submit department
+    // picker), so a stale 'PI' string no longer matches anything once the real
+    // row has been renamed away to 'PIE'.
+    expect($byUnit->fresh()->reviewDepartmentsForUser())->toBe([]);
 });

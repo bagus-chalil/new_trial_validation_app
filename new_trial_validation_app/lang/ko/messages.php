@@ -6,6 +6,7 @@ return [
     'toast' => [
         'trial_created' => '트라이얼이 생성되었습니다.',
         'trial_updated' => '트라이얼이 수정되었습니다.',
+        'trial_deleted' => '트라이얼 :code 이(가) 휴지통으로 이동되었습니다.',
         'validation_saved' => '검증 내용이 저장되었습니다.',
         'weighing_saved' => '계량 결과가 저장되었습니다.',
         'photos_uploaded' => '사진 :count장이 업로드되었습니다.',

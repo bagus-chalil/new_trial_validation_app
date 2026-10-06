@@ -28,6 +28,7 @@ return [
         'line_configuration' => '라인 구성',
         'notifications' => '알림',
         'trash' => '휴지통',
+        'archive' => '보관함',
         'activity_logs' => '활동 로그',
         'old_app' => '기존 애플리케이션',
         'open_old_app' => '기존 애플리케이션 열기',

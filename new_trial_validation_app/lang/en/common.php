@@ -28,6 +28,7 @@ return [
         'line_configuration' => 'Line Configuration',
         'notifications' => 'Notifications',
         'trash' => 'Trash',
+        'archive' => 'Archive',
         'activity_logs' => 'Activity Logs',
         'old_app' => 'Legacy Application',
         'open_old_app' => 'Open Legacy Application',

@@ -6,6 +6,7 @@ return [
     'toast' => [
         'trial_created' => 'Trial berhasil dibuat.',
         'trial_updated' => 'Trial berhasil diperbarui.',
+        'trial_deleted' => 'Trial :code dipindahkan ke Tempat Sampah.',
         'validation_saved' => 'Validasi berhasil disimpan.',
         'weighing_saved' => 'Penimbangan berhasil disimpan.',
         'photos_uploaded' => ':count foto berhasil diunggah.',

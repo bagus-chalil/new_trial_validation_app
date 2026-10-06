@@ -6,6 +6,7 @@ return [
     'toast' => [
         'trial_created' => 'Trial created successfully.',
         'trial_updated' => 'Trial updated successfully.',
+        'trial_deleted' => 'Trial :code moved to Trash.',
         'validation_saved' => 'Validation saved successfully.',
         'weighing_saved' => 'Weighing saved successfully.',
         'photos_uploaded' => ':count photo(s) uploaded successfully.',

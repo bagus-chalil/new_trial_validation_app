@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ParameterController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\TrashController;
+use App\Http\Controllers\Admin\TrialArchiveController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,10 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
 
     Route::get('trash', [TrashController::class, 'index'])->name('trash.index');
     Route::post('trash/{trial}/restore', [TrashController::class, 'restore'])->name('trash.restore');
+
+    Route::get('archive', [TrialArchiveController::class, 'index'])->name('archive.index');
+    Route::post('archive/{trial}', [TrialArchiveController::class, 'store'])->name('archive.store');
+    Route::delete('archive/{trial}', [TrialArchiveController::class, 'destroy'])->name('archive.destroy');
 
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
     Route::post('activity-logs/delete-selected', [ActivityLogController::class, 'destroySelected'])->name('activity-logs.destroy-selected');

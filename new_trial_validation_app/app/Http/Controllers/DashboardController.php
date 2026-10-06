@@ -46,6 +46,8 @@ class DashboardController extends Controller
 
         $trials->getCollection()->each(function (Trial $trial) use ($user) {
             $trial->setAttribute('can_edit', Gate::forUser($user)->allows('update', $trial));
+            $trial->setAttribute('can_delete', Gate::forUser($user)->allows('delete', $trial));
+            $trial->setAttribute('can_archive', Gate::forUser($user)->allows('archive', $trial));
         });
 
         $summary = Trial::summaryCounts($user);
@@ -197,8 +199,13 @@ class DashboardController extends Controller
             'pending_with' => $t->pending_with,
         ];
 
+        $draftTrialSummary = fn (Trial $t) => [
+            ...$trialSummary($t),
+            'can_delete' => Gate::forUser($user)->allows('delete', $t),
+        ];
+
         return [
-            'draftTrials' => $draftTrials->map($trialSummary)->values(),
+            'draftTrials' => $draftTrials->map($draftTrialSummary)->values(),
             'draftTrialsTotal' => $draftTrialsTotal,
             'needsRevisionTrials' => $needsRevisionTrials->map($trialSummary)->values(),
             'needsRevisionTrialsTotal' => $needsRevisionTrialsTotal,

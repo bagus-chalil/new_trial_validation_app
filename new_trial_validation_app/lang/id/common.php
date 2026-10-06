@@ -30,6 +30,7 @@ return [
         'line_configuration' => 'Konfigurasi Line',
         'notifications' => 'Notifikasi',
         'trash' => 'Tempat Sampah',
+        'archive' => 'Arsip',
         'activity_logs' => 'Log Aktivitas',
         'old_app' => 'Aplikasi Lama',
         'open_old_app' => 'Buka Aplikasi Lama',

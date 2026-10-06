@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Trial;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -132,6 +133,33 @@ class TrialController extends Controller
         return to_route('trials.validation.edit', $trial);
     }
 
+    /**
+     * "Hapus" — soft delete (sets deleted_at/deleted_by, same columns and
+     * mechanism the existing admin-only Trash/restore page already reads),
+     * ported per direct user request (2026-10-06) mirroring ipc_app's
+     * delete-to-Recycle-Bin pattern. TrialPolicy::delete() restricts this to
+     * the trial's own Draft (owner/edit-permission-holder) or Admin for any
+     * status — not exposed anywhere in the UI beyond Draft, matching the
+     * user's literal "hapus draft" ask.
+     */
+    public function destroy(Request $request, int $trial): RedirectResponse
+    {
+        $trial = Trial::whereNull('deleted_at')->findOrFail($trial);
+
+        Gate::authorize('delete', $trial);
+
+        $trial->deleted_at = Carbon::now();
+        $trial->deleted_by = $request->user()->id;
+        $trial->save();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => __('messages.toast.trial_deleted', ['code' => $trial->trial_code]),
+        ]);
+
+        return to_route('my-work');
+    }
+
     public function index(Request $request, string $group): Response
     {
         abort_unless(array_key_exists($group, self::GROUPS), 404);
@@ -164,6 +192,8 @@ class TrialController extends Controller
 
         $trials->getCollection()->each(function (Trial $trial) use ($user) {
             $trial->setAttribute('can_edit', Gate::forUser($user)->allows('update', $trial));
+            $trial->setAttribute('can_delete', Gate::forUser($user)->allows('delete', $trial));
+            $trial->setAttribute('can_archive', Gate::forUser($user)->allows('archive', $trial));
         });
 
         $option = fn (string $type) => MasterOption::query()

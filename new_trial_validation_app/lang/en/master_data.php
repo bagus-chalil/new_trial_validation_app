@@ -10,6 +10,8 @@ return [
         'filter' => 'Filter',
         'restore' => 'Restore',
         'detail' => 'Detail',
+        'archive' => 'Archive',
+        'unarchive' => 'Remove from Archive',
     ],
 
     'columns' => [
@@ -97,6 +99,24 @@ return [
         'item_label' => 'trials',
     ],
 
+    'archive' => [
+        'head_title' => 'Archive',
+        'title' => 'Archive - Finished Trials',
+        'description' => 'Archived Approved/Rejected trials are hidden from the normal trial lists, but their data stays intact and can be unarchived at any time.',
+        'search' => 'Search',
+        'search_placeholder' => 'Trial code, product...',
+        'column_trial_code' => 'Trial Code',
+        'column_product' => 'Product',
+        'column_product_type' => 'Product Type',
+        'column_archived_by' => 'Archived By',
+        'column_archived_at' => 'Archived At',
+        'column_status' => 'Status',
+        'unarchive_title' => 'Remove this trial from the archive?',
+        'unarchive_description' => ':code will become visible again in the normal trial list.',
+        'empty' => 'No archived trials yet.',
+        'item_label' => 'trials',
+    ],
+
     'activity_logs' => [
         'head_title' => 'Activity Logs',
         'title' => 'Activity Logs',
@@ -138,6 +158,8 @@ return [
         'master_deleted' => 'Master option deleted successfully.',
         'trial_restored' => 'Trial :code restored successfully.',
         'trial_not_deleted' => 'This trial is not in a deleted state.',
+        'trial_archived' => 'Trial :code moved to Archive.',
+        'trial_unarchived' => 'Trial :code removed from Archive.',
         'log_deleted' => 'Activity log deleted successfully.',
         'logs_deleted' => 'Selected activity logs deleted successfully.',
     ],

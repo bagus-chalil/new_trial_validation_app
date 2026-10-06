@@ -39,6 +39,8 @@ use Illuminate\Support\Facades\DB;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  * @property int|null $deleted_by
+ * @property Carbon|null $archived_at
+ * @property int|null $archived_by
  */
 #[Fillable([
     'trial_code', 'product_id', 'product_name', 'finish_good_code', 'product_type',
@@ -63,6 +65,7 @@ class Trial extends Model
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
             'deleted_at' => 'datetime',
+            'archived_at' => 'datetime',
             'validation_scope' => 'array',
             'machine_used' => 'array',
             'estimate_qty' => 'decimal:2',
@@ -168,6 +171,37 @@ class Trial extends Model
     }
 
     /**
+     * Not named archivedBy for the same toArray()-collision reason as
+     * deletedByUser() above.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function archivedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by');
+    }
+
+    /**
+     * Archive is a separate, non-deletion concept from delete (see
+     * TrashController's doc comment) — ported from ipc_app's
+     * IpcBatch::isArchivable()/archived_at pattern per direct user request
+     * (2026-10-06): only a trial that has reached a final decision is
+     * eligible, since archiving an active Draft/In Review/Ready for Approval
+     * trial would hide something still in progress, not something finished
+     * and just cluttering the list.
+     */
+    public function isArchivable(): bool
+    {
+        return in_array($this->progress_status, ['Approved', 'Rejected'], true)
+            || $this->final_decision === 'Rejected';
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    /**
      * Matches legacy admin_trash's `u_creator.email=h.created_by` join —
      * `created_by` stores the creating user's email, not their id.
      *
@@ -269,6 +303,7 @@ class Trial extends Model
         }
 
         $query->whereNull('trials_header.deleted_at');
+        $query->whereNull('trials_header.archived_at');
 
         if (! $user->isSuperAdmin()) {
             $email = strtolower(trim($user->email));

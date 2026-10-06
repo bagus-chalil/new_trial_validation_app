@@ -343,19 +343,27 @@ class User extends Authenticatable
     }
 
     /**
-     * Department codes eligible to be a per-department reviewer, i.e. the
-     * hardcoded defaults plus anything added via master_options
-     * (type=reviewer_department). Falls back to defaults if that table
-     * can't be queried (matches legacy bootstrap.php behavior).
+     * Department codes eligible to be a per-department reviewer — fully
+     * dynamic: whatever is active in `master_options` (type=reviewer_department),
+     * i.e. exactly what the Access Rights "Reviewer Department Master" panel
+     * shows. The 5 hardcoded codes are no longer force-merged in regardless
+     * of their real row's state — previously, soft-deleting one of them there
+     * (e.g. 'PI') had no effect here, since this method re-added it from
+     * `defaultReviewerDepartmentCodes()` on every call, so a deleted
+     * department kept appearing on the Review & Submit page. The
+     * 2026-09-22 `review_team_id` migration already seeds all 5 defaults as
+     * real `master_options` rows, so this only changes behavior once one is
+     * actually edited/deleted there — it doesn't change anything for a
+     * never-touched install. Falls back to the hardcoded defaults only when
+     * the table has zero active reviewer_department rows at all (a fresh
+     * install that hasn't migrated/seeded yet, or the table being
+     * unqueryable) so the app never ends up with no reviewer departments.
      *
      * @return list<string>
      */
     public static function reviewerDepartmentCodes(): array
     {
-        $defaults = self::defaultReviewerDepartmentCodes();
-
         try {
-            $codes = $defaults;
             $names = MasterOption::query()
                 ->where('type', 'reviewer_department')
                 ->where('is_active', 1)
@@ -363,6 +371,7 @@ class User extends Authenticatable
                 ->orderBy('name')
                 ->pluck('name');
 
+            $codes = [];
             foreach ($names as $name) {
                 $code = self::normalizeDepartment($name);
                 if ($code !== '' && ! in_array($code, $codes, true)) {
@@ -370,9 +379,9 @@ class User extends Authenticatable
                 }
             }
 
-            return $codes;
+            return $codes !== [] ? $codes : self::defaultReviewerDepartmentCodes();
         } catch (\Throwable) {
-            return $defaults;
+            return self::defaultReviewerDepartmentCodes();
         }
     }
 

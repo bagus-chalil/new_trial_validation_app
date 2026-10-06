@@ -296,3 +296,95 @@ test('the draft group appears on the trials list route', function () {
     $response->assertInertia(fn ($page) => $page
         ->where('trials.data', fn ($data) => collect($data)->pluck('trial_code')->contains('TRIAL-DRAFT')));
 });
+
+test('an owner can delete (soft delete) their own draft trial', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test', 'role' => 'Staff']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'Draft', 'created_by' => $owner->email]);
+
+    $this->actingAs($owner)
+        ->delete(route('trials.destroy', $trial))
+        ->assertRedirect(route('my-work'));
+
+    $trial->refresh();
+    expect($trial->deleted_at)->not->toBeNull();
+    expect($trial->deleted_by)->toBe($owner->id);
+});
+
+test('a staff member with an active edit-permission grant can delete a draft trial', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $grantee = User::factory()->create(['role' => 'Staff']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'Draft', 'created_by' => $owner->email]);
+
+    TrialEditPermission::create([
+        'trial_id' => $trial->id,
+        'user_id' => $grantee->id,
+        'granted_by' => $owner->id,
+        'can_edit' => true,
+        'granted_at' => Carbon::now(),
+    ]);
+
+    $this->actingAs($grantee)
+        ->delete(route('trials.destroy', $trial))
+        ->assertRedirect(route('my-work'));
+
+    expect($trial->refresh()->deleted_at)->not->toBeNull();
+});
+
+test('an unrelated staff member cannot delete someone else\'s draft trial', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $other = User::factory()->create(['role' => 'Staff']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'Draft', 'created_by' => $owner->email]);
+
+    $this->actingAs($other)
+        ->delete(route('trials.destroy', $trial))
+        ->assertForbidden();
+
+    expect($trial->refresh()->deleted_at)->toBeNull();
+});
+
+test('an owner cannot delete a trial that is no longer a draft', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'In Review', 'created_by' => $owner->email]);
+
+    $this->actingAs($owner)
+        ->delete(route('trials.destroy', $trial))
+        ->assertForbidden();
+
+    expect($trial->refresh()->deleted_at)->toBeNull();
+});
+
+test('an admin can delete any trial regardless of status', function () {
+    $admin = User::factory()->create(['role' => 'Admin']);
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-1', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'Approved', 'created_by' => $owner->email]);
+
+    $this->actingAs($admin)
+        ->delete(route('trials.destroy', $trial))
+        ->assertRedirect(route('my-work'));
+
+    expect($trial->refresh()->deleted_at)->not->toBeNull();
+});
+
+test('a deleted draft trial disappears from the draft list and reappears in the admin Trash', function () {
+    $owner = User::factory()->create(['email' => 'owner@local.test']);
+    $product = makeTrialProduct();
+    $trial = Trial::create([...validTrialPayload($product), 'trial_code' => 'TRIAL-DEL', 'product_name' => $product->product_name, 'finish_good_code' => $product->finish_good_code, 'progress_status' => 'Draft', 'created_by' => $owner->email]);
+
+    $this->actingAs($owner)->delete(route('trials.destroy', $trial))->assertRedirect(route('my-work'));
+
+    $this->actingAs($owner)
+        ->get(route('trials.index', 'draft'))
+        ->assertInertia(fn ($page) => $page
+            ->where('trials.data', fn ($data) => ! collect($data)->pluck('trial_code')->contains('TRIAL-DEL')));
+
+    $admin = User::factory()->create(['role' => 'Admin']);
+    $this->actingAs($admin)
+        ->get(route('admin.trash.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('trials.data', fn ($data) => collect($data)->pluck('trial_code')->contains('TRIAL-DEL')));
+});

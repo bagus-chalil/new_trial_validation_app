@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
+    Archive,
     ArrowLeftRight,
     Bell,
     BriefcaseBusiness,
@@ -36,6 +37,7 @@ import { useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
+import { index as archiveIndex } from '@/routes/admin/archive';
 import { index as laneConfigurationIndex } from '@/routes/admin/lane-configuration';
 import { index as mastersIndex } from '@/routes/admin/masters';
 import { index as notificationsIndex } from '@/routes/admin/notifications';
@@ -200,6 +202,11 @@ export function AppSidebar() {
                           title: t('common.nav.trash'),
                           href: trashIndex(),
                           icon: Trash2,
+                      },
+                      {
+                          title: t('common.nav.archive'),
+                          href: archiveIndex(),
+                          icon: Archive,
                       },
                       {
                           title: t('common.nav.activity_logs'),

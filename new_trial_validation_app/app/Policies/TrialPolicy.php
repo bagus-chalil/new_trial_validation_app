@@ -205,8 +205,36 @@ class TrialPolicy
         return $user->isAdmin() ? 'Admin' : null;
     }
 
+    /**
+     * "Hapus" (soft delete) — own Draft trials are deletable by the owner or
+     * a granted editor (per direct user request, 2026-10-06, mirroring
+     * ipc_app's delete-to-Trash pattern); Admin may delete any non-deleted
+     * trial regardless of status, same bypass every other Admin-gated action
+     * in this Policy already grants.
+     */
     public function delete(User $user, Trial $trial): bool
     {
-        return $user->isAdmin();
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $trial->progress_status === 'Draft'
+            && ($user->isTrialOwner($trial) || $user->hasTrialEditPermission($trial->id));
+    }
+
+    /**
+     * Archive is Admin-only (mirrors ipc_app's `manage-master` route-gated
+     * Archive action — see BatchArchiveController) and only ever makes sense
+     * for a trial that has actually reached a final decision
+     * (Trial::isArchivable()).
+     */
+    public function archive(User $user, Trial $trial): bool
+    {
+        return $user->isAdmin() && $trial->isArchivable() && ! $trial->isArchived();
+    }
+
+    public function unarchive(User $user, Trial $trial): bool
+    {
+        return $user->isAdmin() && $trial->isArchived();
     }
 }
