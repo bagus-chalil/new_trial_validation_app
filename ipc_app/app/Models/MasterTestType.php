@@ -41,7 +41,7 @@ class MasterTestType extends Model
         'RUB_TEST' => 'Rub Test',
         'SWING_TEST' => 'Swing Test',
         'TAPE_TEST' => 'Tape Test',
-        'HARDESS_TEST' => 'Hardess Test',
+        'HARDESS_TEST' => 'Hardness Test',
         'PUMP_TEST' => 'Pump Test',
         'SECURITY_SEAL' => 'Security Seal',
         'SHADE_LABEL' => 'Shade Label',

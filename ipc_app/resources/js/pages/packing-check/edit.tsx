@@ -426,11 +426,13 @@ export default function PackingCheckEdit({
                                 <Input
                                     id="sum_weight_mb"
                                     type="number"
-                                    step="0.0001"
+                                    step="1"
+                                    inputMode="numeric"
                                     className={`${inputClass} ${errorFields.has('sum_weight_mb') ? errorBorder : ''}`}
                                     value={data.sum_weight_mb ?? ''}
                                     onChange={(e) => {
-                                        setData('sum_weight_mb', e.target.value);
+                                        // Whole numbers only — the decimal part is dropped as it's typed.
+                                        setData('sum_weight_mb', e.target.value.split(/[.,]/)[0]);
                                         setErrorFields((prev) => {
                                             const n = new Set(prev);
                                             n.delete('sum_weight_mb');

@@ -64,7 +64,8 @@ class SavePackingCheckRequest extends FormRequest
             'master_line_id' => ['nullable', 'integer', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             // "Weight of MB" (sum_weight_mb column): weighed fresh every TH_PROGRESS round, so
             // it's wajib on every save — draft or final — not just on Selesaikan (user, 2026-10-01).
-            'sum_weight_mb' => ['required', 'numeric', 'min:0'],
+            // Whole numbers only (user, 2026-10-06) — same treatment as Weight Master Box.
+            'sum_weight_mb' => ['required', 'integer', 'min:0'],
             // "Std Bruto MB": typed by QC once (user, 2026-10-02), no longer derived from Start Inspection.
             // Usually a range, "1920-2000"; a single value is fine too. Spaces are stripped first.
             'standard_weight_mb' => [$standardWeightMbRequired, 'string', 'max:50', 'regex:/^\d+([.,]\d+)?(-\d+([.,]\d+)?)?$/'],

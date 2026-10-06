@@ -81,7 +81,7 @@ class PackingCheckTest extends TestCase
         return [
             ...$checklist,
             'finalize' => true,
-            'sum_weight_mb' => 105.0,
+            'sum_weight_mb' => 105,
             'standard_weight_mb' => '1920-2000',
             'line_leader_name' => 'Budi',
             'coding_machine' => 'CM-01',
@@ -250,7 +250,7 @@ class PackingCheckTest extends TestCase
         // And round 1's real answers must still be fully intact in its revision snapshot.
         $revision = $packingCheck->revisions()->where('revision_no', 1)->firstOrFail();
         $this->assertSame(PackingCheck::STATUS_CONFORM, $revision->primary_bulk_status);
-        $this->assertSame('105.0000', (string) $revision->sum_weight_mb);
+        $this->assertSame('105', (string) $revision->sum_weight_mb);
         $this->assertSame('OK', $revision->remarks);
         $this->assertSame(PackingCheck::DECISION_PASSED, $revision->decision);
     }
@@ -281,7 +281,7 @@ class PackingCheckTest extends TestCase
 
         $packingCheck = $batch->fresh()->packingCheck;
         $this->assertSame(PackingCheck::STATUS_CONFORM, $packingCheck->primary_bulk_status);
-        $this->assertSame('105.0000', (string) $packingCheck->sum_weight_mb);
+        $this->assertSame('105', (string) $packingCheck->sum_weight_mb);
         $this->assertSame('OK', $packingCheck->remarks);
         $this->assertSame(PackingCheck::DECISION_PASSED, $packingCheck->decision);
     }

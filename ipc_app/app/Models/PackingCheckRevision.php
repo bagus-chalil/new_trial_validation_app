@@ -38,7 +38,7 @@ class PackingCheckRevision extends Model
     {
         return [
             'finalize' => 'boolean',
-            'sum_weight_mb' => 'decimal:4',
+            'sum_weight_mb' => 'integer',
         ];
     }
 
