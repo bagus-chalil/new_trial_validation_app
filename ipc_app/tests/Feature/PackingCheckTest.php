@@ -9,6 +9,7 @@ use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
+use App\Models\StartupCheck;
 use App\Models\StartupInspection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -707,5 +708,51 @@ class PackingCheckTest extends TestCase
 
         $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'master_line_id' => $inactive->id]))
             ->assertSessionHasErrors('master_line_id');
+    }
+
+    // --- Flow type: Filling-only has no Packing Check at all ---
+
+    public function test_form_404s_for_a_filling_only_flow_batch(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+        $batch->update(['flow_type' => IpcBatch::FLOW_FILLING]);
+
+        $this->get("/batches/{$batch->id}/packing-check")->assertNotFound();
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]))->assertNotFound();
+    }
+
+    // --- Flow type: Packing+Finished-Good opens Packing right after Startup Check, no Filling Check needed ---
+
+    public function test_packing_finished_good_flow_opens_right_after_startup_check_with_no_filling_check(): void
+    {
+        $this->actingAs($user = User::factory()->create());
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+
+        $batch = IpcBatch::create([
+            'master_product_id' => $product->id,
+            'no_batch' => 'BATCH-PACKING-FG',
+            'master_line_id' => $line->id,
+            'created_by' => $user->id,
+            'current_stage' => IpcBatch::STAGE_PACKING,
+            'flow_type' => IpcBatch::FLOW_PACKING_FG,
+        ]);
+        StartupCheck::create([
+            'ipc_batch_id' => $batch->id,
+            'user_id' => $user->id,
+            'density' => 1.0,
+            'average_of_empty_bottle_weight' => 20.0,
+            'completed_at' => now(),
+        ]);
+
+        $this->assertNull($batch->fillingCheck);
+        $this->get("/batches/{$batch->id}/packing-check")->assertOk();
+
+        $this->seedPackingPhotos($batch);
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertNotNull($batch->fresh()->packingCheck);
     }
 }

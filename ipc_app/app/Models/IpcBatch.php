@@ -35,6 +35,37 @@ class IpcBatch extends Model
     ];
 
     /**
+     * Chosen once at batch creation (IpcBatchController::create/store), never changed after.
+     * FLOW_FULL is the original/default behavior — every stage, unchanged. FLOW_FILLING skips
+     * Packing Check + Finished Good entirely (Startup → Filling → Approval). FLOW_PACKING_FG
+     * skips Filling Check entirely (Startup → Packing → Finished → Approval). See
+     * activeStages() for the authoritative per-flow stage list.
+     */
+    public const FLOW_FULL = 'full';
+
+    public const FLOW_FILLING = 'filling';
+
+    public const FLOW_PACKING_FG = 'packing_fg';
+
+    public const FLOW_TYPES = [
+        self::FLOW_FULL,
+        self::FLOW_FILLING,
+        self::FLOW_PACKING_FG,
+    ];
+
+    public const FLOW_LABELS = [
+        self::FLOW_FULL => 'Filling + Packing + Finished Good',
+        self::FLOW_FILLING => 'Filling Saja',
+        self::FLOW_PACKING_FG => 'Packing + Finished Good',
+    ];
+
+    public const FLOW_DESCRIPTIONS = [
+        self::FLOW_FULL => 'Startup Check → Filling Check → Packing Check → Finished Good → Approval → Print',
+        self::FLOW_FILLING => 'Startup Check → Filling Check → Approval → Print (tanpa Packing Check & Finished Good)',
+        self::FLOW_PACKING_FG => 'Startup Check → Packing Check → Finished Good → Approval → Print (tanpa Filling Check)',
+    ];
+
+    /**
      * Filling / Packing / Finished Check each allow at most this many TH Progress rounds
      * (save_count), the last of which must be "Selesaikan" — QC repeats the whole
      * filling → packing → FG loop once per shift, so a batch never needs more (user, 2026-10-01).
@@ -51,6 +82,7 @@ class IpcBatch extends Model
         'master_line_id',
         'created_by',
         'current_stage',
+        'flow_type',
     ];
 
     protected $casts = [
@@ -103,6 +135,72 @@ class IpcBatch extends Model
     public function isArchivable(): bool
     {
         return $this->current_stage === self::STAGE_COMPLETED && $this->archived_at === null;
+    }
+
+    /**
+     * The ordered subset of STAGES this batch actually goes through, per its flow_type. Single
+     * source of truth for "does this flow have stage X" and "what comes after stage X" — every
+     * other flow-conditional check in this app (controllers' 404 gates, the stepper, Approval
+     * readiness) is derived from this.
+     *
+     * @return list<string>
+     */
+    public function activeStages(): array
+    {
+        return match ($this->flow_type) {
+            self::FLOW_FILLING => [
+                self::STAGE_STARTUP,
+                self::STAGE_FILLING,
+                self::STAGE_APPROVAL,
+                self::STAGE_PRINT,
+                self::STAGE_COMPLETED,
+            ],
+            self::FLOW_PACKING_FG => [
+                self::STAGE_STARTUP,
+                self::STAGE_PACKING,
+                self::STAGE_FINISHED,
+                self::STAGE_APPROVAL,
+                self::STAGE_PRINT,
+                self::STAGE_COMPLETED,
+            ],
+            default => self::STAGES,
+        };
+    }
+
+    public function hasFillingStage(): bool
+    {
+        return in_array(self::STAGE_FILLING, $this->activeStages(), true);
+    }
+
+    public function hasPackingStage(): bool
+    {
+        return in_array(self::STAGE_PACKING, $this->activeStages(), true);
+    }
+
+    public function hasFinishedStage(): bool
+    {
+        return in_array(self::STAGE_FINISHED, $this->activeStages(), true);
+    }
+
+    /** The stage this batch moves to once `$stage` is finalized, per its own activeStages(). */
+    public function nextStageAfter(string $stage): string
+    {
+        $stages = $this->activeStages();
+        $index = array_search($stage, $stages, true);
+
+        return $stages[$index + 1] ?? $stage;
+    }
+
+    /**
+     * Whether this batch's last required check stage before Approval is done — the Filling flow
+     * stops at Filling Check (no Packing/Finished Good exist to wait for); every other flow still
+     * waits on Finished Check, same as before this feature existed.
+     */
+    public function isReadyForApproval(): bool
+    {
+        return $this->flow_type === self::FLOW_FILLING
+            ? (bool) $this->fillingCheck?->completed_at
+            : (bool) $this->finishedCheck?->completed_at;
     }
 
     /** @param  bool|null  $archived  true = archived only, false = active only, null = both */
@@ -235,13 +333,31 @@ class IpcBatch extends Model
                         ->whereIn('stage', IpcApproval::APPROVAL_REQUIRED_STAGES)
                         ->where(fn ($q) => $q->where('decision', '!=', IpcApproval::DECISION_APPROVED)->orWhereNull('decision')));
             })
-            ->whereHas('finishedCheck', $completed)
+            // The flow's last required check stage must be done before a batch is even a
+            // candidate — every flow but Filling waits on Finished Check; Filling (no Packing/
+            // Finished Good) waits on Filling Check itself instead, mirroring
+            // IpcBatch::isReadyForApproval().
+            ->where(fn ($query) => $query
+                ->where('flow_type', self::FLOW_FILLING)->whereHas('fillingCheck', $completed)
+                ->orWhere(fn ($q) => $q->where('flow_type', '!=', self::FLOW_FILLING)->whereHas('finishedCheck', $completed)))
             ->where(function ($query) use ($approvedFor, $completed) {
                 $query
-                    ->where(fn ($q) => $q->whereHas('fillingCheck', $completed)
+                    // Full flow: filling_packing needs both Filling and Packing completed.
+                    ->where(fn ($q) => $q->where('flow_type', self::FLOW_FULL)
+                        ->whereHas('fillingCheck', $completed)
                         ->whereHas('packingCheck', $completed)
                         ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
-                    ->orWhereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FINISHED));
+                    // Filling flow: filling_packing only needs Filling completed (Packing doesn't exist).
+                    ->orWhere(fn ($q) => $q->where('flow_type', self::FLOW_FILLING)
+                        ->whereHas('fillingCheck', $completed)
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
+                    // Packing+FG flow: filling_packing only needs Packing completed (Filling doesn't exist).
+                    ->orWhere(fn ($q) => $q->where('flow_type', self::FLOW_PACKING_FG)
+                        ->whereHas('packingCheck', $completed)
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
+                    // Finished approval only applies to flows that actually have a Finished Good stage.
+                    ->orWhere(fn ($q) => $q->where('flow_type', '!=', self::FLOW_FILLING)
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FINISHED)));
             });
     }
 }

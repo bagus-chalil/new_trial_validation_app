@@ -103,7 +103,7 @@
             @endforeach
         </div>
     @else
-        <p class="muted">Filling Check belum diisi.</p>
+        <p class="muted">{{ $batch->flow_type === 'packing_fg' ? 'Filling Check tidak digunakan pada alur ini.' : 'Filling Check belum diisi.' }}</p>
     @endif
 
     @if ($fillingCheck && $fillingCheck->revisions->count() > 0)
@@ -301,7 +301,7 @@
             @endforeach
         </div>
     @else
-        <p class="muted">Packing Check belum diisi.</p>
+        <p class="muted">{{ $batch->flow_type === 'filling' ? 'Packing Check tidak digunakan pada alur ini.' : 'Packing Check belum diisi.' }}</p>
     @endif
 
     @if ($packingCheck && $packingCheck->revisions->count() > 0)

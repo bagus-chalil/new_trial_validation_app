@@ -292,6 +292,78 @@ class RbacTest extends TestCase
             );
     }
 
+    // --- Approval queue: flow-aware readiness (Filling-only / Packing+Finished-Good flows) ---
+
+    public function test_approval_queue_includes_a_filling_only_batch_ready_on_filling_alone(): void
+    {
+        $approver = User::factory()->approver()->create();
+        $createdBy = User::factory()->create()->id;
+        $product = MasterProduct::create(['fg_code' => 'FG-3', 'product_name' => 'Product 3', 'is_active' => true]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 03', 'name' => 'Make Up 03', 'is_active' => true]);
+
+        $batch = IpcBatch::create([
+            'master_product_id' => $product->id,
+            'no_batch' => 'BATCH-FILLING',
+            'master_line_id' => $line->id,
+            'created_by' => $createdBy,
+            'current_stage' => IpcBatch::STAGE_APPROVAL,
+            'flow_type' => IpcBatch::FLOW_FILLING,
+        ]);
+        StartupCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $createdBy, 'completed_at' => now()]);
+        FillingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $createdBy, 'save_count' => 1, 'completed_at' => now()]);
+
+        $this->actingAs($approver)->get('/approvals')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('queue.data', 1)
+                ->where('queue.data.0.batch.id', $batch->id)
+                ->where('queue.data.0.pendingStages', [IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING_PACKING]])
+            );
+
+        IpcApproval::create([
+            'ipc_batch_id' => $batch->id,
+            'stage' => IpcApproval::STAGE_FILLING_PACKING,
+            'decision' => IpcApproval::DECISION_APPROVED,
+            'approver_user_id' => $approver->id,
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($approver)->get('/approvals')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('queue.data', 0));
+    }
+
+    public function test_approval_queue_includes_a_packing_finished_good_batch_ready_on_packing_alone(): void
+    {
+        $approver = User::factory()->approver()->create();
+        $createdBy = User::factory()->create()->id;
+        $product = MasterProduct::create(['fg_code' => 'FG-4', 'product_name' => 'Product 4', 'is_active' => true]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 04', 'name' => 'Make Up 04', 'is_active' => true]);
+
+        $batch = IpcBatch::create([
+            'master_product_id' => $product->id,
+            'no_batch' => 'BATCH-PACKING-FG',
+            'master_line_id' => $line->id,
+            'created_by' => $createdBy,
+            'current_stage' => IpcBatch::STAGE_APPROVAL,
+            'flow_type' => IpcBatch::FLOW_PACKING_FG,
+        ]);
+        StartupCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $createdBy, 'completed_at' => now()]);
+        PackingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $createdBy, 'save_count' => 1, 'completed_at' => now()]);
+        FinishedCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $createdBy, 'completed_at' => now()]);
+
+        $this->actingAs($approver)->get('/approvals')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('queue.data', 1)
+                ->where('queue.data.0.batch.id', $batch->id)
+                ->where('queue.data.0.pendingStages', [
+                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING_PACKING],
+                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED],
+                ])
+            );
+    }
+
     // --- Master Data routes ---
 
     public function test_staff_is_forbidden_from_master_data_routes(): void

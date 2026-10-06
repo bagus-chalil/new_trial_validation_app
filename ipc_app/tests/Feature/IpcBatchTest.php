@@ -65,6 +65,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'BATCH-001',
+            'flow_type' => IpcBatch::FLOW_FULL,
         ]);
 
         $batch = IpcBatch::firstOrFail();
@@ -77,6 +78,60 @@ class IpcBatchTest extends TestCase
         $this->assertSame('BULK-1', $batch->bulk_code);
         $this->assertSame($bulkCode->id, $batch->master_product_bulk_code_id);
         $this->assertSame(IpcBatch::STAGE_STARTUP, $batch->current_stage);
+        $this->assertSame(IpcBatch::FLOW_FULL, $batch->flow_type);
+    }
+
+    public function test_flow_type_is_required_to_create_a_batch(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-1', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_ids' => [$bulkCode->id],
+            'no_batch' => 'BATCH-001',
+        ])->assertSessionHasErrors('flow_type');
+
+        $this->assertSame(0, IpcBatch::count());
+    }
+
+    public function test_invalid_flow_type_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-1', 'is_active' => true]);
+
+        $this->post('/batches', [
+            'master_product_id' => $product->id,
+            'master_product_bulk_code_ids' => [$bulkCode->id],
+            'no_batch' => 'BATCH-001',
+            'flow_type' => 'bogus',
+        ])->assertSessionHasErrors('flow_type');
+
+        $this->assertSame(0, IpcBatch::count());
+    }
+
+    public function test_batch_can_be_created_with_each_flow_type(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+
+        foreach (IpcBatch::FLOW_TYPES as $flowType) {
+            $bulkCode = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => "BULK-{$flowType}", 'is_active' => true]);
+
+            $this->post('/batches', [
+                'master_product_id' => $product->id,
+                'master_product_bulk_code_ids' => [$bulkCode->id],
+                'no_batch' => "BATCH-{$flowType}",
+                'flow_type' => $flowType,
+            ])->assertSessionHasNoErrors();
+
+            $this->assertSame($flowType, IpcBatch::where('no_batch', "BATCH-{$flowType}")->sole()->flow_type);
+        }
     }
 
     public function test_no_batch_is_uppercased(): void
@@ -94,6 +149,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'batch-typed-lowercase',
+            'flow_type' => IpcBatch::FLOW_FULL,
         ]);
 
         $this->assertSame('BATCH-TYPED-LOWERCASE', IpcBatch::firstOrFail()->no_batch);
@@ -112,6 +168,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkB->id, $bulkA->id],
             'no_batch' => 'batch-multi',
+            'flow_type' => IpcBatch::FLOW_FULL,
         ])->assertSessionHasNoErrors();
 
         $batch = IpcBatch::with('bulkCodes')->sole();

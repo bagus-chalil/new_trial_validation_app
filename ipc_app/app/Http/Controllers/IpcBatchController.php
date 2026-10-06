@@ -90,7 +90,7 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_FINISHED => [$batch->finishedCheck, (bool) $batch->packingCheck],
         ];
 
-        $stages = collect($labels)->map(function ($label, $key) use ($stageIndex, $builtStages, $roundStages) {
+        $stages = collect($labels)->only($batch->activeStages())->map(function ($label, $key) use ($stageIndex, $builtStages, $roundStages) {
             $thisIndex = array_search($key, IpcBatch::STAGES, true);
             [$check, $unlocked] = $roundStages[$key] ?? [null, null];
             // current_stage having reached this stage also counts (older rows / seeded batches).
@@ -137,6 +137,11 @@ class IpcBatchController extends Controller
 
         return Inertia::render('batches/create', [
             'initialProduct' => $initialProduct,
+            'flowTypes' => collect(IpcBatch::FLOW_TYPES)->map(fn (string $flowType) => [
+                'value' => $flowType,
+                'label' => IpcBatch::FLOW_LABELS[$flowType],
+                'description' => IpcBatch::FLOW_DESCRIPTIONS[$flowType],
+            ])->values(),
         ]);
     }
 
@@ -156,6 +161,7 @@ class IpcBatchController extends Controller
                 'bulk_code' => $bulkCodes->pluck('bulk_code')->implode(', '),
                 'created_by' => $request->user()->id,
                 'current_stage' => IpcBatch::STAGE_STARTUP,
+                'flow_type' => $request->validated('flow_type'),
             ]);
 
             $batch->bulkCodes()->createMany($bulkCodes->map(fn (MasterProductBulkCode $bulkCode) => [

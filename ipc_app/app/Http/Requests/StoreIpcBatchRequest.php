@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\IpcBatch;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -33,6 +34,7 @@ class StoreIpcBatchRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ],
             'no_batch' => ['required', 'string', 'max:100'],
+            'flow_type' => ['required', Rule::in(IpcBatch::FLOW_TYPES)],
         ];
     }
 
