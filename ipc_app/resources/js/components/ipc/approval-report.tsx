@@ -173,8 +173,9 @@ export function RevisionHistoryCard<T extends RevisionRow>({
 }
 
 /**
- * Header print button — opens the Browsershot-rendered PDF twin of the page in a new tab. On
- * Approval pages this is a non-recorded preview; on Print pages the same href/component is
+ * Header print button — opens the Browsershot-rendered PDF in the current tab so tablet Back
+ * returns to the app instead of closing a separate PDF tab. On Approval pages this is a
+ * non-recorded preview; on Print pages the same href/component is
  * reused but points at PrintController::pdf(), where opening it also logs an IpcPrintLog row —
  * `label` lets each caller describe which of those two it is ("Preview Cetak" vs "Cetak").
  */
@@ -182,8 +183,6 @@ export function PrintPreviewButton({ href, label = 'Preview Cetak' }: { href: st
     return (
         <a
             href={href}
-            target="_blank"
-            rel="noopener noreferrer"
             className="border-border-soft bg-card text-foreground flex h-11 items-center gap-2 rounded-2xl border px-4 text-[13px] font-bold"
         >
             <Printer className="size-4" strokeWidth={2.2} />
