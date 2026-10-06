@@ -3,6 +3,7 @@ import { AccordionCard } from '@/components/ipc/accordion-card';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
+import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
@@ -395,10 +396,11 @@ export default function FillingCheckEdit({
                                             {photoUrls[key] ? 'Ganti Foto' : 'Ambil Foto'}
                                         </button>
                                         {photoUrls[key] && (
-                                            <img
+                                            <PhotoLightbox
                                                 src={photoUrls[key]!}
                                                 alt={`Foto ${label}`}
-                                                className="border-border h-24 w-24 rounded-xl border object-cover"
+                                                triggerClassName="h-24 w-24"
+                                                imageClassName="border-border h-full w-full rounded-xl border object-cover"
                                             />
                                         )}
                                     </div>

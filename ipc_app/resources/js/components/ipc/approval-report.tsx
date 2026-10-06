@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { AccordionCard } from '@/components/ipc/accordion-card';
 import { ChipToggleGroup, StatusChip } from '@/components/ipc/chip-toggle-group';
+import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/react';
@@ -99,12 +100,12 @@ export function PhotoRow({ photos }: { photos: { key: string; label: string; url
                         {urls.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                                 {urls.map((u, i) => (
-                                    <img
+                                    <PhotoLightbox
                                         key={i}
                                         src={u}
-                                        alt={label}
-                                        className="border-border h-24 w-full rounded-xl border object-cover"
-                                        style={urls.length > 1 ? { width: '5.5rem' } : undefined}
+                                        alt={`${label}${urls.length > 1 ? ` ${i + 1}` : ''}`}
+                                        triggerClassName={urls.length > 1 ? 'h-24 w-[5.5rem]' : 'h-24 w-full'}
+                                        imageClassName="border-border h-full w-full rounded-xl border object-cover"
                                     />
                                 ))}
                             </div>
@@ -172,8 +173,9 @@ export function RevisionHistoryCard<T extends RevisionRow>({
 }
 
 /**
- * Header print button — opens the Browsershot-rendered PDF twin of the page in a new tab. On
- * Approval pages this is a non-recorded preview; on Print pages the same href/component is
+ * Header print button — opens the Browsershot-rendered PDF in the current tab so tablet Back
+ * returns to the app instead of closing a separate PDF tab. On Approval pages this is a
+ * non-recorded preview; on Print pages the same href/component is
  * reused but points at PrintController::pdf(), where opening it also logs an IpcPrintLog row —
  * `label` lets each caller describe which of those two it is ("Preview Cetak" vs "Cetak").
  */
@@ -181,8 +183,6 @@ export function PrintPreviewButton({ href, label = 'Preview Cetak' }: { href: st
     return (
         <a
             href={href}
-            target="_blank"
-            rel="noopener noreferrer"
             className="border-border-soft bg-card text-foreground flex h-11 items-center gap-2 rounded-2xl border px-4 text-[13px] font-bold"
         >
             <Printer className="size-4" strokeWidth={2.2} />

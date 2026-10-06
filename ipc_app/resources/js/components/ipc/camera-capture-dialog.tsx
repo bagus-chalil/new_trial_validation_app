@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { useEffect, useRef, useState } from 'react';
 
 // Deliberately does NOT fall back to a plain <input type="file"> picker: the whole point is to
@@ -118,7 +119,14 @@ export function CameraCaptureDialog({
                 {!error && !previewUrl && (
                     <video ref={videoRef} autoPlay playsInline muted className="aspect-video w-full rounded-xl bg-black object-cover" />
                 )}
-                {previewUrl && <img src={previewUrl} alt="Preview foto" className="aspect-video w-full rounded-xl object-cover" />}
+                {previewUrl && (
+                    <PhotoLightbox
+                        src={previewUrl}
+                        alt="Preview foto"
+                        triggerClassName="w-full"
+                        imageClassName="aspect-video w-full rounded-xl object-cover"
+                    />
+                )}
 
                 <div className="flex justify-end gap-2.5">
                     {!error && !previewUrl && (
