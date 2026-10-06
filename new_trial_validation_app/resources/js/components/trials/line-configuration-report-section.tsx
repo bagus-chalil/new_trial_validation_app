@@ -526,15 +526,19 @@ function EditableLineConfigurationReport({
      * the FormData during that same click's submit event.
      */
     const intentRef = useRef<HTMLInputElement>(null);
-    const standardCounter = useRef(report?.production_standard?.length ?? 2);
-    const configCounter = useRef(report?.line_configuration?.length ?? 3);
-
     const [standardRows, setStandardRows] = useState<
         KeyedRow<ProductionStandardRow>[]
     >(() => toKeyedRows(report?.production_standard, 2, blankStandardRow));
     const [configRows, setConfigRows] = useState<
         KeyedRow<LineConfigurationRow>[]
     >(() => toKeyedRows(report?.line_configuration, 3, blankConfigRow));
+
+    // Seeded from the rows actually rendered (not the saved array's length):
+    // a saved-but-empty table (e.g. a draft) still renders the blank default
+    // rows keyed 0..n-1, so starting at 0 would hand "Tambah Baris" duplicate
+    // React keys and leave stale, mis-numbered rows in the DOM.
+    const standardCounter = useRef(standardRows.length);
+    const configCounter = useRef(configRows.length);
 
     /**
      * Tracked alongside (not instead of) each row's uncontrolled `worker`
