@@ -33,7 +33,6 @@ if(!$isLogin){
  $topNotifications=notifications_for_user(5);
  $topNotificationCount=unread_notifications_count();
  $nav[]=['label'=>'Dashboard','href'=>'/dashboard','icon'=>'D','paths'=>['/dashboard']];
- if(is_admin()||role()==='Staff') $nav[]=['label'=>'New Trial','href'=>'/trials/create','icon'=>'N','paths'=>['/trials/create']];
  if(can_approve_trials()) $nav[]=['label'=>'Waiting Approval','href'=>'/trials/waiting-approval','icon'=>'W','paths'=>['/trials/waiting-approval']];
  $nav[]=['label'=>'In Review','href'=>'/trials/in-review','icon'=>'R','paths'=>['/trials/in-review','/reviews']];
  $nav[]=['label'=>'Approved','href'=>'/trials/approved','icon'=>'A','paths'=>['/trials/approved']];

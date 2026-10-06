@@ -343,6 +343,12 @@ if(preg_match('#^/trials/(\d+)/print-log$#',$path,$m)&&$method==='POST'){
  exit;
 }
 
+// New trials are created only in the new app now; legacy is view-only for creation.
+if($path==='/trials/create'||$path==='/trials/store'){
+ flash('Pembuatan trial baru sekarang dilakukan di Aplikasi Baru (menu "Buka Aplikasi Baru").');
+ redirect('/dashboard');
+}
+
 if($path==='/trials/create'){
  if(!is_staff()) die('Tidak boleh membuat trial.');
  $products=db()->query('SELECT * FROM products WHERE is_active=1 ORDER BY product_name')->fetchAll();

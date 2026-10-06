@@ -3,9 +3,6 @@
     <h1>Trial Dashboard</h1>
     <p>Kelola dan pantau proses trial validation</p>
   </div>
-  <?php if(is_admin()||role()==='Staff'): ?>
-    <a class="btn btn-primary" href="/trials/create">New Trial</a>
-  <?php endif; ?>
 </div>
 
 <section class="summary-grid">
