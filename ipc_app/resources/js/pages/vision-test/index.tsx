@@ -1,4 +1,5 @@
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
+import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { ProductSearchSelect, type ProductOption } from '@/components/ipc/product-search-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -193,7 +194,12 @@ export default function VisionTestIndex({ fieldTypes, rules }: { fieldTypes: str
                     <div className="grid gap-2">
                         <Label>Foto</Label>
                         {previewUrl && (
-                            <img src={previewUrl} alt="Foto yang akan dibaca" className="max-h-72 w-full rounded-xl border object-contain" />
+                            <PhotoLightbox
+                                src={previewUrl}
+                                alt="Foto yang akan dibaca"
+                                triggerClassName="w-full"
+                                imageClassName="max-h-72 w-full rounded-xl border object-contain"
+                            />
                         )}
                         <div className="flex gap-2">
                             <Button

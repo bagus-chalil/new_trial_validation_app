@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { AccordionCard } from '@/components/ipc/accordion-card';
 import { ChipToggleGroup, StatusChip } from '@/components/ipc/chip-toggle-group';
+import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/react';
@@ -99,12 +100,12 @@ export function PhotoRow({ photos }: { photos: { key: string; label: string; url
                         {urls.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                                 {urls.map((u, i) => (
-                                    <img
+                                    <PhotoLightbox
                                         key={i}
                                         src={u}
-                                        alt={label}
-                                        className="border-border h-24 w-full rounded-xl border object-cover"
-                                        style={urls.length > 1 ? { width: '5.5rem' } : undefined}
+                                        alt={`${label}${urls.length > 1 ? ` ${i + 1}` : ''}`}
+                                        triggerClassName={urls.length > 1 ? 'h-24 w-[5.5rem]' : 'h-24 w-full'}
+                                        imageClassName="border-border h-full w-full rounded-xl border object-cover"
                                     />
                                 ))}
                             </div>
