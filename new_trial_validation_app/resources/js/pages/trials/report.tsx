@@ -237,7 +237,7 @@ export default function TrialReport({
     canCheckProdLineConfigurationReport,
     canReturnLineConfigurationReport,
 }: PageProps) {
-    const { t, formatDate } = useTranslation();
+    const { t, formatDate, formatDateOnly } = useTranslation();
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
         Boolean(trial.approval_comment) ||
@@ -398,7 +398,7 @@ export default function TrialReport({
                                 ['product_type', trial.product_type],
                                 [
                                     'validation_date',
-                                    formatDate(trial.validation_date),
+                                    formatDateOnly(trial.validation_date),
                                 ],
                                 ['risk_level', trial.risk_level],
                                 [
