@@ -202,6 +202,71 @@ class PrintTest extends TestCase
         $response->assertSee('Rina Coordinator');
     }
 
+    public function test_startup_pdf_falls_back_to_filling_packing_approver_when_startup_has_no_approval(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
+        StartupInspectionItem::create(['startup_inspection_id' => $inspection->id, 'parameter_key' => 'bulk_odor', 'status' => 'Conform']);
+
+        IpcApproval::query()->where('ipc_batch_id', $batch->id)->where('stage', IpcApproval::STAGE_STARTUP)->delete();
+        $coordinator = User::factory()->create(['name' => 'Dewi Coordinator']);
+        IpcApproval::query()
+            ->where('ipc_batch_id', $batch->id)
+            ->where('stage', IpcApproval::STAGE_FILLING_PACKING)
+            ->update(['approver_user_id' => $coordinator->id]);
+
+        $response = $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/print/startup/preview");
+
+        $response->assertOk();
+        $response->assertSee('Dewi Coordinator');
+        $response->assertSee('qr-code', false);
+        $response->assertDontSee('Belum disetujui');
+
+        $this->get("/verify/{$batch->id}/startup")->assertOk()->assertSee('Dewi Coordinator');
+    }
+
+    public function test_pdfs_print_the_approval_remarks_and_the_approver_even_when_rejected(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
+        StartupInspectionItem::create(['startup_inspection_id' => $inspection->id, 'parameter_key' => 'bulk_odor', 'status' => 'Conform']);
+        $coordinator = User::factory()->create(['name' => 'Rudi Coordinator']);
+        IpcApproval::query()->where('ipc_batch_id', $batch->id)->update([
+            'approver_user_id' => $coordinator->id,
+            'decision' => IpcApproval::DECISION_REJECTED,
+            'remarks' => 'Coding batch kurang jelas',
+        ]);
+        $viewer = User::factory()->create();
+
+        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+            $this->actingAs($viewer)->get("/batches/{$batch->id}/print/{$stage}/preview")
+                ->assertOk()
+                ->assertSee('Rudi Coordinator')
+                ->assertSee('Catatan Approval')
+                ->assertSee('Coding batch kurang jelas');
+        }
+    }
+
+    public function test_filling_packing_pdf_issued_by_is_the_user_of_the_latest_round(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $fillingUser = User::factory()->create(['name' => 'Ani Filling']);
+        $packingUser = User::factory()->create(['name' => 'Budi Packing']);
+
+        // Filling's round was saved after Packing's, so it is the latest round overall.
+        $batch->fillingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $fillingUser->id])
+            ->forceFill(['created_at' => now()->subHour()])->save();
+        $batch->packingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $packingUser->id])
+            ->forceFill(['created_at' => now()->subHours(2)])->save();
+
+        $html = $this->actingAs(User::factory()->create())
+            ->get("/batches/{$batch->id}/print/filling_packing/preview")
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/Issued By \(QC Filling \/ Packing\)<\/span>\s*<strong>Ani Filling<\/strong>/', $html);
+    }
+
     public function test_filling_pdf_photo_labels_match_the_filling_form(): void
     {
         $batch = $this->makeBatchAtPrintStage();

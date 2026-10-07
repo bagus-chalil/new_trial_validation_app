@@ -10,7 +10,9 @@
             <div><span>Density</span><strong>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck?->density ?? '—') }}</strong></div>
             <div><span>TH Progress</span><strong>{{ $fillingCheck->save_count ?? 0 }}</strong></div>
             <div><span>QC Inspector</span><strong>{{ $fillingCheck->user->name ?? '—' }}</strong></div>
-            <div style="grid-column: span 3;"><span>Line Leader</span><strong>{{ $startupCheck->line_leader_name ?? '—' }}</strong></div>
+            <div><span>Line Leader</span><strong>{{ $startupCheck->line_leader_name ?? '—' }}</strong></div>
+            <div><span>Min Volume</span><strong>{{ $startupCheck->filling_range_min ?? '—' }}</strong></div>
+            <div><span>Max Weight</span><strong>{{ $startupCheck->filling_range_max ?? '—' }}</strong></div>
         </div>
 
         @php
@@ -24,7 +26,8 @@
             if ($fillingRounds->isEmpty()) {
                 $fillingRounds = collect([$fillingCheck]);
             }
-            $results = $fillingCheck->samples->pluck('weight_value')->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+            // Summary covers every round shown in the grid, not only the last (live) one.
+            $results = $fillingRounds->flatMap(fn ($round) => $round->samples)->pluck('weight_value')->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
             $parameterWidth = 14;
             $fillingTimeColWidth = (100 - $parameterWidth) / max($fillingRounds->count(), 1);
         @endphp
@@ -43,7 +46,7 @@
                 </tr>
                 <tr>
                     @foreach ($fillingRounds as $round)
-                        <th class="center">{{ optional($round->created_at)->format('H:i') ?? '—' }}</th>
+                        <th class="center">{{ optional($round->created_at)->format('d/m H:i') ?? '—' }}</th>
                     @endforeach
                 </tr>
             </thead>
@@ -74,18 +77,18 @@
         <table>
             <tbody>
                 <tr>
-                    <td style="width: 15%;"><strong>Summary</strong></td>
+                    <td style="width: 15%;"><strong>Summary (semua TH Progress)</strong></td>
                     <td style="width: 45%;">
-                        Min: {{ $results->isNotEmpty() ? $results->min() : '—' }}
-                        &nbsp;&nbsp; Max: {{ $results->isNotEmpty() ? $results->max() : '—' }}
-                        &nbsp;&nbsp; Average: {{ $fillingCheck->average_weight ?? ($results->isNotEmpty() ? round($results->avg(), 2) : '—') }}
+                        Min: {{ $results->isNotEmpty() ? number_format($results->min(), 2) : '—' }}
+                        &nbsp;&nbsp; Max: {{ $results->isNotEmpty() ? number_format($results->max(), 2) : '—' }}
+                        &nbsp;&nbsp; Average: {{ $results->isNotEmpty() ? number_format($results->avg(), 2) : '—' }}
                     </td>
                     <td style="width: 15%;"><strong>Decision</strong></td>
                     <td>@include('pdf._status-pill', ['value' => $fillingCheck->decision])</td>
                 </tr>
                 <tr>
                     <td><strong>Remarks</strong></td>
-                    <td colspan="3">{{ $fillingCheck->remarks ?? '—' }}</td>
+                    <td colspan="3" style="white-space: pre-line;">{{ $fillingCheck->remarks ?? '—' }}</td>
                 </tr>
             </tbody>
         </table>
@@ -121,7 +124,7 @@
                         <td>{{ $rev->finalize ? 'Selesai' : 'Draft' }}</td>
                         <td>
                             {{ $rev->decision ? 'Decision: '.$rev->decision.'. ' : '' }}
-                            {{ $rev->average_weight ? 'Avg Weight: '.$rev->average_weight.'. ' : '' }}
+                            {{ $rev->samples->whereNotNull('weight_value')->isNotEmpty() ? 'Avg Weight: '.$rev->average_weight.'. ' : '' }}
                             {{ $rev->remarks ? 'Remarks: '.$rev->remarks : '' }}
                         </td>
                     </tr>
@@ -149,11 +152,8 @@
             // One column per TH_PROGRESS round, same rationale as Filling above — every draft
             // save snapshots the full checklist into a PackingCheckRevision and then blanks the
             // live row for the next round (see SavePackingCheck::handle()), so $packingCheck
-            // itself only ever holds the *last* round's answers. Photos are NOT versioned per
-            // round (IpcAttachment overwrites the previous file on re-upload — see
-            // PackingCheckController::uploadPhoto()), so only the current photo is shown, once,
-            // rather than fabricating a different image per column the way the legacy paper form
-            // does.
+            // itself only ever holds the *last* round's answers. Photos are snapshotted per round
+            // too (PackingCheckRevisionPhoto), so the Foto columns show each round's own photo.
             $packingRounds = $packingCheck->revisions->sortBy('revision_no')->values();
             if ($packingRounds->isEmpty()) {
                 $packingRounds = collect([$packingCheck]);
@@ -194,7 +194,7 @@
                 </tr>
                 <tr>
                     @foreach ($packingRounds as $round)
-                        <th class="center">{{ optional($round->created_at)->format('H:i') ?? '—' }}</th>
+                        <th class="center">{{ optional($round->created_at)->format('d/m H:i') ?? '—' }}</th>
                     @endforeach
                     @foreach ($packingRounds as $round)
                         <th>&nbsp;</th>
@@ -202,6 +202,16 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Line per round: Packing can switch lines between TH_PROGRESS rounds. Rounds
+                     saved before per-round lines were recorded fall back to the current line. --}}
+                <tr>
+                    <td colspan="3"><strong>Machines / Lines</strong></td>
+                    @foreach ($packingRounds as $round)
+                        @php $roundLine = $round->masterLine ?? $packingCheck->masterLine ?? $batch->masterLine; @endphp
+                        <td class="center">{{ $roundLine->code ?? '—' }}</td>
+                    @endforeach
+                    <td colspan="{{ $packingRounds->count() }}">&nbsp;</td>
+                </tr>
                 @foreach ($packingChecklistGroups as $group)
                     <tr class="group-row">
                         <td colspan="{{ 3 + ($packingRounds->count() * 2) }}">{{ ucfirst($group['key']) }} Packaging</td>
@@ -318,8 +328,9 @@
                         <td>{{ $rev->user->name ?? '—' }}</td>
                         <td>{{ $rev->finalize ? 'Selesai' : 'Draft' }}</td>
                         <td>
+                            {{ $rev->masterLine ? 'Line: '.$rev->masterLine->name.' ('.$rev->masterLine->code.'). ' : '' }}
                             {{ $rev->decision ? 'Decision: '.$rev->decision.'. ' : '' }}
-                            {{ $rev->sum_weight_mb ? 'Weight of MB: '.$rev->sum_weight_mb.'. ' : '' }}
+                            {{ $rev->sum_weight_mb !== null ? 'Weight of MB: '.$rev->sum_weight_mb.'. ' : '' }}
                             {{ $rev->remarks ? 'Remarks: '.$rev->remarks : '' }}
                         </td>
                     </tr>
@@ -330,12 +341,22 @@
 
     <p class="muted" style="margin-top: 6px;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
 
+    @php
+        // Issued By = whoever saved the latest TH_PROGRESS round across Filling and Packing.
+        $lastRound = collect([$fillingCheck?->revisions, $packingCheck?->revisions])
+            ->filter()
+            ->flatten(1)
+            ->sortByDesc('created_at')
+            ->first();
+        $issuedBy = $lastRound?->user ?? $packingCheck?->user ?? $fillingCheck?->user;
+        $issuedAt = $lastRound?->created_at ?? $packingCheck?->completed_at ?? $fillingCheck?->completed_at;
+    @endphp
     <div class="sign-grid">
         <div>
             <span>Issued By (QC Filling / Packing)</span>
-            @if ($packingCheck)
-                <strong>{{ $packingCheck->user->name ?? '—' }}</strong>
-                <small class="sign-date">{{ optional($packingCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+            @if ($issuedBy)
+                <strong>{{ $issuedBy->name }}</strong>
+                <small class="sign-date">{{ optional($issuedAt)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
             @endif
         </div>
         <div>
@@ -355,4 +376,5 @@
             @endif
         </div>
     </div>
+    @include('pdf._approval-remarks', ['approval' => $fillingPackingApproval])
 @endsection

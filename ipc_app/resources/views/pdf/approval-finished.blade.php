@@ -5,15 +5,23 @@
 
     @if ($finishedCheck)
         <div class="attachment-grid">
+            {{-- wi_number holds up to 4 photos; one tile per photo. --}}
             @foreach ([['wi_number', 'WI Number'], ['exp_date', 'Exp Date'], ['color', 'Color Test']] as [$field, $label])
-                <figure class="attachment-tile">
-                    @if ($photoUrls['finished'][$field] ?? null)
-                        <img src="{{ $photoUrls['finished'][$field] }}" alt="{{ $label }}">
-                    @else
+                @php
+                    $urls = $photoUrls['finished'][$field] ?? null;
+                    $urls = is_array($urls) ? array_values(array_filter($urls)) : array_filter([$urls]);
+                @endphp
+                @forelse ($urls as $i => $url)
+                    <figure class="attachment-tile">
+                        <img src="{{ $url }}" alt="{{ $label }}">
+                        <figcaption><strong>{{ $label }}{{ count($urls) > 1 ? ' '.($i + 1) : '' }}</strong></figcaption>
+                    </figure>
+                @empty
+                    <figure class="attachment-tile">
                         <div class="placeholder">Belum ada foto</div>
-                    @endif
-                    <figcaption><strong>{{ $label }}</strong></figcaption>
-                </figure>
+                        <figcaption><strong>{{ $label }}</strong></figcaption>
+                    </figure>
+                @endforelse
             @endforeach
         </div>
 
@@ -60,7 +68,7 @@
                     <th class="center" style="width: 10%;">AC</th>
                     <th class="center" style="width: 10%;">CD</th>
                     <th class="center" style="width: 10%;">MD</th>
-                    <th class="center" style="width: 10%;">mD</th>
+                    <th class="center" style="width: 10%; text-transform: none;">mD</th>
                 </tr>
             </thead>
             <tbody>
@@ -92,7 +100,7 @@
                 </tr>
                 <tr>
                     <td><strong>Remarks</strong></td>
-                    <td colspan="3">{{ $finishedCheck->remarks ?? '—' }}</td>
+                    <td colspan="3" style="white-space: pre-line;">{{ $finishedCheck->remarks ?? '—' }}</td>
                 </tr>
             </tbody>
         </table>
@@ -105,7 +113,7 @@
                 </thead>
                 <tbody>
                     @foreach ($finishedCheck->revisions->sortByDesc('revision_no') as $rev)
-                        @php $filled = $rev->samples->filter(fn ($s) => $s->ac || $s->cd || $s->md || $s->mnd)->count(); @endphp
+                        @php $filled = $rev->samples->filter(fn ($s) => $s->ac !== null || $s->cd !== null || $s->md !== null || $s->mnd !== null)->count(); @endphp
                         <tr>
                             <td class="center">{{ $rev->revision_no }}</td>
                             <td>{{ optional($rev->created_at)->translatedFormat('d M Y H:i') ?? '—' }}</td>
@@ -126,6 +134,7 @@
             <div>
                 <span>QC FG Inspector</span>
                 <strong>{{ $finishedCheck->user->name ?? '—' }}</strong>
+                <small class="sign-date">{{ optional($finishedCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
             </div>
             <div>
                 <span>QC Approval</span>
@@ -147,4 +156,5 @@
     @else
         <p class="muted">Finished Check belum diisi.</p>
     @endif
+    @include('pdf._approval-remarks', ['approval' => $finishedApproval])
 @endsection

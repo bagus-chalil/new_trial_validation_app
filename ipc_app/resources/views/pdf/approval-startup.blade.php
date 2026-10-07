@@ -5,6 +5,8 @@
 
     <p style="margin: 0 0 8px; font-size: 9.5px;">
         <strong>Date:</strong> {{ optional($startupCheck?->completed_at ?? $startupCheck?->created_at)->translatedFormat('d/m/Y') ?? '—' }}
+        &nbsp;&nbsp;&nbsp; <strong>Mixing Date:</strong> {{ optional($batch->mixing_date)->translatedFormat('d/m/Y') ?? '—' }}
+        &nbsp;&nbsp;&nbsp; <strong>Exp Date:</strong> {{ optional($batch->exp_date)->translatedFormat('d/m/Y') ?? '—' }}
     </p>
 
     @if ($startupCheck)
@@ -135,7 +137,7 @@
                             <tr><td><strong>Heating</strong></td><td>{{ $startupCheck->heating ?? '—' }}</td></tr>
                             <tr><td><strong>Line Leader</strong></td><td>{{ $startupCheck->line_leader_name ?? '—' }}</td></tr>
                             <tr><td><strong>Operator</strong></td><td>{{ $startupCheck->operator_name ?? '—' }}</td></tr>
-                            <tr><td><strong>Prepared By</strong></td><td>{{ $startupCheck->user->name ?? '—' }}</td></tr>
+                            <tr><td><strong>Diisi oleh (IPC)</strong></td><td>{{ $startupCheck->user->name ?? '—' }}</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -183,6 +185,20 @@
             $samplesByNo = $startupInspection->samples->keyBy('sample_no');
             $inspectionTime = optional($startupInspection->completed_at ?? $startupInspection->created_at)->translatedFormat('d/m/Y H:i') ?? '—';
             $statusOf = fn (string $key) => $itemsByKey[$key]->status ?? null;
+            // Same wording as the grid's column headers below.
+            $parameterLabels = [
+                'bulk_color_texture' => 'Warna Bulk / Tekstur',
+                'bulk_odor' => 'Aroma Bulk',
+                'appearance_after_filling' => 'Tampilan Setelah Filling',
+                'leakage_test' => 'Uji Kebocoran',
+                'functional_test' => 'Uji Kegunaan',
+                'primer' => 'Primer',
+                'sekunder' => 'Sekunder',
+                'tersier' => 'Tersier',
+                'attribute' => 'Attribute',
+                'appearance' => 'Tampilan',
+            ];
+            $categoryTitles = ['Leakage' => 'Leakage Test', 'Functional' => 'Function Test', 'Attribute' => 'Attribute'];
         @endphp
 
         <table class="record-table">
@@ -249,7 +265,7 @@
                 <tbody>
                     @foreach ($itemRemarks as $item)
                         <tr>
-                            <td style="text-transform: capitalize;">{{ str_replace('_', ' ', $item->parameter_key) }}</td>
+                            <td>{{ $parameterLabels[$item->parameter_key] ?? str_replace('_', ' ', $item->parameter_key) }}</td>
                             <td>{{ $item->remark }}</td>
                         </tr>
                     @endforeach
@@ -262,7 +278,7 @@
             <tbody>
                 @foreach ($testTypesByCategory as $category => $types)
                     <tr>
-                        <td style="width: 16%;"><strong>{{ $category }}</strong></td>
+                        <td style="width: 16%;"><strong>{{ $categoryTitles[$category] ?? $category }}</strong></td>
                         <td>
                             @foreach ($types as $t)
                                 <span class="status-pill {{ $t['is_performed'] ? 'ok' : 'muted' }}">{{ $t['label'] }}</span>
@@ -279,10 +295,7 @@
             @endforeach
         </p>
 
-        @php
-            $startupApproved = $startupApproval && $startupApproval->decision === \App\Models\IpcApproval::DECISION_APPROVED;
-        @endphp
-        <div class="sign-grid sign-grid--cols-2">
+        <div class="sign-grid">
             <div>
                 <span>Review By</span>
                 <strong>{{ $startupInspection->user->name ?? '—' }}</strong>
@@ -291,12 +304,22 @@
             </div>
             <div>
                 <span>Verification By</span>
-                <strong>{{ $startupApproved ? ($startupApproval->approver->name ?? '—') : '—' }}</strong>
-                <small class="sign-date">{{ $startupApproved ? (optional($startupApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—') : '—' }}</small>
+                <strong>{{ $startupApproval ? ($startupApproval->approver->name ?? '—') : '—' }}</strong>
+                <small class="sign-date">{{ $startupApproval ? (optional($startupApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—') : '—' }}</small>
                 <small class="role">QC Coordinator</small>
+            </div>
+            <div class="qr-box">
+                <span>Verifikasi</span>
+                @if ($startupApproval)
+                    <div class="qr-code">{!! $verificationQr !!}</div>
+                    <small>{{ $startupApproval->decision }}</small>
+                @else
+                    <small class="muted">Belum disetujui</small>
+                @endif
             </div>
         </div>
     @else
         <p class="muted">Start Inspection belum diisi (opsional).</p>
     @endif
+    @include('pdf._approval-remarks', ['approval' => $startupApproval])
 @endsection

@@ -34,7 +34,7 @@ trait BuildsIpcReportPayloads
     ];
 
     /** temperature_setting accumulates multiple rows; all others are single-photo. */
-    private const MULTI_PHOTO_FIELDS = ['temperature_setting'];
+    private const MULTI_PHOTO_FIELDS = ['temperature_setting', 'wi_number'];
 
     /**
      * @param  list<string>  $stages
@@ -154,18 +154,26 @@ trait BuildsIpcReportPayloads
      */
     private function startupPayload(IpcBatch $batch, array $photoUrls): array
     {
-        $testTypesByCategory = MasterTestType::query()
-            ->where('is_active', true)
+        $testResultsByTypeId = $batch->startupInspection?->testResults->keyBy('master_test_type_id') ?? collect();
+        $performedTypeIds = $testResultsByTypeId->filter(fn ($result) => $result->is_performed)->keys();
+
+        // Active types, plus any this batch recorded as performed even if since deactivated/deleted,
+        // in the form's Leakage → Functional → Attribute order.
+        $testTypesByCategory = MasterTestType::withTrashed()
+            ->where(fn ($query) => $query
+                ->where(fn ($q) => $q->where('is_active', true)->whereNull('deleted_at'))
+                ->orWhereIn('id', $performedTypeIds))
             ->orderBy('name')
             ->get()
-            ->groupBy('category');
-
-        $testResultsByTypeId = $batch->startupInspection?->testResults->keyBy('master_test_type_id') ?? collect();
+            ->groupBy('category')
+            ->sortBy(fn ($rows, $category) => array_search($category, MasterTestType::CATEGORIES, true) === false ? 99 : array_search($category, MasterTestType::CATEGORIES, true));
 
         return [
             'startupCheck' => $batch->startupCheck,
             'startupInspection' => $batch->startupInspection,
-            'startupApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_STARTUP),
+            'startupApproval' => IpcApproval::forReport($batch->approvals, IpcApproval::STAGE_STARTUP),
+            'verificationUrl' => VerificationQrCode::url($batch, IpcApproval::STAGE_STARTUP),
+            'verificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_STARTUP),
             'photoUrls' => $photoUrls,
             'startupChecklistGroups' => StartupCheck::checklistGroups(),
             'startupInspectionParameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
@@ -225,9 +233,12 @@ trait BuildsIpcReportPayloads
             IpcApproval::STAGE_STARTUP => [
                 'pdf.approval-startup',
                 (function () use ($batch) {
-                    $batch->load(['startupCheck.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults.testType', 'approvals.approver']);
+                    $batch->load(['startupCheck.user', 'startupInspection.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults', 'approvals.approver']);
 
-                    return $this->startupPayload($batch, $this->photoDataUris($batch, ['startup']));
+                    return [
+                        ...$this->startupPayload($batch, $this->photoDataUris($batch, ['startup'])),
+                        'title' => 'Start Up Inspection Form',
+                    ];
                 })(),
                 "Startup-Inspection-{$batch->no_batch}.pdf",
             ],
@@ -246,6 +257,7 @@ trait BuildsIpcReportPayloads
                         'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'packingCheck.revisions.user',
                         'packingCheck.revisions.photos',
+                        'packingCheck.revisions.masterLine',
                         'approvals.approver',
                     ]);
 
@@ -272,7 +284,10 @@ trait BuildsIpcReportPayloads
                         'approvals.approver',
                     ]);
 
-                    return $this->finishedPayload($batch, $this->photoDataUris($batch, ['finished']));
+                    return [
+                        ...$this->finishedPayload($batch, $this->photoDataUris($batch, ['finished'])),
+                        'title' => 'Finished Good Inspection Report',
+                    ];
                 })(),
                 "Finished-Good-Report-{$batch->no_batch}.pdf",
             ],

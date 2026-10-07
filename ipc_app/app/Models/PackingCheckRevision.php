@@ -32,6 +32,7 @@ class PackingCheckRevision extends Model
         'remarks',
         'decision',
         'user_id',
+        'master_line_id',
     ];
 
     protected function casts(): array
@@ -50,6 +51,11 @@ class PackingCheckRevision extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function masterLine()
+    {
+        return $this->belongsTo(MasterLine::class);
     }
 
     public function photos()

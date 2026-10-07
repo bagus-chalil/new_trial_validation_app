@@ -165,7 +165,7 @@ export default function ApprovalFillingPacking({
                         renderSummary={(rev) => (
                             <>
                                 {rev.decision && <span>Decision: {rev.decision}</span>}
-                                {rev.average_weight != null && <span>Avg Weight: {rev.average_weight}</span>}
+                                {rev.average_weight != null && Number(rev.average_weight) !== 0 && <span>Avg Weight: {rev.average_weight}</span>}
                             </>
                         )}
                         renderRemarks={(rev) => rev.remarks}

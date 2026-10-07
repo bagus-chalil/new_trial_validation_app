@@ -643,7 +643,9 @@ export default function FinishedCheckEdit({
                             <AccordionCard title="Riwayat Simpan" progress={`${revisions.length}x disimpan`} defaultOpen={false}>
                                 <div className="col-span-full flex flex-col gap-2.5">
                                     {revisions.map((rev) => {
-                                        const revFilled = (rev.samples ?? []).filter((s) => s.ac || s.cd || s.md || s.mnd).length;
+                                        const revFilled = (rev.samples ?? []).filter(
+                                            (s) => s.ac != null || s.cd != null || s.md != null || s.mnd != null,
+                                        ).length;
                                         return (
                                             <div key={rev.id} className="border-border-soft rounded-xl border p-3">
                                                 <div className="flex items-center justify-between gap-2">

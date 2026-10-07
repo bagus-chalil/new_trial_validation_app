@@ -697,6 +697,12 @@ class PackingCheckTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame($lineB->id, $batch->fresh()->packingCheck->master_line_id);
         $this->assertNotSame($lineB->id, $batch->fresh()->master_line_id);
+
+        // Each round keeps the line it ran on, for the audit trail.
+        $this->assertSame(
+            [1 => $lineA->id, 2 => $lineB->id],
+            $batch->fresh()->packingCheck->revisions()->orderBy('revision_no')->pluck('master_line_id', 'revision_no')->all(),
+        );
     }
 
     public function test_inactive_packing_line_is_rejected(): void

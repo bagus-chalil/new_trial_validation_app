@@ -169,7 +169,7 @@ export default function ApprovalFinished({
                         title="Riwayat Simpan — Finished Check"
                         revisions={finishedCheck?.revisions ?? []}
                         renderSummary={(rev) => {
-                            const filled = (rev.samples ?? []).filter((s) => s.ac || s.cd || s.md || s.mnd).length;
+                            const filled = (rev.samples ?? []).filter((s) => s.ac != null || s.cd != null || s.md != null || s.mnd != null).length;
                             return (
                                 <>
                                     {rev.disposition && <span>Disposition: {rev.disposition}</span>}

@@ -19,11 +19,10 @@ class VerificationController extends Controller
     {
         $batch->load(['masterProduct', 'masterLine']);
 
-        $approval = IpcApproval::query()
-            ->where('ipc_batch_id', $batch->id)
-            ->where('stage', $stage)
-            ->with('approver')
-            ->first();
+        $approval = IpcApproval::forReport(
+            IpcApproval::query()->where('ipc_batch_id', $batch->id)->with('approver')->get(),
+            $stage,
+        );
 
         return view('verify.show', [
             'batch' => $batch,

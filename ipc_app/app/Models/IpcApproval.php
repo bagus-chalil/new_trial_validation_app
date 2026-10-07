@@ -83,6 +83,25 @@ class IpcApproval extends Model
     }
 
     /**
+     * The approval that signs a stage's report. Startup has had no approval card since
+     * 2026-09-23, so its report falls back to the QC Coordinator's Filling & Packing approval
+     * (user request 2026-10-07: approving the batch also verifies its Startup form). A real Startup
+     * approval, if one was ever recorded, still wins.
+     *
+     * @param  iterable<self>  $approvals
+     */
+    public static function forReport(iterable $approvals, string $stage): ?self
+    {
+        $byStage = collect($approvals)->keyBy('stage');
+
+        if ($stage === self::STAGE_STARTUP) {
+            return $byStage->get(self::STAGE_STARTUP) ?? $byStage->get(self::STAGE_FILLING_PACKING);
+        }
+
+        return $byStage->get($stage);
+    }
+
+    /**
      * Whether the underlying check(s) for a given approval stage are done, i.e. this stage can
      * actually be approved yet. "filling_packing" combines two separate check tables into one
      * approval action, matching legacy's FIllingPackingReport_Approval screen exactly.

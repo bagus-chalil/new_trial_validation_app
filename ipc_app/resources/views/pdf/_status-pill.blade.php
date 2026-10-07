@@ -4,7 +4,7 @@
     if ($v) {
         if (preg_match('/\bnot\b|reject/i', $v)) {
             $class = 'bad';
-        } elseif ($v === 'N/A' || $v === 'Hold') {
+        } elseif ($v === 'N/A' || $v === 'Hold' || $v === 'Partial OK' || $v === 'Accepted With Remarks') {
             $class = 'na';
         } else {
             $class = 'ok';
