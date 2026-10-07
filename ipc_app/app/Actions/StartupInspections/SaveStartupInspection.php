@@ -29,9 +29,7 @@ class SaveStartupInspection
 
             foreach ($data['samples'] ?? [] as $sample) {
                 $volumeWeight = $sample['volume_weight'] ?? null;
-                // Weight Master Box doesn't apply to the Filling flow (no Packing Check to feed
-                // it) — ignored here even if somehow submitted, matching the UI not showing it.
-                $weightMasterBox = $batch->hasPackingStage() ? ($sample['weight_master_box'] ?? null) : null;
+                $weightMasterBox = $sample['weight_master_box'] ?? null;
 
                 if (blank($volumeWeight) && blank($weightMasterBox)) {
                     continue;

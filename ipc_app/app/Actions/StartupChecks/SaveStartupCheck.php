@@ -39,7 +39,7 @@ class SaveStartupCheck
                 'mixing_date' => $mixingDate,
                 'exp_date' => $expDate,
                 'master_line_id' => $masterLineId,
-                ...($batch->current_stage === IpcBatch::STAGE_STARTUP ? ['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_STARTUP)] : []),
+                ...($batch->current_stage === IpcBatch::STAGE_STARTUP ? ['current_stage' => IpcBatch::STAGE_FILLING] : []),
             ]);
 
             return $startupCheck;

@@ -21,7 +21,7 @@ class StartupCheckTest extends TestCase
 
     // Defaults to the currently-acted-as user so every pre-existing test keeps meaning "owner
     // edits their own batch"; pass an explicit id to build a not-the-owner (403) case instead.
-    private function makeBatch(?int $createdBy = null, string $flowType = IpcBatch::FLOW_FULL): IpcBatch
+    private function makeBatch(?int $createdBy = null): IpcBatch
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $this->line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
@@ -33,7 +33,6 @@ class StartupCheckTest extends TestCase
             'no_batch' => 'BATCH-001',
             'created_by' => $createdBy ?? auth()->id() ?? User::factory()->create()->id,
             'current_stage' => IpcBatch::STAGE_STARTUP,
-            'flow_type' => $flowType,
         ]);
     }
 
@@ -103,28 +102,6 @@ class StartupCheckTest extends TestCase
         $this->assertNotNull($startupCheck->completed_at);
         $this->assertSame(StartupCheck::STATUS_AVAILABLE, $startupCheck->product_standard_status);
         $this->assertEquals(21.5, (float) $startupCheck->average_of_empty_bottle_weight);
-    }
-
-    public function test_advances_to_packing_for_the_packing_finished_good_flow(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_PACKING_FG);
-
-        $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())
-            ->assertRedirect("/batches/{$batch->id}");
-
-        $this->assertSame(IpcBatch::STAGE_PACKING, $batch->fresh()->current_stage);
-    }
-
-    public function test_advances_to_filling_for_the_filling_only_flow(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_FILLING);
-
-        $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())
-            ->assertRedirect("/batches/{$batch->id}");
-
-        $this->assertSame(IpcBatch::STAGE_FILLING, $batch->fresh()->current_stage);
     }
 
     public function test_density_can_be_marked_not_applicable(): void

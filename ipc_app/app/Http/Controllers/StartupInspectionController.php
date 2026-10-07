@@ -74,12 +74,8 @@ class StartupInspectionController extends Controller
         $inspection = $batch->startupInspection;
 
         return match (true) {
-            // The Filling flow (no Packing Check) has no use for Weight Master Box at all — it
-            // only ever fed Packing Check historically and the user confirmed it's not needed
-            // for this flow (see IpcBatch::FLOW_FILLING).
-            ! $batch->hasPackingStage() => 'Weight Master Box tidak digunakan pada alur Filling.',
             ! $inspection?->completed_at => 'Start Inspection untuk batch ini belum selesai.',
-            ! $batch->fillingCheck && $batch->hasFillingStage() => 'Weight Master Box baru bisa diisi setelah Filling Check disimpan.',
+            ! $batch->fillingCheck => 'Weight Master Box baru bisa diisi setelah Filling Check disimpan.',
             (bool) $batch->packingCheck?->completed_at => 'Packing Check untuk batch ini sudah selesai.',
             $inspection->samples()->whereNotNull('weight_master_box')->exists() => 'Weight Master Box untuk batch ini sudah diisi.',
             default => null,

@@ -22,7 +22,7 @@ class StartupInspectionTest extends TestCase
 
     // Defaults to the currently-acted-as user so every pre-existing test keeps meaning "owner
     // edits their own batch"; pass an explicit id to build a not-the-owner (403) case instead.
-    private function makeBatch(?int $createdBy = null, string $flowType = IpcBatch::FLOW_FULL): IpcBatch
+    private function makeBatch(?int $createdBy = null): IpcBatch
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
@@ -33,7 +33,6 @@ class StartupInspectionTest extends TestCase
             'master_line_id' => $line->id,
             'created_by' => $createdBy ?? auth()->id() ?? User::factory()->create()->id,
             'current_stage' => IpcBatch::STAGE_STARTUP,
-            'flow_type' => $flowType,
         ]);
     }
 
@@ -353,37 +352,5 @@ class StartupInspectionTest extends TestCase
 
         $performed = $batch->fresh()->startupInspection->testResults()->where('is_performed', true)->pluck('master_test_type_id')->sort()->values()->all();
         $this->assertSame([$shrink->id, $bodyLabel->id], $performed);
-    }
-
-    // --- Flow type: Weight Master Box doesn't apply to the Filling-only flow ---
-
-    public function test_weight_master_box_values_are_ignored_for_the_filling_only_flow(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_FILLING);
-
-        $samples = array_map(
-            fn (int $n) => ['sample_no' => $n, 'volume_weight' => round(10 + $n / 10, 2), 'weight_master_box' => 2600],
-            range(1, StartupInspectionSample::SAMPLE_COUNT),
-        );
-
-        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload(), 'samples' => $samples])
-            ->assertSessionHasNoErrors();
-
-        $this->assertSame(0, $batch->fresh()->startupInspection->samples()->whereNotNull('weight_master_box')->count());
-    }
-
-    public function test_master_box_route_is_forbidden_for_the_filling_only_flow(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_FILLING);
-        StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
-        FillingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by]);
-
-        $this->put("/batches/{$batch->id}/startup-inspection/master-box", $this->masterBoxPayload([1 => 2607]))
-            ->assertForbidden();
-
-        $this->get("/batches/{$batch->id}/startup-inspection")
-            ->assertInertia(fn ($page) => $page->where('masterBoxOnly', false));
     }
 }

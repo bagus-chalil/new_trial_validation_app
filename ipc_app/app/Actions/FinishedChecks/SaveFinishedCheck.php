@@ -97,7 +97,7 @@ class SaveFinishedCheck
             FinishedCheckRevisionSample::insert($revisionRows);
 
             if ($finalize && $batch->current_stage === IpcBatch::STAGE_FINISHED) {
-                $batch->update(['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_FINISHED)]);
+                $batch->update(['current_stage' => IpcBatch::STAGE_APPROVAL]);
             }
 
             return $finishedCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);

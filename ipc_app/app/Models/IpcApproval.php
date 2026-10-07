@@ -91,25 +91,10 @@ class IpcApproval extends Model
     {
         return match ($stage) {
             self::STAGE_STARTUP => (bool) $batch->startupCheck?->completed_at,
-            // A side the batch's flow doesn't have (see IpcBatch::hasFillingStage()/
-            // hasPackingStage()) is vacuously ready — e.g. the Filling flow's combined stage is
-            // ready once Filling alone is completed, since Packing never exists for it.
-            self::STAGE_FILLING_PACKING => (! $batch->hasFillingStage() || (bool) $batch->fillingCheck?->completed_at)
-                && (! $batch->hasPackingStage() || (bool) $batch->packingCheck?->completed_at),
+            self::STAGE_FILLING_PACKING => (bool) ($batch->fillingCheck?->completed_at && $batch->packingCheck?->completed_at),
             self::STAGE_FINISHED => (bool) $batch->finishedCheck?->completed_at,
             default => false,
         };
-    }
-
-    /**
-     * Which approval stages apply to this batch's flow at all — the Filling flow has no Finished
-     * Good stage, so it never needs a Finished approval decision. See IpcBatch::activeStages().
-     *
-     * @return list<string>
-     */
-    public static function requiredStagesFor(IpcBatch $batch): array
-    {
-        return $batch->hasFinishedStage() ? self::APPROVAL_REQUIRED_STAGES : [self::STAGE_FILLING_PACKING];
     }
 
     /**
@@ -120,7 +105,7 @@ class IpcApproval extends Model
     {
         $approvals = $batch->approvals->keyBy('stage');
 
-        return collect(self::requiredStagesFor($batch))->filter(
+        return collect(self::APPROVAL_REQUIRED_STAGES)->filter(
             fn (string $stage) => self::stageReady($batch, $stage)
                 && optional($approvals->get($stage))->decision !== self::DECISION_APPROVED
         )->values();

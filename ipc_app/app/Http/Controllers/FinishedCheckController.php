@@ -35,8 +35,6 @@ class FinishedCheckController extends Controller
 
     public function edit(IpcBatch $batch): Response
     {
-        abort_unless($batch->hasFinishedStage(), 404);
-
         // Opens once Packing Check has one saved TH Progress round (same rule as Packing vs
         // Filling — see ValidatesThProgressRound); finalizing still needs Packing finalized.
         abort_unless($batch->packingCheck, 403, 'Packing Check untuk batch ini belum disimpan.');
@@ -91,7 +89,6 @@ class FinishedCheckController extends Controller
 
     public function update(SaveFinishedCheckRequest $request, IpcBatch $batch, SaveFinishedCheck $action): RedirectResponse
     {
-        abort_unless($batch->hasFinishedStage(), 404);
         abort_unless($batch->packingCheck, 403, 'Packing Check untuk batch ini belum disimpan.');
         abort_if($batch->finishedCheck?->completed_at, 403, 'Finished Check untuk batch ini sudah selesai dan bersifat read-only.');
 
@@ -107,7 +104,6 @@ class FinishedCheckController extends Controller
 
     public function uploadPhoto(UploadFinishedCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse
     {
-        abort_unless($batch->hasFinishedStage(), 404);
         abort_unless(in_array($field, self::PHOTO_FIELDS, true), 404);
         abort_unless($batch->packingCheck, 403, 'Packing Check untuk batch ini belum disimpan.');
 
@@ -163,8 +159,6 @@ class FinishedCheckController extends Controller
 
     public function deletePhoto(IpcBatch $batch, IpcAttachment $attachment): RedirectResponse
     {
-        abort_unless($batch->hasFinishedStage(), 404);
-
         // Only a MULTI_PHOTO_FIELDS field (wi_number) can ever reach this action — exp_date/color
         // attachments are replaced in place by uploadPhoto(), never deleted standalone. No
         // completed_at lock here either, matching wi_number's stay-editable-after-finalize rule.

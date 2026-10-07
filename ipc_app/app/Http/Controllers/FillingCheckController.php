@@ -27,7 +27,6 @@ class FillingCheckController extends Controller
 
     public function edit(IpcBatch $batch): Response
     {
-        abort_unless($batch->hasFillingStage(), 404);
         abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
 
         $batch->load([
@@ -65,7 +64,6 @@ class FillingCheckController extends Controller
 
     public function update(SaveFillingCheckRequest $request, IpcBatch $batch, SaveFillingCheck $action): RedirectResponse
     {
-        abort_unless($batch->hasFillingStage(), 404);
         abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
         abort_if($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini sudah selesai dan bersifat read-only.');
 
@@ -76,17 +74,13 @@ class FillingCheckController extends Controller
             return redirect()->route('batches.show', $batch)->with('success', 'Filling Check tersimpan.');
         }
 
-        // A draft closes this round's filling part. For the full flow the round continues on
-        // Packing Check, which opens as soon as Filling has a save; the Filling-only flow has no
-        // Packing stage to continue to, so it stays on this same page until Selesaikan.
-        return $batch->hasPackingStage()
-            ? redirect()->route('packing-check.edit', $batch)->with('success', 'Progress Filling tersimpan. Lanjut ke Packing Check.')
-            : redirect()->route('filling-check.edit', $batch)->with('success', 'Progress Filling tersimpan.');
+        // A draft closes this round's filling part; the round continues on Packing Check, which
+        // opens as soon as Filling has a save. Filling itself stays editable until Selesaikan.
+        return redirect()->route('packing-check.edit', $batch)->with('success', 'Progress Filling tersimpan. Lanjut ke Packing Check.');
     }
 
     public function uploadPhoto(UploadFillingCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse
     {
-        abort_unless($batch->hasFillingStage(), 404);
         abort_unless(in_array($field, self::PHOTO_FIELDS, true), 404);
         abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
         abort_if($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini sudah selesai dan bersifat read-only.');

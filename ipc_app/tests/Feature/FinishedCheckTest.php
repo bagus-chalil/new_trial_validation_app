@@ -614,27 +614,4 @@ class FinishedCheckTest extends TestCase
         $photo = UploadedFile::fake()->image('color.jpg');
         $this->post("/batches/{$batch->id}/finished-check/photo/color", ['photo' => $photo])->assertForbidden();
     }
-
-    // --- Flow type: Filling-only has no Finished Good stage at all ---
-
-    public function test_form_404s_for_a_filling_only_flow_batch(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatchWithCompletedPackingCheck();
-        $batch->update(['flow_type' => IpcBatch::FLOW_FILLING]);
-
-        $this->get("/batches/{$batch->id}/finished-check")->assertNotFound();
-        $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => false]))->assertNotFound();
-    }
-
-    public function test_photo_upload_404s_for_a_filling_only_flow_batch(): void
-    {
-        Storage::fake('public');
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatchWithCompletedPackingCheck();
-        $batch->update(['flow_type' => IpcBatch::FLOW_FILLING]);
-
-        $photo = UploadedFile::fake()->image('color.jpg');
-        $this->post("/batches/{$batch->id}/finished-check/photo/color", ['photo' => $photo])->assertNotFound();
-    }
 }

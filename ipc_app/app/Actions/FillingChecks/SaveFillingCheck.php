@@ -116,7 +116,7 @@ class SaveFillingCheck
             }
 
             if ($finalize && $batch->current_stage === IpcBatch::STAGE_FILLING) {
-                $batch->update(['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_FILLING)]);
+                $batch->update(['current_stage' => IpcBatch::STAGE_PACKING]);
             }
 
             return $fillingCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);

@@ -161,7 +161,7 @@ class ApprovalController extends Controller
         // still reachable directly, this only removes its card from this list. Print's own
         // overview (PrintController::stagesSummary(), a separate method) is untouched — the user
         // scoped this to Approval only.
-        return collect(IpcApproval::requiredStagesFor($batch))
+        return collect(IpcApproval::APPROVAL_REQUIRED_STAGES)
             ->map(fn (string $stage) => [
                 'stage' => $stage,
                 'label' => IpcApproval::STAGE_LABELS[$stage],
@@ -185,6 +185,6 @@ class ApprovalController extends Controller
 
     private function guardFinished(IpcBatch $batch): void
     {
-        abort_unless($batch->isReadyForApproval(), 403, 'Tahap pemeriksaan untuk batch ini belum selesai — batch belum masuk tahap Approval.');
+        abort_unless($batch->finishedCheck?->completed_at, 403, 'Finished Check untuk batch ini belum selesai — batch belum masuk tahap Approval.');
     }
 }

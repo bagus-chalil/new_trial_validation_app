@@ -153,7 +153,7 @@ class PrintController extends Controller
     {
         $logsByStage = $batch->printLogs->groupBy('stage');
 
-        return collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->map(fn (string $stage) => [
+        return collect(IpcApproval::STAGES)->map(fn (string $stage) => [
             'stage' => $stage,
             'label' => IpcApproval::STAGE_LABELS[$stage],
             ...$this->summarizeLogs($logsByStage->get($stage, collect())),

@@ -20,7 +20,7 @@ class FillingCheckTest extends TestCase
 
     // Defaults to the currently-acted-as user so every pre-existing test keeps meaning "owner
     // edits their own batch"; pass an explicit id to build a not-the-owner (403) case instead.
-    private function makeBatchWithCompletedStartupCheck(?int $createdBy = null, string $flowType = IpcBatch::FLOW_FULL): IpcBatch
+    private function makeBatchWithCompletedStartupCheck(?int $createdBy = null): IpcBatch
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
@@ -31,7 +31,6 @@ class FillingCheckTest extends TestCase
             'master_line_id' => $line->id,
             'created_by' => $createdBy ?? auth()->id() ?? User::factory()->create()->id,
             'current_stage' => IpcBatch::STAGE_FILLING,
-            'flow_type' => $flowType,
         ]);
 
         StartupCheck::create([
@@ -412,52 +411,5 @@ class FillingCheckTest extends TestCase
 
         $photo = UploadedFile::fake()->image('color.jpg');
         $this->post("/batches/{$batch->id}/filling-check/photo/color", ['photo' => $photo])->assertForbidden();
-    }
-
-    // --- Flow type: Packing+Finished-Good has no Filling Check at all ---
-
-    public function test_form_404s_for_a_packing_finished_good_flow_batch(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatchWithCompletedStartupCheck(flowType: IpcBatch::FLOW_PACKING_FG);
-
-        $this->get("/batches/{$batch->id}/filling-check")->assertNotFound();
-        $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())->assertNotFound();
-    }
-
-    public function test_photo_upload_404s_for_a_packing_finished_good_flow_batch(): void
-    {
-        Storage::fake('public');
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatchWithCompletedStartupCheck(flowType: IpcBatch::FLOW_PACKING_FG);
-
-        $photo = UploadedFile::fake()->image('color.jpg');
-        $this->post("/batches/{$batch->id}/filling-check/photo/color", ['photo' => $photo])->assertNotFound();
-    }
-
-    // --- Flow type: Filling-only finalizes straight to Approval, skipping Packing/Finished Good ---
-
-    public function test_finalizing_advances_straight_to_approval_for_the_filling_only_flow(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatchWithCompletedStartupCheck(flowType: IpcBatch::FLOW_FILLING);
-
-        $this->put("/batches/{$batch->id}/filling-check", $this->validPayload())
-            ->assertRedirect("/batches/{$batch->id}");
-
-        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
-    }
-
-    public function test_draft_save_redirects_back_to_itself_for_the_filling_only_flow(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatchWithCompletedStartupCheck(flowType: IpcBatch::FLOW_FILLING);
-
-        $this->put("/batches/{$batch->id}/filling-check", [
-            ...$this->draftBase(), 'finalize' => false,
-            'samples' => [['sample_no' => 1, 'weight_value' => 21]],
-        ])->assertRedirect("/batches/{$batch->id}/filling-check");
-
-        $this->assertSame(IpcBatch::STAGE_FILLING, $batch->fresh()->current_stage);
     }
 }

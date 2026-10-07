@@ -18,7 +18,6 @@ import { FormEventHandler, useMemo, useState } from 'react';
 interface Batch {
     id: number;
     no_batch: string;
-    flow_type: string;
     master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string } | null;
 }
@@ -364,40 +363,38 @@ export default function StartupInspectionEdit({
                             {!masterBoxOnly && <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />}
                         </AccordionCard>
 
-                        {batch.flow_type !== 'filling' && (
-                            <AccordionCard
-                                title="Weight Master Box"
-                                progress={
-                                    masterBoxOnly
-                                        ? `${masterBoxFilledCount}/${SAMPLE_NUMBERS.length} terisi — sekali isi`
-                                        : masterBoxFilledCount > 0
-                                          ? `${masterBoxFilledCount}/${SAMPLE_NUMBERS.length} terisi`
-                                          : 'Opsional — bisa diisi lagi saat Packing'
-                                }
-                                defaultOpen={masterBoxOnly}
-                            >
-                                <div className="col-span-full grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
-                                    {SAMPLE_NUMBERS.map((n) => {
-                                        const sample = data.samples.find((s) => s.sample_no === n)!;
-                                        return (
-                                            <div key={n} className="flex items-center gap-1.5">
-                                                <span className="text-muted-foreground w-5 shrink-0 text-[11px] font-semibold">{n}</span>
-                                                <Input
-                                                    type="number"
-                                                    step="1"
-                                                    inputMode="numeric"
-                                                    className={inputClass}
-                                                    value={sample.weight_master_box}
-                                                    onChange={(e) => setSampleField(n, 'weight_master_box', e.target.value)}
-                                                    disabled={!masterBoxEditable}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {masterBoxOnly && <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />}
-                            </AccordionCard>
-                        )}
+                        <AccordionCard
+                            title="Weight Master Box"
+                            progress={
+                                masterBoxOnly
+                                    ? `${masterBoxFilledCount}/${SAMPLE_NUMBERS.length} terisi — sekali isi`
+                                    : masterBoxFilledCount > 0
+                                      ? `${masterBoxFilledCount}/${SAMPLE_NUMBERS.length} terisi`
+                                      : 'Opsional — bisa diisi lagi saat Packing'
+                            }
+                            defaultOpen={masterBoxOnly}
+                        >
+                            <div className="col-span-full grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
+                                {SAMPLE_NUMBERS.map((n) => {
+                                    const sample = data.samples.find((s) => s.sample_no === n)!;
+                                    return (
+                                        <div key={n} className="flex items-center gap-1.5">
+                                            <span className="text-muted-foreground w-5 shrink-0 text-[11px] font-semibold">{n}</span>
+                                            <Input
+                                                type="number"
+                                                step="1"
+                                                inputMode="numeric"
+                                                className={inputClass}
+                                                value={sample.weight_master_box}
+                                                onChange={(e) => setSampleField(n, 'weight_master_box', e.target.value)}
+                                                disabled={!masterBoxEditable}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {masterBoxOnly && <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />}
+                        </AccordionCard>
 
                         {['Leakage', 'Functional', 'Attribute'].map((category) => {
                             const types = testTypesByCategory.get(category) ?? [];
