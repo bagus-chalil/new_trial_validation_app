@@ -54,7 +54,9 @@ export function PdfViewer({ url, title, onClose }: { readonly url: string; reado
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
     const [boxWidth, setBoxWidth] = useState(0);
-    const boxRef = useRef<HTMLDivElement>(null);
+    // Callback-ref state, not useRef: Radix mounts the dialog content after the first render, so a
+    // plain ref is still null when a mount effect runs and the width would never be measured.
+    const [box, setBox] = useState<HTMLDivElement | null>(null);
     const closedByPop = useRef(false);
 
     // Own one history entry so the system Back closes the viewer first.
@@ -99,13 +101,12 @@ export function PdfViewer({ url, title, onClose }: { readonly url: string; reado
     }, [url]);
 
     useEffect(() => {
-        const el = boxRef.current;
-        if (!el) return;
-        const observer = new ResizeObserver(() => setBoxWidth(el.clientWidth));
-        observer.observe(el);
-        setBoxWidth(el.clientWidth);
+        if (!box) return;
+        const observer = new ResizeObserver(() => setBoxWidth(box.clientWidth));
+        observer.observe(box);
+        setBoxWidth(box.clientWidth);
         return () => observer.disconnect();
-    }, []);
+    }, [box]);
 
     const btn =
         'inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-semibold text-white active:bg-white/25 disabled:opacity-40';
@@ -146,7 +147,7 @@ export function PdfViewer({ url, title, onClose }: { readonly url: string; reado
                     )}
                 </div>
 
-                <div ref={boxRef} className="min-h-0 flex-1 overflow-auto px-3 py-3">
+                <div ref={setBox} className="min-h-0 flex-1 overflow-auto px-3 py-3">
                     {error && <p className="mt-10 text-center text-sm font-medium text-red-300">{error}</p>}
                     {!error && !doc && (
                         <div className="mt-10 flex flex-col items-center gap-3 text-white/70">
