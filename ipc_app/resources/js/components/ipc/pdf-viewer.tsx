@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, Download, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import * as pdfjs from 'pdfjs-dist';
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
 import { useEffect, useRef, useState } from 'react';
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+// Bundled by Vite as a plain .js worker; a separate .mjs asset fails on servers that don't serve
+// .mjs with a JavaScript MIME type.
+pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
