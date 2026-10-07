@@ -522,11 +522,15 @@ class Trial extends Model
      * approver-only narrowing, which only the dedicated waiting-approval list
      * page applies.
      *
+     * $period (optional, see scopeCreatedWithin()) narrows every bucket to
+     * trials created inside the Dashboard's selected period.
+     *
+     * @param  array{from: string, to: string}|null  $period
      * @return array{total: int, total_mixing: int, total_filling: int, draft: int, in_review: int, ready: int, approved: int, need_revision: int, rejected: int}
      */
-    public static function summaryCounts(User $user): array
+    public static function summaryCounts(User $user, ?array $period = null): array
     {
-        $base = fn () => static::query()->visibleTo($user);
+        $base = fn () => static::query()->visibleTo($user)->createdWithin($period);
 
         return [
             'total' => $base()->count('trials_header.id'),
@@ -543,30 +547,71 @@ class Trial extends Model
     }
 
     /**
-     * Trials created per month for the last $months months, scoped by
-     * visibleTo($user) (no status group, same as summaryCounts()). Every
-     * month in the range is present even when its count is 0, so a trend
+     * Restricts to trials created between $period['from'] and
+     * $period['to'] (both inclusive Y-m-d dates) — the Dashboard's period
+     * filter. A null period is a no-op ("all time").
+     *
+     * @param  Builder<Trial>  $query
+     * @param  array{from: string, to: string}|null  $period
+     * @return Builder<Trial>
+     */
+    public function scopeCreatedWithin(Builder $query, ?array $period): Builder
+    {
+        if ($period === null) {
+            return $query;
+        }
+
+        return $query
+            ->where('trials_header.created_at', '>=', $period['from'].' 00:00:00')
+            ->where('trials_header.created_at', '<=', $period['to'].' 23:59:59');
+    }
+
+    /**
+     * Trials created over time, scoped by visibleTo($user) (no status group,
+     * same as summaryCounts()). Without a $period: one bucket per month for
+     * the last $months months. With a $period: monthly buckets across it, or
+     * daily buckets when it spans at most ~2 months, so a single selected
+     * month still reads as a real trend instead of one lone point. Every
+     * bucket in the range is present even when its count is 0, so a trend
      * chart never shows a gap.
      *
+     * @param  array{from: string, to: string}|null  $period
      * @return list<array{period: string, count: int}>
      */
-    public static function trendByMonth(User $user, int $months = 6): array
+    public static function trendByMonth(User $user, int $months = 6, ?array $period = null): array
     {
-        $start = Carbon::now()->startOfMonth()->subMonths($months - 1);
+        if ($period === null) {
+            $start = Carbon::now()->startOfMonth()->subMonths($months - 1);
+            $end = Carbon::now()->endOfMonth();
+        } else {
+            $start = Carbon::parse($period['from'])->startOfDay();
+            $end = Carbon::parse($period['to'])->endOfDay();
+        }
+        $start = $start->toImmutable();
+        $end = $end->toImmutable();
+
+        $daily = $period !== null && $start->diffInDays($end) <= 62;
+        $format = $daily ? 'Y-m-d' : 'Y-m';
 
         // Bucketed in PHP rather than a DATE_FORMAT()/GROUP BY query so this
         // works identically on the shared MySQL DB and sqlite (tests) — no
         // portable cross-driver month-truncation SQL exists for both.
         $counts = [];
-        foreach (static::query()->visibleTo($user)->where('trials_header.created_at', '>=', $start)->pluck('trials_header.created_at') as $createdAt) {
-            $ym = Carbon::parse($createdAt)->format('Y-m');
-            $counts[$ym] = ($counts[$ym] ?? 0) + 1;
+        $createdAts = static::query()->visibleTo($user)
+            ->where('trials_header.created_at', '>=', $start)
+            ->where('trials_header.created_at', '<=', $end)
+            ->pluck('trials_header.created_at');
+        foreach ($createdAts as $createdAt) {
+            $key = Carbon::parse($createdAt)->format($format);
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
         }
 
         $result = [];
-        for ($i = 0; $i < $months; $i++) {
-            $ym = (clone $start)->addMonths($i)->format('Y-m');
-            $result[] = ['period' => $ym, 'count' => $counts[$ym] ?? 0];
+        $cursor = $daily ? $start->startOfDay() : $start->startOfMonth();
+        while ($cursor <= $end) {
+            $key = $cursor->format($format);
+            $result[] = ['period' => $key, 'count' => $counts[$key] ?? 0];
+            $cursor = $daily ? $cursor->addDay() : $cursor->addMonth();
         }
 
         return $result;
@@ -577,11 +622,12 @@ class Trial extends Model
      * types by count with everything past that bucketed into one "Lainnya"
      * row so a long tail of one-off product types doesn't blow up the chart.
      *
+     * @param  array{from: string, to: string}|null  $period
      * @return list<array{label: string, count: int}>
      */
-    public static function productTypeBreakdown(User $user, int $top = 6): array
+    public static function productTypeBreakdown(User $user, int $top = 6, ?array $period = null): array
     {
-        $rows = static::query()->visibleTo($user)
+        $rows = static::query()->visibleTo($user)->createdWithin($period)
             ->select(DB::raw('product_type, COUNT(*) as cnt'))
             ->groupBy('product_type')
             ->orderByDesc('cnt')
@@ -612,11 +658,12 @@ class Trial extends Model
      * DashboardController::myWorkData() and reviewStatusByDepartment().
      * Every known reviewer department appears, 0 if none pending.
      *
+     * @param  array{from: string, to: string}|null  $period
      * @return list<array{department: string, count: int}>
      */
-    public static function pendingReviewsByDepartment(User $user): array
+    public static function pendingReviewsByDepartment(User $user, ?array $period = null): array
     {
-        $visibleIds = static::query()->visibleTo($user)->pluck('trials_header.id');
+        $visibleIds = static::query()->visibleTo($user)->createdWithin($period)->pluck('trials_header.id');
 
         $counts = TrialReview::query()
             ->join('trials_header as h', 'h.id', '=', 'trials_review.trial_id')
@@ -648,9 +695,10 @@ class Trial extends Model
      * requeried.
      *
      * @param  array{total: int, draft: int, in_review: int, ready: int, approved: int, need_revision: int, rejected: int}  $summary
+     * @param  array{from: string, to: string}|null  $period
      * @return array{approvalRate: float|null, avgApprovalDays: float|null, activeTrials: int, bottleneckDepartment: array{department: string, count: int}|null}
      */
-    public static function approvalHealth(User $user, array $summary): array
+    public static function approvalHealth(User $user, array $summary, ?array $period = null): array
     {
         $decided = $summary['approved'] + $summary['rejected'];
         $approvalRate = $decided > 0 ? round($summary['approved'] / $decided * 100, 1) : null;
@@ -658,7 +706,7 @@ class Trial extends Model
         // Averaged in PHP rather than TIMESTAMPDIFF() (MySQL-only, breaks on
         // the sqlite connection tests run against) — same reasoning as
         // trendByMonth() above.
-        $approvedTrials = static::query()->visibleTo($user)
+        $approvedTrials = static::query()->visibleTo($user)->createdWithin($period)
             ->where('progress_status', 'Approved')
             ->whereNotNull('approved_at')
             ->get(['created_at', 'approved_at']);
@@ -669,7 +717,7 @@ class Trial extends Model
         $activeTrials = $summary['draft'] + $summary['in_review'] + $summary['ready'] + $summary['need_revision'];
 
         $bottleneck = null;
-        foreach (static::pendingReviewsByDepartment($user) as $row) {
+        foreach (static::pendingReviewsByDepartment($user, $period) as $row) {
             if ($bottleneck === null || $row['count'] > $bottleneck['count']) {
                 $bottleneck = $row;
             }

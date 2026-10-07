@@ -50,7 +50,9 @@ class DashboardController extends Controller
             $trial->setAttribute('can_archive', Gate::forUser($user)->allows('archive', $trial));
         });
 
-        $summary = Trial::summaryCounts($user);
+        $period = $this->overviewPeriod($request);
+
+        $summary = Trial::summaryCounts($user, $period);
 
         $option = fn (string $type) => MasterOption::query()
             ->where('type', $type)
@@ -63,8 +65,8 @@ class DashboardController extends Controller
         $validationScopes = $option('validation_scope');
 
         $overview = [
-            'headline' => Trial::approvalHealth($user, $summary),
-            'trend' => Trial::trendByMonth($user),
+            'headline' => Trial::approvalHealth($user, $summary, $period),
+            'trend' => Trial::trendByMonth($user, period: $period),
             'statusBreakdown' => [
                 ['status' => 'Draft', 'count' => $summary['draft']],
                 ['status' => 'In Review', 'count' => $summary['in_review']],
@@ -73,9 +75,9 @@ class DashboardController extends Controller
                 ['status' => 'Approved', 'count' => $summary['approved']],
                 ['status' => 'Rejected', 'count' => $summary['rejected']],
             ],
-            'productTypeBreakdown' => Trial::productTypeBreakdown($user),
-            'productTypePie' => Trial::productTypeBreakdown($user, 3),
-            'departmentPending' => Trial::pendingReviewsByDepartment($user),
+            'productTypeBreakdown' => Trial::productTypeBreakdown($user, period: $period),
+            'productTypePie' => Trial::productTypeBreakdown($user, 3, $period),
+            'departmentPending' => Trial::pendingReviewsByDepartment($user, $period),
         ];
 
         return Inertia::render('dashboard', [
@@ -85,7 +87,37 @@ class DashboardController extends Controller
             'validationScopes' => $validationScopes,
             'summary' => $summary,
             'overview' => $overview,
+            'period' => [
+                'from' => $period['from'] ?? '',
+                'to' => $period['to'] ?? '',
+            ],
         ]);
+    }
+
+    /**
+     * The overview period (KPIs, summary cards, charts) — trials *created*
+     * between `period_from` and `period_to` (Y-m-d, inclusive). Deliberately
+     * separate from the trial list's own date_from/date_to filters, which
+     * filter on validation_date. Returns null ("all time") unless both ends
+     * are valid dates; a reversed range is swapped rather than rejected.
+     *
+     * @return array{from: string, to: string}|null
+     */
+    private function overviewPeriod(Request $request): ?array
+    {
+        $from = trim((string) $request->query('period_from', ''));
+        $to = trim((string) $request->query('period_to', ''));
+
+        $valid = fn (string $d) => preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) === 1 && strtotime($d) !== false;
+        if (! $valid($from) || ! $valid($to)) {
+            return null;
+        }
+
+        if ($from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
+        return ['from' => $from, 'to' => $to];
     }
 
     public function myWork(Request $request): Response

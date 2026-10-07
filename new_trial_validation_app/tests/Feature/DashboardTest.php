@@ -307,3 +307,75 @@ test('overview department-pending breakdown only counts trials visible to the ac
         return $qac['count'] === 1;
     }));
 });
+
+function makeDashboardTrialCreatedAt(string $code, string $createdAt, array $attributes = []): Trial
+{
+    $trial = makeDashboardTrial(['trial_code' => $code, ...$attributes]);
+    $trial->created_at = Carbon::parse($createdAt);
+    $trial->save();
+
+    return $trial;
+}
+
+test('the overview period narrows KPIs, summary cards and charts to trials created inside it', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    makeDashboardTrialCreatedAt('TRIAL-PER-SEP', '2026-09-30 23:00:00', ['progress_status' => 'Draft']);
+    $inside = makeDashboardTrialCreatedAt('TRIAL-PER-OCT-1', '2026-10-01 00:30:00', ['progress_status' => 'In Review', 'product_type' => 'Mixing']);
+    makeDashboardTrialCreatedAt('TRIAL-PER-OCT-2', '2026-10-31 23:30:00', ['progress_status' => 'Approved']);
+    makeDashboardTrialCreatedAt('TRIAL-PER-NOV', '2026-11-01 08:00:00', ['progress_status' => 'Approved']);
+    TrialReview::create(['trial_id' => $inside->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard', [
+        'period_from' => '2026-10-01',
+        'period_to' => '2026-10-31',
+    ]));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('period.from', '2026-10-01')
+        ->where('period.to', '2026-10-31')
+        ->where('summary.total', 2)
+        ->where('summary.total_mixing', 1)
+        ->where('summary.draft', 0)
+        ->where('summary.in_review', 1)
+        ->where('summary.approved', 1)
+        ->where('overview.headline.activeTrials', 1)
+        ->where('overview.headline.bottleneckDepartment.department', 'QAC')
+        // The trial list itself is not narrowed by the overview period.
+        ->where('trials.total', 4)
+        // A one-month period is bucketed per day so it still reads as a trend.
+        ->where('overview.trend', fn ($trend) => count($trend) === 31
+            && $trend[0]['period'] === '2026-10-01'
+            && $trend[0]['count'] === 1
+            && $trend[30]['period'] === '2026-10-31'
+            && $trend[30]['count'] === 1));
+});
+
+test('a long overview period is bucketed per month and a reversed range is swapped', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    makeDashboardTrialCreatedAt('TRIAL-PER-JAN', '2026-01-15 10:00:00');
+    makeDashboardTrialCreatedAt('TRIAL-PER-JUN', '2026-06-15 10:00:00');
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard', [
+        'period_from' => '2026-12-31',
+        'period_to' => '2026-01-01',
+    ]));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('period.from', '2026-01-01')
+        ->where('summary.total', 2)
+        ->where('overview.trend', fn ($trend) => count($trend) === 12
+            && $trend[0]['period'] === '2026-01'
+            && $trend[0]['count'] === 1
+            && $trend[5]['count'] === 1));
+});
+
+test('an invalid or half-filled overview period falls back to all time', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    makeDashboardTrialCreatedAt('TRIAL-PER-OLD', '2020-01-01 10:00:00');
+
+    $response = $this->actingAs($superAdmin)->get(route('dashboard', ['period_from' => '2026-10-01']));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('period.from', '')
+        ->where('summary.total', 1));
+});

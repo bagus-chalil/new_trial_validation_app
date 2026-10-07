@@ -750,6 +750,21 @@ test('a locked historical version can be downloaded as a PDF but is no longer th
     $page->assertInertia(fn ($p) => $p->where('lineConfigurationReport.version', 2));
 });
 
+test('the current (e.g. fully signed-off) version can be downloaded as a PDF too', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload());
+
+    $response = $this->actingAs($reviewer)->get(route('trials.line-configuration.versions.pdf', ['trial' => $trial->id, 'version' => 1]));
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toBe('application/pdf');
+
+    $this->actingAs($reviewer)
+        ->get(route('trials.line-configuration.versions.pdf', ['trial' => $trial->id, 'version' => 2]))
+        ->assertNotFound();
+});
+
 test('the report page exposes the assigned approver and checker names, not just the done flag', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $pieUser = User::factory()->create(['name' => 'Fauzi PIE']);

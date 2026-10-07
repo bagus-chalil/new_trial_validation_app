@@ -15,6 +15,8 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { CategoryBarChart } from '@/components/dashboard/category-bar-chart';
 import { KpiTile } from '@/components/dashboard/kpi-tile';
+import { DashboardPeriodFilter } from '@/components/dashboard/period-filter';
+import type { DashboardPeriod } from '@/components/dashboard/period-filter';
 import { ProductTypePieChart } from '@/components/dashboard/product-type-pie-chart';
 import { StatusDistributionChart } from '@/components/dashboard/status-distribution-chart';
 import type { StatusDatum } from '@/components/dashboard/status-distribution-chart';
@@ -77,6 +79,7 @@ type PageProps = {
     validationScopes: string[];
     summary: Summary;
     overview: Overview;
+    period: DashboardPeriod;
 };
 
 const summaryCards: {
@@ -140,29 +143,51 @@ export default function Dashboard({
     validationScopes,
     summary,
     overview,
+    period,
 }: PageProps) {
     const { t, intlLocale } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
 
+    // The overview period (KPIs/cards/charts) and the trial-list filters
+    // below are independent, but each request must carry the other along
+    // so changing one never silently resets the other.
+    const periodQuery: Record<string, string> = period.from
+        ? { period_from: period.from, period_to: period.to }
+        : {};
+
+    function visit(
+        listFilters: Partial<Filters>,
+        nextPeriod: Record<string, string> = periodQuery,
+    ) {
+        router.get(
+            dashboard().url,
+            { ...listFilters, ...nextPeriod },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }
+
     function submit(e: FormEvent) {
         e.preventDefault();
-        router.get(dashboard().url, form, {
-            preserveState: true,
-            replace: true,
-        });
+        visit(form);
     }
 
     function reset() {
-        router.get(dashboard().url);
+        router.get(dashboard().url, periodQuery);
     }
 
     function clearFilter(key: keyof Filters) {
         const next = { ...form, [key]: '' };
         setForm(next);
-        router.get(dashboard().url, next, {
-            preserveState: true,
-            replace: true,
-        });
+        visit(next);
+    }
+
+    function changePeriod(next: DashboardPeriod) {
+        visit(
+            filters,
+            next.from && next.to
+                ? { period_from: next.from, period_to: next.to }
+                : {},
+        );
     }
 
     const chip = (label: string, value: string) =>
@@ -221,10 +246,16 @@ export default function Dashboard({
             <Head title={t('common.nav.dashboard')} />
 
             <div className="space-y-6 p-4">
-                <Heading
-                    title={t('dashboard.title')}
-                    description={t('dashboard.description')}
-                />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <Heading
+                        title={t('dashboard.title')}
+                        description={t('dashboard.description')}
+                    />
+                    <DashboardPeriodFilter
+                        period={period}
+                        onChange={changePeriod}
+                    />
+                </div>
 
                 <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <KpiTile
@@ -469,7 +500,7 @@ export default function Dashboard({
                 <TrialsTable
                     trials={trials}
                     url={dashboard().url}
-                    query={filters}
+                    query={{ ...filters, ...periodQuery }}
                     emptyMessage={t('dashboard.filters.empty')}
                 />
             </div>

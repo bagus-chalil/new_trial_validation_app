@@ -5,6 +5,24 @@ return [
     'title' => 'Trial Dashboard',
     'description' => 'Overview of the trial validation system: process health, trends, and breakdowns.',
 
+    'period' => [
+        'options' => [
+            'all' => 'All time',
+            'this_month' => 'This month',
+            'last_month' => 'Last month',
+            'last_3_months' => 'Last 3 months',
+            'last_6_months' => 'Last 6 months',
+            'this_year' => 'This year',
+            'month' => 'Pick a month...',
+            'custom' => 'Date range...',
+        ],
+        'from' => 'From date',
+        'to' => 'To date',
+        'apply' => 'Apply',
+        'showing_all' => 'Showing all trials (all time)',
+        'showing_range' => 'Trials created :from – :to',
+    ],
+
     'kpi' => [
         'no_data' => 'No data yet',
         'approval_rate' => 'Approval Rate',

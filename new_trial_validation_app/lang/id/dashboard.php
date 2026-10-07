@@ -5,6 +5,24 @@ return [
     'title' => 'Dashboard Trial',
     'description' => 'Ringkasan sistem validasi trial: kondisi proses, tren, dan rincian data.',
 
+    'period' => [
+        'options' => [
+            'all' => 'Semua waktu',
+            'this_month' => 'Bulan ini',
+            'last_month' => 'Bulan lalu',
+            'last_3_months' => '3 bulan terakhir',
+            'last_6_months' => '6 bulan terakhir',
+            'this_year' => 'Tahun ini',
+            'month' => 'Pilih bulan...',
+            'custom' => 'Rentang tanggal...',
+        ],
+        'from' => 'Dari tanggal',
+        'to' => 'Sampai tanggal',
+        'apply' => 'Terapkan',
+        'showing_all' => 'Menampilkan semua trial (semua waktu)',
+        'showing_range' => 'Trial dibuat :from – :to',
+    ],
+
     'kpi' => [
         'no_data' => 'Belum ada data',
         'approval_rate' => 'Tingkat Persetujuan',

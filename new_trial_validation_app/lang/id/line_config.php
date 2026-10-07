@@ -25,6 +25,7 @@ return [
         'mark_checked' => 'Tandai Checked',
         'return' => 'Return',
         'download_pdf' => 'PDF',
+        'download_current_pdf' => 'Download PDF',
     ],
 
     'return_note' => [

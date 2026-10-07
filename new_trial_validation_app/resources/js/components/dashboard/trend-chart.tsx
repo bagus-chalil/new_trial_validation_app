@@ -8,7 +8,7 @@ import type { ChartConfig } from '@/components/ui/chart';
 import { useTranslation } from '@/hooks/use-translation';
 
 export type TrendDatum = {
-    period: string; // "YYYY-MM"
+    period: string; // "YYYY-MM", or "YYYY-MM-DD" for a short selected period
     count: number;
 };
 
@@ -16,8 +16,15 @@ type TrendChartProps = {
     data: TrendDatum[];
 };
 
-function monthLabel(period: string, intlLocale: string): string {
-    const [year, month] = period.split('-').map(Number);
+function periodLabel(period: string, intlLocale: string): string {
+    const [year, month, day] = period.split('-').map(Number);
+
+    if (day) {
+        return new Intl.DateTimeFormat(intlLocale, {
+            day: 'numeric',
+            month: 'short',
+        }).format(new Date(year, month - 1, day));
+    }
 
     return new Intl.DateTimeFormat(intlLocale, {
         month: 'short',
@@ -35,12 +42,12 @@ export function TrendChart({ data }: TrendChartProps) {
     } satisfies ChartConfig;
     const formatted = data.map((row) => ({
         ...row,
-        label: monthLabel(row.period, intlLocale),
+        label: periodLabel(row.period, intlLocale),
     }));
 
     return (
         <ChartContainer config={chartConfig} className="h-64 w-full">
-            <AreaChart data={formatted} margin={{ left: -16, right: 12 }}>
+            <AreaChart data={formatted} margin={{ left: 0, right: 12 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                     dataKey="label"
@@ -52,7 +59,7 @@ export function TrendChart({ data }: TrendChartProps) {
                     allowDecimals={false}
                     tickLine={false}
                     axisLine={false}
-                    width={28}
+                    width={36}
                 />
                 <ChartTooltip
                     cursor={false}

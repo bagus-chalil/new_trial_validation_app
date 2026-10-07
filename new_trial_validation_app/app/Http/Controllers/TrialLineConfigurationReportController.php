@@ -33,8 +33,9 @@ use Inertia\Inertia;
  * currently active — all three deliberately separate actions/authorization
  * from update(), since the assignee is very often not a PROD reviewer/Admin
  * at all (see App\Policies\TrialLineConfigurationReportPolicy).
- * downloadVersion() serves a locked historical version as a read-only PDF —
- * see TrialLineConfigurationReport's doc comment on versioning.
+ * downloadVersion() serves any version — a locked historical one or the
+ * current (e.g. fully signed-off, final) one — as a read-only PDF; see
+ * TrialLineConfigurationReport's doc comment on versioning.
  */
 class TrialLineConfigurationReportController extends Controller
 {
@@ -106,6 +107,9 @@ class TrialLineConfigurationReportController extends Controller
     /**
      * A locked historical version can only be downloaded, never viewed
      * in-app or edited — see TrialLineConfigurationReport's doc comment.
+     * The current version is downloadable too (the PDF badge marks it
+     * "latest" rather than "locked"), so a fully signed-off final report
+     * doesn't have to be pulled out of the whole trial report PDF.
      */
     public function downloadVersion(Request $request, int $trial, int $version, PdfService $pdf): HttpResponse
     {
@@ -115,7 +119,6 @@ class TrialLineConfigurationReportController extends Controller
 
         $report = TrialLineConfigurationReport::where('trial_id', $trial->id)
             ->where('version', $version)
-            ->where('is_locked', true)
             ->firstOrFail();
 
         return $pdf->fromView('pdf.line-configuration-report-version', [

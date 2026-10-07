@@ -167,10 +167,8 @@
             $noWidth = 6;
             $kodeWidth = 6;
             $itemWidth = 24;
-            $photoWidth = 16;
             $roundCount = max($packingRounds->count(), 1);
-            $timeColWidth = (100 - $noWidth - $kodeWidth - $itemWidth - $photoWidth) / $roundCount;
-            $photoColWidth = $photoWidth / $roundCount;
+            $timeColWidth = (100 - $noWidth - $kodeWidth - $itemWidth) / $roundCount;
         @endphp
         <table class="record-table">
             <colgroup>
@@ -180,9 +178,6 @@
                 @foreach ($packingRounds as $round)
                     <col style="width: {{ $timeColWidth }}%;">
                 @endforeach
-                @foreach ($packingRounds as $round)
-                    <col style="width: {{ $photoColWidth }}%;">
-                @endforeach
             </colgroup>
             <thead>
                 <tr>
@@ -190,14 +185,10 @@
                     <th rowspan="2">Kode</th>
                     <th rowspan="2">Parameter</th>
                     <th colspan="{{ $packingRounds->count() }}">Time</th>
-                    <th colspan="{{ $packingRounds->count() }}">Foto</th>
                 </tr>
                 <tr>
                     @foreach ($packingRounds as $round)
                         <th class="center">{{ optional($round->created_at)->format('d/m H:i') ?? '—' }}</th>
-                    @endforeach
-                    @foreach ($packingRounds as $round)
-                        <th>&nbsp;</th>
                     @endforeach
                 </tr>
             </thead>
@@ -210,11 +201,10 @@
                         @php $roundLine = $round->masterLine ?? $packingCheck->masterLine ?? $batch->masterLine; @endphp
                         <td class="center">{{ $roundLine->code ?? '—' }}</td>
                     @endforeach
-                    <td colspan="{{ $packingRounds->count() }}">&nbsp;</td>
                 </tr>
                 @foreach ($packingChecklistGroups as $group)
                     <tr class="group-row">
-                        <td colspan="{{ 3 + ($packingRounds->count() * 2) }}">{{ ucfirst($group['key']) }} Packaging</td>
+                        <td colspan="{{ 3 + $packingRounds->count() }}">{{ ucfirst($group['key']) }} Packaging</td>
                     </tr>
                     {{-- Numbered per tier (1..n restarting under each heading), like the paper form. --}}
                     @foreach (array_keys($group['fields']) as $index => $field)
@@ -228,9 +218,6 @@
                             <td class="center">{{ \App\Models\PackingCheck::SEVERITY_LABELS[$field] ?? '—' }}</td>
                             <td>{{ $label }}</td>
                             @foreach ($packingRounds as $round)
-                                <td class="center">@include('pdf._status-pill', ['value' => $round[$field] ?? null, 'abbreviate' => true])</td>
-                            @endforeach
-                            @foreach ($packingRounds as $round)
                                 @php
                                     // Each round shows the photo that was actually current when
                                     // *that* round was saved (PackingCheckRevisionPhoto), not
@@ -243,15 +230,14 @@
                                             : ($photoUrls['packing'][$photoField] ?? null))
                                         : null;
                                 @endphp
+                                {{-- Status and (for checklist rows that have one) the round's photo share one
+                                     cell, so there is no separate, mostly-empty Foto column. --}}
                                 <td class="center photo-cell">
-                                    @if ($photoField)
-                                        @if ($roundPhotoUrl)
-                                            <img src="{{ $roundPhotoUrl }}" alt="{{ $label }}" style="width: 100%; max-height: 18mm; object-fit: contain;">
-                                        @else
-                                            <span class="muted">Belum ada foto</span>
-                                        @endif
-                                    @else
-                                        <span class="muted">—</span>
+                                    @include('pdf._status-pill', ['value' => $round[$field] ?? null, 'abbreviate' => true])
+                                    @if ($roundPhotoUrl)
+                                        <img src="{{ $roundPhotoUrl }}" alt="{{ $label }}" style="width: 100%; max-height: 18mm; object-fit: contain; margin-top: 3px;">
+                                    @elseif ($photoField)
+                                        <div class="muted" style="margin-top: 2px;">Belum ada foto</div>
                                     @endif
                                 </td>
                             @endforeach
@@ -267,7 +253,6 @@
                             @foreach ($packingRounds as $round)
                                 <td class="center">{{ $round->sum_weight_mb ?? '—' }}</td>
                             @endforeach
-                            <td colspan="{{ $packingRounds->count() }}">&nbsp;</td>
                         </tr>
                     @endif
                 @endforeach

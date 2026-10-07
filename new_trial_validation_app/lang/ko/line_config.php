@@ -25,6 +25,7 @@ return [
         'mark_checked' => '확인 완료 처리',
         'return' => '반송',
         'download_pdf' => 'PDF',
+        'download_current_pdf' => 'PDF 다운로드',
     ],
 
     'return_note' => [

@@ -5,6 +5,24 @@ return [
     'title' => '트라이얼 대시보드',
     'description' => '트라이얼 검증 시스템 현황: 프로세스 상태, 추이 및 세부 분석.',
 
+    'period' => [
+        'options' => [
+            'all' => '전체 기간',
+            'this_month' => '이번 달',
+            'last_month' => '지난 달',
+            'last_3_months' => '최근 3개월',
+            'last_6_months' => '최근 6개월',
+            'this_year' => '올해',
+            'month' => '월 선택...',
+            'custom' => '기간 지정...',
+        ],
+        'from' => '시작일',
+        'to' => '종료일',
+        'apply' => '적용',
+        'showing_all' => '전체 트라이얼 표시 (전체 기간)',
+        'showing_range' => ':from – :to 생성된 트라이얼',
+    ],
+
     'kpi' => [
         'no_data' => '데이터 없음',
         'approval_rate' => '승인율',

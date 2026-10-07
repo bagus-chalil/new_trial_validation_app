@@ -338,19 +338,40 @@ export function LineConfigurationReportSection({
                         </p>
                     </div>
                 </div>
-                {canEdit && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDialogOpen(true)}
-                    >
-                        <Pencil className="size-3.5" />
-                        {report
-                            ? t('line_config.actions.edit')
-                            : t('line_config.actions.create')}
-                    </Button>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                    {report && (
+                        <Button asChild variant="outline" size="sm">
+                            <a
+                                href={
+                                    TrialLineConfigurationReportController.downloadVersion(
+                                        {
+                                            trial: trialId,
+                                            version: report.version,
+                                        },
+                                    ).url
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <Download className="size-3.5" />
+                                {t('line_config.actions.download_current_pdf')}
+                            </a>
+                        </Button>
+                    )}
+                    {canEdit && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDialogOpen(true)}
+                        >
+                            <Pencil className="size-3.5" />
+                            {report
+                                ? t('line_config.actions.edit')
+                                : t('line_config.actions.create')}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="overflow-hidden rounded-xl border bg-card">
