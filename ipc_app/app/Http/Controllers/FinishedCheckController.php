@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\FinishedChecks\CompleteFinishedCheckFromHistory;
 use App\Actions\FinishedChecks\SaveFinishedCheck;
 use App\Http\Requests\SaveFinishedCheckRequest;
 use App\Http\Requests\UploadFinishedCheckPhotoRequest;
@@ -100,6 +101,28 @@ class FinishedCheckController extends Controller
         }
 
         return redirect()->route('finished-check.edit', $batch)->with('success', 'Progress tersimpan.');
+    }
+
+    /**
+     * "Selesaikan" without re-filling the form: adopts the latest saved TH Progress round as the
+     * final record (see CompleteFinishedCheckFromHistory). Needs at least one saved round.
+     */
+    public function complete(IpcBatch $batch, CompleteFinishedCheckFromHistory $action): RedirectResponse
+    {
+        abort_unless($batch->packingCheck, 403, 'Packing Check untuk batch ini belum disimpan.');
+        abort_if($batch->finishedCheck?->completed_at, 403, 'Finished Check untuk batch ini sudah selesai dan bersifat read-only.');
+
+        if (! $batch->finishedCheck?->revisions()->exists()) {
+            return back()->withErrors(['progress' => 'Belum ada riwayat simpan untuk diselesaikan.']);
+        }
+
+        if (! $batch->packingCheck?->completed_at) {
+            return back()->withErrors(['progress' => 'Selesaikan Packing Check terlebih dahulu.']);
+        }
+
+        $action->handle($batch, $batch->finishedCheck);
+
+        return redirect()->route('batches.show', $batch)->with('success', 'Finished Check diselesaikan dengan data riwayat terakhir.');
     }
 
     public function uploadPhoto(UploadFinishedCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse

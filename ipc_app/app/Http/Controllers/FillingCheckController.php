@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\FillingChecks\CompleteFillingCheckFromHistory;
 use App\Actions\FillingChecks\SaveFillingCheck;
 use App\Http\Requests\SaveFillingCheckRequest;
 use App\Http\Requests\UploadFillingCheckPhotoRequest;
@@ -77,6 +78,24 @@ class FillingCheckController extends Controller
         // A draft closes this round's filling part; the round continues on Packing Check, which
         // opens as soon as Filling has a save. Filling itself stays editable until Selesaikan.
         return redirect()->route('packing-check.edit', $batch)->with('success', 'Progress Filling tersimpan. Lanjut ke Packing Check.');
+    }
+
+    /**
+     * "Selesaikan" without re-filling the form: adopts the latest saved TH Progress round as the
+     * final record (see CompleteFillingCheckFromHistory). Needs at least one saved round.
+     */
+    public function complete(IpcBatch $batch, CompleteFillingCheckFromHistory $action): RedirectResponse
+    {
+        abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
+        abort_if($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini sudah selesai dan bersifat read-only.');
+
+        if (! $batch->fillingCheck?->revisions()->exists()) {
+            return back()->withErrors(['progress' => 'Belum ada riwayat simpan untuk diselesaikan.']);
+        }
+
+        $action->handle($batch, $batch->fillingCheck);
+
+        return redirect()->route('batches.show', $batch)->with('success', 'Filling Check diselesaikan dengan data riwayat terakhir.');
     }
 
     public function uploadPhoto(UploadFillingCheckPhotoRequest $request, IpcBatch $batch, string $field): RedirectResponse

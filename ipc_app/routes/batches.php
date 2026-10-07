@@ -62,6 +62,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('batches/{batch}/filling-check', [FillingCheckController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('filling-check.update');
+    Route::post('batches/{batch}/filling-check/complete', [FillingCheckController::class, 'complete'])
+        ->middleware('can:update,batch')
+        ->name('filling-check.complete');
     Route::post('batches/{batch}/filling-check/photo/{field}', [FillingCheckController::class, 'uploadPhoto'])
         ->whereIn('field', FillingCheckController::PHOTO_FIELDS)
         ->middleware('can:update,batch')
@@ -71,6 +74,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('batches/{batch}/packing-check', [PackingCheckController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('packing-check.update');
+    Route::post('batches/{batch}/packing-check/complete', [PackingCheckController::class, 'complete'])
+        ->middleware('can:update,batch')
+        ->name('packing-check.complete');
     Route::post('batches/{batch}/packing-check/photo/{field}', [PackingCheckController::class, 'uploadPhoto'])
         ->whereIn('field', PackingCheckController::PHOTO_FIELDS)
         ->middleware('can:update,batch')
@@ -80,6 +86,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('batches/{batch}/finished-check', [FinishedCheckController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('finished-check.update');
+    Route::post('batches/{batch}/finished-check/complete', [FinishedCheckController::class, 'complete'])
+        ->middleware('can:update,batch')
+        ->name('finished-check.complete');
     Route::post('batches/{batch}/finished-check/photo/{field}', [FinishedCheckController::class, 'uploadPhoto'])
         ->whereIn('field', FinishedCheckController::PHOTO_FIELDS)
         ->middleware('can:update,batch')

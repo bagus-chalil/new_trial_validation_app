@@ -3,6 +3,7 @@ import { AccordionCard } from '@/components/ipc/accordion-card';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
+import { FinalizeChoiceDialog } from '@/components/ipc/finalize-choice-dialog';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
@@ -128,6 +129,8 @@ export default function FillingCheckEdit({
     const [cameraField, setCameraField] = useState<string | null>(null);
     const { message, toast } = useToast();
     const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
+    const [finalizeChoiceOpen, setFinalizeChoiceOpen] = useState(false);
+    const [completing, setCompleting] = useState(false);
 
     const initialSamples = (): FillingCheckSampleInput[] => {
         const bySample = new Map((fillingCheck?.samples ?? []).map((row) => [row.sample_no, row.weight_value]));
@@ -179,8 +182,21 @@ export default function FillingCheckEdit({
         document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
+    const revisions = [...(fillingCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        // With at least one saved round, Selesaikan offers finalizing from that round instead of
+        // forcing the form to be re-filled (see CompleteFillingCheckFromHistory).
+        if (revisions.length > 0) {
+            setFinalizeChoiceOpen(true);
+            return;
+        }
+        finalizeWithForm();
+    };
+
+    const finalizeWithForm = () => {
+        setFinalizeChoiceOpen(false);
         const empty = computeEmptyFields();
         if (empty.size) {
             setErrorFields(empty);
@@ -191,6 +207,22 @@ export default function FillingCheckEdit({
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: true }));
         put(`/batches/${batch.id}/filling-check`, { onError: showProgressError });
+    };
+
+    const finalizeWithHistory = () => {
+        router.post(
+            `/batches/${batch.id}/filling-check/complete`,
+            {},
+            {
+                onStart: () => setCompleting(true),
+                onFinish: () => setCompleting(false),
+                onSuccess: () => setFinalizeChoiceOpen(false),
+                onError: (serverErrors) => {
+                    setFinalizeChoiceOpen(false);
+                    showProgressError(serverErrors);
+                },
+            },
+        );
     };
 
     const blankForm = () => ({
@@ -258,8 +290,6 @@ export default function FillingCheckEdit({
         if (values.length === 0) return null;
         return (values.reduce((total, v) => total + v, 0) / values.length).toFixed(2);
     };
-
-    const revisions = [...(fillingCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
 
     return (
         <IpcShell
@@ -491,6 +521,25 @@ export default function FillingCheckEdit({
                     )}
                 </form>
             </TwoPane>
+
+            {revisions.length > 0 && (
+                <FinalizeChoiceDialog
+                    open={finalizeChoiceOpen}
+                    onOpenChange={setFinalizeChoiceOpen}
+                    stageLabel="Filling Check"
+                    latestRevision={revisions[0]}
+                    processing={processing || completing}
+                    onUseHistory={finalizeWithHistory}
+                    onUseForm={finalizeWithForm}
+                    summary={
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                            <span>Decision: {revisions[0].decision ?? '—'}</span>
+                            <span>Avg Weight: {revisions[0].average_weight ?? '—'}</span>
+                            {revisions[0].remarks && <span>Remarks: {revisions[0].remarks}</span>}
+                        </div>
+                    }
+                />
+            )}
 
             <CameraCaptureDialog
                 open={cameraField !== null}

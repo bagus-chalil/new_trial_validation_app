@@ -3,6 +3,7 @@ import { AccordionCard } from '@/components/ipc/accordion-card';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
+import { FinalizeChoiceDialog } from '@/components/ipc/finalize-choice-dialog';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
@@ -118,6 +119,8 @@ export default function PackingCheckEdit({
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const { message, toast } = useToast();
     const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
+    const [finalizeChoiceOpen, setFinalizeChoiceOpen] = useState(false);
+    const [completing, setCompleting] = useState(false);
     const [cameraField, setCameraField] = useState<string | null>(null);
 
     const uploadPhoto = (field: string, file: File) => {
@@ -204,6 +207,17 @@ export default function PackingCheckEdit({
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        // With at least one saved round, Selesaikan offers finalizing from that round instead of
+        // forcing the form to be re-filled (see CompletePackingCheckFromHistory).
+        if (revisions.length > 0) {
+            setFinalizeChoiceOpen(true);
+            return;
+        }
+        finalizeWithForm();
+    };
+
+    const finalizeWithForm = () => {
+        setFinalizeChoiceOpen(false);
         const empty = computeEmptyRequiredFields();
         PHOTO_FIELDS.forEach(({ key }) => {
             if (!photoUrls[key]) empty.add(key);
@@ -217,6 +231,22 @@ export default function PackingCheckEdit({
         setErrorFields(new Set());
         transform((current) => ({ ...current, finalize: true }));
         put(`/batches/${batch.id}/packing-check`, { onError: showProgressError });
+    };
+
+    const finalizeWithHistory = () => {
+        router.post(
+            `/batches/${batch.id}/packing-check/complete`,
+            {},
+            {
+                onStart: () => setCompleting(true),
+                onFinish: () => setCompleting(false),
+                onSuccess: () => setFinalizeChoiceOpen(false),
+                onError: (serverErrors) => {
+                    setFinalizeChoiceOpen(false);
+                    showProgressError(serverErrors);
+                },
+            },
+        );
     };
 
     const blankRoundForm = () => ({
@@ -618,6 +648,25 @@ export default function PackingCheckEdit({
                     )}
                 </form>
             </TwoPane>
+
+            {revisions.length > 0 && (
+                <FinalizeChoiceDialog
+                    open={finalizeChoiceOpen}
+                    onOpenChange={setFinalizeChoiceOpen}
+                    stageLabel="Packing Check"
+                    latestRevision={revisions[0]}
+                    processing={processing || completing}
+                    onUseHistory={finalizeWithHistory}
+                    onUseForm={finalizeWithForm}
+                    summary={
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                            <span>Decision: {revisions[0].decision ?? '—'}</span>
+                            <span>Weight of MB: {revisions[0].sum_weight_mb ?? '—'}</span>
+                            {revisions[0].remarks && <span>Remarks: {revisions[0].remarks}</span>}
+                        </div>
+                    }
+                />
+            )}
 
             <CameraCaptureDialog
                 open={cameraField !== null}
