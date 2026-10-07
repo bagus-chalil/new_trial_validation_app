@@ -1,12 +1,13 @@
 import InputError from '@/components/input-error';
 import { AccordionCard } from '@/components/ipc/accordion-card';
 import { ChipToggleGroup, StatusChip } from '@/components/ipc/chip-toggle-group';
+import { PdfViewer } from '@/components/ipc/pdf-viewer';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/react';
 import { Eye, Printer } from 'lucide-react';
-import { FormEventHandler, type ReactNode } from 'react';
+import { FormEventHandler, type ReactNode, useState } from 'react';
 
 export interface ChecklistGroup {
     key: string;
@@ -180,14 +181,20 @@ export function RevisionHistoryCard<T extends RevisionRow>({
  * `label` lets each caller describe which of those two it is ("Preview Cetak" vs "Cetak").
  */
 export function PrintPreviewButton({ href, label = 'Preview Cetak' }: { href: string; label?: string }) {
+    const [open, setOpen] = useState(false);
+
     return (
-        <a
-            href={href}
-            className="border-border-soft bg-card text-foreground flex h-11 items-center gap-2 rounded-2xl border px-4 text-[13px] font-bold"
-        >
-            <Printer className="size-4" strokeWidth={2.2} />
-            <span className="hidden sm:inline">{label}</span>
-        </a>
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="border-border-soft bg-card text-foreground flex h-11 items-center gap-2 rounded-2xl border px-4 text-[13px] font-bold"
+            >
+                <Printer className="size-4" strokeWidth={2.2} />
+                <span className="hidden sm:inline">{label}</span>
+            </button>
+            {open && <PdfViewer url={href} title={label} onClose={() => setOpen(false)} />}
+        </>
     );
 }
 
@@ -211,6 +218,8 @@ export interface PrintInfo {
  * exists even though this card's own button doesn't add to it.
  */
 export function PrintActionCard({ batchId, info }: { batchId: number; info: PrintInfo }) {
+    const [previewOpen, setPreviewOpen] = useState(false);
+
     return (
         <div className="border-border-soft bg-card flex flex-col gap-3 rounded-[20px] border p-[18px]">
             <div className="flex items-center justify-between gap-3">
@@ -227,15 +236,21 @@ export function PrintActionCard({ batchId, info }: { batchId: number; info: Prin
             <p className="text-muted-foreground/70 -mt-1 text-[12px] font-medium">
                 Tombol di bawah hanya untuk melihat dokumen (tidak tercatat). Untuk mencetak resmi, gunakan tombol "Cetak" di pojok kanan atas.
             </p>
-            <a
-                href={`/batches/${batchId}/print/${info.stage}/preview`}
-                target="_blank"
-                rel="noopener noreferrer"
+            <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
                 className="border-border-soft bg-background text-foreground flex h-11 items-center justify-center gap-2 rounded-xl border text-[14px] font-bold sm:w-auto sm:self-end sm:px-6"
             >
                 <Eye className="size-4" strokeWidth={2.2} />
                 Preview {info.label}
-            </a>
+            </button>
+            {previewOpen && (
+                <PdfViewer
+                    url={`/batches/${batchId}/print/${info.stage}/preview`}
+                    title={`Preview ${info.label}`}
+                    onClose={() => setPreviewOpen(false)}
+                />
+            )}
         </div>
     );
 }
