@@ -47,7 +47,7 @@ type PageProps = {
 };
 
 export default function AdminArchiveIndex({ trials, filters }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
 
     function submit(e: FormEvent) {
@@ -164,7 +164,10 @@ export default function AdminArchiveIndex({ trials, filters }: PageProps) {
                                                 '-'}
                                         </TableCell>
                                         <TableCell>
-                                            {trial.archived_at}
+                                            {formatDate(
+                                                trial.archived_at,
+                                                true,
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Badge

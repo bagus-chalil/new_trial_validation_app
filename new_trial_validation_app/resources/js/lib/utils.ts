@@ -18,6 +18,7 @@ export function toUrl(url: NonNullable<InertiaLinkProps['href']>): string {
 export function formatDate(
     dateString: string | null | undefined,
     intlLocale: string = 'id-ID',
+    withSeconds: boolean = false,
 ): string {
     if (!dateString) {
         return '-';
@@ -36,6 +37,7 @@ export function formatDate(
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
+            ...(withSeconds ? { second: '2-digit' as const } : {}),
             hourCycle: 'h23',
             timeZone: 'Asia/Jakarta',
         }).format(date);

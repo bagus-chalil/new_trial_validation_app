@@ -51,7 +51,7 @@ type PageProps = {
 };
 
 export default function AdminTrashIndex({ trials, filters }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
 
     function submit(e: FormEvent) {
@@ -223,7 +223,7 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                             {trial.deleted_by_user?.name ?? '-'}
                                         </TableCell>
                                         <TableCell>
-                                            {trial.deleted_at}
+                                            {formatDate(trial.deleted_at, true)}
                                         </TableCell>
                                         <TableCell>
                                             <Badge

@@ -60,7 +60,8 @@ export function useTranslation() {
     const intlLocale = INTL_LOCALES[locale] ?? 'id-ID';
 
     const formatDate = useCallback(
-        (value: string | null | undefined) => formatDateIn(value, intlLocale),
+        (value: string | null | undefined, withSeconds: boolean = false) =>
+            formatDateIn(value, intlLocale, withSeconds),
         [intlLocale],
     );
 

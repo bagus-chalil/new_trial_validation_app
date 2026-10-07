@@ -30,7 +30,7 @@ type PageProps = {
 };
 
 export default function ReportsAuditPrintLog({ items }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
 
     return (
         <>
@@ -88,7 +88,7 @@ export default function ReportsAuditPrintLog({ items }: PageProps) {
                                             {item.user_email ?? '-'}
                                         </TableCell>
                                         <TableCell>
-                                            {item.created_at ?? '-'}
+                                            {formatDate(item.created_at, true)}
                                         </TableCell>
                                         {/* Stored audit value, not translated. */}
                                         <TableCell>

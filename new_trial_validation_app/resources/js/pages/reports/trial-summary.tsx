@@ -82,7 +82,7 @@ export default function ReportsTrialSummary({
     validationScopes,
     machines,
 }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const url = trialSummary().url;
 
@@ -344,7 +344,7 @@ export default function ReportsTrialSummary({
                                             {item.created_by ?? '-'}
                                         </TableCell>
                                         <TableCell>
-                                            {item.created_at ?? '-'}
+                                            {formatDate(item.created_at)}
                                         </TableCell>
                                         <TableCell>
                                             {item.pending_with ?? '-'}

@@ -35,7 +35,7 @@ type PageProps = {
 };
 
 export default function AdminNotificationsIndex({ notifications }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
 
     return (
         <>
@@ -102,7 +102,10 @@ export default function AdminNotificationsIndex({ notifications }: PageProps) {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {notification.created_at}
+                                            {formatDate(
+                                                notification.created_at,
+                                                true,
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <ConfirmDialog

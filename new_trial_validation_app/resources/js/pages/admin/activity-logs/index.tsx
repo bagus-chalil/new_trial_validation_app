@@ -61,7 +61,7 @@ type PageProps = {
 };
 
 export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
-    const { t } = useTranslation();
+    const { t, formatDate } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const [selected, setSelected] = useState<number[]>([]);
     const [expanded, setExpanded] = useState<number | null>(null);
@@ -376,7 +376,10 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                {log.created_at}
+                                                {formatDate(
+                                                    log.created_at,
+                                                    true,
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 {log.user_name ?? '-'}
