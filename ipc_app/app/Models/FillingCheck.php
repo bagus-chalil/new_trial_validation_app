@@ -18,6 +18,19 @@ class FillingCheck extends Model
         self::DECISION_REJECT,
     ];
 
+    /**
+     * Display labels for FillingCheckController::PHOTO_FIELDS, in on-screen order — the PDF
+     * report reads these instead of hardcoding its own copy, which had drifted ("Identity Bulk
+     * Bulk" / "Image" instead of the form's "Identity Bulk" / "Appearance"). Must stay in sync
+     * with PHOTO_FIELDS in resources/js/pages/filling-check/edit.tsx.
+     */
+    public const PHOTO_LABELS = [
+        'color' => 'Color',
+        'wo_image' => 'WI Image',
+        'date_bulk' => 'Identity Bulk',
+        'image_tube' => 'Appearance',
+    ];
+
     protected $fillable = [
         'ipc_batch_id',
         'user_id',

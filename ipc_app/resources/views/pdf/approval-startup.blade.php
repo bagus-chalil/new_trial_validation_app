@@ -148,10 +148,25 @@
             </div>
 
             <div class="startup-side">
+                {{-- Operator / Line Leader are typed in on the Startup Check form; the IPC verifier
+                     is whoever saved that form. --}}
                 <div class="sign-grid sign-grid--stack">
-                    <div><span>Prepared By</span><small class="role">Operator</small></div>
-                    <div><span>Review By</span><small class="role">LL Produksi</small></div>
-                    <div><span>Verification By</span><small class="role">IPC</small></div>
+                    <div>
+                        <span>Prepared By</span>
+                        <strong>{{ $startupCheck->operator_name ?: '—' }}</strong>
+                        <small class="role">Operator</small>
+                    </div>
+                    <div>
+                        <span>Review By</span>
+                        <strong>{{ $startupCheck->line_leader_name ?: '—' }}</strong>
+                        <small class="role">LL Produksi</small>
+                    </div>
+                    <div>
+                        <span>Verification By</span>
+                        <strong>{{ $startupCheck->user->name ?? '—' }}</strong>
+                        <small class="sign-date">{{ optional($startupCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+                        <small class="role">IPC</small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -276,7 +291,8 @@
             </div>
             <div>
                 <span>Verification By</span>
-                <strong>{{ $startupApproved ? optional($startupApproval->approved_at)->translatedFormat('d/m/Y H:i') : '—' }}</strong>
+                <strong>{{ $startupApproved ? ($startupApproval->approver->name ?? '—') : '—' }}</strong>
+                <small class="sign-date">{{ $startupApproved ? (optional($startupApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—') : '—' }}</small>
                 <small class="role">QC Coordinator</small>
             </div>
         </div>

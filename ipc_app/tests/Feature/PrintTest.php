@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\FillingCheckController;
 use App\Models\FillingCheck;
 use App\Models\FinishedCheck;
 use App\Models\IpcApproval;
@@ -11,6 +12,8 @@ use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
 use App\Models\StartupCheck;
+use App\Models\StartupInspection;
+use App\Models\StartupInspectionItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -174,6 +177,43 @@ class PrintTest extends TestCase
         }
 
         $this->assertSame(0, IpcPrintLog::query()->where('ipc_batch_id', $batch->id)->count());
+    }
+
+    public function test_startup_pdf_sign_off_boxes_show_operator_line_leader_and_approver_names(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $batch->startupCheck->update(['operator_name' => 'Siti Operator', 'line_leader_name' => 'Budi Leader']);
+
+        // The QC Coordinator box only renders once a Start Inspection exists.
+        $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
+        StartupInspectionItem::create(['startup_inspection_id' => $inspection->id, 'parameter_key' => 'bulk_odor', 'status' => 'Conform']);
+
+        $approver = User::factory()->create(['name' => 'Rina Coordinator']);
+        IpcApproval::query()
+            ->where('ipc_batch_id', $batch->id)
+            ->where('stage', IpcApproval::STAGE_STARTUP)
+            ->update(['approver_user_id' => $approver->id]);
+
+        $response = $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/print/startup/preview");
+
+        $response->assertOk();
+        $response->assertSee('Siti Operator');
+        $response->assertSee('Budi Leader');
+        $response->assertSee('Rina Coordinator');
+    }
+
+    public function test_filling_pdf_photo_labels_match_the_filling_form(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+
+        $response = $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/print/filling_packing/preview");
+
+        $response->assertOk();
+        foreach (FillingCheck::PHOTO_LABELS as $label) {
+            $response->assertSee('<strong>'.$label.'</strong>', false);
+        }
+        $response->assertDontSee('Identity Bulk Bulk');
+        $this->assertSame(FillingCheckController::PHOTO_FIELDS, array_keys(FillingCheck::PHOTO_LABELS));
     }
 
     public function test_preview_route_is_forbidden_before_batch_reaches_print_stage(): void
