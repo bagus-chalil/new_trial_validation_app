@@ -53,6 +53,10 @@ class UserRoleController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
+        if ($error = $this->roleChangeError($request->user(), $user, $request->validated('role'))) {
+            return back()->with('error', $error);
+        }
+
         $user->name = $request->validated('name');
         $user->email = $request->validated('email');
         $user->role = $request->validated('role');
@@ -68,6 +72,10 @@ class UserRoleController extends Controller
 
     public function updateRole(UpdateUserRoleRequest $request, User $user): RedirectResponse
     {
+        if ($error = $this->roleChangeError($request->user(), $user, $request->validated('role'))) {
+            return back()->with('error', $error);
+        }
+
         $user->role = $request->validated('role');
         $user->save();
 
@@ -80,9 +88,47 @@ class UserRoleController extends Controller
             return back()->with('error', 'Tidak bisa menonaktifkan akun sendiri.');
         }
 
+        if ($user->is_active && $this->isLastActiveAdmin($user)) {
+            return back()->with('error', 'Tidak bisa menonaktifkan Admin aktif terakhir.');
+        }
+
         $user->is_active = ! $user->is_active;
         $user->save();
 
         return back()->with('success', $user->is_active ? "User {$user->name} diaktifkan." : "User {$user->name} dinonaktifkan.");
+    }
+
+    /**
+     * USR-05 / SIT H5: an Admin must not be able to lock themselves out by changing their own
+     * role, and the app must never be left without an active Admin (recovery would need DB access).
+     */
+    private function roleChangeError(User $actor, User $target, string $newRole): ?string
+    {
+        if ($newRole === $target->role) {
+            return null;
+        }
+
+        if ($actor->id === $target->id) {
+            return 'Tidak bisa mengubah role akun sendiri.';
+        }
+
+        if ($this->isLastActiveAdmin($target)) {
+            return 'Tidak bisa menurunkan role Admin aktif terakhir.';
+        }
+
+        return null;
+    }
+
+    private function isLastActiveAdmin(User $user): bool
+    {
+        if ($user->role !== User::ROLE_ADMIN || ! $user->is_active) {
+            return false;
+        }
+
+        return User::query()
+            ->where('role_id', $user->role_id)
+            ->where('is_active', true)
+            ->where('id', '!=', $user->id)
+            ->doesntExist();
     }
 }

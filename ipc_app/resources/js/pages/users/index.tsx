@@ -133,7 +133,9 @@ function EditUserDialog({
     onOpenChange,
     roles,
     roleLabels,
+    currentUserId,
 }: {
+    currentUserId: number;
     user: UserRow | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -188,7 +190,7 @@ function EditUserDialog({
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="edit_role">Role</Label>
-                        <Select value={data.role} onValueChange={(value) => setData('role', value)}>
+                        <Select value={data.role} onValueChange={(value) => setData('role', value)} disabled={user?.id === currentUserId}>
                             <SelectTrigger id="edit_role">
                                 <SelectValue />
                             </SelectTrigger>
@@ -200,6 +202,7 @@ function EditUserDialog({
                                 ))}
                             </SelectContent>
                         </Select>
+                        {user?.id === currentUserId && <p className="text-muted-foreground text-xs">Role akun sendiri tidak dapat diubah.</p>}
                         <InputError message={errors.role} />
                     </div>
 
@@ -345,6 +348,7 @@ export default function UsersIndex({
                 onOpenChange={(next) => !next && setEditUser(null)}
                 roles={roles}
                 roleLabels={roleLabels}
+                currentUserId={currentUserId}
             />
         </IpcShell>
     );

@@ -345,6 +345,45 @@ class RbacTest extends TestCase
         $this->assertSame(User::ROLE_STAFF, $target->fresh()->role);
     }
 
+    public function test_admin_cannot_change_their_own_role(): void
+    {
+        $admin = User::factory()->admin()->create();
+        User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->patch("/users/{$admin->id}/role", ['role' => User::ROLE_STAFF])
+            ->assertSessionHas('error');
+
+        $this->actingAs($admin)
+            ->patch("/users/{$admin->id}", ['name' => $admin->name, 'email' => $admin->email, 'role' => User::ROLE_STAFF])
+            ->assertSessionHas('error');
+
+        $this->assertSame(User::ROLE_ADMIN, $admin->fresh()->role);
+    }
+
+    public function test_admin_can_still_edit_their_own_name_without_changing_role(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->patch("/users/{$admin->id}", ['name' => 'Renamed Admin', 'email' => $admin->email, 'role' => User::ROLE_ADMIN])
+            ->assertSessionHas('success');
+
+        $this->assertSame('Renamed Admin', $admin->fresh()->name);
+    }
+
+    public function test_demoting_the_only_active_admin_is_refused(): void
+    {
+        $onlyAdmin = User::factory()->admin()->create();
+        $inactiveAdmin = User::factory()->admin()->create(['is_active' => false]);
+
+        $this->actingAs($inactiveAdmin->forceFill(['is_active' => true]))
+            ->patch("/users/{$onlyAdmin->id}/role", ['role' => User::ROLE_STAFF])
+            ->assertSessionHas('error');
+
+        $this->assertSame(User::ROLE_ADMIN, $onlyAdmin->fresh()->role);
+    }
+
     // --- Admin-driven user creation (no public registration) ---
 
     public function test_registration_page_no_longer_exists(): void
