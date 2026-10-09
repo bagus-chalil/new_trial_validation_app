@@ -851,7 +851,11 @@ export default function TrialReport({
                                             <TableCell>
                                                 {formatDate(r.reviewed_at)}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell
+                                                className={
+                                                    longTextCellClassName
+                                                }
+                                            >
                                                 {r.comment ?? '-'}
                                             </TableCell>
                                         </TableRow>
@@ -1159,7 +1163,10 @@ export default function TrialReport({
                                             <TableCell className="font-medium">
                                                 {t('report.decision.comment')}
                                             </TableCell>
-                                            <TableCell colSpan={3}>
+                                            <TableCell
+                                                colSpan={3}
+                                                className="wrap-break-word whitespace-pre-line"
+                                            >
                                                 {trial.approval_comment ?? '-'}
                                             </TableCell>
                                         </TableRow>
