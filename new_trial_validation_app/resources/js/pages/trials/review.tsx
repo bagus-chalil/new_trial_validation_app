@@ -3,6 +3,7 @@ import { useState } from 'react';
 import TrialReviewController from '@/actions/App/Http/Controllers/TrialReviewController';
 import { Combobox } from '@/components/combobox';
 import Heading from '@/components/heading';
+import { StickyActionBar } from '@/components/sticky-action-bar';
 import { TrialWizardSteps } from '@/components/trial-wizard-steps';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -398,7 +399,7 @@ export default function TrialReview({
                                     </CardContent>
                                 </Card>
 
-                                <div className="flex flex-wrap justify-end gap-2">
+                                <StickyActionBar>
                                     <Button
                                         type="button"
                                         variant="secondary"
@@ -428,12 +429,12 @@ export default function TrialReview({
                                     >
                                         {t('wizard.review.submit')}
                                     </Button>
-                                </div>
+                                </StickyActionBar>
                             </>
                         )}
                     </Form>
                 ) : (
-                    <div className="flex justify-end gap-2">
+                    <StickyActionBar>
                         <Button type="button" variant="secondary" asChild>
                             <Link href={backHref}>
                                 {t('common.actions.back')}
@@ -444,7 +445,7 @@ export default function TrialReview({
                                 {t('wizard.review.view_detail')}
                             </Link>
                         </Button>
-                    </div>
+                    </StickyActionBar>
                 )}
             </div>
         </>

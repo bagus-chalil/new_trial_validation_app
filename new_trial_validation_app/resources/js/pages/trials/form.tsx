@@ -5,6 +5,7 @@ import { Combobox } from '@/components/combobox';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { MultiSelect } from '@/components/multi-select';
+import { StickyActionBar } from '@/components/sticky-action-bar';
 import { TrialWizardSteps } from '@/components/trial-wizard-steps';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -553,7 +554,7 @@ export default function TrialForm({
                                 </CardContent>
                             </Card>
 
-                            <div className="flex justify-end gap-2">
+                            <StickyActionBar>
                                 <Button
                                     type="button"
                                     variant="secondary"
@@ -568,7 +569,7 @@ export default function TrialForm({
                                         ? t('wizard.form.save_changes')
                                         : t('wizard.save_next')}
                                 </Button>
-                            </div>
+                            </StickyActionBar>
                         </>
                     )}
                 </Form>

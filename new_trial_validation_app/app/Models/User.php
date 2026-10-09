@@ -249,7 +249,7 @@ class User extends Authenticatable
      * (review_unit='PROD'). Only used for reading old data; new
      * assignments always use the canonical code from reviewerDepartmentCodes().
      */
-    private const REVIEW_DEPARTMENT_ALIASES = ['PRD' => 'PROD'];
+    private const REVIEW_DEPARTMENT_ALIASES = ['PRD' => 'PROD', 'PI' => 'PIE'];
 
     /**
      * Normalizes a stored trials_review.department value for comparison
@@ -339,7 +339,7 @@ class User extends Authenticatable
      */
     public static function defaultReviewerDepartmentCodes(): array
     {
-        return ['PROD', 'RNI', 'QAC', 'PRNI', 'PI'];
+        return ['PROD', 'RNI', 'QAC', 'PRNI', 'PIE'];
     }
 
     /**
@@ -348,7 +348,7 @@ class User extends Authenticatable
      * i.e. exactly what the Access Rights "Reviewer Department Master" panel
      * shows. The 5 hardcoded codes are no longer force-merged in regardless
      * of their real row's state — previously, soft-deleting one of them there
-     * (e.g. 'PI') had no effect here, since this method re-added it from
+     * (e.g. 'PIE') had no effect here, since this method re-added it from
      * `defaultReviewerDepartmentCodes()` on every call, so a deleted
      * department kept appearing on the Review & Submit page. The
      * 2026-09-22 `review_team_id` migration already seeds all 5 defaults as

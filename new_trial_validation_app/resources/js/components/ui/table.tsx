@@ -102,7 +102,17 @@ function TableCaption({
   )
 }
 
+/**
+ * For cells holding long free text (specifications, remarks): wraps inside a
+ * readable width instead of stretching the column (horizontal scroll) or
+ * collapsing it into a tall, narrow strip (vertical scroll). Keeps the
+ * source's own line breaks.
+ */
+const longTextCellClassName =
+  "min-w-[16rem] max-w-[34rem] align-top wrap-break-word whitespace-pre-line"
+
 export {
+  longTextCellClassName,
   Table,
   TableHeader,
   TableBody,

@@ -24,6 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
+    longTextCellClassName,
     Table,
     TableBody,
     TableCell,
@@ -259,7 +260,9 @@ export default function AdminParametersIndex({
                                         <TableCell>
                                             {parameter.parameter_name}
                                         </TableCell>
-                                        <TableCell className="whitespace-pre-line">
+                                        <TableCell
+                                            className={longTextCellClassName}
+                                        >
                                             {parameter.specification}
                                         </TableCell>
                                         <TableCell>

@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import TrialValidationController from '@/actions/App/Http/Controllers/TrialValidationController';
 import Heading from '@/components/heading';
+import { StickyActionBar } from '@/components/sticky-action-bar';
 import { TrialWizardSteps } from '@/components/trial-wizard-steps';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
+    longTextCellClassName,
     Table,
     TableBody,
     TableCell,
@@ -30,6 +32,7 @@ import {
     trialStatusBadgeClassName,
     trialStatusLabel,
 } from '@/lib/trial-status';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { edit as editTrial, index as trialsIndex } from '@/routes/trials';
 
@@ -104,7 +107,9 @@ function ValidationParameterRow({
                     value={parameter.id}
                 />
             </TableCell>
-            <TableCell className="whitespace-pre-line text-muted-foreground">
+            <TableCell
+                className={cn(longTextCellClassName, 'text-muted-foreground')}
+            >
                 {parameter.specification}
             </TableCell>
             <TableCell>
@@ -260,7 +265,7 @@ export default function TrialValidation({
                                     </CardContent>
                                 </Card>
 
-                                <div className="flex justify-end gap-2">
+                                <StickyActionBar>
                                     <Button
                                         type="button"
                                         variant="secondary"
@@ -273,7 +278,7 @@ export default function TrialValidation({
                                     <Button type="submit" disabled={processing}>
                                         {t('wizard.save_next')}
                                     </Button>
-                                </div>
+                                </StickyActionBar>
                             </>
                         )}
                     </Form>

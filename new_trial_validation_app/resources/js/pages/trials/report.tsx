@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+    longTextCellClassName,
     Table,
     TableBody,
     TableCell,
@@ -582,16 +583,28 @@ export default function TrialReport({
                                             <TableCell>
                                                 {r.parameter_name}
                                             </TableCell>
-                                            <TableCell className="whitespace-pre-line">
+                                            <TableCell
+                                                className={
+                                                    longTextCellClassName
+                                                }
+                                            >
                                                 {r.specification ?? '-'}
                                             </TableCell>
                                             <TableCell>
                                                 {r.decision ?? '-'}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell
+                                                className={
+                                                    longTextCellClassName
+                                                }
+                                            >
                                                 {r.result_value ?? '-'}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell
+                                                className={
+                                                    longTextCellClassName
+                                                }
+                                            >
                                                 {r.remark ?? '-'}
                                             </TableCell>
                                         </TableRow>

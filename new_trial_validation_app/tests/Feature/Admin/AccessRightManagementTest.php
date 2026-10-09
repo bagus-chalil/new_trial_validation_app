@@ -165,7 +165,7 @@ test('saving a reviewer department with the same name updates it instead of dupl
     ])->assertRedirect(route('admin.access-rights.index'));
 
     // Not an exact-1 count: the Phase 1 migration seeds the 5 hardcoded
-    // default codes (PROD/RNI/QAC/PRNI/PI) as real master_options rows too,
+    // default codes (PROD/RNI/QAC/PRNI/PIE) as real master_options rows too,
     // so 'DEPT X' specifically must stay a single row, not the whole table.
     expect(MasterOption::where('type', 'reviewer_department')->where('name', 'DEPT X')->count())->toBe(1);
     expect($existing->refresh()->sort_order)->toBe(9);
@@ -189,7 +189,7 @@ test('super admin can soft delete and re-add a reviewer department', function ()
 
     $option->refresh();
     // Not an exact-1 count: the Phase 1 migration seeds the 5 hardcoded
-    // default codes (PROD/RNI/QAC/PRNI/PI) as real master_options rows too,
+    // default codes (PROD/RNI/QAC/PRNI/PIE) as real master_options rows too,
     // so 'DEPT Y' specifically must stay a single row, not the whole table.
     expect(MasterOption::where('type', 'reviewer_department')->where('name', 'DEPT Y')->count())->toBe(1);
     expect($option->is_active)->toBeTrue();
@@ -200,45 +200,44 @@ test('super admin can soft delete and re-add a reviewer department', function ()
 test('super admin can rename a reviewer department', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
     // Reuse one of the 5 default codes the Phase 1 migration seeds into
-    // master_options (rather than creating a fresh 'PI' row, which would
-    // collide with the unique(type,name) index) — this is also the exact
-    // real-world PI -> PIE rename scenario from the approved plan.
-    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
+    // master_options (rather than creating a fresh 'PIE' row, which would
+    // collide with the unique(type,name) index).
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PIE')->firstOrFail();
     $user = User::factory()->create(['role' => 'Staff', 'review_team_id' => $option->id]);
 
     $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
-        'name' => 'PIE',
+        'name' => 'PIEX',
         'sort_order' => 2,
     ])->assertRedirect(route('admin.access-rights.index'));
 
     $option->refresh();
-    expect($option->name)->toBe('PIE');
+    expect($option->name)->toBe('PIEX');
     expect($option->sort_order)->toBe(2);
 
     // The rename is instantly visible to anything referencing the team by
     // id — the whole point of Phase 1 (RBAC/Team-master redesign).
-    expect($user->fresh()->reviewTeam->name)->toBe('PIE');
-    expect($user->fresh()->reviewDepartmentsForUser())->toBe(['PIE']);
+    expect($user->fresh()->reviewTeam->name)->toBe('PIEX');
+    expect($user->fresh()->reviewDepartmentsForUser())->toBe(['PIEX']);
 });
 
 test('renaming a reviewer department to a name already used by another active row is rejected', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PIE')->firstOrFail();
 
     $response = $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
         'name' => 'qac',
     ]);
 
     $response->assertSessionHasErrors('name');
-    expect($option->refresh()->name)->toBe('PI');
+    expect($option->refresh()->name)->toBe('PIE');
 });
 
 test('renaming a reviewer department to its own current name is allowed', function () {
     $superAdmin = User::factory()->create(['role' => 'Super Admin']);
-    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PIE')->firstOrFail();
 
     $this->actingAs($superAdmin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
-        'name' => 'pi',
+        'name' => 'pie',
         'sort_order' => 7,
     ])->assertRedirect(route('admin.access-rights.index'));
 
@@ -247,13 +246,13 @@ test('renaming a reviewer department to its own current name is allowed', functi
 
 test('admin (non-super-admin) cannot rename a reviewer department', function () {
     $admin = User::factory()->create(['role' => 'Admin']);
-    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
+    $option = MasterOption::where('type', 'reviewer_department')->where('name', 'PIE')->firstOrFail();
 
     $this->actingAs($admin)->put(route('admin.access-rights.reviewer-departments.update', $option), [
         'name' => 'PIE',
     ])->assertForbidden();
 
-    expect($option->refresh()->name)->toBe('PI');
+    expect($option->refresh()->name)->toBe('PIE');
 });
 
 test('renaming a reviewer department requires it to actually be one', function () {
@@ -383,17 +382,17 @@ test('reviewDepartmentsForUser() falls back to the legacy review_unit column whe
 });
 
 test('reviewDepartmentsForUser() reflects a team rename immediately via review_team_id, unlike the review_unit fallback', function () {
-    $team = MasterOption::where('type', 'reviewer_department')->where('name', 'PI')->firstOrFail();
-    $byId = User::factory()->create(['role' => 'Staff', 'review_team_id' => $team->id, 'review_unit' => 'PI']);
-    $byUnit = User::factory()->create(['role' => 'Staff', 'review_team_id' => null, 'review_unit' => 'PI']);
+    $team = MasterOption::where('type', 'reviewer_department')->where('name', 'PIE')->firstOrFail();
+    $byId = User::factory()->create(['role' => 'Staff', 'review_team_id' => $team->id, 'review_unit' => 'PIE']);
+    $byUnit = User::factory()->create(['role' => 'Staff', 'review_team_id' => null, 'review_unit' => 'PIE']);
 
-    $team->update(['name' => 'PIE']);
+    $team->update(['name' => 'PIEX']);
 
-    expect($byId->fresh()->reviewDepartmentsForUser())->toBe(['PIE']);
+    expect($byId->fresh()->reviewDepartmentsForUser())->toBe(['PIEX']);
     // The free-text review_unit fallback is now orphaned: reviewerDepartmentCodes()
     // is fully dynamic against master_options (so a deleted/renamed department
     // really disappears everywhere, including the Review & Submit department
-    // picker), so a stale 'PI' string no longer matches anything once the real
-    // row has been renamed away to 'PIE'.
+    // picker), so a stale 'PIE' string no longer matches anything once the real
+    // row has been renamed away to 'PIEX'.
     expect($byUnit->fresh()->reviewDepartmentsForUser())->toBe([]);
 });

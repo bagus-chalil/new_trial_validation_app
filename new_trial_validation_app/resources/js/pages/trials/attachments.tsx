@@ -6,6 +6,7 @@ import { AttachmentImagePreview } from '@/components/attachment-image-preview';
 import { Combobox } from '@/components/combobox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import { StickyActionBar } from '@/components/sticky-action-bar';
 import { TrialWizardSteps } from '@/components/trial-wizard-steps';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -372,7 +373,7 @@ export default function TrialAttachments({
                     </Card>
                 )}
 
-                <div className="flex justify-between">
+                <StickyActionBar className="justify-between">
                     <Button type="button" variant="secondary" asChild>
                         <Link href={backHref}>{t('common.actions.back')}</Link>
                     </Button>
@@ -381,7 +382,7 @@ export default function TrialAttachments({
                             {t('wizard.attachments.continue_review')}
                         </Link>
                     </Button>
-                </div>
+                </StickyActionBar>
             </div>
         </>
     );

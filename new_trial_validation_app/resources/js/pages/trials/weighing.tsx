@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import TrialWeighingController from '@/actions/App/Http/Controllers/TrialWeighingController';
 import Heading from '@/components/heading';
+import { StickyActionBar } from '@/components/sticky-action-bar';
 import { TrialWizardSteps } from '@/components/trial-wizard-steps';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -333,7 +334,7 @@ function WeighingForm({
                                     </CardContent>
                                 </Card>
 
-                                <div className="flex justify-end gap-2">
+                                <StickyActionBar>
                                     <Button
                                         type="button"
                                         variant="secondary"
@@ -346,7 +347,7 @@ function WeighingForm({
                                     <Button type="submit" disabled={processing}>
                                         {t('wizard.save_next')}
                                     </Button>
-                                </div>
+                                </StickyActionBar>
                             </>
                         )}
                     </Form>
@@ -378,13 +379,13 @@ function WeighingForm({
                             </CardContent>
                         </Card>
 
-                        <div className="flex justify-end">
+                        <StickyActionBar>
                             <Button type="button" variant="secondary" asChild>
                                 <Link href={backHref}>
                                     {t('common.actions.back')}
                                 </Link>
                             </Button>
-                        </div>
+                        </StickyActionBar>
                     </>
                 )}
             </div>
