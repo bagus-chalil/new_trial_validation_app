@@ -18,9 +18,10 @@ class StartupInspectionItem extends Model
 
     /**
      * Items that may also be answered N/A — Sekunder, since not every product has secondary
-     * packaging (user, 2026-10-05). Every other item stays OK / Partial OK / Not OK.
+     * packaging (user, 2026-10-05) — and Leakage Test, since some products have no such test
+     * (user, 2026-10-12). Every other item stays OK / Partial OK / Not OK.
      */
-    public const NOT_APPLICABLE_KEYS = ['sekunder'];
+    public const NOT_APPLICABLE_KEYS = ['leakage_test', 'sekunder'];
 
     // Exact wording not yet verified against the source PDF screenshots — see ipc_app/CLAUDE.md.
     public const PARAMETER_KEYS = [

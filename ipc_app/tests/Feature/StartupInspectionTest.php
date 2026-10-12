@@ -309,6 +309,7 @@ class StartupInspectionTest extends TestCase
 
         $items = $this->validItemsPayload();
         $items['sekunder']['status'] = StartupInspectionItem::STATUS_NA;
+        $items['leakage_test']['status'] = StartupInspectionItem::STATUS_NA;
 
         $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $items, 'samples' => $this->validSamplesPayload()])
             ->assertSessionHasNoErrors();
@@ -316,6 +317,10 @@ class StartupInspectionTest extends TestCase
         $this->assertSame(
             StartupInspectionItem::STATUS_NA,
             $batch->fresh()->startupInspection->items()->where('parameter_key', 'sekunder')->value('status'),
+        );
+        $this->assertSame(
+            StartupInspectionItem::STATUS_NA,
+            $batch->fresh()->startupInspection->items()->where('parameter_key', 'leakage_test')->value('status'),
         );
     }
 
@@ -328,7 +333,7 @@ class StartupInspectionTest extends TestCase
         $this->get("/batches/{$batch->id}/startup-inspection")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('notApplicableKeys', ['sekunder'])
+                ->where('notApplicableKeys', ['leakage_test', 'sekunder'])
                 ->where('notApplicableStatus', StartupInspectionItem::STATUS_NA)
                 ->where('testTypes', fn ($types) => collect($types)->pluck('name')->intersect(['SHRINK', 'BODY_LABEL', 'BOTTOM_LABEL', 'PUMP_TEST'])->count() === 4));
     }
