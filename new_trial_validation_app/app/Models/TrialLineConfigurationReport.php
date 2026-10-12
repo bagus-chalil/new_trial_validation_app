@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -132,6 +133,22 @@ class TrialLineConfigurationReport extends Model
             'is_locked' => 'boolean',
             'locked_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Current (unlocked) reports whose *active* sign-off stage is assigned to
+     * $userId and not yet confirmed — i.e. what that person still has to
+     * sign. Mirrors currentApprovalStage()/currentStageUserId() in SQL.
+     *
+     * @param  Builder<TrialLineConfigurationReport>  $query
+     * @return Builder<TrialLineConfigurationReport>
+     */
+    public function scopeAwaitingSignOffBy($query, int $userId)
+    {
+        return $query->where('is_locked', false)->where(function ($q) use ($userId) {
+            $q->where(fn ($w) => $w->where('approved_pie', false)->where('approved_pie_user_id', $userId))
+                ->orWhere(fn ($w) => $w->where('approved_pie', true)->where('checked_prod', false)->where('checked_prod_user_id', $userId));
+        });
     }
 
     /**

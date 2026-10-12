@@ -92,6 +92,9 @@ return [
         'description' => 'QAC 매니저 / 승인자의 최종 결정을 기다리는 트라이얼입니다. 지정된 모든 승인자는 이 페이지에서 결정을 내릴 수 있습니다.',
         'approver' => '승인자',
         'action' => '확인 및 결정',
+        'line_config_title' => '귀하의 서명을 기다리는 Line Configuration',
+        'line_config_description' => 'Line Configuration Report가 귀하의 서명을 기다리고 있는 트라이얼입니다.',
+        'line_config_stage' => '귀하의 단계',
         'empty' => '승인 대기 중인 트라이얼이 없습니다.',
     ],
 ];

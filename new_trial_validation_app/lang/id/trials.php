@@ -92,6 +92,9 @@ return [
         'description' => 'Trial yang menunggu keputusan akhir dari Manager QAC / approver. Seluruh approver yang ditunjuk dapat memberikan keputusan melalui halaman ini.',
         'approver' => 'Approver',
         'action' => 'Tinjau & Putuskan',
+        'line_config_title' => 'Line Configuration menunggu tanda tangan Anda',
+        'line_config_description' => 'Trial yang laporan Line Configuration-nya menunggu tanda tangan Anda.',
+        'line_config_stage' => 'Tahap Anda',
         'empty' => 'Tidak ada trial yang menunggu approval.',
     ],
 ];

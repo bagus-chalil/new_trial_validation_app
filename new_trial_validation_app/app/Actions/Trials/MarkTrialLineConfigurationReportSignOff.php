@@ -2,6 +2,7 @@
 
 namespace App\Actions\Trials;
 
+use App\Actions\Notifications\CreateNotification;
 use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\LineConfigurationLane;
@@ -75,6 +76,14 @@ class MarkTrialLineConfigurationReportSignOff
         if (! $report->checked_prod_user_id) {
             return;
         }
+
+        (new CreateNotification)([
+            'user_id' => (int) $report->checked_prod_user_id,
+            'trial_id' => $trial->id,
+            'title' => 'Line Configuration Report Needs Your Sign-off',
+            'message' => "Trial {$trial->trial_code} - {$trial->product_name}: Line Configuration Report menunggu tanda tangan Anda (Checked (PROD)).",
+            'type' => 'approval',
+        ]);
 
         try {
             $assignee = User::query()->where('id', $report->checked_prod_user_id)->where('is_active', 1)->first();

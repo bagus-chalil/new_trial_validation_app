@@ -528,7 +528,8 @@ class User extends Authenticatable
             ->where('progress_status', 'Ready for Approval')
             ->whereNull('deleted_at')
             ->where('approver_user_id', $this->id)
-            ->exists();
+            ->exists()
+            || TrialLineConfigurationReport::query()->awaitingSignOffBy($this->id)->exists();
     }
 
     /**

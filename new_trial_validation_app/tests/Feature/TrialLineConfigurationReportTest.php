@@ -1,10 +1,12 @@
 <?php
 
+use App\Actions\Trials\MarkTrialLineConfigurationReportSignOff;
 use App\Mail\TrialLineConfigurationReturnedMail;
 use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\LineConfigurationLane;
 use App\Models\MasterOption;
+use App\Models\Notification;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
@@ -902,4 +904,43 @@ test('an already-submitted report cannot be turned back into a draft, even by an
     $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
     expect($report->client_name)->toBe('JUV');
     expect($report->isSubmittedForApproval())->toBeTrue();
+});
+
+test('an assigned Approved(PIE) user sees the report in Need Approval and gets an in-app notification, PROD only after PIE signs', function () {
+    Mail::fake();
+
+    $trial = makeLcrTrial();
+    $pie = User::factory()->create(['role' => 'Staff', 'department' => 'PIE']);
+    $prod = User::factory()->reviewUnit('PROD')->create();
+    $maker = User::factory()->reviewUnit('PROD')->create();
+
+    $this->actingAs($maker)
+        ->put(route('trials.line-configuration.update', $trial), lcrPayload([
+            'intent' => 'submit',
+            'approved_pie_user_id' => $pie->id,
+            'checked_prod_user_id' => $prod->id,
+        ]));
+
+    expect(Notification::where('user_id', $pie->id)->where('type', 'approval')->count())->toBe(1)
+        ->and(Notification::where('user_id', $prod->id)->where('type', 'approval')->count())->toBe(0);
+
+    $this->actingAs($pie)
+        ->get(route('approvals.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('lineConfigItems', 1)
+            ->where('lineConfigItems.0.trial_id', $trial->id));
+
+    // PROD's turn hasn't come up yet, so nothing is queued for them (and no queue access either).
+    $this->actingAs($prod)->get(route('approvals.index'))->assertForbidden();
+
+    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
+    (new MarkTrialLineConfigurationReportSignOff)($trial, $report, 'approved_pie', $pie);
+
+    expect(Notification::where('user_id', $prod->id)->where('type', 'approval')->count())->toBe(1);
+
+    // PIE has signed, so there's nothing left for them to do here.
+    $this->actingAs($pie)->get(route('approvals.index'))->assertForbidden();
+    $this->actingAs($prod)->get(route('approvals.index'))
+        ->assertInertia(fn ($page) => $page->has('lineConfigItems', 1));
 });

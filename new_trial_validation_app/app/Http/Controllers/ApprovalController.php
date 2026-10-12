@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Actions\Trials\SaveApprovalDecision;
 use App\Http\Requests\Approvals\SaveApprovalDecisionRequest;
+use App\Models\LineConfigurationLane;
 use App\Models\Trial;
+use App\Models\TrialLineConfigurationReport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -33,7 +35,26 @@ class ApprovalController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $user = $request->user();
+        $lineConfigItems = TrialLineConfigurationReport::query()
+            ->awaitingSignOffBy($user->id)
+            ->whereHas('trial', fn ($t) => $t->whereNull('deleted_at'))
+            ->with('trial:id,trial_code,product_name,product_type')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (TrialLineConfigurationReport $r) => [
+                'trial_id' => $r->trial_id,
+                'trial_code' => $r->trial?->trial_code,
+                'product_name' => $r->trial?->product_name,
+                'product_type' => $r->trial?->product_type,
+                'stage' => $r->currentApprovalStage() === 'checked_prod'
+                    ? LineConfigurationLane::label('checked_prod', 'Checked (PROD)')
+                    : LineConfigurationLane::label('approved_pie', 'Approved (PIE)'),
+            ])
+            ->values();
+
         return Inertia::render('approvals/index', [
+            'lineConfigItems' => $lineConfigItems,
             'items' => $items,
             'filters' => ['q' => $q],
         ]);

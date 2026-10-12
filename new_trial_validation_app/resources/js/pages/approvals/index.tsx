@@ -35,16 +35,29 @@ type ApprovalItem = {
     approver: { id: number; name: string; email: string } | null;
 };
 
+type LineConfigItem = {
+    trial_id: number;
+    trial_code: string | null;
+    product_name: string | null;
+    product_type: string | null;
+    stage: string;
+};
+
 type Filters = {
     q: string;
 };
 
 type PageProps = {
     items: Paginated<ApprovalItem>;
+    lineConfigItems: LineConfigItem[];
     filters: Filters;
 };
 
-export default function ApprovalsIndex({ items, filters }: PageProps) {
+export default function ApprovalsIndex({
+    items,
+    lineConfigItems,
+    filters,
+}: PageProps) {
     const { t } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
     const url = approvalsIndex().url;
@@ -67,6 +80,78 @@ export default function ApprovalsIndex({ items, filters }: PageProps) {
                     title={t('trials.approvals.title')}
                     description={t('trials.approvals.description')}
                 />
+
+                {lineConfigItems.length > 0 && (
+                    <Card>
+                        <CardContent className="space-y-3">
+                            <div>
+                                <h2 className="font-semibold">
+                                    {t('trials.approvals.line_config_title')} (
+                                    {lineConfigItems.length})
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    {t(
+                                        'trials.approvals.line_config_description',
+                                    )}
+                                </p>
+                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>
+                                            {t('trials.queue.trial')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t('trials.queue.product')}
+                                        </TableHead>
+                                        <TableHead>
+                                            {t(
+                                                'trials.approvals.line_config_stage',
+                                            )}
+                                        </TableHead>
+                                        <TableHead>
+                                            <span className="sr-only">
+                                                {t('trials.table.actions')}
+                                            </span>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {lineConfigItems.map((lc) => (
+                                        <TableRow key={lc.trial_id}>
+                                            <TableCell className="font-medium">
+                                                {lc.trial_code}
+                                            </TableCell>
+                                            <TableCell>
+                                                {lc.product_name}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">
+                                                    {lc.stage}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button size="sm" asChild>
+                                                    <Link
+                                                        href={
+                                                            TrialReportController.show(
+                                                                lc.trial_id,
+                                                            ).url
+                                                        }
+                                                    >
+                                                        {t(
+                                                            'trials.approvals.action',
+                                                        )}
+                                                    </Link>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <FilterBar
                     searchValue={form.q}

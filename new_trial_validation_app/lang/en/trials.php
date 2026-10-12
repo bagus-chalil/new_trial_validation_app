@@ -92,6 +92,9 @@ return [
         'description' => 'Trials awaiting a final decision from the QAC Manager / approver. All assigned approvers can record their decision on this page.',
         'approver' => 'Approver',
         'action' => 'Open & Decide',
+        'line_config_title' => 'Line Configuration awaiting your signature',
+        'line_config_description' => 'Trials whose Line Configuration Report is waiting for your signature.',
+        'line_config_stage' => 'Your stage',
         'empty' => 'No trials are awaiting approval.',
     ],
 ];
