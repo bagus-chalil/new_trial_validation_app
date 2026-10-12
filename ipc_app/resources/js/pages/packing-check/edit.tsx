@@ -4,6 +4,7 @@ import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { FinalizeChoiceDialog } from '@/components/ipc/finalize-choice-dialog';
+import { FinalizeConfirmDialog } from '@/components/ipc/finalize-confirm-dialog';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
@@ -119,6 +120,7 @@ export default function PackingCheckEdit({
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const { message, toast } = useToast();
     const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
+    const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
     const [finalizeChoiceOpen, setFinalizeChoiceOpen] = useState(false);
     const [completing, setCompleting] = useState(false);
     const [cameraField, setCameraField] = useState<string | null>(null);
@@ -205,8 +207,14 @@ export default function PackingCheckEdit({
         document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
+    // Selesaikan always asks for confirmation first — it sits next to Simpan Progress and locks the stage.
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        setFinalizeConfirmOpen(true);
+    };
+
+    const proceedFinalize = () => {
+        setFinalizeConfirmOpen(false);
         // With at least one saved round, Selesaikan offers finalizing from that round instead of
         // forcing the form to be re-filled (see CompletePackingCheckFromHistory).
         if (revisions.length > 0) {
@@ -633,9 +641,9 @@ export default function PackingCheckEdit({
 
                     {!isReadOnly && (
                         <StickySaveBar
-                            label="Simpan & Selesaikan"
+                            label="Selesaikan"
                             processing={processing}
-                            secondaryLabel={isLastRound ? undefined : 'Simpan'}
+                            secondaryLabel={isLastRound ? undefined : 'Simpan Progress'}
                             onSecondaryClick={saveDraft}
                             note={[
                                 `${answeredCount} dari ${allChecklistKeys.length} item checklist terisi`,
@@ -648,6 +656,13 @@ export default function PackingCheckEdit({
                     )}
                 </form>
             </TwoPane>
+
+            <FinalizeConfirmDialog
+                open={finalizeConfirmOpen}
+                onOpenChange={setFinalizeConfirmOpen}
+                stageLabel="Packing Check"
+                onConfirm={proceedFinalize}
+            />
 
             {revisions.length > 0 && (
                 <FinalizeChoiceDialog

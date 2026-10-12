@@ -4,6 +4,7 @@ import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { FinalizeChoiceDialog } from '@/components/ipc/finalize-choice-dialog';
+import { FinalizeConfirmDialog } from '@/components/ipc/finalize-confirm-dialog';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
@@ -136,6 +137,7 @@ export default function FinishedCheckEdit({
     const { message, toast } = useToast();
     const [cameraField, setCameraField] = useState<string | null>(null);
     const [errorFields, setErrorFields] = useState<Set<string>>(new Set());
+    const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
     const [finalizeChoiceOpen, setFinalizeChoiceOpen] = useState(false);
     const [completing, setCompleting] = useState(false);
 
@@ -312,8 +314,14 @@ export default function FinishedCheckEdit({
 
     const revisions = [...(finishedCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
 
+    // Selesaikan always asks for confirmation first — it sits next to Simpan Progress and locks the stage.
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        setFinalizeConfirmOpen(true);
+    };
+
+    const proceedFinalize = () => {
+        setFinalizeConfirmOpen(false);
         // With at least one saved round, Selesaikan offers finalizing from that round instead of
         // forcing the form to be re-filled (see CompleteFinishedCheckFromHistory).
         if (revisions.length > 0) {
@@ -703,9 +711,9 @@ export default function FinishedCheckEdit({
 
                     {!isReadOnly && (
                         <StickySaveBar
-                            label="Simpan & Selesaikan"
+                            label="Selesaikan"
                             processing={processing}
-                            secondaryLabel={isLastRound ? undefined : 'Simpan'}
+                            secondaryLabel={isLastRound ? undefined : 'Simpan Progress'}
                             onSecondaryClick={saveDraft}
                             note={[
                                 `${filledSampleCount} dari ${allParameterKeys.length} sample terisi`,
@@ -718,6 +726,13 @@ export default function FinishedCheckEdit({
                     )}
                 </form>
             </TwoPane>
+
+            <FinalizeConfirmDialog
+                open={finalizeConfirmOpen}
+                onOpenChange={setFinalizeConfirmOpen}
+                stageLabel="Finished Good"
+                onConfirm={proceedFinalize}
+            />
 
             {revisions.length > 0 && (
                 <FinalizeChoiceDialog
