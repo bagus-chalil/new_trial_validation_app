@@ -12,6 +12,13 @@ use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
+// PIE makes the report (the 'approved_pie' lane gates editing); PROD is the
+// checker. A fresh test DB seeds the PIE lane with no required team, so pin it.
+beforeEach(function () {
+    $pie = MasterOption::firstWhere(['type' => 'reviewer_department', 'name' => 'PIE']);
+    LineConfigurationLane::where('stage_key', 'approved_pie')->update(['required_team_id' => $pie->id]);
+});
+
 function makeLcrTrial(array $attributes = []): Trial
 {
     return Trial::create([
@@ -49,7 +56,7 @@ function lcrPayload(array $overrides = []): array
         'opinion' => 'Low risk',
         'approved_pie_user_id' => array_key_exists('approved_pie_user_id', $overrides)
             ? $overrides['approved_pie_user_id']
-            : User::factory()->create()->id,
+            : User::factory()->reviewUnit('PIE')->create()->id,
         'checked_prod_user_id' => array_key_exists('checked_prod_user_id', $overrides)
             ? $overrides['checked_prod_user_id']
             : User::factory()->reviewUnit('PROD')->create()->id,
@@ -63,8 +70,8 @@ function lcrPayload(array $overrides = []): array
     ];
 }
 
-test('a PROD reviewer can view and edit the line configuration report on the report page', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+test('a PIE reviewer can view and edit the line configuration report on the report page', function () {
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $response = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
@@ -89,8 +96,8 @@ test('a reviewer from another department cannot edit the line configuration repo
         ->assertForbidden();
 });
 
-test('a PROD reviewer can save a line configuration report, and blank rows are dropped', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+test('a PIE reviewer can save a line configuration report, and blank rows are dropped', function () {
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $response = $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -129,7 +136,7 @@ test('a PROD reviewer can save a line configuration report, and blank rows are d
 });
 
 test('the line configuration report stays editable even after the trial has been decided, unlike department reviews', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial(['progress_status' => 'Approved', 'final_decision' => 'Approved']);
 
     TrialLineConfigurationReport::create(['trial_id' => $trial->id, 'client_name' => 'Old Client']);
@@ -145,9 +152,9 @@ test('the line configuration report stays editable even after the trial has been
     expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'UPDATE')->exists())->toBeTrue();
 });
 
-test('a different PROD reviewer cannot edit a report someone else already drafted, only the drafter (or admin) can', function () {
-    $drafter = User::factory()->reviewUnit('PROD')->create();
-    $otherProdReviewer = User::factory()->reviewUnit('PROD')->create();
+test('a different PIE reviewer cannot edit a report someone else already drafted, only the drafter (or admin) can', function () {
+    $drafter = User::factory()->reviewUnit('PIE')->create();
+    $otherProdReviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     // An unsubmitted draft (no approvers yet — e.g. one saved before every
@@ -185,7 +192,7 @@ test('an admin can also edit the line configuration report regardless of review 
 });
 
 test('approved_pie/checked_prod can no longer be set directly through the general save form', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)
@@ -203,7 +210,7 @@ test('approved_pie/checked_prod can no longer be set directly through the genera
 });
 
 test('Checked(PROD) can only be assigned to a user on the PROD review team', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $qacUser = User::factory()->reviewUnit('QAC')->create();
     $trial = makeLcrTrial();
 
@@ -217,62 +224,55 @@ test('Checked(PROD) can only be assigned to a user on the PROD review team', fun
 });
 
 test('the report page only offers PROD-team users for the Checked(PROD) assignment combobox', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create(['name' => 'Reviewer PROD']);
+    $reviewer = User::factory()->reviewUnit('PIE')->create(['name' => 'Reviewer PIE']);
+    $prodUser = User::factory()->reviewUnit('PROD')->create();
     $qacUser = User::factory()->reviewUnit('QAC')->create();
     $trial = makeLcrTrial();
 
     $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
 
-    $page->assertInertia(function ($p) use ($reviewer, $qacUser) {
+    $page->assertInertia(function ($p) use ($prodUser, $qacUser) {
         $prodIds = collect($p->toArray()['props']['lineConfigurationProdApprovers'])->pluck('id');
-        expect($prodIds)->toContain($reviewer->id);
+        expect($prodIds)->toContain($prodUser->id);
         expect($prodIds)->not->toContain($qacUser->id);
     });
 });
 
-test('changing the checked_prod lane\'s required team (Lane Configuration) changes who may edit/be assigned, without touching code', function () {
-    $prodUser = User::factory()->reviewUnit('PROD')->create();
+test('changing the approved_pie lane required team (Lane Configuration) changes who may edit/be assigned, without touching code', function () {
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $qacTeam = MasterOption::firstWhere(['type' => 'reviewer_department', 'name' => 'QAC']);
     $qacUser = User::factory()->create(['review_team_id' => $qacTeam->id]);
     $trial = makeLcrTrial();
 
-    // Before reconfiguring: the PROD user may edit, but only a PROD-team
-    // user may be assigned as checked_prod_user_id.
-    $this->actingAs($prodUser)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['checked_prod_user_id' => $qacUser->id]))
-        ->assertInvalid(['checked_prod_user_id']);
+    // Before reconfiguring: the PIE user may edit, and a QAC user can't be
+    // assigned as Approved(PIE).
+    $this->actingAs($pieUser)
+        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['approved_pie_user_id' => $qacUser->id]))
+        ->assertInvalid(['approved_pie_user_id']);
 
-    // A Super Admin repoints the 'checked_prod' lane at QAC instead of PROD
-    // (Phase 3 of the RBAC/Team-master redesign — Lane Configuration). Both
-    // general edit rights (manage-line-configuration-report follows this
-    // lane) and the checked_prod_user_id assignment rule follow the new
-    // team — same code path, driven purely by the admin-editable config.
-    $lane = LineConfigurationLane::where('stage_key', 'checked_prod')->firstOrFail();
+    // A Super Admin repoints the 'approved_pie' lane at QAC instead of PIE
+    // (Lane Configuration). General edit rights (manage-line-configuration-report
+    // follows this lane) and the approved_pie_user_id rule follow the new team.
+    $lane = LineConfigurationLane::where('stage_key', 'approved_pie')->firstOrFail();
     $lane->required_team_id = $qacTeam->id;
     $lane->save();
 
-    // The PROD user has lost general edit rights on this report entirely —
-    // that right now belongs to the QAC team.
-    $this->actingAs($prodUser)
+    $this->actingAs($pieUser)
         ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['client_name' => 'Nope']))
         ->assertForbidden();
 
-    // The QAC user can edit, and the PROD user is no longer assignable as
-    // checked_prod_user_id — checked first, while the report is still
-    // unsubmitted, since assigning a valid user locks it from further edits.
     $this->actingAs($qacUser)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['checked_prod_user_id' => $prodUser->id]))
-        ->assertInvalid(['checked_prod_user_id']);
+        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['approved_pie_user_id' => $pieUser->id]))
+        ->assertInvalid(['approved_pie_user_id']);
 
-    // A fellow QAC user is assignable.
     $this->actingAs($qacUser)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['checked_prod_user_id' => $qacUser->id]))
+        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['approved_pie_user_id' => $qacUser->id]))
         ->assertRedirect(route('trials.report.show', $trial->id));
 });
 
 test('a locked historical version keeps its own frozen label even after the live lane is later renamed', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -299,8 +299,8 @@ test('a locked historical version keeps its own frozen label even after the live
 });
 
 test('once an approver is assigned, the report is locked for the maker until an admin overrides or it is returned', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -326,8 +326,8 @@ test('once an approver is assigned, the report is locked for the maker until an 
 test('assigning a new Approved(PIE) user emails them immediately, but a Checked(PROD) assignment is deferred until PIE approves', function () {
     Mail::fake();
 
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create(['name' => 'Bagus']);
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Bagus']);
     $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti']);
     $trial = makeLcrTrial();
 
@@ -348,9 +348,9 @@ test('assigning a new Approved(PIE) user emails them immediately, but a Checked(
 test('re-saving with the same assigned user does not resend the email', function () {
     Mail::fake();
 
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $admin = User::factory()->role('Admin')->create();
-    $pieUser = User::factory()->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -368,8 +368,8 @@ test('re-saving with the same assigned user does not resend the email', function
 });
 
 test('the assigned Approved(PIE) user can view the trial report even without any other access', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create(['role' => 'Viewer', 'department' => 'PIE']);
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create(['role' => 'Viewer', 'department' => 'PIE']);
     $trial = makeLcrTrial(['progress_status' => 'In Review', 'final_decision' => null]);
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -382,8 +382,8 @@ test('the assigned Approved(PIE) user can view the trial report even without any
 });
 
 test('the assigned Approved(PIE) user can confirm approval, stamping their own name and time automatically', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create(['name' => 'Bagus Approver']);
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Bagus Approver']);
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -402,8 +402,8 @@ test('the assigned Approved(PIE) user can confirm approval, stamping their own n
 });
 
 test('a user who is not the assigned Approved(PIE) cannot confirm approval', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $someoneElse = User::factory()->create();
     $trial = makeLcrTrial();
 
@@ -417,9 +417,9 @@ test('a user who is not the assigned Approved(PIE) cannot confirm approval', fun
 });
 
 test('an admin cannot Approve/Checked/Return on someone else\'s behalf — these are personal sign-offs, not an admin override', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $admin = User::factory()->role('Admin')->create();
-    $pieUser = User::factory()->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $prodUser = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
 
@@ -455,8 +455,8 @@ test('an admin cannot Approve/Checked/Return on someone else\'s behalf — these
 });
 
 test('Checked(PROD) cannot be confirmed until Approved(PIE) is done, even by the assigned Checked(PROD) user', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $prodUser = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
 
@@ -471,8 +471,8 @@ test('Checked(PROD) cannot be confirmed until Approved(PIE) is done, even by the
 });
 
 test('the assigned Checked(PROD) user can confirm checked once Approved(PIE) is done, stamping their own name and time automatically', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
     $trial = makeLcrTrial();
 
@@ -493,8 +493,8 @@ test('the assigned Checked(PROD) user can confirm checked once Approved(PIE) is 
 });
 
 test('Approved(PIE) and Checked(PROD) can each be confirmed with an optional comment, and it is shown on the report page', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create(['name' => 'Fauzi PIE']);
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Fauzi PIE']);
     $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
     $trial = makeLcrTrial();
 
@@ -521,8 +521,8 @@ test('Approved(PIE) and Checked(PROD) can each be confirmed with an optional com
 });
 
 test('confirming Approved(PIE) with no comment leaves it null', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -535,8 +535,8 @@ test('confirming Approved(PIE) with no comment leaves it null', function () {
 });
 
 test('returning requires a reason of at least 5 words', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -551,8 +551,8 @@ test('returning requires a reason of at least 5 words', function () {
 });
 
 test('only whoever the currently active stage is assigned to may return', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $prodUser = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
 
@@ -581,8 +581,8 @@ test('only whoever the currently active stage is assigned to may return', functi
 });
 
 test('returning locks the current version with the reason and stamped approver, and spins off a fresh version with sign-off state cleared', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create(['name' => 'Bagus Approver']);
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Bagus Approver']);
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -627,8 +627,8 @@ test('returning locks the current version with the reason and stamped approver, 
 test('returning emails the report drafter directly, regardless of which stage returned it', function () {
     Mail::fake();
 
-    $reviewer = User::factory()->reviewUnit('PROD')->create(['name' => 'Dedi Drafter']);
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create(['name' => 'Dedi Drafter']);
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $prodUser = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
 
@@ -663,8 +663,8 @@ test('returning emails the report drafter directly, regardless of which stage re
 });
 
 test('after being returned, the maker can edit the new version freely again and sees the return reason', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -685,8 +685,8 @@ test('after being returned, the maker can edit the new version freely again and 
 });
 
 test('after being returned, the Approve/Return sign-off buttons are hidden for everyone — including admin — until re-assigned', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $admin = User::factory()->role('Admin')->create();
     $trial = makeLcrTrial();
 
@@ -733,8 +733,8 @@ test('after being returned, the Approve/Return sign-off buttons are hidden for e
 });
 
 test('a locked historical version can be downloaded as a PDF but is no longer the editable current report', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
@@ -753,7 +753,7 @@ test('a locked historical version can be downloaded as a PDF but is no longer th
 });
 
 test('the current (e.g. fully signed-off) version can be downloaded as a PDF too', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload());
@@ -768,8 +768,8 @@ test('the current (e.g. fully signed-off) version can be downloaded as a PDF too
 });
 
 test('the report page exposes the assigned approver and checker names, not just the done flag', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create(['name' => 'Fauzi PIE']);
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Fauzi PIE']);
     $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
     $trial = makeLcrTrial();
 
@@ -788,7 +788,7 @@ test('the report page exposes the assigned approver and checker names, not just 
 });
 
 test('a line configuration report cannot be saved with any field left empty, including either approver', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)
@@ -804,7 +804,7 @@ test('a line configuration report cannot be saved with any field left empty, inc
 });
 
 test('production standard needs at least one fully-filled row', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     // Only blank "Tambah Baris" rows: dropped, so the table counts as empty.
@@ -825,7 +825,7 @@ test('production standard needs at least one fully-filled row', function () {
 });
 
 test('line configuration cells and the table itself are optional on submit', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)
@@ -849,8 +849,8 @@ test('line configuration cells and the table itself are optional on submit', fun
 test('a draft can be saved incomplete, stays editable for the drafter, and never assigns approvers or sends email', function () {
     Mail::fake();
 
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $pieUser = User::factory()->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
+    $pieUser = User::factory()->reviewUnit('PIE')->create();
     $trial = makeLcrTrial();
 
     $this->actingAs($reviewer)
@@ -891,7 +891,7 @@ test('a draft can be saved incomplete, stays editable for the drafter, and never
 });
 
 test('an already-submitted report cannot be turned back into a draft, even by an admin', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
+    $reviewer = User::factory()->reviewUnit('PIE')->create();
     $admin = User::factory()->role('Admin')->create();
     $trial = makeLcrTrial();
 
@@ -910,9 +910,9 @@ test('an assigned Approved(PIE) user sees the report in Need Approval and gets a
     Mail::fake();
 
     $trial = makeLcrTrial();
-    $pie = User::factory()->create(['role' => 'Staff', 'department' => 'PIE']);
+    $pie = User::factory()->reviewUnit('PIE')->create(['role' => 'Staff', 'department' => 'PIE']);
     $prod = User::factory()->reviewUnit('PROD')->create();
-    $maker = User::factory()->reviewUnit('PROD')->create();
+    $maker = User::factory()->reviewUnit('PIE')->create();
 
     $this->actingAs($maker)
         ->put(route('trials.line-configuration.update', $trial), lcrPayload([

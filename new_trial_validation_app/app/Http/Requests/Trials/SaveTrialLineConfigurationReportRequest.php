@@ -15,13 +15,13 @@ use Illuminate\Validation\Validator;
  * differently from every other wizard-step FormRequest in this app (which
  * all gate on `update`, i.e. the trial's own edit-rights window): this form
  * has no lock tied to the *trial's* status, so it's gated purely on
- * `manage-line-configuration-report` (the 'checked_prod' lane's required
- * team, admin-configurable — see LineConfigurationLane — / Admin) plus basic
+ * `manage-line-configuration-report` (the 'approved_pie' lane's required
+ * team — PIE makes the report, PROD only agrees/returns — admin-configurable — see LineConfigurationLane — / Admin) plus basic
  * view access, so a soft-deleted/inaccessible trial still 404s or 403s
  * appropriately — **plus** two further narrowings once a report already has
  * a recorded drafter: (1) only that drafter (updated_by_user_id — see
  * TrialLineConfigurationReport::blocksEditFor()) may keep editing it, not
- * just any PROD-team member — being on the PROD team only grants the right
+ * just any PIE-team member — being on the PIE team only grants the right
  * to start/claim a report nobody has drafted yet; (2) a lock of its own,
  * added 2026-09-16: once the current version has been submitted into the
  * approval chain (TrialLineConfigurationReport::isSubmittedForApproval()),

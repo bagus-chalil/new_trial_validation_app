@@ -83,15 +83,15 @@ class AppServiceProvider extends ServiceProvider
         // already existed from the Fase 0 RBAC port, unused until now).
         Gate::define('view-approval-queue', fn (User $user) => $user->canApproveTrials());
         // Who may fill in/edit a trial's Line Configuration Report — the
-        // team currently configured for the 'checked_prod' stage (Phase 3 of
-        // the RBAC/Team-master redesign — admin-editable via Lane
-        // Configuration, no longer a hardcoded 'PROD' literal), plus
+        // team currently configured for the 'approved_pie' stage (PIE makes
+        // the report; PROD only agrees or returns it — decided 2026-10-12.
+        // Admin-editable via Lane Configuration, not a hardcoded literal), plus
         // Admin/Super Admin as a general override (same "admin can do
         // anything" shape as manage-master/manage-parameters above).
         // Deliberately not tied to a specific Trial instance or its status:
         // the report has no lock of any kind, see
         // TrialLineConfigurationReport's doc comment.
         Gate::define('manage-line-configuration-report', fn (User $user) => $user->isAdmin()
-            || LineConfigurationLane::userEligibleForStage($user, 'checked_prod'));
+            || LineConfigurationLane::userEligibleForStage($user, 'approved_pie'));
     }
 }
