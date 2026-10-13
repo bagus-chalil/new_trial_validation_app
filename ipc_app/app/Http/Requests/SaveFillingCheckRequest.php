@@ -28,7 +28,7 @@ class SaveFillingCheckRequest extends FormRequest
         return [
             'finalize' => ['required', 'boolean'],
             'sample_bulk_odor_status' => ['required', 'in:Conform,Not Conform'],
-            'sample_leakage_test_status' => ['required', 'in:Conform,Not Conform'],
+            'sample_leakage_test_status' => ['required', 'in:Conform,Not Conform,N/A'],
             'remarks' => [$required, 'string'],
             'decision' => [$required, 'in:'.implode(',', FillingCheck::DECISIONS)],
             'samples' => ['nullable', 'array'],

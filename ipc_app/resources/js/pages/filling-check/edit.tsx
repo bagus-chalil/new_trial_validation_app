@@ -86,6 +86,7 @@ interface FillingCheckData {
 
 const SAMPLE_COUNT = 10;
 const CONFORM_OPTIONS = ['Conform', 'Not Conform'];
+const LEAKAGE_OPTIONS = ['Conform', 'Not Conform', 'N/A'];
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
 const PHOTO_FIELDS: { key: string; label: string }[] = [
@@ -360,7 +361,7 @@ export default function FillingCheckEdit({
                                 >
                                     <ChipToggleGroup
                                         name="sample_leakage_test_status"
-                                        options={CONFORM_OPTIONS}
+                                        options={LEAKAGE_OPTIONS}
                                         value={data.sample_leakage_test_status}
                                         onChange={(value) => {
                                             setData('sample_leakage_test_status', value);
