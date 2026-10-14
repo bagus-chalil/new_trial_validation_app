@@ -159,3 +159,6 @@ A Line Configuration Report can now be saved as a **Draft** (incomplete allowed,
 - [ ] Remove SSO bridge (`/sso/*` routes both sides, `sso_tickets` table)
 - [ ] Finish any deferred DB schema redesign
 - [ ] Write API docs for the mobile app project
+
+### AI-readiness / future chatbot (2026-10-14)
+`new_trial_validation_app/` now has a data-preparation layer for a future bot/AI (anonymized, versioned JSONL export via `php artisan ai:export`, junk-text flagging via `ai:quality-scan`, side table `ai_data_flags`; no AI call exists yet). Agreed direction: free, light, rule-based bot (intent bot + statistical detectors, DigiPark host-agent style), no LLM/fine-tuning for now. Dev server done, production pending. Full detail: `new_trial_validation_app/CLAUDE.md` -> "AI-readiness" and `new_trial_validation_app/AI_READINESS.md`.
