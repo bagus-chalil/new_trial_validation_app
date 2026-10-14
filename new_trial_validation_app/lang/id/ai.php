@@ -52,8 +52,12 @@ return [
             'need_type' => 'Sebutkan jenis produk dan bagiannya, contoh: "sebaran timbangan Tube Packaging".',
         ],
 
+        'help' => [
+            'text' => 'Saya asisten trial. Saya bisa menjawab hal-hal berikut, coba salah satu contoh ini:',
+        ],
+
         'unknown' => [
-            'text' => 'Maaf, saya belum mengerti pertanyaan itu. Coba salah satu contoh berikut:',
+            'text' => 'Maaf, saya belum mengerti pertanyaan itu. Pertanyaan Anda sudah dicatat agar admin bisa mengajarkannya ke saya. Sementara itu, coba salah satu contoh berikut:',
         ],
     ],
 

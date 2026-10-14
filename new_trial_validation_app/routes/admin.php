@@ -57,6 +57,8 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::delete('archive/{trial}', [TrialArchiveController::class, 'destroy'])->name('archive.destroy');
 
     Route::get('bot-questions', [BotQuestionController::class, 'index'])->name('bot-questions.index');
+    Route::post('bot-questions/aliases', [BotQuestionController::class, 'storeAlias'])->name('bot-questions.aliases.store');
+    Route::delete('bot-questions/aliases/{alias}', [BotQuestionController::class, 'destroyAlias'])->name('bot-questions.aliases.destroy');
 
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
     Route::post('activity-logs/delete-selected', [ActivityLogController::class, 'destroySelected'])->name('activity-logs.destroy-selected');

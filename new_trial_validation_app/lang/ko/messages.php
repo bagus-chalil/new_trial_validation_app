@@ -40,6 +40,7 @@ return [
     ],
 
     'validation' => [
+        'bot_alias_too_short' => '문구가 너무 짧습니다 (최소 3자).',
         'parameter_missing' => '파라미터 :name이(가) 입력되지 않았습니다.',
         'parameter_not_ok' => '파라미터 :name이(가) NOT OK이므로 결과와 비고는 필수입니다.',
         'weighing_invalid' => '계량 샘플은 숫자여야 하며 음수일 수 없습니다.',

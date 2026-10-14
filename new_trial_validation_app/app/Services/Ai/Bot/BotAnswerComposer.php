@@ -31,6 +31,7 @@ class BotAnswerComposer
             IntentRecognizer::INTENT_STUCK_TRIALS => $this->stuckTrials($data ?? []),
             IntentRecognizer::INTENT_NOT_OK_HOTSPOTS => $this->notOkHotspots($data ?? []),
             IntentRecognizer::INTENT_WEIGHING_NORM => $this->weighingNorm($data, $params),
+            IntentRecognizer::INTENT_HELP => $this->help(),
             default => $this->unknown(),
         };
     }
@@ -202,13 +203,25 @@ class BotAnswerComposer
     /** @return BotAnswer */
     private function unknown(): array
     {
+        return $this->withExamples(__('ai.answers.unknown.text'));
+    }
+
+    /** @return BotAnswer */
+    private function help(): array
+    {
+        return $this->withExamples(__('ai.answers.help.text'));
+    }
+
+    /** @return BotAnswer */
+    private function withExamples(string $text): array
+    {
         $suggestions = array_map(
             fn (string $intent) => __('ai.examples.'.$intent),
             (new IntentRecognizer)->suggestableIntents(),
         );
 
         return [
-            'text' => __('ai.answers.unknown.text'),
+            'text' => $text,
             'trials' => [],
             'suggestions' => $suggestions,
         ];

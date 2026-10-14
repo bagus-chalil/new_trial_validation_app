@@ -1,9 +1,22 @@
 import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
+import BotQuestionController from '@/actions/App/Http/Controllers/Admin/BotQuestionController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import { PaginationFooter } from '@/components/pagination-footer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -13,29 +26,36 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useTranslation } from '@/hooks/use-translation';
+import { trialStatusLabel } from '@/lib/trial-status';
 import { index as botQuestionsIndex } from '@/routes/admin/bot-questions';
 import type { Paginated } from '@/types';
 
-type View = 'unanswered' | 'downvoted' | 'all';
+type View = 'unanswered' | 'downvoted' | 'all' | 'rules';
 
 type BotRow = {
     id: number;
-    question: string;
-    locale: string;
-    // Present on the "unanswered" view (grouped by question).
+    question?: string;
+    locale?: string;
+    // "unanswered" view (grouped by question).
     asked_count?: number;
     last_asked_at?: string;
-    // Present on the "downvoted" / "all" views (one row per interaction).
+    // "downvoted" / "all" views (one row per interaction).
     intent?: string | null;
     matched?: boolean;
     answer_summary?: string | null;
     feedback?: number | null;
     created_at?: string;
+    // "rules" view.
+    phrase?: string;
+    target?: string;
+    status?: string | null;
 };
 
 type PageProps = {
     view: View;
     rows: Paginated<BotRow>;
+    targets: string[];
+    statuses: string[];
     stats: {
         total: number;
         unmatched: number;
@@ -44,15 +64,97 @@ type PageProps = {
     };
 };
 
-const VIEWS: View[] = ['unanswered', 'downvoted', 'all'];
+const VIEWS: View[] = ['unanswered', 'downvoted', 'all', 'rules'];
+const ANY_STATUS = '__any';
+
+function TeachFields({
+    phrase,
+    targets,
+    statuses,
+    errors,
+}: {
+    phrase: string;
+    targets: string[];
+    statuses: string[];
+    errors: Record<string, string>;
+}) {
+    const { t } = useTranslation();
+    const [target, setTarget] = useState('trials_by_status');
+    const [status, setStatus] = useState(ANY_STATUS);
+
+    return (
+        <div className="mt-4 space-y-4">
+            <div className="grid gap-2">
+                <Label htmlFor="alias-phrase">
+                    {t('admin.bot_questions.dialog.phrase')}
+                </Label>
+                <Input
+                    id="alias-phrase"
+                    name="phrase"
+                    defaultValue={phrase}
+                    maxLength={200}
+                />
+                <p className="text-xs text-muted-foreground">
+                    {t('admin.bot_questions.dialog.phrase_hint')}
+                </p>
+                <InputError message={errors.phrase} />
+            </div>
+
+            <div className="grid gap-2">
+                <Label>{t('admin.bot_questions.dialog.meaning')}</Label>
+                <Select name="target" value={target} onValueChange={setTarget}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {[...targets, 'ignore'].map((option) => (
+                            <SelectItem key={option} value={option}>
+                                {t(`admin.bot_questions.targets.${option}`)}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <InputError message={errors.target} />
+            </div>
+
+            {target === 'trials_by_status' && (
+                <div className="grid gap-2">
+                    <Label>{t('admin.bot_questions.dialog.status')}</Label>
+                    <Select value={status} onValueChange={setStatus}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={ANY_STATUS}>
+                                {t('admin.bot_questions.dialog.status_any')}
+                            </SelectItem>
+                            {statuses.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                    {trialStatusLabel(t, option)}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {status !== ANY_STATUS && (
+                        <input type="hidden" name="status" value={status} />
+                    )}
+                    <InputError message={errors.status} />
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function AdminBotQuestionsIndex({
     view,
     rows,
+    targets,
+    statuses,
     stats,
 }: PageProps) {
     const { t, formatDate } = useTranslation();
     const grouped = view === 'unanswered';
+    const rules = view === 'rules';
 
     const statCards: { key: keyof PageProps['stats']; label: string }[] = [
         { key: 'total', label: t('admin.bot_questions.stats.total') },
@@ -60,6 +162,8 @@ export default function AdminBotQuestionsIndex({
         { key: 'upvoted', label: t('admin.bot_questions.stats.upvoted') },
         { key: 'downvoted', label: t('admin.bot_questions.stats.downvoted') },
     ];
+
+    const columnCount = rules ? 4 : 5;
 
     return (
         <>
@@ -115,15 +219,34 @@ export default function AdminBotQuestionsIndex({
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>
-                                        {t('admin.bot_questions.question')}
+                                        {t(
+                                            rules
+                                                ? 'admin.bot_questions.dialog.phrase'
+                                                : 'admin.bot_questions.question',
+                                        )}
                                     </TableHead>
-                                    {grouped ? (
+                                    {rules && (
+                                        <>
+                                            <TableHead>
+                                                {t(
+                                                    'admin.bot_questions.rule_target',
+                                                )}
+                                            </TableHead>
+                                            <TableHead>
+                                                {t(
+                                                    'admin.bot_questions.rule_status',
+                                                )}
+                                            </TableHead>
+                                        </>
+                                    )}
+                                    {grouped && (
                                         <TableHead>
                                             {t(
                                                 'admin.bot_questions.asked_count',
                                             )}
                                         </TableHead>
-                                    ) : (
+                                    )}
+                                    {!grouped && !rules && (
                                         <>
                                             <TableHead>
                                                 {t(
@@ -137,30 +260,70 @@ export default function AdminBotQuestionsIndex({
                                             </TableHead>
                                         </>
                                     )}
-                                    <TableHead>
-                                        {t('admin.bot_questions.locale')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('admin.bot_questions.last_asked')}
-                                    </TableHead>
+                                    {!rules && (
+                                        <>
+                                            <TableHead>
+                                                {t(
+                                                    'admin.bot_questions.locale',
+                                                )}
+                                            </TableHead>
+                                            <TableHead>
+                                                {t(
+                                                    'admin.bot_questions.last_asked',
+                                                )}
+                                            </TableHead>
+                                        </>
+                                    )}
+                                    {(grouped || rules) && (
+                                        <TableHead>
+                                            {t('admin.bot_questions.action')}
+                                        </TableHead>
+                                    )}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {rows.data.map((row) => (
                                     <TableRow key={row.id}>
                                         <TableCell className="whitespace-normal">
-                                            <div>{row.question}</div>
-                                            {!grouped && row.answer_summary && (
-                                                <div className="text-muted-foreground">
-                                                    {row.answer_summary}
-                                                </div>
-                                            )}
+                                            <div>
+                                                {rules
+                                                    ? row.phrase
+                                                    : row.question}
+                                            </div>
+                                            {!grouped &&
+                                                !rules &&
+                                                row.answer_summary && (
+                                                    <div className="text-muted-foreground">
+                                                        {row.answer_summary}
+                                                    </div>
+                                                )}
                                         </TableCell>
-                                        {grouped ? (
+
+                                        {rules && (
+                                            <>
+                                                <TableCell>
+                                                    {t(
+                                                        `admin.bot_questions.targets.${row.target}`,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {row.status
+                                                        ? trialStatusLabel(
+                                                              t,
+                                                              row.status,
+                                                          )
+                                                        : '-'}
+                                                </TableCell>
+                                            </>
+                                        )}
+
+                                        {grouped && (
                                             <TableCell>
                                                 {row.asked_count}
                                             </TableCell>
-                                        ) : (
+                                        )}
+
+                                        {!grouped && !rules && (
                                             <>
                                                 <TableCell>
                                                     {row.intent ?? '-'}
@@ -190,26 +353,155 @@ export default function AdminBotQuestionsIndex({
                                                 </TableCell>
                                             </>
                                         )}
-                                        <TableCell>
-                                            {row.locale.toUpperCase()}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDate(
-                                                (grouped
-                                                    ? row.last_asked_at
-                                                    : row.created_at) ?? '',
-                                                true,
-                                            )}
-                                        </TableCell>
+
+                                        {!rules && (
+                                            <>
+                                                <TableCell>
+                                                    {(
+                                                        row.locale ?? ''
+                                                    ).toUpperCase()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatDate(
+                                                        (grouped
+                                                            ? row.last_asked_at
+                                                            : row.created_at) ??
+                                                            '',
+                                                        true,
+                                                    )}
+                                                </TableCell>
+                                            </>
+                                        )}
+
+                                        {grouped && (
+                                            <TableCell className="space-x-2 whitespace-nowrap">
+                                                <ConfirmDialog
+                                                    trigger={
+                                                        <Button size="sm">
+                                                            {t(
+                                                                'admin.bot_questions.answer',
+                                                            )}
+                                                        </Button>
+                                                    }
+                                                    title={t(
+                                                        'admin.bot_questions.dialog.title',
+                                                    )}
+                                                    description={t(
+                                                        'admin.bot_questions.dialog.description',
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'admin.bot_questions.dialog.save',
+                                                    )}
+                                                    confirmVariant="default"
+                                                    formProps={BotQuestionController.storeAlias.form()}
+                                                >
+                                                    {({ errors }) => (
+                                                        <TeachFields
+                                                            phrase={(
+                                                                row.question ??
+                                                                ''
+                                                            )
+                                                                .toLowerCase()
+                                                                .replace(
+                                                                    /[\s?!.]+$/u,
+                                                                    '',
+                                                                )}
+                                                            targets={targets}
+                                                            statuses={statuses}
+                                                            errors={errors}
+                                                        />
+                                                    )}
+                                                </ConfirmDialog>
+                                                <ConfirmDialog
+                                                    trigger={
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                        >
+                                                            {t(
+                                                                'admin.bot_questions.ignore',
+                                                            )}
+                                                        </Button>
+                                                    }
+                                                    title={t(
+                                                        'admin.bot_questions.ignore_dialog.title',
+                                                    )}
+                                                    description={t(
+                                                        'admin.bot_questions.ignore_dialog.description',
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'admin.bot_questions.ignore',
+                                                    )}
+                                                    confirmVariant="default"
+                                                    formProps={BotQuestionController.storeAlias.form()}
+                                                >
+                                                    {() => (
+                                                        <>
+                                                            <input
+                                                                type="hidden"
+                                                                name="phrase"
+                                                                value={
+                                                                    row.question ??
+                                                                    ''
+                                                                }
+                                                            />
+                                                            <input
+                                                                type="hidden"
+                                                                name="target"
+                                                                value="ignore"
+                                                            />
+                                                        </>
+                                                    )}
+                                                </ConfirmDialog>
+                                            </TableCell>
+                                        )}
+
+                                        {rules && (
+                                            <TableCell>
+                                                <ConfirmDialog
+                                                    trigger={
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                        >
+                                                            {t(
+                                                                'admin.actions.delete',
+                                                            )}
+                                                        </Button>
+                                                    }
+                                                    title={t(
+                                                        'admin.bot_questions.delete_title',
+                                                    )}
+                                                    description={t(
+                                                        'admin.bot_questions.delete_description',
+                                                        {
+                                                            phrase:
+                                                                row.phrase ??
+                                                                '',
+                                                        },
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'admin.actions.delete',
+                                                    )}
+                                                    formProps={BotQuestionController.destroyAlias.form(
+                                                        row.id,
+                                                    )}
+                                                />
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                                 {rows.data.length === 0 && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={grouped ? 4 : 5}
+                                            colSpan={columnCount}
                                             className="p-4 text-center text-muted-foreground"
                                         >
-                                            {t('admin.bot_questions.empty')}
+                                            {t(
+                                                rules
+                                                    ? 'admin.bot_questions.rules_empty'
+                                                    : 'admin.bot_questions.empty',
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )}

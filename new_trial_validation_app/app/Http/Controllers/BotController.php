@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Bot\AskBotRequest;
 use App\Http\Requests\Bot\RateBotRequest;
+use App\Models\AiBotAlias;
 use App\Models\AiBotInteraction;
 use App\Models\MasterOption;
 use App\Models\User;
@@ -38,7 +39,7 @@ class BotController extends Controller
             ->pluck('name')
             ->all();
 
-        $recognized = $recognizer->recognize($question, $productTypes);
+        $recognized = $recognizer->recognize($question, $productTypes, AiBotAlias::grouped());
         $intent = $recognized['intent'];
         $params = $recognized['params'];
 

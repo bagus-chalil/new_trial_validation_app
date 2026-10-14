@@ -40,6 +40,7 @@ return [
     ],
 
     'validation' => [
+        'bot_alias_too_short' => 'Frasa terlalu pendek (minimal 3 huruf).',
         'parameter_missing' => 'Parameter :name belum terisi.',
         'parameter_not_ok' => 'Parameter :name NOT OK wajib isi Result dan Remark.',
         'weighing_invalid' => 'Sampel penimbangan harus berupa angka dan tidak boleh negatif.',

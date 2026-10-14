@@ -52,8 +52,12 @@ return [
             'need_type' => 'Please name the product type and section, e.g. "weighing spread Tube Packaging".',
         ],
 
+        'help' => [
+            'text' => 'I am the trial assistant. I can answer the following, try one of these examples:',
+        ],
+
         'unknown' => [
-            'text' => 'Sorry, I did not understand that question. Try one of these examples:',
+            'text' => 'Sorry, I did not understand that question yet. It has been recorded so an admin can teach it to me. Meanwhile, try one of these examples:',
         ],
     ],
 

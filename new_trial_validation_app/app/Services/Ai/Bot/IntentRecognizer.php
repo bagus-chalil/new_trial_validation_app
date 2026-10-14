@@ -26,7 +26,14 @@ class IntentRecognizer
 
     public const INTENT_WEIGHING_NORM = 'weighing_norm';
 
+    public const INTENT_HELP = 'help';
+
     public const INTENT_UNKNOWN = 'unknown';
+
+    private const HELP_WORDS = [
+        'kamu bisa apa', 'bisa apa', 'bantuan', 'bantu saya', 'apa saja yang bisa', 'help', 'what can you do', 'what do you do',
+        '도움말', '뭘 할 수', '무엇을 할 수',
+    ];
 
     /** Longest / most specific aliases first: "need revision" before "revision", "ready for approval" before "approved". */
     private const STATUS_ALIASES = [
@@ -71,9 +78,10 @@ class IntentRecognizer
 
     /**
      * @param  array<int, string>  $productTypes  known product_type names (master_options)
+     * @param  array{phrases?: array<string, array<int, string>>, status?: array<string, array<int, string>>}  $custom  phrases taught from the admin GUI (AiBotAlias::grouped())
      * @return array{intent:string, params:array<string, mixed>}
      */
-    public function recognize(string $question, array $productTypes = []): array
+    public function recognize(string $question, array $productTypes = [], array $custom = []): array
     {
         $text = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $question) ?? ''));
 
@@ -87,12 +95,17 @@ class IntentRecognizer
         }
 
         $productType = $this->matchProductType($text, $productTypes);
+        $extra = fn (string $intent): array => $custom['phrases'][$intent] ?? [];
 
-        if ($this->containsAny($text, self::MY_QUEUE_WORDS)) {
+        if ($this->containsAny($text, [...self::HELP_WORDS, ...$extra(self::INTENT_HELP)])) {
+            return $this->result(self::INTENT_HELP);
+        }
+
+        if ($this->containsAny($text, [...self::MY_QUEUE_WORDS, ...$extra(self::INTENT_MY_QUEUE)])) {
             return $this->result(self::INTENT_MY_QUEUE);
         }
 
-        if ($this->containsAny($text, self::STUCK_WORDS)) {
+        if ($this->containsAny($text, [...self::STUCK_WORDS, ...$extra(self::INTENT_STUCK_TRIALS)])) {
             $params = [];
             if (preg_match('/(\d{1,3})\s*(?:hari|days?|d\b|일)/u', $text, $m)) {
                 $params['days'] = max(1, (int) $m[1]);
@@ -101,19 +114,24 @@ class IntentRecognizer
             return $this->result(self::INTENT_STUCK_TRIALS, $params);
         }
 
-        if ($this->containsAny($text, self::NOT_OK_WORDS)) {
+        if ($this->containsAny($text, [...self::NOT_OK_WORDS, ...$extra(self::INTENT_NOT_OK_HOTSPOTS)])) {
             return $this->result(self::INTENT_NOT_OK_HOTSPOTS, ['product_type' => $productType]);
         }
 
-        if ($this->containsAny($text, self::WEIGHING_WORDS)) {
+        if ($this->containsAny($text, [...self::WEIGHING_WORDS, ...$extra(self::INTENT_WEIGHING_NORM)])) {
             return $this->result(self::INTENT_WEIGHING_NORM, [
                 'product_type' => $productType,
                 'section' => $this->matchAliases($text, self::SECTION_ALIASES),
             ]);
         }
 
-        $status = $this->matchAliases($text, self::STATUS_ALIASES);
-        if ($status !== null || $this->containsAny($text, self::LIST_WORDS)) {
+        $statusAliases = [];
+        foreach (self::STATUS_ALIASES as $canonical => $words) {
+            $statusAliases[$canonical] = [...$words, ...($custom['status'][$canonical] ?? [])];
+        }
+
+        $status = $this->matchAliases($text, $statusAliases);
+        if ($status !== null || $this->containsAny($text, [...self::LIST_WORDS, ...$extra(self::INTENT_TRIALS_BY_STATUS)])) {
             return $this->result(self::INTENT_TRIALS_BY_STATUS, [
                 'status' => $status,
                 'product_type' => $productType,

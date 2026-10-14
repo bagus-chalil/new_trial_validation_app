@@ -40,6 +40,7 @@ return [
     ],
 
     'validation' => [
+        'bot_alias_too_short' => 'Phrase is too short (at least 3 letters).',
         'parameter_missing' => 'Parameter :name has not been filled in.',
         'parameter_not_ok' => 'Parameter :name is NOT OK; Result and Remark are required.',
         'weighing_invalid' => 'Weighing samples must be numeric and cannot be negative.',
