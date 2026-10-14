@@ -35,3 +35,13 @@ Ubah bentuk dokumen = naikkan `schema_version` + perbarui skema + tes `AiReadine
 2. `reason_code` terstandar untuk NOT OK / Need Revision (butuh perubahan form + master option).
 3. Golden set evaluasi (pertanyaan + jawaban benar hasil kurasi manusia) untuk menguji chatbot.
 4. Chatbot: tool read-only yang dibungkus `TrialPolicy` / `Trial::scopeVisibleTo()`.
+
+## Self-learning, Fase 1 (shadow mode)
+Bot belajar sendiri dari data tanpa review manusia; hasil belum ditampilkan atau dipakai siapa pun.
+- `php artisan ai:learn` -> tabel `ai_lessons` (+ `ai_learning_runs`). Hanya membaca tabel aplikasi.
+- Pelajar: `weighing_baseline` (rentang berat normal per produk + section) dan `weighing_consistency`
+  (sebaran normal antar sampel dalam satu trial, per product_type + section, memakai koefisien variasi).
+- Pengaman otomatis: trial uji coba/terhapus tidak dipelajari, minimal 5 trial, median/MAD tahan outlier,
+  keyakinan dihitung otomatis, pelajaran yang tidak lagi didukung data otomatis dicabut.
+- Dijadwalkan harian (01:30 scan, 02:00 learn) lewat `routes/console.php`; server butuh cron `schedule:run`.
+- Belum ada: pelajar pola NOT OK per parameter, pelajar durasi langkah, tampilan hasil (Fase 2).
