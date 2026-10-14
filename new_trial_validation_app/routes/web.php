@@ -22,3 +22,4 @@ require __DIR__.'/trials.php';
 require __DIR__.'/reviews.php';
 require __DIR__.'/approvals.php';
 require __DIR__.'/reports.php';
+require __DIR__.'/bot.php';
