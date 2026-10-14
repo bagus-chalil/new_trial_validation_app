@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\Ai\WeighingBaselineLearner;
+use App\Services\Ai\WeighingConsistencyLearner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
 #[Description('Self-learning pass (shadow mode): derive lessons from trial data into ai_lessons. Reads app tables only.')]
 class AiLearn extends Command
 {
-    public function handle(WeighingBaselineLearner $learner): int
+    public function handle(WeighingBaselineLearner $baseline, WeighingConsistencyLearner $consistency): int
     {
         if (! Schema::hasTable('ai_lessons') || ! Schema::hasTable('ai_learning_runs')) {
             $this->error('ai_lessons tables are missing; run the 2026_10_14_000002 migration first.');
@@ -22,12 +23,19 @@ class AiLearn extends Command
         }
 
         $start = microtime(true);
-        $stats = $learner->learn();
+        $results = ['baseline' => $baseline->learn(), 'consistency' => $consistency->learn()];
         $ms = (int) round((microtime(true) - $start) * 1000);
 
-        DB::table('ai_learning_runs')->insert($stats + ['duration_ms' => $ms, 'ran_at' => now()]);
+        $totals = array_fill_keys(['created', 'updated', 'unchanged', 'revoked', 'insufficient', 'excluded_trials'], 0);
+        foreach ($results as $learner => $stats) {
+            foreach ($stats as $key => $value) {
+                $totals[$key] += $value;
+            }
+            $this->line(sprintf('%-12s %s', $learner, json_encode($stats)));
+        }
 
-        $this->table(array_keys($stats), [array_values($stats)]);
+        DB::table('ai_learning_runs')->insert($totals + ['duration_ms' => $ms, 'ran_at' => now()]);
+
         $this->info("Done in {$ms} ms (shadow mode: nothing is shown or acted on).");
 
         return self::SUCCESS;

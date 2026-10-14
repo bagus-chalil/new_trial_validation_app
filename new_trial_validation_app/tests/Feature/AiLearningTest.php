@@ -40,7 +40,7 @@ test('ai:learn learns a baseline and an outlier does not move it', function () {
 });
 
 test('too few trials gives no lesson (insufficient data)', function () {
-    foreach (range(1, 4) as $i) {
+    foreach (range(1, 4) as $_) {
         learnTrial('Tube B', [5.0, 5.1]);
     }
 
@@ -50,7 +50,7 @@ test('too few trials gives no lesson (insufficient data)', function () {
 });
 
 test('flagged test trials are never learned from', function () {
-    foreach (range(1, 5) as $i) {
+    foreach (range(1, 5) as $_) {
         learnTrial('Tube C', [2.0, 2.1]);
     }
     $junk = learnTrial('Tube C', [500.0, 500.0]);
@@ -77,7 +77,7 @@ test('a re-run is idempotent and an unsupported lesson is revoked automatically'
 });
 
 test('ai:learn never modifies application tables', function () {
-    foreach (range(1, 5) as $i) {
+    foreach (range(1, 5) as $_) {
         learnTrial('Tube E', [4.0, 4.1]);
     }
     $before = [Trial::count(), TrialWeighing::count()];
@@ -85,4 +85,32 @@ test('ai:learn never modifies application tables', function () {
     $this->artisan('ai:learn')->assertSuccessful();
 
     expect([Trial::count(), TrialWeighing::count()])->toBe($before);
+});
+
+test('consistency is learned per product type and is comparable across different product sizes', function () {
+    // Same relative scatter (~1%) on a 10 g and an 80 g product: one shared type baseline.
+    foreach (range(1, 3) as $_) {
+        learnTrial('Small', [10.0, 10.1, 9.9, 10.0]);
+        learnTrial('Large', [80.0, 80.8, 79.2, 80.0]);
+    }
+
+    $this->artisan('ai:learn')->assertSuccessful();
+
+    $lesson = AiLesson::where('kind', 'weighing_consistency')->where('scope_key', 'Tube|Packaging')->firstOrFail();
+    expect($lesson->payload['n_trials'])->toBe(6)
+        ->and($lesson->payload['median_cv'])->toBeBetween(0.005, 0.02)
+        ->and($lesson->payload['high_cv'])->toBeGreaterThan($lesson->payload['median_cv']);
+});
+
+test('consistency ignores trials with too few samples and flagged trials', function () {
+    foreach (range(1, 5) as $_) {
+        learnTrial('P', [10.0, 10.1, 9.9]);
+    }
+    learnTrial('P', [10.0, 50.0]);
+    $junk = learnTrial('P', [1.0, 90.0, 5.0]);
+    AiDataFlag::create(['source_table' => 'trials_header', 'source_id' => (string) $junk->id, 'field' => 'reason', 'trial_id' => $junk->id, 'flag' => AiDataFlag::SUSPECTED_TEST_TRIAL]);
+
+    $this->artisan('ai:learn')->assertSuccessful();
+
+    expect(AiLesson::where('kind', 'weighing_consistency')->firstOrFail()->payload['n_trials'])->toBe(5);
 });

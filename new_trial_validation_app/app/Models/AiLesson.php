@@ -26,6 +26,8 @@ class AiLesson extends Model
 {
     public const KIND_WEIGHING_BASELINE = 'weighing_baseline';
 
+    public const KIND_WEIGHING_CONSISTENCY = 'weighing_consistency';
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_REVOKED = 'revoked';

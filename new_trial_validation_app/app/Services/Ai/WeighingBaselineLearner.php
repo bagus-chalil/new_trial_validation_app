@@ -4,7 +4,6 @@ namespace App\Services\Ai;
 
 use App\Models\AiDataFlag;
 use App\Models\AiLesson;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,10 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class WeighingBaselineLearner
 {
-    /** MAD -> sigma equivalent for normal data. */
-    private const MAD_SCALE = 1.4826;
-
     public function __construct(
+        private readonly LessonStore $store,
         private readonly int $minTrials = 5,
         private readonly float $sigmas = 3.0,
     ) {}
@@ -29,17 +26,32 @@ class WeighingBaselineLearner
      */
     public function learn(): array
     {
-        $stats = ['created' => 0, 'updated' => 0, 'unchanged' => 0, 'revoked' => 0, 'insufficient' => 0, 'excluded_trials' => 0];
+        [$groups, $excludedTrials] = $this->collect();
 
-        $excluded = AiDataFlag::query()
-            ->where('flag', AiDataFlag::SUSPECTED_TEST_TRIAL)
-            ->pluck('trial_id')
-            ->filter()
-            ->all();
-        $excluded = array_flip($excluded);
+        $items = [];
+        $insufficient = 0;
+        foreach ($groups as $key => $perTrial) {
+            if (count($perTrial) < $this->minTrials) {
+                $insufficient++;
 
-        // [product|section] => [trial_id => list<float>]
-        $groups = [];
+                continue;
+            }
+            $items[$key] = $this->lesson($key, $perTrial);
+        }
+
+        return $this->store->sync(AiLesson::KIND_WEIGHING_BASELINE, $items)
+            + ['insufficient' => $insufficient, 'excluded_trials' => $excludedTrials];
+    }
+
+    /**
+     * @return array{0: array<string, array<int, list<float>>>, 1: int} [product|section => [trial_id => values]], excluded count
+     */
+    private function collect(): array
+    {
+        $excluded = array_flip(
+            AiDataFlag::query()->where('flag', AiDataFlag::SUSPECTED_TEST_TRIAL)->pluck('trial_id')->filter()->all()
+        );
+
         $rows = DB::table('trials_weighing as w')
             ->join('trials_header as h', 'h.id', '=', 'w.trial_id')
             ->whereNull('h.deleted_at')
@@ -48,9 +60,11 @@ class WeighingBaselineLearner
             ->select('w.trial_id', 'w.section', 'w.weight_value', 'h.product_name')
             ->cursor();
 
+        $groups = [];
         $seenExcluded = [];
         foreach ($rows as $row) {
-            if (! is_numeric($row->weight_value) || (float) $row->weight_value <= 0) {
+            $product = trim((string) $row->product_name);
+            if ($product === '' || ! is_numeric($row->weight_value) || (float) $row->weight_value <= 0) {
                 continue;
             }
             if (isset($excluded[$row->trial_id])) {
@@ -58,99 +72,37 @@ class WeighingBaselineLearner
 
                 continue;
             }
-            $product = trim((string) $row->product_name);
-            if ($product === '') {
-                continue;
-            }
             $groups[$product.'|'.$row->section][$row->trial_id][] = (float) $row->weight_value;
         }
-        $stats['excluded_trials'] = count($seenExcluded);
 
-        $now = Carbon::now();
-        $seenKeys = [];
+        return [$groups, count($seenExcluded)];
+    }
 
-        foreach ($groups as $key => $perTrial) {
-            if (count($perTrial) < $this->minTrials) {
-                $stats['insufficient']++;
+    /**
+     * @param  array<int, list<float>>  $perTrial
+     * @return array{payload: array<string, mixed>, sample_size: int, confidence: string}
+     */
+    private function lesson(string $key, array $perTrial): array
+    {
+        $values = array_merge(...array_values($perTrial));
+        $median = RobustStats::median($values);
+        $mad = RobustStats::mad($values, $median);
+        $spread = $this->sigmas * RobustStats::MAD_SCALE * $mad;
+        $nTrials = count($perTrial);
 
-                continue;
-            }
-
-            $values = array_merge(...array_values($perTrial));
-            $median = $this->median($values);
-            $mad = $this->median(array_map(fn ($v) => abs($v - $median), $values));
-            $spread = $this->sigmas * self::MAD_SCALE * $mad;
-
-            $payload = [
+        return [
+            'payload' => [
                 'product' => explode('|', $key)[0],
                 'section' => explode('|', $key, 2)[1],
                 'median' => round($median, 4),
                 'mad' => round($mad, 4),
                 'low' => round($median - $spread, 4),
                 'high' => round($median + $spread, 4),
-                'n_trials' => count($perTrial),
-            ];
-            $nTrials = count($perTrial);
-            $confidence = $this->confidence($nTrials, $median, $mad);
-            $seenKeys[$key] = true;
-
-            $lesson = AiLesson::query()
-                ->where('kind', AiLesson::KIND_WEIGHING_BASELINE)
-                ->where('scope_key', $key)
-                ->first();
-
-            if ($lesson === null) {
-                AiLesson::create([
-                    'kind' => AiLesson::KIND_WEIGHING_BASELINE,
-                    'scope_key' => $key,
-                    'payload' => $payload,
-                    'sample_size' => count($values),
-                    'confidence' => $confidence,
-                    'status' => AiLesson::STATUS_ACTIVE,
-                    'version' => 1,
-                    'learned_at' => $now,
-                ]);
-                $stats['created']++;
-
-                continue;
-            }
-
-            // Loose compare: JSON turns 10.0 into 10, which must not count as a change.
-            $changed = $lesson->payload != $payload
-                || $lesson->confidence !== $confidence
-                || $lesson->status !== AiLesson::STATUS_ACTIVE;
-            if (! $changed) {
-                $stats['unchanged']++;
-
-                continue;
-            }
-
-            $lesson->fill([
-                'payload' => $payload,
-                'sample_size' => count($values),
-                'confidence' => $confidence,
-                'status' => AiLesson::STATUS_ACTIVE,
-                'version' => $lesson->version + 1,
-                'learned_at' => $now,
-                'revoked_at' => null,
-            ])->save();
-            $stats['updated']++;
-        }
-
-        // Auto-expire: anything active that this run no longer supports.
-        AiLesson::query()
-            ->where('kind', AiLesson::KIND_WEIGHING_BASELINE)
-            ->where('status', AiLesson::STATUS_ACTIVE)
-            ->get()
-            ->each(function (AiLesson $lesson) use ($seenKeys, $now, &$stats) {
-                if (isset($seenKeys[$lesson->scope_key])) {
-                    return;
-                }
-                $lesson->fill(['status' => AiLesson::STATUS_REVOKED, 'revoked_at' => $now])->save();
-                $stats['revoked']++;
-            });
-
-        return $stats;
+                'n_trials' => $nTrials,
+            ],
+            'sample_size' => count($values),
+            'confidence' => $this->confidence($nTrials, $median, $mad),
+        ];
     }
 
     /** Confidence from sample size and how tight the data is (relative MAD). */
@@ -166,15 +118,5 @@ class WeighingBaselineLearner
         }
 
         return 'rendah';
-    }
-
-    /** @param  list<float>  $values */
-    private function median(array $values): float
-    {
-        sort($values);
-        $n = count($values);
-        $mid = intdiv($n, 2);
-
-        return $n % 2 ? $values[$mid] : ($values[$mid - 1] + $values[$mid]) / 2;
     }
 }
