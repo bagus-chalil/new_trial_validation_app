@@ -114,3 +114,60 @@ test('consistency ignores trials with too few samples and flagged trials', funct
 
     expect(AiLesson::where('kind', 'weighing_consistency')->firstOrFail()->payload['n_trials'])->toBe(5);
 });
+
+function notOkTrial(string $type, int $parameterId, string $decision): Trial
+{
+    $trial = Trial::create([
+        'trial_code' => 'TRIAL-NOK-'.uniqid(),
+        'product_name' => 'X',
+        'product_type' => $type,
+        'progress_status' => 'Approved',
+        'current_step' => 'Review',
+        'created_by' => 'owner@local.test',
+        'reason' => 'Trial validasi',
+    ]);
+    DB::table('trials_results')->insert(['trial_id' => $trial->id, 'parameter_id' => $parameterId, 'decision' => $decision, 'result_value' => 'x']);
+
+    return $trial;
+}
+
+function notOkParam(string $name): int
+{
+    return DB::table('validation_parameters')->insertGetId(['product_type' => 'Tube', 'parameter_name' => $name, 'specification' => 's', 'sort_order' => 1, 'is_active' => 1]);
+}
+
+test('not-ok pattern learns per parameter rate, ignores N/A and flags hotspots', function () {
+    $param = notOkParam('Warna');
+    $quiet = notOkParam('Bau');
+
+    foreach (['NOT OK', 'NOT OK', 'NOT OK', 'OK', 'OK', 'OK', 'N/A', 'N/A'] as $d) {
+        notOkTrial('Tube', $param, $d);
+    }
+    foreach (range(1, 6) as $_) {
+        notOkTrial('Tube', $quiet, 'OK');
+    }
+
+    $this->artisan('ai:learn')->assertSuccessful();
+
+    $hot = AiLesson::where('kind', 'not_ok_pattern')->where('scope_key', "Tube|$param")->firstOrFail();
+    expect($hot->payload['n_trials'])->toBe(6)
+        ->and($hot->payload['not_ok_trials'])->toBe(3)
+        ->and($hot->payload['not_ok_rate'])->toEqual(0.5)
+        ->and($hot->payload['hotspot'])->toBeTrue();
+
+    $calm = AiLesson::where('kind', 'not_ok_pattern')->where('scope_key', "Tube|$quiet")->firstOrFail();
+    expect($calm->payload['hotspot'])->toBeFalse()->and($calm->payload['not_ok_rate'])->toEqual(0);
+});
+
+test('not-ok pattern needs enough trials and skips flagged trials', function () {
+    $param = notOkParam('Warna');
+    foreach (range(1, 4) as $_) {
+        notOkTrial('Tube', $param, 'OK');
+    }
+    $junk = notOkTrial('Tube', $param, 'NOT OK');
+    AiDataFlag::create(['source_table' => 'trials_header', 'source_id' => (string) $junk->id, 'field' => 'reason', 'trial_id' => $junk->id, 'flag' => AiDataFlag::SUSPECTED_TEST_TRIAL]);
+
+    $this->artisan('ai:learn')->assertSuccessful();
+
+    expect(AiLesson::where('kind', 'not_ok_pattern')->count())->toBe(0);
+});

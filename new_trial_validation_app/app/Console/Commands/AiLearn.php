@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Ai\NotOkPatternLearner;
 use App\Services\Ai\WeighingBaselineLearner;
 use App\Services\Ai\WeighingConsistencyLearner;
 use Illuminate\Console\Attributes\Description;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Schema;
 #[Description('Self-learning pass (shadow mode): derive lessons from trial data into ai_lessons. Reads app tables only.')]
 class AiLearn extends Command
 {
-    public function handle(WeighingBaselineLearner $baseline, WeighingConsistencyLearner $consistency): int
+    public function handle(WeighingBaselineLearner $baseline, WeighingConsistencyLearner $consistency, NotOkPatternLearner $notOk): int
     {
         if (! Schema::hasTable('ai_lessons') || ! Schema::hasTable('ai_learning_runs')) {
             $this->error('ai_lessons tables are missing; run the 2026_10_14_000002 migration first.');
@@ -23,7 +24,7 @@ class AiLearn extends Command
         }
 
         $start = microtime(true);
-        $results = ['baseline' => $baseline->learn(), 'consistency' => $consistency->learn()];
+        $results = ['baseline' => $baseline->learn(), 'consistency' => $consistency->learn(), 'not_ok' => $notOk->learn()];
         $ms = (int) round((microtime(true) - $start) * 1000);
 
         $totals = array_fill_keys(['created', 'updated', 'unchanged', 'revoked', 'insufficient', 'excluded_trials'], 0);

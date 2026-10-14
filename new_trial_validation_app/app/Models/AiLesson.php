@@ -28,6 +28,8 @@ class AiLesson extends Model
 
     public const KIND_WEIGHING_CONSISTENCY = 'weighing_consistency';
 
+    public const KIND_NOT_OK_PATTERN = 'not_ok_pattern';
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_REVOKED = 'revoked';
