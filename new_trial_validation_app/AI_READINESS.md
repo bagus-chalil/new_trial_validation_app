@@ -53,7 +53,6 @@ Bot belajar sendiri dari data tanpa review manusia; hasil belum ditampilkan atau
   `ai:learn`, `ai:status` (hanya peringatan). Cron `schedule:run` dipasang manual sekali, lihat `deploy/README.md` bagian 12.
 - Sisi tanya-jawab bot (mulai 2026-10-14): tabel log `ai_bot_interactions` (sumber training: pertanyaan tak cocok = antrean intent baru,
   👎 = bahan koreksi, 👍 hasil kurasi = golden set), `BotInteractionLogger` (user dipseudonim, tanpa duplikat dalam 10 detik) dan
-  `TrialBotTools` (6 tool read-only: myQueue, trialsByStatus, trialStatus, stuckTrials, notOkHotspots, weighingNorm). Belum ada:
-  pengenal pertanyaan, template jawaban id/en/ko, endpoint `/bot/ask`, widget chat, prune retensi 90 hari. Catatan: teks pertanyaan
+  `TrialBotTools` (6 tool read-only: myQueue, trialsByStatus, trialStatus, stuckTrials, notOkHotspots, weighingNorm). Sudah ada: pengenal pertanyaan (`IntentRecognizer`) dan template jawaban id/en/ko (`lang/*/ai.php` + `BotAnswerComposer`). Belum ada:endpoint `/bot/ask`, widget chat, prune retensi 90 hari. Catatan: teks pertanyaan
   tidak di-scrub, jadi tabel ini hanya untuk Admin dan dihapus berkala.
 - Belum ada: tampilan hasil (Fase 2). Tipe produk tanpa timbangan (mis. Mixing) memang tidak punya pelajaran timbangan.
