@@ -171,3 +171,45 @@ test('not-ok pattern needs enough trials and skips flagged trials', function () 
 
     expect(AiLesson::where('kind', 'not_ok_pattern')->count())->toBe(0);
 });
+
+test('step duration learns typical and slow hours and ignores single huge outliers in the threshold', function () {
+    foreach (range(1, 6) as $i) {
+        $trial = notOkTrial('Tube', 1, 'OK');
+        DB::table('trials_header')->where('id', $trial->id)->update(['created_at' => '2026-01-01 08:00:00']);
+        // submitted 2h after creation; one trial took a very long 500h
+        $hours = $i === 6 ? 500 : 2;
+        DB::table('activity_logs')->insert([
+            'action' => 'SUBMIT_REVIEW', 'module' => 'TRIAL', 'record_id' => (string) $trial->id,
+            'created_at' => date('Y-m-d H:i:s', strtotime('2026-01-01 08:00:00') + $hours * 3600),
+        ]);
+    }
+
+    $this->artisan('ai:learn')->assertSuccessful();
+
+    $lesson = AiLesson::where('kind', 'step_duration')->where('scope_key', 'prepare|Tube')->firstOrFail();
+    expect($lesson->payload['typical_hours'])->toEqual(2.0)
+        ->and($lesson->payload['n'])->toBe(6)
+        ->and($lesson->payload['slow_hours'])->toBeGreaterThanOrEqual(2.0);
+});
+
+test('step duration needs enough samples and skips trials never submitted', function () {
+    foreach (range(1, 4) as $_) {
+        $trial = notOkTrial('Tube', 1, 'OK');
+        DB::table('activity_logs')->insert(['action' => 'SUBMIT_REVIEW', 'module' => 'TRIAL', 'record_id' => (string) $trial->id, 'created_at' => now()->addHours(3)]);
+    }
+    notOkTrial('Tube', 1, 'OK');
+
+    $this->artisan('ai:learn')->assertSuccessful();
+
+    expect(AiLesson::where('kind', 'step_duration')->count())->toBe(0);
+});
+
+test('ai:status fails when nothing has run or the last run is stale, passes when fresh', function () {
+    $this->artisan('ai:status')->assertFailed();
+
+    DB::table('ai_learning_runs')->insert(['ran_at' => now()->subHours(50)]);
+    $this->artisan('ai:status')->assertFailed();
+
+    $this->artisan('ai:learn')->assertSuccessful();
+    $this->artisan('ai:status')->assertSuccessful();
+});

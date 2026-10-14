@@ -44,4 +44,11 @@ Bot belajar sendiri dari data tanpa review manusia; hasil belum ditampilkan atau
 - Pengaman otomatis: trial uji coba/terhapus tidak dipelajari, minimal 5 trial, median/MAD tahan outlier,
   keyakinan dihitung otomatis, pelajaran yang tidak lagi didukung data otomatis dicabut.
 - Dijadwalkan harian (01:30 scan, 02:00 learn) lewat `routes/console.php`; server butuh cron `schedule:run`.
-- Belum ada: pelajar pola NOT OK per parameter, pelajar durasi langkah, tampilan hasil (Fase 2).
+- Pelajar `not_ok_pattern`: seberapa sering tiap parameter validasi NOT OK per product_type (N/A tidak dihitung,
+  teks remark tidak disimpan); `hotspot` bila >= 3 trial NOT OK dan >= 20%.
+- Pelajar `step_duration`: durasi normal (jam) persiapan, review per departemen, dan approval; `slow_hours` = persentil 90
+  (bukan sigma, karena data durasi sangat condong).
+- `php artisan ai:status` memeriksa kesehatan job (gagal bila run terakhir > 36 jam = cron belum terpasang).
+- CI/CD: stage `test` memblok deploy bila tes gagal; setelah `migrate`, pipeline menjalankan `ai:quality-scan --apply`,
+  `ai:learn`, `ai:status` (hanya peringatan). Cron `schedule:run` dipasang manual sekali, lihat `deploy/README.md` bagian 12.
+- Belum ada: tampilan hasil (Fase 2). Tipe produk tanpa timbangan (mis. Mixing) memang tidak punya pelajaran timbangan.

@@ -835,6 +835,25 @@ Hal-hal yang perlu diketahui:
   (`storage/framework/cache`), bukan DB. Jadi worker dan PHP-FPM harus
   berjalan sebagai user yang sama (`www-data`) di server yang sama.
 
+## 12. Scheduler Laravel (wajib untuk self-learning AI)
+
+`new_trial_validation_app` punya job terjadwal (`routes/console.php`: `ai:quality-scan --apply` 01:30, `ai:learn` 02:00).
+Laravel hanya menjalankannya kalau `schedule:run` dipanggil tiap menit oleh cron. CI **tidak** bisa memasang cron ini;
+pasang sekali per server (development dan production) sebagai user `www-data`:
+
+```bash
+LINE='* * * * * cd /var/www/trial_validation_app/new_trial_validation_app && php artisan schedule:run >> /dev/null 2>&1'
+(sudo crontab -u www-data -l 2>/dev/null; echo "$LINE") | sudo crontab -u www-data -
+```
+
+Sesuaikan path dengan `DEPLOY_PATH` server tersebut. Verifikasi: `sudo -u www-data HOME=/tmp php artisan ai:status`
+(exit 0 = run terakhir kurang dari 36 jam). Setiap deploy, job `build_new_trial_validation_app_*` juga menjalankan
+`ai:quality-scan --apply`, `ai:learn`, `ai:status` setelah `migrate`; kalau `ai:status` gagal, log job menulis WARNING
+(deploy tetap sukses) yang berarti cron belum terpasang.
+
+Pipeline juga punya stage `test` (`test_new_trial_validation_app`): Pest di sqlite in-memory (tidak menyentuh DB asli),
+berjalan di runner yang sama dan memblok deploy bila gagal.
+
 ## Catatan keamanan
 
 `config/database.php` dan `config/sso.php` **sudah ter-commit di git** dengan

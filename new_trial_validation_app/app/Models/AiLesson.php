@@ -30,6 +30,8 @@ class AiLesson extends Model
 
     public const KIND_NOT_OK_PATTERN = 'not_ok_pattern';
 
+    public const KIND_STEP_DURATION = 'step_duration';
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_REVOKED = 'revoked';
