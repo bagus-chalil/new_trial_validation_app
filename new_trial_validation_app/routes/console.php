@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 // Self-learning (shadow mode). Needs `* * * * * php artisan schedule:run` in cron on the server.
 Schedule::command('ai:quality-scan --apply')->dailyAt('01:30')->withoutOverlapping();
 Schedule::command('ai:learn')->dailyAt('02:00')->withoutOverlapping();
+Schedule::command('ai:bot-prune')->dailyAt('03:00')->withoutOverlapping();
