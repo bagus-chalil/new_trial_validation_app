@@ -57,6 +57,20 @@ return [
         ],
     ],
 
+    'widget' => [
+        'placeholder' => 'Tanya soal trial…',
+        'send' => 'Kirim',
+        'close' => 'Tutup',
+        'open' => 'Buka asisten',
+        'helpful' => 'Membantu',
+        'not_helpful' => 'Kurang membantu',
+        'thanks' => 'Terima kasih atas masukannya.',
+        'error' => 'Terjadi kesalahan. Coba lagi.',
+        'try_asking' => 'Coba tanyakan:',
+        'greeting' => 'Halo! Tanyakan tugas Anda, status trial, atau trial yang tertahan.',
+        'open_trial' => 'Buka trial',
+    ],
+
     'confidence' => [
         'rendah' => 'rendah',
         'sedang' => 'sedang',

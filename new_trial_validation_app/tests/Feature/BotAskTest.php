@@ -72,3 +72,25 @@ test('the endpoint is rate limited', function () {
     }
     $this->actingAs($user)->postJson(route('bot.ask'), ['question' => 'one more'])->assertStatus(429);
 });
+
+test('a user can rate their own answer', function () {
+    $user = User::factory()->create(['role' => 'Staff']);
+    $id = $this->actingAs($user)->postJson(route('bot.ask'), ['question' => 'blah blah xyz'])->json('id');
+
+    $this->actingAs($user)->postJson(route('bot.rate', $id), ['feedback' => -1])->assertOk();
+
+    expect(AiBotInteraction::findOrFail($id))->feedback->toBe(-1);
+});
+
+test('rating rejects bad values, other users and guests', function () {
+    $owner = User::factory()->create(['role' => 'Staff']);
+    $other = User::factory()->create(['role' => 'Staff']);
+    $id = $this->actingAs($owner)->postJson(route('bot.ask'), ['question' => 'blah blah xyz'])->json('id');
+
+    $this->actingAs($owner)->postJson(route('bot.rate', $id), ['feedback' => 5])->assertJsonValidationErrors('feedback');
+    $this->actingAs($other)->postJson(route('bot.rate', $id), ['feedback' => 1])->assertNotFound();
+    expect(AiBotInteraction::findOrFail($id)->feedback)->toBeNull();
+
+    auth()->logout();
+    $this->postJson(route('bot.rate', $id), ['feedback' => 1])->assertUnauthorized();
+});

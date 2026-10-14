@@ -57,6 +57,20 @@ return [
         ],
     ],
 
+    'widget' => [
+        'placeholder' => '트라이얼에 대해 질문하세요…',
+        'send' => '보내기',
+        'close' => '닫기',
+        'open' => '어시스턴트 열기',
+        'helpful' => '도움이 됨',
+        'not_helpful' => '도움이 안 됨',
+        'thanks' => '의견 감사합니다.',
+        'error' => '오류가 발생했습니다. 다시 시도해 주세요.',
+        'try_asking' => '이렇게 물어보세요:',
+        'greeting' => '안녕하세요! 업무, 트라이얼 상태, 지연된 트라이얼을 물어보세요.',
+        'open_trial' => '트라이얼 열기',
+    ],
+
     'confidence' => [
         'rendah' => '낮음',
         'sedang' => '보통',

@@ -57,6 +57,20 @@ return [
         ],
     ],
 
+    'widget' => [
+        'placeholder' => 'Ask about trials…',
+        'send' => 'Send',
+        'close' => 'Close',
+        'open' => 'Open assistant',
+        'helpful' => 'Helpful',
+        'not_helpful' => 'Not helpful',
+        'thanks' => 'Thanks for the feedback.',
+        'error' => 'Something went wrong. Please try again.',
+        'try_asking' => 'Try asking:',
+        'greeting' => 'Hi! Ask me about your tasks, trial status, or stuck trials.',
+        'open_trial' => 'Open trial',
+    ],
+
     'confidence' => [
         'rendah' => 'low',
         'sedang' => 'medium',

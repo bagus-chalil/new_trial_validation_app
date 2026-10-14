@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Bot\AskBotRequest;
+use App\Http\Requests\Bot\RateBotRequest;
+use App\Models\AiBotInteraction;
 use App\Models\MasterOption;
 use App\Models\User;
 use App\Services\Ai\Bot\BotAnswerComposer;
@@ -57,6 +59,17 @@ class BotController extends Controller
             'trials' => $answer['trials'],
             'suggestions' => $answer['suggestions'],
         ]);
+    }
+
+    /** Thumbs up/down on one's own answer; someone else's row is a 404, same as a missing one. */
+    public function rate(RateBotRequest $request, AiBotInteraction $interaction, BotInteractionLogger $logger): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        abort_unless($logger->rate($user, $interaction, (int) $request->validated('feedback')), 404);
+
+        return response()->json(['ok' => true]);
     }
 
     /**
