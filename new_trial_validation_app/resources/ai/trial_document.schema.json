@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trial document (AI export contract) v1.0",
+  "description": "One line of the JSONL produced by `php artisan ai:export`. Bump schema_version (config/ai.php) on any shape change.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "doc_id", "trial", "results", "weighing", "reviews", "attachments", "line_configuration", "quality", "retrieval_text"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "doc_id": { "type": "string", "pattern": "^trial-[0-9]+$" },
+    "trial": {
+      "type": "object",
+      "required": ["id", "code", "product_type", "status", "created_by", "created_at"],
+      "properties": {
+        "id": { "type": "integer" },
+        "code": { "type": "string" },
+        "product_name": { "type": ["string", "null"] },
+        "finish_good_code": { "type": ["string", "null"] },
+        "batch_number": { "type": ["string", "null"] },
+        "bulk_code": { "type": ["string", "null"] },
+        "product_type": { "type": ["string", "null"] },
+        "validation_category": { "type": ["string", "null"] },
+        "risk_level": { "type": ["string", "null"] },
+        "validation_date": { "type": ["string", "null"] },
+        "validation_scope": { "type": "array", "items": { "type": "string" } },
+        "machine_used": { "type": "array", "items": { "type": "string" } },
+        "estimate_qty": { "type": ["number", "null"] },
+        "reason": { "type": ["string", "null"] },
+        "bom": { "type": ["string", "null"] },
+        "status": { "enum": ["Draft", "In Review", "Ready for Approval", "Approved", "Need Revision", "Rejected"] },
+        "current_step": { "type": ["string", "null"] },
+        "final_decision": { "type": ["string", "null"] },
+        "revision_no": { "type": "integer" },
+        "created_by": { "type": ["string", "null"], "description": "pseudonym u_xxxxxxxxxxxx" },
+        "approved_by": { "type": ["string", "null"], "description": "pseudonym" },
+        "created_at": { "type": ["string", "null"] },
+        "approved_at": { "type": ["string", "null"] },
+        "rejected_at": { "type": ["string", "null"] },
+        "approval_comment": { "type": ["string", "null"] }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["parameter", "decision"],
+        "properties": {
+          "parameter": { "type": ["string", "null"] },
+          "specification": { "type": ["string", "null"] },
+          "decision": { "enum": ["OK", "NOT OK", "N/A", null] },
+          "result": { "type": ["string", "null"] },
+          "remark": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "weighing": {
+      "type": "object",
+      "required": ["Packaging", "Filling"],
+      "additionalProperties": { "$ref": "#/$defs/weighingSection" }
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["department", "round", "status"],
+        "properties": {
+          "department": { "type": "string" },
+          "round": { "type": "integer" },
+          "status": { "enum": ["Pending", "Reviewed"] },
+          "reviewer": { "type": ["string", "null"], "description": "pseudonym" },
+          "comment": { "type": ["string", "null"] },
+          "reviewed_at": { "type": ["string", "null"] },
+          "edit_count": { "type": "integer" }
+        }
+      }
+    },
+    "attachments": {
+      "type": "object",
+      "required": ["count", "by_category"],
+      "properties": {
+        "count": { "type": "integer" },
+        "by_category": { "type": "object", "additionalProperties": { "type": "integer" } }
+      }
+    },
+    "line_configuration": { "type": ["object", "null"] },
+    "quality": {
+      "type": "object",
+      "required": ["suspected_test", "blanked_fields"],
+      "properties": {
+        "suspected_test": { "type": "boolean" },
+        "blanked_fields": { "type": "integer", "description": "free-text fields nulled because flagged as junk" }
+      }
+    },
+    "retrieval_text": { "type": "string", "description": "Plain-text chunk intended for embeddings / RAG." }
+  },
+  "$defs": {
+    "weighingSection": {
+      "type": "object",
+      "required": ["skipped", "n", "values"],
+      "properties": {
+        "skipped": { "type": "boolean" },
+        "n": { "type": "integer" },
+        "mean": { "type": ["number", "null"] },
+        "min": { "type": ["number", "null"] },
+        "max": { "type": ["number", "null"] },
+        "std": { "type": ["number", "null"] },
+        "values": { "type": "array", "items": { "type": "number" } }
+      }
+    }
+  }
+}
