@@ -3,7 +3,7 @@
 use App\Models\AiBotInteraction;
 use App\Models\User;
 
-function botRow(array $attributes = []): AiBotInteraction
+function adminBotRow(array $attributes = []): AiBotInteraction
 {
     return AiBotInteraction::create(array_merge([
         'user_ref' => 'u_abc',
@@ -24,10 +24,10 @@ test('only admins can open the bot questions page', function () {
 });
 
 test('unanswered view groups identical questions and counts them', function () {
-    botRow(['question' => 'Cuaca besok']);
-    botRow(['question' => 'cuaca besok']);
-    botRow(['question' => 'harga bahan']);
-    botRow(['question' => 'tugas saya', 'matched' => true, 'intent' => 'my_queue']);
+    adminBotRow(['question' => 'Cuaca besok']);
+    adminBotRow(['question' => 'cuaca besok']);
+    adminBotRow(['question' => 'harga bahan']);
+    adminBotRow(['question' => 'tugas saya', 'matched' => true, 'intent' => 'my_queue']);
 
     $this->actingAs(User::factory()->create(['role' => 'Admin']))
         ->get(route('admin.bot-questions.index'))
@@ -41,8 +41,8 @@ test('unanswered view groups identical questions and counts them', function () {
 });
 
 test('downvoted view lists only thumbs-down answers', function () {
-    botRow(['question' => 'a', 'matched' => true, 'feedback' => -1]);
-    botRow(['question' => 'b', 'matched' => true, 'feedback' => 1]);
+    adminBotRow(['question' => 'a', 'matched' => true, 'feedback' => -1]);
+    adminBotRow(['question' => 'b', 'matched' => true, 'feedback' => 1]);
 
     $this->actingAs(User::factory()->create(['role' => 'Admin']))
         ->get(route('admin.bot-questions.index', ['view' => 'downvoted']))
