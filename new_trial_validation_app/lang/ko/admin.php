@@ -117,6 +117,35 @@ return [
         'delete_description' => '":title" 알림이 이를 볼 수 있는 모든 사용자에게서 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
     ],
 
+    'bot_questions' => [
+        'title' => '봇 질문',
+        'heading' => '봇 어시스턴트에 대한 질문',
+        'description' => '답변하지 못한 질문은 추가해야 할 인텐트/별칭의 목록이며, 싫어요를 받은 답변은 개선이 필요한 항목입니다.',
+        'stats' => [
+            'total' => '전체 질문',
+            'unmatched' => '인식 불가',
+            'upvoted' => '좋아요',
+            'downvoted' => '싫어요',
+        ],
+        'views' => [
+            'unanswered' => '미답변',
+            'downvoted' => '싫어요',
+            'all' => '전체',
+        ],
+        'question' => '질문',
+        'asked_count' => '질문 횟수',
+        'last_asked' => '최근 질문',
+        'locale' => '언어',
+        'intent' => '인텐트',
+        'answer' => '답변 요약',
+        'status' => '상태',
+        'unmatched' => '인식 불가',
+        'rated_up' => '좋아요',
+        'rated_down' => '싫어요',
+        'empty' => '데이터가 없습니다.',
+        'items' => '질문',
+    ],
+
     'impersonation' => [
         'banner' => '현재 :name (:email) 계정으로 로그인 중입니다 — 관리자: :admin',
         'back' => '관리자 계정으로 돌아가기',

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccessRightController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\BotQuestionController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\LaneConfigurationController;
 use App\Http\Controllers\Admin\MasterOptionController;
@@ -54,6 +55,8 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::get('archive', [TrialArchiveController::class, 'index'])->name('archive.index');
     Route::post('archive/{trial}', [TrialArchiveController::class, 'store'])->name('archive.store');
     Route::delete('archive/{trial}', [TrialArchiveController::class, 'destroy'])->name('archive.destroy');
+
+    Route::get('bot-questions', [BotQuestionController::class, 'index'])->name('bot-questions.index');
 
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
     Route::post('activity-logs/delete-selected', [ActivityLogController::class, 'destroySelected'])->name('activity-logs.destroy-selected');

@@ -117,6 +117,35 @@ return [
         'delete_description' => '":title" akan dihapus permanen untuk semua user yang dapat melihatnya. Tindakan ini tidak dapat dibatalkan.',
     ],
 
+    'bot_questions' => [
+        'title' => 'Pertanyaan Bot',
+        'heading' => 'Pertanyaan ke Asisten Bot',
+        'description' => 'Pertanyaan yang belum bisa dijawab adalah daftar intent/alias yang perlu ditambahkan; jawaban yang diberi jempol turun adalah yang perlu diperbaiki.',
+        'stats' => [
+            'total' => 'Total pertanyaan',
+            'unmatched' => 'Tidak dikenali',
+            'upvoted' => 'Jempol naik',
+            'downvoted' => 'Jempol turun',
+        ],
+        'views' => [
+            'unanswered' => 'Belum terjawab',
+            'downvoted' => 'Jempol turun',
+            'all' => 'Semua',
+        ],
+        'question' => 'Pertanyaan',
+        'asked_count' => 'Ditanyakan',
+        'last_asked' => 'Terakhir',
+        'locale' => 'Bahasa',
+        'intent' => 'Intent',
+        'answer' => 'Ringkasan jawaban',
+        'status' => 'Status',
+        'unmatched' => 'Tidak dikenali',
+        'rated_up' => 'Jempol naik',
+        'rated_down' => 'Jempol turun',
+        'empty' => 'Belum ada data.',
+        'items' => 'pertanyaan',
+    ],
+
     'impersonation' => [
         'banner' => 'Anda sedang login sebagai :name (:email) — admin: :admin',
         'back' => 'Kembali ke akun admin',

@@ -4,6 +4,7 @@ import {
     Archive,
     ArrowLeftRight,
     Bell,
+    Bot,
     BriefcaseBusiness,
     CheckCircle2,
     CircleCheckBig,
@@ -38,6 +39,7 @@ import { dashboard } from '@/routes';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { index as archiveIndex } from '@/routes/admin/archive';
+import { index as botQuestionsIndex } from '@/routes/admin/bot-questions';
 import { index as laneConfigurationIndex } from '@/routes/admin/lane-configuration';
 import { index as mastersIndex } from '@/routes/admin/masters';
 import { index as notificationsIndex } from '@/routes/admin/notifications';
@@ -212,6 +214,11 @@ export function AppSidebar() {
                           title: t('common.nav.activity_logs'),
                           href: activityLogsIndex(),
                           icon: History,
+                      },
+                      {
+                          title: t('common.nav.bot_questions'),
+                          href: botQuestionsIndex(),
+                          icon: Bot,
                       },
                   ]
                 : [],

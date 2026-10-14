@@ -36,6 +36,7 @@ const adminGroups: Record<string, string> = {
     trash: 'common.nav.system',
     archive: 'common.nav.system',
     'activity-logs': 'common.nav.system',
+    'bot-questions': 'common.nav.system',
 };
 
 // Translated page title of each /admin/* page, keyed by its path segment.
@@ -47,6 +48,7 @@ const adminTitles: Record<string, string> = {
     trash: 'common.nav.trash',
     archive: 'common.nav.archive',
     'activity-logs': 'common.nav.activity_logs',
+    'bot-questions': 'common.nav.bot_questions',
     products: 'common.nav.products',
     parameters: 'common.nav.parameters',
     masters: 'common.nav.masters',

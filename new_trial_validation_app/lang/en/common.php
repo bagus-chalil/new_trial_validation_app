@@ -30,6 +30,7 @@ return [
         'trash' => 'Trash',
         'archive' => 'Archive',
         'activity_logs' => 'Activity Logs',
+        'bot_questions' => 'Bot Questions',
         'old_app' => 'Legacy Application',
         'open_old_app' => 'Open Legacy Application',
     ],

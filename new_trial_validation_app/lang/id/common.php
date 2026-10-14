@@ -32,6 +32,7 @@ return [
         'trash' => 'Tempat Sampah',
         'archive' => 'Arsip',
         'activity_logs' => 'Log Aktivitas',
+        'bot_questions' => 'Pertanyaan Bot',
         'old_app' => 'Aplikasi Lama',
         'open_old_app' => 'Buka Aplikasi Lama',
     ],

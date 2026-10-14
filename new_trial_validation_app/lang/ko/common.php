@@ -30,6 +30,7 @@ return [
         'trash' => '휴지통',
         'archive' => '보관함',
         'activity_logs' => '활동 로그',
+        'bot_questions' => '봇 질문',
         'old_app' => '기존 애플리케이션',
         'open_old_app' => '기존 애플리케이션 열기',
     ],

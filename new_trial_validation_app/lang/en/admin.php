@@ -117,6 +117,35 @@ return [
         'delete_description' => '":title" will be permanently removed for every user who can see it. This cannot be undone.',
     ],
 
+    'bot_questions' => [
+        'title' => 'Bot Questions',
+        'heading' => 'Questions Asked to the Bot Assistant',
+        'description' => 'Unanswered questions are the backlog of intents/aliases to add; thumbs-down answers are the ones to fix.',
+        'stats' => [
+            'total' => 'Total questions',
+            'unmatched' => 'Not recognized',
+            'upvoted' => 'Thumbs up',
+            'downvoted' => 'Thumbs down',
+        ],
+        'views' => [
+            'unanswered' => 'Unanswered',
+            'downvoted' => 'Thumbs down',
+            'all' => 'All',
+        ],
+        'question' => 'Question',
+        'asked_count' => 'Asked',
+        'last_asked' => 'Last asked',
+        'locale' => 'Language',
+        'intent' => 'Intent',
+        'answer' => 'Answer summary',
+        'status' => 'Status',
+        'unmatched' => 'Not recognized',
+        'rated_up' => 'Thumbs up',
+        'rated_down' => 'Thumbs down',
+        'empty' => 'No data yet.',
+        'items' => 'questions',
+    ],
+
     'impersonation' => [
         'banner' => 'You are logged in as :name (:email) — admin: :admin',
         'back' => 'Back to admin account',
