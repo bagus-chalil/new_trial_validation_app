@@ -57,6 +57,9 @@
                             @if (in_array($f['field'], ['approved_pie', 'checked_prod']) && $report->{$f['field'].'_comment'})
                                 <br><span class="muted">&ldquo;{{ $report->{$f['field'].'_comment'} }}&rdquo;</span>
                             @endif
+                            @if ($f['field'] === 'return_prod' && $report->return_reason)
+                                <br><span class="muted" style="white-space: pre-wrap;">&ldquo;{{ $report->return_reason }}&rdquo;</span>
+                            @endif
                         @else
                             -
                         @endif

@@ -116,7 +116,9 @@ return [
         'fit' => 'Pas',
         'fit_title' => 'Sesuaikan dengan layar',
         'reset' => 'Atur Ulang',
-        'reset_title' => 'Kembalikan ke ukuran awal',
+        'reset_title' => 'Kembalikan ke tampilan awal (pas layar, tanpa rotasi)',
+        'rotate_left' => 'Putar kiri',
+        'rotate_right' => 'Putar kanan',
     ],
 
     'pagination' => [

@@ -112,7 +112,9 @@ return [
         'fit' => 'Fit',
         'fit_title' => 'Fit to screen',
         'reset' => 'Reset',
-        'reset_title' => 'Reset to default size',
+        'reset_title' => 'Back to the initial view (fit to screen, no rotation)',
+        'rotate_left' => 'Rotate left',
+        'rotate_right' => 'Rotate right',
     ],
 
     'pagination' => [

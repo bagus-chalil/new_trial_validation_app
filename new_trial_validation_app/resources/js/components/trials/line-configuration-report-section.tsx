@@ -8,6 +8,7 @@ import {
     History,
     MessageSquare,
     Pencil,
+    Plus,
     RotateCcw,
     Trash2,
 } from 'lucide-react';
@@ -436,7 +437,7 @@ export function LineConfigurationReportSection({
                                         v{v.version}
                                     </Badge>
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm">
+                                        <p className="text-sm break-words whitespace-pre-wrap">
                                             {v.return_reason ?? '-'}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
@@ -1022,7 +1023,7 @@ function EditableLineConfigurationReport({
                                     <TableHead>
                                         {t('line_config.columns.remark')}
                                     </TableHead>
-                                    <TableHead className="w-10" />
+                                    <TableHead className="w-20" />
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1127,7 +1128,55 @@ function EditableLineConfigurationReport({
                                                 defaultValue={row.remark ?? ''}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="whitespace-nowrap">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                title={t(
+                                                    'line_config.actions.insert_row_below',
+                                                )}
+                                                aria-label={t(
+                                                    'line_config.actions.insert_row_below',
+                                                )}
+                                                onClick={() => {
+                                                    const newKey =
+                                                        configCounter.current++;
+                                                    setConfigRows((prev) => {
+                                                        const at =
+                                                            prev.findIndex(
+                                                                (r) =>
+                                                                    r.key ===
+                                                                    key,
+                                                            ) + 1;
+
+                                                        return [
+                                                            ...prev.slice(
+                                                                0,
+                                                                at,
+                                                            ),
+                                                            {
+                                                                key: newKey,
+                                                                row: blankConfigRow(),
+                                                            },
+                                                            ...prev.slice(at),
+                                                        ];
+                                                    });
+                                                    setWorkerValues((prev) => ({
+                                                        ...prev,
+                                                        [newKey]: '',
+                                                    }));
+                                                    setTrialStatusValues(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            [newKey]:
+                                                                'No Trial',
+                                                        }),
+                                                    );
+                                                }}
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
                                             <Button
                                                 type="button"
                                                 variant="ghost"

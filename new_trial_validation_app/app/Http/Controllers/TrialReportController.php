@@ -300,7 +300,19 @@ class TrialReportController extends Controller
             ? TrialLineConfigurationReport::where('trial_id', $trial->id)->orderByDesc('version')->first()
             : null;
 
+        // A return locks the rejected version and starts a fresh one with the
+        // sign-off reset, so the reasons only survive on the locked versions —
+        // list them in full so the report carries the whole revision history.
+        $lineConfigurationReturns = $includeLineConfiguration
+            ? TrialLineConfigurationReport::where('trial_id', $trial->id)
+                ->where('is_locked', true)
+                ->whereNotNull('return_reason')
+                ->orderBy('version')
+                ->get(['version', 'return_reason', 'return_prod_by', 'return_prod_at'])
+            : collect();
+
         return $pdf->fromView('pdf.trial-report', [
+            'lineConfigurationReturns' => $lineConfigurationReturns,
             'title' => __('report.page_title', ['code' => $trial->trial_code]),
             'trial' => $trial,
             'results' => $core['results'],

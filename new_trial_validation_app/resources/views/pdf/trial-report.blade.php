@@ -275,5 +275,28 @@
         @else
             <p class="muted">{{ __('line_config.empty') }}</p>
         @endif
+
+        @if ($lineConfigurationReturns->isNotEmpty())
+            <div class="section-title">{{ __('line_config.versions.title') }}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ trim(__('exports.line_config.version', ['version' => ''])) }}</th>
+                        <th>{{ __('exports.line_config.return_prod') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($lineConfigurationReturns as $returned)
+                        <tr>
+                            <td>v{{ $returned->version }}</td>
+                            <td>
+                                <span style="white-space: pre-wrap;">{{ $returned->return_reason }}</span>
+                                <br><span class="muted">{{ $returned->return_prod_by }}@if ($returned->return_prod_at) — {{ \App\Services\Pdf\ExportFormat::date($returned->return_prod_at) }}@endif</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
     @endif
 @endsection

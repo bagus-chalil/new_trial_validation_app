@@ -18,6 +18,7 @@ return [
         'create' => 'Buat Line Configuration Report',
         'add_row' => 'Tambah Baris',
         'remove_row' => 'Hapus baris',
+        'insert_row_below' => 'Sisipkan baris di bawah',
         'save' => 'Simpan Line Configuration Report',
         'save_draft' => 'Simpan Draft',
         'submit' => 'Simpan & Kirim Approval',

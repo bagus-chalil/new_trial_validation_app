@@ -18,6 +18,7 @@ return [
         'create' => 'Create Line Configuration Report',
         'add_row' => 'Add Row',
         'remove_row' => 'Remove row',
+        'insert_row_below' => 'Insert row below',
         'save' => 'Save Line Configuration Report',
         'save_draft' => 'Save Draft',
         'submit' => 'Save & Submit for Approval',

@@ -18,6 +18,7 @@ return [
         'create' => '라인 구성 보고서 작성',
         'add_row' => '행 추가',
         'remove_row' => '행 삭제',
+        'insert_row_below' => '아래에 행 삽입',
         'save' => '라인 구성 보고서 저장',
         'save_draft' => '임시 저장',
         'submit' => '저장 및 승인 요청',

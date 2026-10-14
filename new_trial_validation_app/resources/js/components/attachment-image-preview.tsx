@@ -1,4 +1,4 @@
-import { Maximize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { RefreshCw, RotateCcw, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,6 +10,9 @@ import {
 } from '@/components/ui/dialog';
 import { useTranslation } from '@/hooks/use-translation';
 import { handleAttachmentImageError } from '@/lib/image-fallback';
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 5;
 
 type AttachmentImagePreviewProps = {
     src: string;
@@ -29,34 +32,51 @@ export function AttachmentImagePreview({
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [zoom, setZoom] = useState(1);
+    const [rotation, setRotation] = useState(0);
     const [fitToScreen, setFitToScreen] = useState(true);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const dragStart = useRef({ x: 0, y: 0 });
     const startPosition = useRef({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
 
+    // Rotation is view-only (never saved) — it just lets the viewer straighten
+    // a photo that was taken sideways. One reset returns to the initial
+    // fit-to-screen, unrotated state (fit and reset used to be two buttons
+    // that did nearly the same thing).
     function resetPreview() {
         setZoom(1);
-        setFitToScreen(false);
-        setPosition({ x: 0, y: 0 });
-    }
-
-    function fitPreview() {
-        setZoom(1);
+        setRotation(0);
         setFitToScreen(true);
         setPosition({ x: 0, y: 0 });
     }
 
     function changeZoom(amount: number) {
         setFitToScreen(false);
+        setZoom((current) => {
+            const next = Math.min(
+                MAX_ZOOM,
+                Math.max(MIN_ZOOM, Number((current + amount).toFixed(2))),
+            );
+
+            if (next <= 1) {
+                setPosition({ x: 0, y: 0 });
+            }
+
+            return next;
+        });
+    }
+
+    function rotate(delta: number) {
+        setRotation((current) => (current + delta + 360) % 360);
         setPosition({ x: 0, y: 0 });
-        setZoom((current) =>
-            Math.min(3, Math.max(0.5, Number((current + amount).toFixed(2)))),
-        );
+    }
+
+    function zoomWithWheel(event: React.WheelEvent<HTMLDivElement>) {
+        changeZoom(event.deltaY < 0 ? 0.25 : -0.25);
     }
 
     function startDragging(event: React.PointerEvent<HTMLDivElement>) {
-        if (fitToScreen || zoom <= 1) {
+        if (zoom <= 1) {
             return;
         }
 
@@ -89,7 +109,7 @@ export function AttachmentImagePreview({
                 setOpen(nextOpen);
 
                 if (nextOpen) {
-                    fitPreview();
+                    resetPreview();
                 }
             }}
         >
@@ -116,7 +136,7 @@ export function AttachmentImagePreview({
                     </span>
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[95vh] max-w-[min(95vw,1200px)] overflow-hidden p-4 sm:p-6">
+            <DialogContent className="max-h-[96vh] max-w-[96vw] overflow-hidden p-4 sm:max-w-[96vw] sm:p-6">
                 <DialogTitle className="pr-8">
                     {caption || fileName}
                 </DialogTitle>
@@ -124,21 +144,28 @@ export function AttachmentImagePreview({
                     {caption ? fileName : t('common.image_preview.close_hint')}
                 </DialogDescription>
                 <div
-                    className={`flex h-[min(65vh,700px)] items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2 ${fitToScreen || zoom <= 1 ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
+                    className={`[container-type:size] flex h-[72vh] items-center justify-center overflow-hidden rounded-md border bg-muted/30 p-2 ${zoom <= 1 ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
                     onPointerDown={startDragging}
                     onPointerMove={dragImage}
                     onPointerUp={stopDragging}
                     onPointerCancel={stopDragging}
                     onPointerLeave={stopDragging}
+                    onWheel={zoomWithWheel}
                 >
                     <img
                         src={src}
                         alt={alt}
                         onError={handleAttachmentImageError}
                         draggable={false}
-                        className="max-h-full max-w-full rounded object-contain select-none"
+                        className="rounded object-contain select-none"
                         style={{
-                            transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+                            // A quarter-turn swaps the image's width/height,
+                            // so the fit box is swapped too (container query
+                            // units) — otherwise a rotated photo would be
+                            // clipped by the viewport.
+                            maxWidth: rotation % 180 === 0 ? '100%' : '100cqh',
+                            maxHeight: rotation % 180 === 0 ? '100%' : '100cqw',
+                            transform: `translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scale(${zoom})`,
                             transition: isDragging
                                 ? 'none'
                                 : 'transform 150ms ease-out',
@@ -151,7 +178,7 @@ export function AttachmentImagePreview({
                         variant="outline"
                         size="icon"
                         onClick={() => changeZoom(-0.25)}
-                        disabled={zoom <= 0.5}
+                        disabled={zoom <= MIN_ZOOM}
                         title={t('common.image_preview.zoom_out')}
                         aria-label={t('common.image_preview.zoom_out')}
                     >
@@ -167,7 +194,7 @@ export function AttachmentImagePreview({
                         variant="outline"
                         size="icon"
                         onClick={() => changeZoom(0.25)}
-                        disabled={zoom >= 3}
+                        disabled={zoom >= MAX_ZOOM}
                         title={t('common.image_preview.zoom_in')}
                         aria-label={t('common.image_preview.zoom_in')}
                     >
@@ -176,23 +203,32 @@ export function AttachmentImagePreview({
                     <Button
                         type="button"
                         variant="outline"
-                        size="sm"
-                        onClick={fitPreview}
-                        disabled={fitToScreen}
-                        title={t('common.image_preview.fit_title')}
+                        size="icon"
+                        onClick={() => rotate(-90)}
+                        title={t('common.image_preview.rotate_left')}
+                        aria-label={t('common.image_preview.rotate_left')}
                     >
-                        <Maximize2 className="size-4" />
-                        {t('common.image_preview.fit')}
+                        <RotateCcw className="size-4" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => rotate(90)}
+                        title={t('common.image_preview.rotate_right')}
+                        aria-label={t('common.image_preview.rotate_right')}
+                    >
+                        <RotateCw className="size-4" />
                     </Button>
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={resetPreview}
-                        disabled={!fitToScreen && zoom === 1}
+                        disabled={fitToScreen && rotation === 0}
                         title={t('common.image_preview.reset_title')}
                     >
-                        <RotateCcw className="size-4" />
+                        <RefreshCw className="size-4" />
                         {t('common.image_preview.reset')}
                     </Button>
                 </div>

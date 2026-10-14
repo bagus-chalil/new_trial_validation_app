@@ -112,7 +112,9 @@ return [
         'fit' => '맞춤',
         'fit_title' => '화면에 맞춤',
         'reset' => '초기화',
-        'reset_title' => '기본 크기로 되돌리기',
+        'reset_title' => '초기 보기로 되돌리기 (화면 맞춤, 회전 없음)',
+        'rotate_left' => '왼쪽으로 회전',
+        'rotate_right' => '오른쪽으로 회전',
     ],
 
     'pagination' => [
