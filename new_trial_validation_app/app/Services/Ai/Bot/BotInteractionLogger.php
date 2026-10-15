@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  */
 class BotInteractionLogger
 {
-    public function record(User $user, string $question, ?string $intent, ?string $answerSummary, string $locale): AiBotInteraction
+    public function record(User $user, string $question, ?string $intent, ?string $answerSummary, string $locale, ?int $fromId = null): AiBotInteraction
     {
         $userRef = Anonymizer::make()->person($user->email);
         $question = Str::limit(trim($question), 500, '');
@@ -34,6 +34,7 @@ class BotInteractionLogger
         }
 
         return AiBotInteraction::create([
+            'from_id' => $this->validSource($userRef, $fromId),
             'user_ref' => $userRef,
             'locale' => in_array($locale, ['id', 'en', 'ko'], true) ? $locale : 'id',
             'question' => $question,
@@ -41,6 +42,21 @@ class BotInteractionLogger
             'matched' => $intent !== null,
             'answer_summary' => $answerSummary === null ? null : Str::limit($answerSummary, 500, ''),
         ]);
+    }
+
+    /**
+     * A "did you mean" click only counts when it points at the asker's own
+     * unanswered question; anything else is dropped rather than trusted.
+     */
+    private function validSource(string $userRef, ?int $fromId): ?int
+    {
+        if ($fromId === null) {
+            return null;
+        }
+
+        $source = AiBotInteraction::query()->find($fromId);
+
+        return $source !== null && $source->user_ref === $userRef && ! $source->matched ? $source->id : null;
     }
 
     /** Thumbs up (1) / down (-1) — only the person who asked may rate their own row. */

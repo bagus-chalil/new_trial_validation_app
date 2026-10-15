@@ -16,6 +16,7 @@ class AskBotRequest extends FormRequest
     {
         return [
             'question' => ['required', 'string', 'max:500'],
+            'from' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }

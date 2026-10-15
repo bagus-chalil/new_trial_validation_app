@@ -8,6 +8,7 @@ use App\Models\AiBotAlias;
 use App\Models\AiBotInteraction;
 use App\Models\MasterOption;
 use App\Models\User;
+use App\Services\Ai\Bot\AliasSuggester;
 use App\Services\Ai\Bot\BotAnswerComposer;
 use App\Services\Ai\Bot\BotInteractionLogger;
 use App\Services\Ai\Bot\IntentRecognizer;
@@ -27,6 +28,7 @@ class BotController extends Controller
         TrialBotTools $tools,
         BotAnswerComposer $composer,
         BotInteractionLogger $logger,
+        AliasSuggester $suggester,
     ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
@@ -39,9 +41,14 @@ class BotController extends Controller
             ->pluck('name')
             ->all();
 
-        $recognized = $recognizer->recognize($question, $productTypes, AiBotAlias::grouped());
+        $custom = AiBotAlias::grouped();
+        $recognized = $recognizer->recognize($question, $productTypes, $custom);
         $intent = $recognized['intent'];
         $params = $recognized['params'];
+
+        if ($intent === IntentRecognizer::INTENT_UNKNOWN) {
+            $params['did_you_mean'] = array_column($suggester->suggest($question, $custom), 'intent');
+        }
 
         $answer = $composer->compose($intent, $this->fetch($tools, $user, $intent, $params), $params);
 
@@ -51,6 +58,7 @@ class BotController extends Controller
             $intent === IntentRecognizer::INTENT_UNKNOWN ? null : $intent,
             $answer['text'],
             app()->getLocale(),
+            $request->validated('from') === null ? null : (int) $request->validated('from'),
         );
 
         return response()->json([

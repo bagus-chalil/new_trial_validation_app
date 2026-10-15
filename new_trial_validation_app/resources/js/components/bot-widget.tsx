@@ -100,7 +100,7 @@ export function BotWidget() {
         );
     }
 
-    async function ask(text: string) {
+    async function ask(text: string, from?: number) {
         const trimmed = text.trim();
 
         if (!trimmed || busy) {
@@ -114,6 +114,7 @@ export function BotWidget() {
         try {
             const reply = await post<BotReply>('/bot/ask', {
                 question: trimmed,
+                ...(from ? { from } : {}),
             });
             setMessages((m) => [...m, { role: 'bot', reply, rated: null }]);
         } catch {
@@ -240,7 +241,14 @@ export function BotWidget() {
                                 <SuggestionList
                                     title={t('ai.widget.try_asking')}
                                     items={reply.suggestions}
-                                    onPick={(s) => void ask(s)}
+                                    onPick={(s) =>
+                                        void ask(
+                                            s,
+                                            reply.intent === 'unknown'
+                                                ? reply.id
+                                                : undefined,
+                                        )
+                                    }
                                 />
                             )}
 

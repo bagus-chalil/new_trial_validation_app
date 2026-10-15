@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import BotQuestionController from '@/actions/App/Http/Controllers/Admin/BotQuestionController';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -39,6 +39,8 @@ type BotRow = {
     // "unanswered" view (grouped by question).
     asked_count?: number;
     last_asked_at?: string;
+    variants?: { question: string; asked_count: number }[];
+    suggestion?: { target: string; clicked: boolean; score: number } | null;
     // "downvoted" / "all" views (one row per interaction).
     intent?: string | null;
     matched?: boolean;
@@ -67,19 +69,27 @@ type PageProps = {
 const VIEWS: View[] = ['unanswered', 'downvoted', 'all', 'rules'];
 const ANY_STATUS = '__any';
 
+function normalizePhrase(text: string): string {
+    return text.toLowerCase().replace(/[\s?!.]+$/u, '');
+}
+
 function TeachFields({
     phrase,
+    variants,
+    defaultTarget,
     targets,
     statuses,
     errors,
 }: {
     phrase: string;
+    variants: string[];
+    defaultTarget: string;
     targets: string[];
     statuses: string[];
     errors: Record<string, string>;
 }) {
     const { t } = useTranslation();
-    const [target, setTarget] = useState('trials_by_status');
+    const [target, setTarget] = useState(defaultTarget);
     const [status, setStatus] = useState(ANY_STATUS);
 
     return (
@@ -116,6 +126,30 @@ function TeachFields({
                 </Select>
                 <InputError message={errors.target} />
             </div>
+
+            {variants.length > 0 && (
+                <div className="grid gap-2">
+                    <Label>{t('admin.bot_questions.suggestion_also')}</Label>
+                    <p className="text-xs text-muted-foreground">
+                        {t('admin.bot_questions.suggestion_variants_hint')}
+                    </p>
+                    {variants.map((variant) => (
+                        <label
+                            key={variant}
+                            className="flex items-start gap-2 text-sm"
+                        >
+                            <input
+                                type="checkbox"
+                                name="also[]"
+                                value={variant}
+                                defaultChecked
+                                className="mt-1"
+                            />
+                            <span>{variant}</span>
+                        </label>
+                    ))}
+                </div>
+            )}
 
             {target === 'trials_by_status' && (
                 <div className="grid gap-2">
@@ -290,6 +324,105 @@ export default function AdminBotQuestionsIndex({
                                                     ? row.phrase
                                                     : row.question}
                                             </div>
+                                            {grouped &&
+                                                (row.variants ?? []).length >
+                                                    0 && (
+                                                    <details className="text-xs text-muted-foreground">
+                                                        <summary className="cursor-pointer">
+                                                            {t(
+                                                                'admin.bot_questions.suggestion_variants',
+                                                            )}{' '}
+                                                            (
+                                                            {
+                                                                row.variants
+                                                                    ?.length
+                                                            }
+                                                            )
+                                                        </summary>
+                                                        <ul className="mt-1 list-disc pl-4">
+                                                            {row.variants?.map(
+                                                                (variant) => (
+                                                                    <li
+                                                                        key={
+                                                                            variant.question
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            variant.question
+                                                                        }{' '}
+                                                                        ×
+                                                                        {
+                                                                            variant.asked_count
+                                                                        }
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
+                                                    </details>
+                                                )}
+                                            {grouped && row.suggestion && (
+                                                <Form
+                                                    {...BotQuestionController.storeAlias.form()}
+                                                    className="mt-1 flex flex-wrap items-center gap-2 text-xs"
+                                                >
+                                                    <input
+                                                        type="hidden"
+                                                        name="phrase"
+                                                        value={normalizePhrase(
+                                                            row.question ?? '',
+                                                        )}
+                                                    />
+                                                    <input
+                                                        type="hidden"
+                                                        name="target"
+                                                        value={
+                                                            row.suggestion
+                                                                .target
+                                                        }
+                                                    />
+                                                    {(row.variants ?? []).map(
+                                                        (variant) => (
+                                                            <input
+                                                                key={
+                                                                    variant.question
+                                                                }
+                                                                type="hidden"
+                                                                name="also[]"
+                                                                value={
+                                                                    variant.question
+                                                                }
+                                                            />
+                                                        ),
+                                                    )}
+                                                    <span className="text-muted-foreground">
+                                                        {t(
+                                                            'admin.bot_questions.suggestion_suggest',
+                                                        )}
+                                                        :
+                                                    </span>
+                                                    <Badge variant="outline">
+                                                        {t(
+                                                            `admin.bot_questions.targets.${row.suggestion.target}`,
+                                                        )}
+                                                    </Badge>
+                                                    {row.suggestion.clicked && (
+                                                        <Badge>
+                                                            {t(
+                                                                'admin.bot_questions.suggestion_clicked',
+                                                            )}
+                                                        </Badge>
+                                                    )}
+                                                    <Button
+                                                        type="submit"
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        {t(
+                                                            'admin.bot_questions.suggestion_agree',
+                                                        )}
+                                                    </Button>
+                                                </Form>
+                                            )}
                                             {!grouped &&
                                                 !rules &&
                                                 row.answer_summary && (
@@ -397,15 +530,22 @@ export default function AdminBotQuestionsIndex({
                                                 >
                                                     {({ errors }) => (
                                                         <TeachFields
-                                                            phrase={(
+                                                            phrase={normalizePhrase(
                                                                 row.question ??
-                                                                ''
-                                                            )
-                                                                .toLowerCase()
-                                                                .replace(
-                                                                    /[\s?!.]+$/u,
                                                                     '',
-                                                                )}
+                                                            )}
+                                                            variants={(
+                                                                row.variants ??
+                                                                []
+                                                            ).map(
+                                                                (variant) =>
+                                                                    variant.question,
+                                                            )}
+                                                            defaultTarget={
+                                                                row.suggestion
+                                                                    ?.target ??
+                                                                'trials_by_status'
+                                                            }
                                                             targets={targets}
                                                             statuses={statuses}
                                                             errors={errors}

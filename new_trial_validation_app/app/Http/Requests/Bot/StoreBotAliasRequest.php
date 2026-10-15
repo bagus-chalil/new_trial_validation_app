@@ -7,7 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-/** Teach the trial bot a phrase: it may only point at a fixed intent (or be ignored). */
+/** Teach the trial bot a phrase (plus optional variant wordings in `also`): it may only point at a fixed intent (or be ignored). */
 class StoreBotAliasRequest extends FormRequest
 {
     public function authorize(): bool
@@ -22,6 +22,8 @@ class StoreBotAliasRequest extends FormRequest
             'phrase' => ['required', 'string', 'max:200'],
             'target' => ['required', Rule::in([...AiBotAlias::TARGETS, AiBotAlias::TARGET_IGNORE])],
             'status' => ['nullable', Rule::in(AiBotAlias::STATUSES)],
+            'also' => ['nullable', 'array', 'max:50'],
+            'also.*' => ['string', 'max:200'],
         ];
     }
 

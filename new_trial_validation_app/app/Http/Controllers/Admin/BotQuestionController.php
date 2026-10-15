@@ -7,11 +7,12 @@ use App\Http\Requests\Bot\StoreBotAliasRequest;
 use App\Models\AiBotAlias;
 use App\Models\AiBotInteraction;
 use App\Models\MasterOption;
+use App\Services\Ai\Bot\AliasSuggester;
 use App\Services\Ai\Bot\IntentRecognizer;
+use App\Services\Ai\Bot\QuestionClusterer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -72,14 +73,22 @@ class BotQuestionController extends Controller
     {
         $data = $request->validated();
 
-        AiBotAlias::query()->updateOrCreate(
-            ['phrase' => AiBotAlias::normalize($data['phrase'])],
-            [
-                'target' => $data['target'],
-                'status' => $data['target'] === 'trials_by_status' ? ($data['status'] ?? null) : null,
-                'created_by' => $request->user()?->id,
-            ],
-        );
+        $phrases = collect([$data['phrase'], ...($data['also'] ?? [])])
+            ->map(fn ($phrase) => AiBotAlias::normalize((string) $phrase))
+            ->filter(fn (string $phrase) => mb_strlen($phrase) >= 3)
+            ->unique()
+            ->values();
+
+        foreach ($phrases as $phrase) {
+            AiBotAlias::query()->updateOrCreate(
+                ['phrase' => $phrase],
+                [
+                    'target' => $data['target'],
+                    'status' => $data['target'] === 'trials_by_status' ? ($data['status'] ?? null) : null,
+                    'created_by' => $request->user()?->id,
+                ],
+            );
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('admin.toast.bot_alias_saved')]);
 
@@ -98,8 +107,10 @@ class BotQuestionController extends Controller
     }
 
     /**
-     * Unmatched questions grouped by wording, most asked first, minus the ones
-     * the bot can understand by now (taught or built in) and the ignored ones.
+     * Unmatched questions grouped by wording, similar wordings merged into one
+     * cluster (most asked first), minus the ones the bot can understand by now
+     * (taught or built in) and the ignored ones. Each cluster carries the bot's
+     * suggested meaning: what users clicked on a "did you mean" beats text similarity.
      *
      * @return LengthAwarePaginator<int, mixed>
      */
@@ -112,32 +123,75 @@ class BotQuestionController extends Controller
             ->where('type', 'product_type')->where('is_active', true)->whereNull('deleted_at')
             ->pluck('name')->all();
 
-        $groups = AiBotInteraction::query()
-            ->where('matched', false)
-            ->select([
-                DB::raw('MIN(id) as id'),
-                DB::raw('MIN(question) as question'),
-                DB::raw('COUNT(*) as asked_count'),
-                DB::raw('MAX(created_at) as last_asked_at'),
-                DB::raw('MIN(locale) as locale'),
-            ])
-            ->groupBy(DB::raw('LOWER(question)'))
-            ->orderByDesc('asked_count')
-            ->orderByDesc('last_asked_at')
-            ->get()
-            ->reject(fn ($row) => isset($ignored[AiBotAlias::normalize((string) $row->question)])
-                || $recognizer->recognize((string) $row->question, $productTypes, $aliases)['intent'] !== IntentRecognizer::INTENT_UNKNOWN)
-            ->values();
+        $groups = [];
+        foreach (AiBotInteraction::query()->where('matched', false)->orderBy('id')->get(['id', 'question', 'locale', 'created_at']) as $row) {
+            $key = mb_strtolower((string) $row->question);
+            $groups[$key] ??= ['question' => (string) $row->question, 'asked_count' => 0, 'ids' => [], 'last_asked_at' => '', 'locale' => (string) $row->locale];
+            $groups[$key]['asked_count']++;
+            $groups[$key]['ids'][] = $row->id;
+            $groups[$key]['last_asked_at'] = max($groups[$key]['last_asked_at'], (string) $row->created_at);
+        }
+
+        $groups = collect($groups)
+            ->reject(fn (array $g) => isset($ignored[AiBotAlias::normalize($g['question'])])
+                || $recognizer->recognize($g['question'], $productTypes, $aliases)['intent'] !== IntentRecognizer::INTENT_UNKNOWN)
+            ->values()
+            ->all();
+
+        $clusters = collect((new QuestionClusterer)->cluster($groups));
 
         $perPage = 20;
         $page = max(1, (int) $request->query('page', 1));
+        $pageItems = $clusters->forPage($page, $perPage)->values();
+
+        $suggester = new AliasSuggester($recognizer);
+        $items = $pageItems->map(function (array $cluster) use ($suggester, $aliases) {
+            $cluster['suggestion'] = $this->clickedSuggestion($cluster['ids'])
+                ?? $this->textSuggestion($suggester, $cluster['question'], $aliases);
+
+            return $cluster;
+        });
 
         return new LengthAwarePaginator(
-            $groups->forPage($page, $perPage)->values(),
-            $groups->count(),
+            $items,
+            $clusters->count(),
             $perPage,
             $page,
             ['path' => $request->url(), 'query' => $request->query()],
         );
+    }
+
+    /**
+     * The intent users most often landed on after clicking a suggestion made for one of these questions.
+     *
+     * @param  array<int, int>  $ids
+     * @return array{target:string, clicked:bool, score:float}|null
+     */
+    private function clickedSuggestion(array $ids): ?array
+    {
+        $intents = AiBotInteraction::query()
+            ->whereIn('from_id', $ids)
+            ->whereNotNull('intent')
+            ->pluck('intent')
+            ->filter(fn ($intent) => in_array($intent, AiBotAlias::TARGETS, true));
+
+        if ($intents->isEmpty()) {
+            return null;
+        }
+
+        $top = $intents->countBy()->sortDesc()->keys()->first();
+
+        return ['target' => (string) $top, 'clicked' => true, 'score' => 1.0];
+    }
+
+    /**
+     * @param  array<string, mixed>  $aliases
+     * @return array{target:string, clicked:bool, score:float}|null
+     */
+    private function textSuggestion(AliasSuggester $suggester, string $question, array $aliases): ?array
+    {
+        $best = $suggester->suggest($question, $aliases, 1)[0] ?? null;
+
+        return $best === null ? null : ['target' => $best['intent'], 'clicked' => false, 'score' => round($best['score'], 2)];
     }
 }

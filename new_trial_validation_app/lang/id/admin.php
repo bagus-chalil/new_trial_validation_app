@@ -159,6 +159,12 @@ return [
             'save' => 'Simpan',
             'cancel' => 'Batal',
         ],
+        'suggestion_variants' => 'Variasi',
+        'suggestion_suggest' => 'Saran bot',
+        'suggestion_agree' => 'Setuju',
+        'suggestion_clicked' => 'Dipilih pengguna',
+        'suggestion_also' => 'Ajari juga variasi ini',
+        'suggestion_variants_hint' => 'Variasi serupa yang ditanyakan orang lain:',
         'ignore_dialog' => [
             'title' => 'Abaikan pertanyaan ini?',
             'description' => 'Pertanyaan ini tidak akan muncul lagi di daftar Belum terjawab.',

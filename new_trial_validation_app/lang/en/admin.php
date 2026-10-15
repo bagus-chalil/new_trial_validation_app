@@ -159,6 +159,12 @@ return [
             'save' => 'Save',
             'cancel' => 'Cancel',
         ],
+        'suggestion_variants' => 'Variants',
+        'suggestion_suggest' => 'Bot suggestion',
+        'suggestion_agree' => 'Agree',
+        'suggestion_clicked' => 'Picked by users',
+        'suggestion_also' => 'Also teach these variants',
+        'suggestion_variants_hint' => 'Similar wordings other people asked:',
         'ignore_dialog' => [
             'title' => 'Ignore this question?',
             'description' => 'This question will no longer appear in the Unanswered list.',

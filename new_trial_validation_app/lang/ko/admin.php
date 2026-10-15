@@ -159,6 +159,12 @@ return [
             'save' => '저장',
             'cancel' => '취소',
         ],
+        'suggestion_variants' => '유사 질문',
+        'suggestion_suggest' => '봇 제안',
+        'suggestion_agree' => '동의',
+        'suggestion_clicked' => '사용자가 선택함',
+        'suggestion_also' => '이 유사 질문도 함께 가르치기',
+        'suggestion_variants_hint' => '다른 사람들이 물어본 비슷한 표현:',
         'ignore_dialog' => [
             'title' => '이 질문을 무시하시겠습니까?',
             'description' => '이 질문은 더 이상 미답변 목록에 표시되지 않습니다.',

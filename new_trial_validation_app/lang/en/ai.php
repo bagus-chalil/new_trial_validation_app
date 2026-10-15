@@ -121,6 +121,10 @@ return [
         'unknown' => [
             'text' => 'Sorry, I did not understand that question yet. It has been recorded so an admin can teach it to me. Meanwhile, try one of these examples:',
         ],
+
+        'unknown_did_you_mean' => [
+            'text' => 'Sorry, I am not sure what you meant. Your question has been recorded so an admin can teach it to me. Did you mean one of these?',
+        ],
     ],
 
     'widget' => [

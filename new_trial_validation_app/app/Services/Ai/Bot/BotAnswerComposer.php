@@ -40,7 +40,7 @@ class BotAnswerComposer
             IntentRecognizer::INTENT_TRIAL_REVIEWS => $this->trialReviews($data, $params),
             IntentRecognizer::INTENT_STEP_DURATION => $this->stepDuration($data ?? []),
             IntentRecognizer::INTENT_HOW_TO => $this->howTo($params),
-            default => $this->unknown(),
+            default => $this->unknown($params),
         };
     }
 
@@ -434,10 +434,27 @@ class BotAnswerComposer
         return $this->result(implode("\n", $lines), $trials);
     }
 
-    /** @return BotAnswer */
-    private function unknown(): array
+    /**
+     * With near-miss intents ("did you mean"), offer just those examples; otherwise the full example list.
+     *
+     * @param  array<string, mixed>  $params
+     * @return BotAnswer
+     */
+    private function unknown(array $params): array
     {
-        return $this->withExamples(__('ai.answers.unknown.text'));
+        $nearest = array_values(array_filter(
+            (array) ($params['did_you_mean'] ?? []),
+            fn ($intent) => is_string($intent) && trans()->has('ai.examples.'.$intent),
+        ));
+
+        if ($nearest === []) {
+            return $this->withExamples(__('ai.answers.unknown.text'));
+        }
+
+        return $this->withExamples(
+            __('ai.answers.unknown_did_you_mean.text'),
+            array_map(fn (string $intent) => __('ai.examples.'.$intent), $nearest),
+        );
     }
 
     /** @return BotAnswer */

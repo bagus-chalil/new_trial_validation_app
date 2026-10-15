@@ -121,6 +121,10 @@ return [
         'unknown' => [
             'text' => 'Maaf, saya belum mengerti pertanyaan itu. Pertanyaan Anda sudah dicatat agar admin bisa mengajarkannya ke saya. Sementara itu, coba salah satu contoh berikut:',
         ],
+
+        'unknown_did_you_mean' => [
+            'text' => 'Maaf, saya belum yakin maksud pertanyaan itu. Pertanyaan Anda sudah dicatat agar admin bisa mengajarkannya ke saya. Apakah maksud Anda salah satu ini?',
+        ],
     ],
 
     'widget' => [
