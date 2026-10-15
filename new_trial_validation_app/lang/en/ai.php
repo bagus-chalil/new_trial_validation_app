@@ -52,6 +52,26 @@ return [
             'need_type' => 'Please name the product type and section, e.g. "weighing spread Tube Packaging".',
         ],
 
+        'summary' => [
+            'intro' => 'Summary of the trials you can see: :total in total (:filling filling, :mixing mixing).',
+            'none' => 'There are no trials you can see yet.',
+        ],
+
+        'my_trials' => [
+            'total' => 'You created :total trial(s):filter.',
+            'none' => 'You have not created any trial:filter.',
+        ],
+
+        'latest_trials' => [
+            'intro' => 'The :count newest trial(s):filter:',
+            'none' => 'No matching trials:filter.',
+        ],
+
+        'search_trials' => [
+            'total' => ':total trial(s) match ":keyword":',
+            'none' => 'No trial matches ":keyword" (or you do not have access to it).',
+        ],
+
         'help' => [
             'text' => 'I am the trial assistant. I can answer the following, try one of these examples:',
         ],
@@ -88,5 +108,9 @@ return [
         'stuck_trials' => 'Which trials have been stuck for more than 14 days?',
         'not_ok_hotspots' => 'Which parameters fail the most?',
         'weighing_norm' => 'What is the normal weighing spread for Tube Packaging?',
+        'summary' => 'Give me a summary of all trials',
+        'my_trials' => 'Show my trials that are Draft',
+        'latest_trials' => 'Show the 5 latest trials',
+        'search_trials' => 'Search trials Tube',
     ],
 ];

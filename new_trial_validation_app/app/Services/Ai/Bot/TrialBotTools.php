@@ -21,6 +21,8 @@ class TrialBotTools
 {
     private const LIST_LIMIT = 5;
 
+    private const MAX_LIMIT = 10;
+
     /**
      * What is waiting for this user: own drafts / revisions, plus review and
      * approval work addressed to them (same definitions as the Dashboard's
@@ -70,8 +72,9 @@ class TrialBotTools
      *
      * @return array{status:?string, product_type:?string, total:int, trials:array<int, array<string,mixed>>}
      */
-    public function trialsByStatus(User $user, ?string $status = null, ?string $productType = null): array
+    public function trialsByStatus(User $user, ?string $status = null, ?string $productType = null, int $limit = self::LIST_LIMIT): array
     {
+        $limit = min(self::MAX_LIMIT, max(1, $limit));
         $query = fn () => Trial::query()->visibleTo($user)
             ->when($status !== null, fn ($q) => $q->where('trials_header.progress_status', $status))
             ->when($productType !== null, fn ($q) => $q->where('trials_header.product_type', $productType));
@@ -79,6 +82,71 @@ class TrialBotTools
         return [
             'status' => $status,
             'product_type' => $productType,
+            'total' => $query()->count('trials_header.id'),
+            'trials' => $query()
+                ->orderByDesc('trials_header.created_at')->orderByDesc('trials_header.id')
+                ->limit($limit)
+                ->get()
+                ->map(fn (Trial $t) => $this->trialRow($t))
+                ->all(),
+        ];
+    }
+
+    /**
+     * Counts per status of everything the user can see (same numbers as the
+     * Dashboard's summary cards).
+     *
+     * @return array<string, int>
+     */
+    public function summary(User $user): array
+    {
+        return Trial::summaryCounts($user);
+    }
+
+    /**
+     * The user's own trials (created_by), optionally by status — still run
+     * through visibleTo() so nothing outside their access can surface.
+     *
+     * @return array{status:?string, product_type:?string, total:int, trials:array<int, array<string,mixed>>}
+     */
+    public function myTrials(User $user, ?string $status = null, ?string $productType = null): array
+    {
+        $query = fn () => Trial::query()->visibleTo($user)
+            ->whereRaw('LOWER(TRIM(trials_header.created_by)) = ?', [strtolower(trim($user->email))])
+            ->when($status !== null, fn ($q) => $q->where('trials_header.progress_status', $status))
+            ->when($productType !== null, fn ($q) => $q->where('trials_header.product_type', $productType));
+
+        return [
+            'status' => $status,
+            'product_type' => $productType,
+            'total' => $query()->count('trials_header.id'),
+            'trials' => $query()
+                ->orderByDesc('trials_header.created_at')->orderByDesc('trials_header.id')
+                ->limit(self::LIST_LIMIT)
+                ->get()
+                ->map(fn (Trial $t) => $this->trialRow($t))
+                ->all(),
+        ];
+    }
+
+    /**
+     * Visible trials whose code, product name or finish good code contains
+     * the keyword (LIKE wildcards in the keyword are escaped).
+     *
+     * @return array{keyword:string, total:int, trials:array<int, array<string,mixed>>}
+     */
+    public function searchTrials(User $user, string $keyword): array
+    {
+        $keyword = trim($keyword);
+        $like = '%'.addcslashes($keyword, '\%_').'%';
+        $query = fn () => Trial::query()->visibleTo($user)
+            ->where(fn ($q) => $q
+                ->where('trials_header.trial_code', 'like', $like)
+                ->orWhere('trials_header.product_name', 'like', $like)
+                ->orWhere('trials_header.finish_good_code', 'like', $like));
+
+        return [
+            'keyword' => $keyword,
             'total' => $query()->count('trials_header.id'),
             'trials' => $query()
                 ->orderByDesc('trials_header.created_at')->orderByDesc('trials_header.id')

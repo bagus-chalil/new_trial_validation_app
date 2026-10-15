@@ -141,3 +141,43 @@ test('an unmatched question is logged as unmatched and only its author can rate 
         ->and($logger->rate($user, $row, -1))->toBeTrue()
         ->and($row->fresh()->feedback)->toBe(-1);
 });
+
+test('myTrials lists only the asker\'s own trials and filters by status', function () {
+    $me = User::factory()->create(['role' => 'Staff', 'email' => 'me@local.test']);
+    botTrial(['progress_status' => 'Draft', 'created_by' => 'me@local.test']);
+    botTrial(['progress_status' => 'Approved', 'created_by' => 'me@local.test']);
+    botTrial(['progress_status' => 'Approved', 'created_by' => 'other@local.test']);
+
+    $tools = new TrialBotTools;
+
+    expect($tools->myTrials($me)['total'])->toBe(2)
+        ->and($tools->myTrials($me, 'Draft')['total'])->toBe(1)
+        ->and($tools->myTrials($me, 'Rejected')['total'])->toBe(0);
+});
+
+test('searchTrials matches code, product name and finish good code within visibility, and escapes wildcards', function () {
+    $stranger = User::factory()->create(['role' => 'Staff', 'email' => 'stranger@local.test']);
+    botTrial(['trial_code' => 'TRIAL-SRCH-1', 'product_name' => 'Serum Vitamin C', 'finish_good_code' => 'FG-0012']);
+    botTrial(['trial_code' => 'TRIAL-SRCH-2', 'product_name' => 'Cushion', 'finish_good_code' => 'FG-0099']);
+    botTrial(['trial_code' => 'TRIAL-SRCH-3', 'product_name' => 'Serum Hidden Draft', 'progress_status' => 'Draft', 'created_by' => 'owner@local.test']);
+
+    $tools = new TrialBotTools;
+
+    expect($tools->searchTrials($stranger, 'serum')['total'])->toBe(1)
+        ->and($tools->searchTrials($stranger, 'fg-0099')['trials'][0]['trial_code'])->toBe('TRIAL-SRCH-2')
+        ->and($tools->searchTrials($stranger, 'TRIAL-SRCH')['total'])->toBe(2)
+        ->and($tools->searchTrials($stranger, '%')['total'])->toBe(0)
+        ->and($tools->searchTrials($stranger, '_')['total'])->toBe(0);
+});
+
+test('trialsByStatus honours the limit and caps it at 10', function () {
+    $me = User::factory()->create(['role' => 'Staff', 'email' => 'me@local.test']);
+    foreach (range(1, 12) as $i) {
+        botTrial();
+    }
+
+    $tools = new TrialBotTools;
+
+    expect($tools->trialsByStatus($me, null, null, 3)['trials'])->toHaveCount(3)
+        ->and($tools->trialsByStatus($me, null, null, 99)['trials'])->toHaveCount(10);
+});

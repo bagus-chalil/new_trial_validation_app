@@ -32,6 +32,10 @@ class BotAnswerComposer
             IntentRecognizer::INTENT_NOT_OK_HOTSPOTS => $this->notOkHotspots($data ?? []),
             IntentRecognizer::INTENT_WEIGHING_NORM => $this->weighingNorm($data, $params),
             IntentRecognizer::INTENT_HELP => $this->help(),
+            IntentRecognizer::INTENT_SUMMARY => $this->summary($data ?? []),
+            IntentRecognizer::INTENT_MY_TRIALS => $this->myTrials($data ?? []),
+            IntentRecognizer::INTENT_LATEST_TRIALS => $this->latestTrials($data ?? []),
+            IntentRecognizer::INTENT_SEARCH_TRIALS => $this->searchTrials($data ?? [], $params),
             default => $this->unknown(),
         };
     }
@@ -198,6 +202,110 @@ class BotAnswerComposer
             'n' => $d['n_trials'],
             'confidence' => __('ai.confidence.'.($d['confidence'] ?? 'rendah')),
         ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $d
+     * @return BotAnswer
+     */
+    private function summary(array $d): array
+    {
+        $total = (int) ($d['total'] ?? 0);
+        if ($total === 0) {
+            return $this->result(__('ai.answers.summary.none'));
+        }
+
+        $lines = [__('ai.answers.summary.intro', [
+            'total' => $total,
+            'filling' => (int) ($d['total_filling'] ?? 0),
+            'mixing' => (int) ($d['total_mixing'] ?? 0),
+        ])];
+        foreach (['draft' => 'Draft', 'in_review' => 'In Review', 'ready' => 'Ready for Approval', 'approved' => 'Approved', 'need_revision' => 'Need Revision', 'rejected' => 'Rejected'] as $key => $status) {
+            if ((int) ($d[$key] ?? 0) > 0) {
+                $lines[] = '- '.ExportFormat::trialStatus($status).': '.(int) $d[$key];
+            }
+        }
+
+        return $this->result(implode("\n", $lines));
+    }
+
+    /**
+     * @param  array<string, mixed>  $d
+     * @return BotAnswer
+     */
+    private function myTrials(array $d): array
+    {
+        $filter = $this->filterText($d);
+        $total = (int) ($d['total'] ?? 0);
+        if ($total === 0) {
+            return $this->result(__('ai.answers.my_trials.none', ['filter' => $filter]));
+        }
+
+        return $this->listResult(__('ai.answers.my_trials.total', ['total' => $total, 'filter' => $filter]), (array) ($d['trials'] ?? []), $total);
+    }
+
+    /**
+     * @param  array<string, mixed>  $d
+     * @return BotAnswer
+     */
+    private function latestTrials(array $d): array
+    {
+        $filter = $this->filterText($d);
+        $trials = (array) ($d['trials'] ?? []);
+        if ($trials === []) {
+            return $this->result(__('ai.answers.latest_trials.none', ['filter' => $filter]));
+        }
+
+        return $this->listResult(__('ai.answers.latest_trials.intro', ['count' => count($trials), 'filter' => $filter]), $trials, count($trials));
+    }
+
+    /**
+     * @param  array<string, mixed>  $d
+     * @param  array<string, mixed>  $params
+     * @return BotAnswer
+     */
+    private function searchTrials(array $d, array $params): array
+    {
+        $keyword = (string) ($d['keyword'] ?? $params['keyword'] ?? '');
+        $total = (int) ($d['total'] ?? 0);
+        if ($total === 0) {
+            return $this->result(__('ai.answers.search_trials.none', ['keyword' => $keyword]));
+        }
+
+        return $this->listResult(__('ai.answers.search_trials.total', ['total' => $total, 'keyword' => $keyword]), (array) ($d['trials'] ?? []), $total);
+    }
+
+    /**
+     * @param  array<string, mixed>  $d
+     */
+    private function filterText(array $d): string
+    {
+        $filter = '';
+        if (! empty($d['status'])) {
+            $filter .= __('ai.answers.trials_by_status.filter_status', ['status' => ExportFormat::trialStatus($d['status'])]);
+        }
+        if (! empty($d['product_type'])) {
+            $filter .= __('ai.answers.trials_by_status.filter_type', ['type' => $d['product_type']]);
+        }
+
+        return $filter;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $trials
+     * @return BotAnswer
+     */
+    private function listResult(string $header, array $trials, int $total): array
+    {
+        $lines = [$header];
+        if (count($trials) < $total) {
+            $lines[] = __('ai.answers.trials_by_status.more', ['shown' => count($trials)]);
+        }
+        foreach ($trials as $t) {
+            $lines[] = '- '.$t['trial_code'].' ('.$t['product_name'].') - '.ExportFormat::trialStatus($t['progress_status']);
+        }
+
+        return $this->result(implode("\n", $lines), $trials);
     }
 
     /** @return BotAnswer */

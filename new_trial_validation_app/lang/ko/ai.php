@@ -52,6 +52,26 @@ return [
             'need_type' => '제품 유형과 구간을 함께 말씀해 주세요. 예: "Tube Packaging 칭량 편차".',
         ],
 
+        'summary' => [
+            'intro' => '확인 가능한 트라이얼 요약: 총 :total건 (충전 :filling건, 믹싱 :mixing건).',
+            'none' => '확인 가능한 트라이얼이 아직 없습니다.',
+        ],
+
+        'my_trials' => [
+            'total' => '내가 만든 트라이얼이 :total건 있습니다:filter.',
+            'none' => '내가 만든 트라이얼이 없습니다:filter.',
+        ],
+
+        'latest_trials' => [
+            'intro' => '최신 트라이얼 :count건:filter:',
+            'none' => '조건에 맞는 트라이얼이 없습니다:filter.',
+        ],
+
+        'search_trials' => [
+            'total' => '":keyword" 와(과) 일치하는 트라이얼 :total건:',
+            'none' => '":keyword" 와(과) 일치하는 트라이얼이 없거나 접근 권한이 없습니다.',
+        ],
+
         'help' => [
             'text' => '저는 트라이얼 어시스턴트입니다. 다음과 같은 질문에 답할 수 있습니다. 아래 예시를 사용해 보세요.',
         ],
@@ -88,5 +108,9 @@ return [
         'stuck_trials' => '14일 넘게 정체된 트라이얼은 무엇인가요?',
         'not_ok_hotspots' => '가장 자주 NOT OK가 나오는 파라미터는?',
         'weighing_norm' => 'Tube Packaging 정상 칭량 편차는 얼마인가요?',
+        'summary' => '전체 트라이얼 요약 보여줘',
+        'my_trials' => 'Draft 상태의 내 트라이얼 보여줘',
+        'latest_trials' => '최신 트라이얼 5건 보여줘',
+        'search_trials' => 'Tube 트라이얼 찾아줘',
     ],
 ];

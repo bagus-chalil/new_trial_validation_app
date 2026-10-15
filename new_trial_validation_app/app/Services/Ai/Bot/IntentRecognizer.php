@@ -38,6 +38,8 @@ class IntentRecognizer
 
     public const INTENT_HOW_TO = 'how_to';
 
+    public const INTENT_SEARCH_TRIALS = 'search_trials';
+
     public const INTENT_UNKNOWN = 'unknown';
 
     private const HELP_WORDS = [
@@ -84,6 +86,31 @@ class IntentRecognizer
     private const LIST_WORDS = [
         'berapa', 'jumlah', 'daftar', 'list', 'tampilkan', 'lihat', 'show', 'how many', 'count', 'trial apa', 'which trial',
         '몇', '목록', '보여',
+    ];
+
+    private const SUMMARY_WORDS = [
+        'ringkasan', 'rekap', 'gambaran', 'statistik', 'secara keseluruhan', 'total trial', 'jumlah total', 'summary', 'overview', 'statistics', 'overall', 'in total',
+        '요약', '통계', '현황', '전체 트라이얼',
+    ];
+
+    private const LATEST_WORDS = [
+        'terbaru', 'terakhir dibuat', 'baru dibuat', 'baru-baru', 'latest', 'newest', 'recent', 'recently',
+        '최신', '최근',
+    ];
+
+    private const TRIAL_WORDS = ['trial', '트라이얼'];
+
+    /** Standalone words that mean "mine"; Korean has no word boundaries so those are plain substrings. */
+    private const OWN_PATTERN = '/(?<![\p{L}\p{N}])(?:saya|aku|milikku|my|mine|i created|i made)(?![\p{L}\p{N}])|내 |내가|제 |나의/u';
+
+    private const SEARCH_VERBS_PATTERN = '/(?<![\p{L}\p{N}])(?:cari(?:kan)?|search(?: for)?|find)(?![\p{L}\p{N}])\s*(.*)$/u';
+
+    private const SEARCH_KOREAN_PATTERN = '/^(.+?)\s*(?:을|를)?\s*(?:찾아|검색)/u';
+
+    /** Filler tokens trimmed from both ends of a search keyword. */
+    private const SEARCH_FILLER = [
+        'trial', 'trials', 'dengan', 'untuk', 'yang', 'nama', 'bernama', 'kode', 'produk', 'product', 'for', 'with', 'named', 'the', 'a', 'me',
+        'dong', 'ya', 'please', 'pls', 'tolong', '트라이얼', '제품',
     ];
 
     /**
@@ -141,6 +168,30 @@ class IntentRecognizer
         }
 
         $status = $this->matchAliases($text, $statusAliases);
+
+        // "my trials ..." needs an own-word AND a trial-word, so "tugas saya" (my_queue) stays separate.
+        if (($this->containsAny($text, self::TRIAL_WORDS) && preg_match(self::OWN_PATTERN, $text)) || $this->containsAny($text, $extra(self::INTENT_MY_TRIALS))) {
+            return $this->result(self::INTENT_MY_TRIALS, ['status' => $status, 'product_type' => $productType]);
+        }
+
+        if ($this->containsAny($text, [...self::LATEST_WORDS, ...$extra(self::INTENT_LATEST_TRIALS)])) {
+            $params = ['status' => $status, 'product_type' => $productType];
+            if (preg_match('/(?<![\d-])(\d{1,2})(?!\d)/', $text, $m)) {
+                $params['limit'] = min(10, max(1, (int) $m[1]));
+            }
+
+            return $this->result(self::INTENT_LATEST_TRIALS, $params);
+        }
+
+        if ($status === null && $this->containsAny($text, [...self::SUMMARY_WORDS, ...$extra(self::INTENT_SUMMARY)])) {
+            return $this->result(self::INTENT_SUMMARY);
+        }
+
+        $keyword = $this->searchKeyword($text);
+        if ($keyword !== null && $status === null) {
+            return $this->result(self::INTENT_SEARCH_TRIALS, ['keyword' => $keyword]);
+        }
+
         if ($status !== null || $this->containsAny($text, [...self::LIST_WORDS, ...$extra(self::INTENT_TRIALS_BY_STATUS)])) {
             return $this->result(self::INTENT_TRIALS_BY_STATUS, [
                 'status' => $status,
@@ -166,6 +217,9 @@ class IntentRecognizer
             self::INTENT_NOT_OK_HOTSPOTS => self::NOT_OK_WORDS,
             self::INTENT_WEIGHING_NORM => self::WEIGHING_WORDS,
             self::INTENT_TRIALS_BY_STATUS => [...self::LIST_WORDS, ...array_merge(...array_values(self::STATUS_ALIASES))],
+            self::INTENT_SUMMARY => self::SUMMARY_WORDS,
+            self::INTENT_LATEST_TRIALS => self::LATEST_WORDS,
+            self::INTENT_SEARCH_TRIALS => ['cari', 'search', 'find', '찾아', '검색'],
         ];
     }
 
@@ -183,7 +237,38 @@ class IntentRecognizer
             self::INTENT_STUCK_TRIALS,
             self::INTENT_NOT_OK_HOTSPOTS,
             self::INTENT_WEIGHING_NORM,
+            self::INTENT_SUMMARY,
+            self::INTENT_MY_TRIALS,
+            self::INTENT_LATEST_TRIALS,
+            self::INTENT_SEARCH_TRIALS,
         ];
+    }
+
+    /** The text to look for after "cari / search / find" (or before Korean 찾아), or null when there is none. */
+    private function searchKeyword(string $text): ?string
+    {
+        $raw = null;
+        if (preg_match(self::SEARCH_VERBS_PATTERN, $text, $m)) {
+            $raw = $m[1];
+        } elseif (preg_match(self::SEARCH_KOREAN_PATTERN, $text, $m)) {
+            $raw = $m[1];
+        }
+
+        if ($raw === null) {
+            return null;
+        }
+
+        $tokens = preg_split('/\s+/u', trim($raw), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        while ($tokens !== [] && in_array($tokens[0], self::SEARCH_FILLER, true)) {
+            array_shift($tokens);
+        }
+        while ($tokens !== [] && in_array(end($tokens), self::SEARCH_FILLER, true)) {
+            array_pop($tokens);
+        }
+
+        $keyword = trim(implode(' ', $tokens), " \t\n\r\"'?.!");
+
+        return mb_strlen($keyword) >= 2 ? mb_substr($keyword, 0, 60) : null;
     }
 
     /**

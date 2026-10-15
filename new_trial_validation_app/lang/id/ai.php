@@ -52,6 +52,26 @@ return [
             'need_type' => 'Sebutkan jenis produk dan bagiannya, contoh: "sebaran timbangan Tube Packaging".',
         ],
 
+        'summary' => [
+            'intro' => 'Ringkasan trial yang bisa Anda lihat: total :total (:filling filling, :mixing mixing).',
+            'none' => 'Belum ada trial yang bisa Anda lihat.',
+        ],
+
+        'my_trials' => [
+            'total' => 'Anda membuat :total trial:filter.',
+            'none' => 'Anda belum membuat trial:filter.',
+        ],
+
+        'latest_trials' => [
+            'intro' => ':count trial terbaru:filter:',
+            'none' => 'Tidak ada trial yang cocok:filter.',
+        ],
+
+        'search_trials' => [
+            'total' => ':total trial cocok dengan ":keyword":',
+            'none' => 'Tidak ada trial yang cocok dengan ":keyword" (atau Anda tidak punya akses).',
+        ],
+
         'help' => [
             'text' => 'Saya asisten trial. Saya bisa menjawab hal-hal berikut, coba salah satu contoh ini:',
         ],
@@ -88,5 +108,9 @@ return [
         'stuck_trials' => 'Trial mana yang macet lebih dari 14 hari?',
         'not_ok_hotspots' => 'Parameter apa yang paling sering NOT OK?',
         'weighing_norm' => 'Sebaran timbangan Tube Packaging normalnya berapa?',
+        'summary' => 'Berikan ringkasan semua trial',
+        'my_trials' => 'Tampilkan trial saya yang masih Draft',
+        'latest_trials' => 'Tampilkan 5 trial terbaru',
+        'search_trials' => 'Cari trial Tube',
     ],
 ];

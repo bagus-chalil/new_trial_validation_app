@@ -82,6 +82,10 @@ class BotController extends Controller
         return match ($intent) {
             IntentRecognizer::INTENT_MY_QUEUE => $tools->myQueue($user),
             IntentRecognizer::INTENT_TRIALS_BY_STATUS => $tools->trialsByStatus($user, $params['status'] ?? null, $params['product_type'] ?? null),
+            IntentRecognizer::INTENT_LATEST_TRIALS => $tools->trialsByStatus($user, $params['status'] ?? null, $params['product_type'] ?? null, (int) ($params['limit'] ?? 5)),
+            IntentRecognizer::INTENT_SUMMARY => $tools->summary($user),
+            IntentRecognizer::INTENT_MY_TRIALS => $tools->myTrials($user, $params['status'] ?? null, $params['product_type'] ?? null),
+            IntentRecognizer::INTENT_SEARCH_TRIALS => $tools->searchTrials($user, (string) ($params['keyword'] ?? '')),
             IntentRecognizer::INTENT_TRIAL_STATUS => $tools->trialStatus($user, (string) ($params['trial_code'] ?? '')),
             IntentRecognizer::INTENT_STUCK_TRIALS => $tools->stuckTrials($user, (int) ($params['days'] ?? 14)),
             IntentRecognizer::INTENT_NOT_OK_HOTSPOTS => $tools->notOkHotspots($params['product_type'] ?? null),

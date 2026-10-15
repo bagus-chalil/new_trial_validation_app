@@ -51,6 +51,12 @@ dataset('bot questions', [
     'status deleted' => 'status TRIAL-SECRET-DELETED',
     'hotspots' => 'parameter apa yang paling sering gagal di Tube',
     'weighing' => 'normal sebaran timbang filling untuk Tube',
+    'summary' => 'ringkasan semua trial',
+    'my trials' => 'tampilkan trial saya',
+    'latest' => 'tampilkan 10 trial terbaru',
+    'latest in review' => 'trial in review terbaru',
+    'search product' => 'cari secretproduct',
+    'search code part' => 'search trial-secret',
 ]);
 
 test('a plain staff stranger never receives another user\'s trial data', function (string $question) {
