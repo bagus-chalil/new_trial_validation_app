@@ -62,7 +62,7 @@ class Trial extends Model
     protected function casts(): array
     {
         return [
-            'validation_date' => 'date',
+            'validation_date' => 'date:Y-m-d',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
             'deleted_at' => 'datetime',
