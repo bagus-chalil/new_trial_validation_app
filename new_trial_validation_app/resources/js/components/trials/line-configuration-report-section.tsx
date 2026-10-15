@@ -1341,7 +1341,7 @@ function ReadOnlyLineConfigurationReport({
     canCheckProd: boolean;
     canReturn: boolean;
 }) {
-    const { t, formatDate } = useTranslation();
+    const { t, formatDateOnly } = useTranslation();
 
     if (!report) {
         return (
@@ -1385,7 +1385,7 @@ function ReadOnlyLineConfigurationReport({
                     {[
                         [
                             t('line_config.fields.date'),
-                            formatDate(report.report_date),
+                            formatDateOnly(report.report_date),
                         ],
                         [t('line_config.fields.client'), report.client_name],
                         [

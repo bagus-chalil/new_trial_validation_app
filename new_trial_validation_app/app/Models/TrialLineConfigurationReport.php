@@ -121,7 +121,7 @@ class TrialLineConfigurationReport extends Model
     protected function casts(): array
     {
         return [
-            'report_date' => 'date',
+            'report_date' => 'date:Y-m-d',
             'production_standard' => 'array',
             'line_configuration' => 'array',
             'approved_pie' => 'boolean',
