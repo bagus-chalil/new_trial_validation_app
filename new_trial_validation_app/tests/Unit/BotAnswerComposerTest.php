@@ -123,3 +123,30 @@ test('every answer renders in Korean without leaking raw translation keys', func
         expect($text)->not->toContain('ai.');
     }
 });
+
+test('phase 3 answers render in every locale without leaking raw keys', function (string $locale) {
+    app()->setLocale($locale);
+    $composer = new BotAnswerComposer;
+    $trial = ['id' => 7, 'trial_code' => 'TRIAL-1', 'product_name' => 'P', 'product_type' => 'Tube', 'progress_status' => 'In Review', 'pending_with' => null, 'updated_at' => '2026-10-01 10:00:00'];
+
+    $answers = [
+        $composer->compose('trial_not_ok', ['trial' => $trial, 'checked' => 3, 'not_ok' => [['parameter_name' => 'Odor', 'result_value' => 'Bau', 'remark' => null]]], ['trial_code' => 'TRIAL-1']),
+        $composer->compose('trial_not_ok', ['trial' => $trial, 'checked' => 3, 'not_ok' => []], []),
+        $composer->compose('trial_reviews', ['trial' => $trial, 'round' => 1, 'reviews' => [
+            ['department' => 'QAC', 'status' => 'Reviewed', 'reviewer' => 'Rina', 'reviewed_at' => '2026-10-01 10:00:00'],
+            ['department' => 'RNI', 'status' => 'Pending', 'reviewer' => null, 'reviewed_at' => null],
+        ]], []),
+        $composer->compose('step_duration', ['durations' => [
+            ['metric' => 'review', 'scope' => 'QAC', 'typical_hours' => 30.0, 'slow_hours' => 120.0, 'n' => 12],
+            ['metric' => 'approval', 'scope' => 'all', 'typical_hours' => 10.0, 'slow_hours' => 40.0, 'n' => 9],
+        ]], []),
+        $composer->compose('how_to', null, ['topic' => 'approve']),
+        $composer->compose('how_to', null, ['topic' => null]),
+    ];
+
+    foreach ($answers as $answer) {
+        expect($answer['text'])->not->toContain('ai.answers')->not->toContain('ai.how_to')->not->toMatch('/:[a-z]{2,}/');
+    }
+    expect($answers[5]['suggestions'])->toHaveCount(8)
+        ->and($answers[4]['suggestions'])->toBe([]);
+})->with(['id', 'en', 'ko']);

@@ -72,6 +72,48 @@ return [
             'none' => 'No trial matches ":keyword" (or you do not have access to it).',
         ],
 
+        'trial_not_ok' => [
+            'intro' => 'Trial :code has :count NOT OK parameter(s) out of :total checked:',
+            'item' => ':parameter - result: :result; remark: :remark',
+            'none' => 'Trial :code has no NOT OK parameters.',
+            'not_validated' => 'Trial :code has no validation results yet.',
+        ],
+
+        'trial_reviews' => [
+            'intro' => 'Review status of trial :code (round :round):',
+            'done' => ':dept: reviewed by :who on :date',
+            'pending' => ':dept: not reviewed yet, waiting for :who',
+            'none' => 'Trial :code has not been submitted for review.',
+        ],
+
+        'step_duration' => [
+            'intro' => 'How long each stage takes (learned from past trials, typical / slow):',
+            'item' => ':stage:scope: typically :typical, considered slow beyond :slow (:n trials)',
+            'stages' => [
+                'prepare' => 'Trial preparation (created until submitted)',
+                'review' => 'Department review',
+                'approval' => 'Final approval',
+            ],
+            'hours' => ':n hours',
+            'days' => ':n days',
+            'none' => 'There is not enough reliable duration data yet (needs at least 5 trials per stage).',
+            'scope' => 'Based on automatic learning from past trial data.',
+        ],
+
+        'how_to' => [
+            'choose' => 'What would you like to know how to do? Try one of these:',
+            'topics' => [
+                'create_trial' => "How to create a new trial:\n1. Open Trials > New Trial.\n2. Fill in the header (product, scope, machines, batch, etc.) and click Save & Continue.\n3. Continue in order: Validation, Weighing Packaging, Weighing Filling, Attachments, then Review & Submit.",
+                'validation' => "How to fill in Validation:\n1. Pick a decision for each parameter: OK, NOT OK or N/A.\n2. For NOT OK, the result and remark are required.\n3. Every parameter must be filled in, then Save.",
+                'weighing' => "How to fill in Weighing (Packaging, then Filling):\n1. Enter each sample weight (a number, not negative). Use Add Sample for more.\n2. If this section is not weighed, tick Skip.\n3. Save to continue to the next section.",
+                'attachments' => "How to attach photos:\n1. Open the Attachments step and choose a category.\n2. Pick photos (JPG/PNG/WEBP/GIF, max 10 MB per file) and Upload.\n3. Photos can be deleted while the trial is still editable.",
+                'submit_review' => "How to submit for review:\n1. Make sure Validation is complete, then open the Review & Submit step.\n2. Tick the reviewer departments and pick the person for each, then pick an approver.\n3. Click Submit for Review.",
+                'do_review' => "How to do a review:\n1. Open Need Review and click a trial waiting for you.\n2. Study the data on the Report Summary page.\n3. Write your review comment in the review section and submit.",
+                'approve' => "How to approve:\n1. Open Need Approval and click the trial assigned to you.\n2. After reading the Report Summary, choose Approve, Need Revision or Reject.\n3. Enter a comment and your account password as the e-signature.",
+                'revision' => "How to handle Need Revision:\n1. Open Need Revision and click your trial.\n2. Fix the data according to the approver's comment.\n3. Submit again through Review & Submit.",
+            ],
+        ],
+
         'help' => [
             'text' => 'I am the trial assistant. I can answer the following, try one of these examples:',
         ],
@@ -112,5 +154,20 @@ return [
         'my_trials' => 'Show my trials that are Draft',
         'latest_trials' => 'Show the 5 latest trials',
         'search_trials' => 'Search trials Tube',
+        'trial_not_ok' => 'Why is TRIAL-20260914-124439-QF1D NOT OK?',
+        'trial_reviews' => 'Who has not reviewed TRIAL-20260914-124439-QF1D yet?',
+        'step_duration' => 'How long does review usually take?',
+        'how_to' => 'How do I create a new trial?',
+    ],
+
+    'how_to_examples' => [
+        'create_trial' => 'How do I create a new trial?',
+        'validation' => 'How to fill in validation?',
+        'weighing' => 'How to fill in weighing?',
+        'attachments' => 'How to upload attachment photos?',
+        'submit_review' => 'How to submit for review?',
+        'do_review' => 'How to do a review?',
+        'approve' => 'How to approve a trial?',
+        'revision' => 'How to handle a revision?',
     ],
 ];

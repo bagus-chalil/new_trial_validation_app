@@ -43,7 +43,34 @@ test('recognizes intents across id / en / ko', function (string $question, strin
     'search code fragment' => ['cari FG-0012', 'search_trials', ['keyword' => 'fg-0012']],
     'search ko' => ['Cushion 트라이얼 찾아줘', 'search_trials', ['keyword' => 'cushion']],
     'weighing en' => ['weighing spread packaging Powder', 'weighing_norm', ['product_type' => 'Powder', 'section' => 'Packaging']],
+    'trial not ok id' => ['kenapa TRIAL-20260914-124439-QF1D NOT OK?', 'trial_not_ok', ['trial_code' => 'TRIAL-20260914-124439-QF1D']],
+    'trial not ok en' => ['why did trial-20260914-124439-qf1d fail', 'trial_not_ok', ['trial_code' => 'TRIAL-20260914-124439-QF1D']],
+    'trial not ok ko' => ['TRIAL-20260914-124439-QF1D 은 왜 부적합이야', 'trial_not_ok', []],
+    'trial reviews id' => ['siapa yang belum review TRIAL-20260914-124439-QF1D', 'trial_reviews', ['trial_code' => 'TRIAL-20260914-124439-QF1D']],
+    'trial reviews en' => ['who has not reviewed TRIAL-20260914-124439-QF1D', 'trial_reviews', []],
+    'trial reviews ko' => ['TRIAL-20260914-124439-QF1D 검토자 누구야', 'trial_reviews', []],
+    'trial code alone stays status' => ['TRIAL-20260914-124439-QF1D', 'trial_status', []],
+    'duration review' => ['berapa lama proses review biasanya', 'step_duration', ['stage' => 'review']],
+    'duration review team' => ['how long does QAC review take', 'step_duration', ['stage' => 'review', 'department' => 'QAC']],
+    'duration approval' => ['berapa lama approval akhir', 'step_duration', ['stage' => 'approval']],
+    'duration prepare type' => ['how long to prepare a Tube trial', 'step_duration', ['stage' => 'prepare', 'product_type' => 'Tube']],
+    'duration any stage' => ['durasi tiap tahap', 'step_duration', ['stage' => null]],
+    'duration ko' => ['검토는 보통 얼마나 걸려', 'step_duration', ['stage' => 'review']],
+    'how to create' => ['bagaimana cara membuat trial baru', 'how_to', ['topic' => 'create_trial']],
+    'how to create en' => ['how do I create a new trial?', 'how_to', ['topic' => 'create_trial']],
+    'how to weighing wins over the weighing norm' => ['cara mengisi timbangan', 'how_to', ['topic' => 'weighing']],
+    'how to submit' => ['how to submit for review', 'how_to', ['topic' => 'submit_review']],
+    'how to do a review' => ['cara melakukan review', 'how_to', ['topic' => 'do_review']],
+    'how to approve' => ['cara memberi approval', 'how_to', ['topic' => 'approve']],
+    'how to ko' => ['검토하는 방법은?', 'how_to', ['topic' => 'do_review']],
+    'how to without a topic' => ['cara pakai aplikasi ini', 'how_to', ['topic' => null]],
+    'weak how needs a topic' => ['bagaimana validasi trial', 'how_to', ['topic' => 'validation']],
+    'secara is not cara' => ['secara keseluruhan ada berapa trial', 'summary', []],
 ]);
+
+test('weak how words alone do not trigger how_to', function () {
+    expect((new IntentRecognizer)->recognize('bagaimana kabar ringkasan trial')['intent'])->not->toBe('how_to');
+});
 
 test('a trial code wins over every other keyword', function () {
     $result = (new IntentRecognizer)->recognize('status trial-20260826-153659-7rbs ditolak?', ['Tube']);

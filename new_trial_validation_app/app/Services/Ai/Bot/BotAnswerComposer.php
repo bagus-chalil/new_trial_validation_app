@@ -36,6 +36,10 @@ class BotAnswerComposer
             IntentRecognizer::INTENT_MY_TRIALS => $this->myTrials($data ?? []),
             IntentRecognizer::INTENT_LATEST_TRIALS => $this->latestTrials($data ?? []),
             IntentRecognizer::INTENT_SEARCH_TRIALS => $this->searchTrials($data ?? [], $params),
+            IntentRecognizer::INTENT_TRIAL_NOT_OK => $this->trialNotOk($data, $params),
+            IntentRecognizer::INTENT_TRIAL_REVIEWS => $this->trialReviews($data, $params),
+            IntentRecognizer::INTENT_STEP_DURATION => $this->stepDuration($data ?? []),
+            IntentRecognizer::INTENT_HOW_TO => $this->howTo($params),
             default => $this->unknown(),
         };
     }
@@ -276,6 +280,128 @@ class BotAnswerComposer
     }
 
     /**
+     * @param  array<string, mixed>|null  $d
+     * @param  array<string, mixed>  $params
+     * @return BotAnswer
+     */
+    private function trialNotOk(?array $d, array $params): array
+    {
+        if ($d === null) {
+            return $this->result(__('ai.answers.trial_status.not_found', ['code' => (string) ($params['trial_code'] ?? '')]));
+        }
+
+        $trial = (array) $d['trial'];
+        $notOk = (array) ($d['not_ok'] ?? []);
+        if ($notOk === []) {
+            $key = (int) ($d['checked'] ?? 0) > 0 ? 'none' : 'not_validated';
+
+            return $this->result(__('ai.answers.trial_not_ok.'.$key, ['code' => $trial['trial_code']]), [$trial]);
+        }
+
+        $lines = [__('ai.answers.trial_not_ok.intro', ['code' => $trial['trial_code'], 'count' => count($notOk), 'total' => (int) ($d['checked'] ?? 0)])];
+        foreach ($notOk as $p) {
+            $lines[] = '- '.__('ai.answers.trial_not_ok.item', [
+                'parameter' => $p['parameter_name'],
+                'result' => $this->orDash($p['result_value'] ?? null),
+                'remark' => $this->orDash($p['remark'] ?? null),
+            ]);
+        }
+
+        return $this->result(implode("\n", $lines), [$trial]);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $d
+     * @param  array<string, mixed>  $params
+     * @return BotAnswer
+     */
+    private function trialReviews(?array $d, array $params): array
+    {
+        if ($d === null) {
+            return $this->result(__('ai.answers.trial_status.not_found', ['code' => (string) ($params['trial_code'] ?? '')]));
+        }
+
+        $trial = (array) $d['trial'];
+        $reviews = (array) ($d['reviews'] ?? []);
+        if ($reviews === []) {
+            return $this->result(__('ai.answers.trial_reviews.none', ['code' => $trial['trial_code']]), [$trial]);
+        }
+
+        $lines = [__('ai.answers.trial_reviews.intro', ['code' => $trial['trial_code'], 'round' => (int) ($d['round'] ?? 1)])];
+        foreach ($reviews as $r) {
+            $lines[] = '- '.($r['status'] === 'Reviewed'
+                ? __('ai.answers.trial_reviews.done', [
+                    'dept' => $r['department'],
+                    'who' => $this->orDash($r['reviewer'] ?? null),
+                    'date' => ExportFormat::date($r['reviewed_at']),
+                ])
+                : __('ai.answers.trial_reviews.pending', [
+                    'dept' => $r['department'],
+                    'who' => $this->orDash($r['reviewer'] ?? null),
+                ]));
+        }
+
+        return $this->result(implode("\n", $lines), [$trial]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $d
+     * @return BotAnswer
+     */
+    private function stepDuration(array $d): array
+    {
+        $durations = (array) ($d['durations'] ?? []);
+        if ($durations === []) {
+            return $this->result(__('ai.answers.step_duration.none'));
+        }
+
+        $lines = [__('ai.answers.step_duration.intro')];
+        foreach ($durations as $x) {
+            $lines[] = '- '.__('ai.answers.step_duration.item', [
+                'stage' => __('ai.answers.step_duration.stages.'.$x['metric']),
+                'scope' => $x['metric'] === 'approval' ? '' : ' '.$x['scope'],
+                'typical' => $this->duration((float) $x['typical_hours']),
+                'slow' => $this->duration((float) $x['slow_hours']),
+                'n' => (int) $x['n'],
+            ]);
+        }
+        $lines[] = __('ai.answers.step_duration.scope');
+
+        return $this->result(implode("\n", $lines));
+    }
+
+    /**
+     * Static FAQ: one topic, or the list of topics when none was recognized.
+     *
+     * @param  array<string, mixed>  $params
+     * @return BotAnswer
+     */
+    private function howTo(array $params): array
+    {
+        $topic = $params['topic'] ?? null;
+
+        if (is_string($topic) && $topic !== '') {
+            return $this->result(__('ai.answers.how_to.topics.'.$topic));
+        }
+
+        return $this->withExamples(__('ai.answers.how_to.choose'), array_values((array) __('ai.how_to_examples')));
+    }
+
+    private function duration(float $hours): string
+    {
+        return $hours < 48
+            ? __('ai.answers.step_duration.hours', ['n' => round($hours, 1)])
+            : __('ai.answers.step_duration.days', ['n' => round($hours / 24, 1)]);
+    }
+
+    private function orDash(mixed $value): string
+    {
+        $text = trim((string) $value);
+
+        return $text === '' ? '-' : $text;
+    }
+
+    /**
      * @param  array<string, mixed>  $d
      */
     private function filterText(array $d): string
@@ -320,10 +446,13 @@ class BotAnswerComposer
         return $this->withExamples(__('ai.answers.help.text'));
     }
 
-    /** @return BotAnswer */
-    private function withExamples(string $text): array
+    /**
+     * @param  array<int, string>|null  $suggestions  defaults to one example per suggestable intent
+     * @return BotAnswer
+     */
+    private function withExamples(string $text, ?array $suggestions = null): array
     {
-        $suggestions = array_map(
+        $suggestions ??= array_map(
             fn (string $intent) => __('ai.examples.'.$intent),
             (new IntentRecognizer)->suggestableIntents(),
         );

@@ -72,6 +72,48 @@ return [
             'none' => '":keyword" 와(과) 일치하는 트라이얼이 없거나 접근 권한이 없습니다.',
         ],
 
+        'trial_not_ok' => [
+            'intro' => '트라이얼 :code 은(는) 점검한 :total개 항목 중 :count개가 NOT OK입니다:',
+            'item' => ':parameter - 결과: :result; 비고: :remark',
+            'none' => '트라이얼 :code 에는 NOT OK 항목이 없습니다.',
+            'not_validated' => '트라이얼 :code 에는 아직 검증 결과가 없습니다.',
+        ],
+
+        'trial_reviews' => [
+            'intro' => '트라이얼 :code 검토 현황 (:round차):',
+            'done' => ':dept: :who 님이 :date 에 검토 완료',
+            'pending' => ':dept: 아직 검토되지 않음, :who 님 대기 중',
+            'none' => '트라이얼 :code 은(는) 아직 검토에 제출되지 않았습니다.',
+        ],
+
+        'step_duration' => [
+            'intro' => '단계별 소요 시간 (과거 트라이얼에서 학습, 일반적 / 지연 기준):',
+            'item' => ':stage:scope: 일반적으로 :typical, :slow 초과 시 지연으로 간주 (:n건)',
+            'stages' => [
+                'prepare' => '트라이얼 준비 (생성부터 제출까지)',
+                'review' => '부서 검토',
+                'approval' => '최종 승인',
+            ],
+            'hours' => ':n시간',
+            'days' => ':n일',
+            'none' => '신뢰할 수 있는 소요 시간 데이터가 아직 충분하지 않습니다 (단계당 최소 5건 필요).',
+            'scope' => '과거 트라이얼 데이터에서 자동 학습한 결과입니다.',
+        ],
+
+        'how_to' => [
+            'choose' => '어떤 방법이 궁금하신가요? 아래 예시를 사용해 보세요:',
+            'topics' => [
+                'create_trial' => "새 트라이얼 만드는 방법:\n1. Trials > New Trial 메뉴를 엽니다.\n2. 헤더 정보(제품, 범위, 설비, 배치 등)를 입력하고 저장 & 계속을 누릅니다.\n3. Validation, Weighing Packaging, Weighing Filling, Attachments, Review & Submit 순서로 진행합니다.",
+                'validation' => "Validation 작성 방법:\n1. 각 항목의 판정(OK, NOT OK, N/A)을 선택합니다.\n2. NOT OK인 경우 결과와 비고는 필수입니다.\n3. 모든 항목을 입력한 후 저장합니다.",
+                'weighing' => "Weighing 작성 방법 (Packaging 후 Filling):\n1. 각 샘플의 무게를 입력합니다 (0 이상의 숫자). 더 필요하면 Add Sample을 사용합니다.\n2. 해당 구간을 측정하지 않으면 Skip을 체크합니다.\n3. 저장하면 다음 구간으로 넘어갑니다.",
+                'attachments' => "사진 첨부 방법:\n1. Attachments 단계에서 카테고리를 선택합니다.\n2. 사진(JPG/PNG/WEBP/GIF, 파일당 최대 10MB)을 선택하고 업로드합니다.\n3. 트라이얼을 수정할 수 있는 동안에는 사진을 삭제할 수 있습니다.",
+                'submit_review' => "검토 제출 방법:\n1. Validation이 완료되었는지 확인하고 Review & Submit 단계를 엽니다.\n2. 검토 부서를 체크하고 담당자를 선택한 뒤 승인자를 선택합니다.\n3. Submit for Review를 클릭합니다.",
+                'do_review' => "검토하는 방법:\n1. Need Review 메뉴에서 대기 중인 트라이얼을 클릭합니다.\n2. Report Summary 페이지의 데이터를 확인합니다.\n3. 검토 의견을 작성하고 제출합니다.",
+                'approve' => "승인하는 방법:\n1. Need Approval 메뉴에서 본인에게 지정된 트라이얼을 클릭합니다.\n2. Report Summary를 확인한 뒤 Approve, Need Revision, Reject 중 하나를 선택합니다.\n3. 의견과 본인 계정 비밀번호(전자서명)를 입력합니다.",
+                'revision' => "Need Revision 처리 방법:\n1. Need Revision 메뉴에서 본인의 트라이얼을 클릭합니다.\n2. 승인자의 의견에 따라 데이터를 수정합니다.\n3. Review & Submit으로 다시 제출합니다.",
+            ],
+        ],
+
         'help' => [
             'text' => '저는 트라이얼 어시스턴트입니다. 다음과 같은 질문에 답할 수 있습니다. 아래 예시를 사용해 보세요.',
         ],
@@ -112,5 +154,20 @@ return [
         'my_trials' => 'Draft 상태의 내 트라이얼 보여줘',
         'latest_trials' => '최신 트라이얼 5건 보여줘',
         'search_trials' => 'Tube 트라이얼 찾아줘',
+        'trial_not_ok' => 'TRIAL-20260914-124439-QF1D 은(는) 왜 NOT OK야?',
+        'trial_reviews' => 'TRIAL-20260914-124439-QF1D 검토자 누구야?',
+        'step_duration' => '검토는 보통 얼마나 걸려?',
+        'how_to' => '새 트라이얼은 어떻게 만들어?',
+    ],
+
+    'how_to_examples' => [
+        'create_trial' => '새 트라이얼은 어떻게 만들어?',
+        'validation' => '검증은 어떻게 작성해?',
+        'weighing' => '칭량은 어떻게 입력해?',
+        'attachments' => '첨부 사진은 어떻게 올려?',
+        'submit_review' => '검토 제출 방법은?',
+        'do_review' => '검토하는 방법은?',
+        'approve' => '승인하는 방법은?',
+        'revision' => '수정 요청은 어떻게 처리해?',
     ],
 ];

@@ -57,6 +57,14 @@ dataset('bot questions', [
     'latest in review' => 'trial in review terbaru',
     'search product' => 'cari secretproduct',
     'search code part' => 'search trial-secret',
+    'not ok draft' => 'kenapa TRIAL-SECRET-DRAFT NOT OK',
+    'not ok in review' => 'why did TRIAL-SECRET-INREVIEW fail',
+    'not ok deleted' => 'kenapa TRIAL-SECRET-DELETED gagal',
+    'reviews draft' => 'siapa yang belum review TRIAL-SECRET-DRAFT',
+    'reviews in review' => 'who has not reviewed TRIAL-SECRET-INREVIEW',
+    'reviews deleted' => 'siapa reviewer TRIAL-SECRET-DELETED',
+    'duration' => 'berapa lama proses review biasanya',
+    'how to' => 'bagaimana cara membuat trial baru',
 ]);
 
 test('a plain staff stranger never receives another user\'s trial data', function (string $question) {

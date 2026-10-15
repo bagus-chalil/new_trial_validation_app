@@ -87,6 +87,9 @@ class BotController extends Controller
             IntentRecognizer::INTENT_MY_TRIALS => $tools->myTrials($user, $params['status'] ?? null, $params['product_type'] ?? null),
             IntentRecognizer::INTENT_SEARCH_TRIALS => $tools->searchTrials($user, (string) ($params['keyword'] ?? '')),
             IntentRecognizer::INTENT_TRIAL_STATUS => $tools->trialStatus($user, (string) ($params['trial_code'] ?? '')),
+            IntentRecognizer::INTENT_TRIAL_NOT_OK => $tools->trialNotOk($user, (string) ($params['trial_code'] ?? '')),
+            IntentRecognizer::INTENT_TRIAL_REVIEWS => $tools->trialReviews($user, (string) ($params['trial_code'] ?? '')),
+            IntentRecognizer::INTENT_STEP_DURATION => $tools->stepDuration($params['stage'] ?? null, $params['department'] ?? null, $params['product_type'] ?? null),
             IntentRecognizer::INTENT_STUCK_TRIALS => $tools->stuckTrials($user, (int) ($params['days'] ?? 14)),
             IntentRecognizer::INTENT_NOT_OK_HOTSPOTS => $tools->notOkHotspots($params['product_type'] ?? null),
             IntentRecognizer::INTENT_WEIGHING_NORM => ! empty($params['product_type']) && ! empty($params['section'])

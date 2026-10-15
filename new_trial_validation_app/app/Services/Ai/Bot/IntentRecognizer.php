@@ -40,6 +40,10 @@ class IntentRecognizer
 
     public const INTENT_SEARCH_TRIALS = 'search_trials';
 
+    public const INTENT_TRIAL_NOT_OK = 'trial_not_ok';
+
+    public const INTENT_TRIAL_REVIEWS = 'trial_reviews';
+
     public const INTENT_UNKNOWN = 'unknown';
 
     private const HELP_WORDS = [
@@ -98,6 +102,50 @@ class IntentRecognizer
         '최신', '최근',
     ];
 
+    /** Words that turn a "status of TRIAL-..." question into "why NOT OK" (checked with the trial code removed). */
+    private const TRIAL_NOT_OK_WORDS = [
+        'not ok', 'notok', 'tidak ok', 'gagal', 'kenapa', 'mengapa', 'why', 'fail', 'bermasalah',
+        '부적합', '실패', '왜',
+    ];
+
+    /** Words that turn it into "who reviewed / who has not reviewed yet". */
+    private const TRIAL_REVIEW_WORDS = [
+        'siapa', 'belum review', 'sudah review', 'reviewer', 'status review', 'review dari', 'review department', 'pending review', 'review status', 'who ', 'reviewed by',
+        '검토자', '리뷰어', '누가', '검토 현황',
+    ];
+
+    private const STEP_DURATION_WORDS = [
+        'berapa lama', 'durasi', 'lama proses', 'lamanya', 'rata-rata waktu', 'how long', 'duration', 'turnaround', 'average time', 'typical time',
+        '얼마나 걸', '소요 시간', '소요시간',
+    ];
+
+    /**
+     * Unambiguous "how do I" openers; weaker ones only count together with a
+     * topic word. Latin entries start with a space and are matched against the
+     * text with a leading space, so "secara keseluruhan" never counts as "cara".
+     */
+    private const HOW_TO_STRONG_WORDS = [
+        ' cara', ' how to', ' how do i', ' how can i', ' how should i', ' langkah', ' tutorial',
+        '방법', '어떻게',
+    ];
+
+    private const HOW_TO_WEAK_WORDS = [' bagaimana', ' gimana', ' how '];
+
+    /** Topic => keywords, most specific first. */
+    private const HOW_TO_TOPICS = [
+        'submit_review' => ['submit', 'kirim review', 'ajukan review', 'mengajukan', 'send for review', '제출'],
+        'do_review' => ['mereview', 'melakukan review', 'memberi review', 'do a review', 'do review', 'review a trial', 'give a review', '리뷰 작성', '검토 작성', '검토하는', '리뷰하는'],
+        'approve' => ['approve', 'approval', 'menyetujui', 'setujui', 'persetujuan', '승인'],
+        'revision' => ['revisi', 'revision', 'perbaiki', 'need revision', '수정'],
+        'create_trial' => ['buat trial', 'membuat trial', 'bikin trial', 'trial baru', 'create', 'new trial', 'add a trial', '새 트라이얼', '생성'],
+        'validation' => ['validasi', 'validation', '검증'],
+        'weighing' => ['timbang', 'weigh', '칭량'],
+        'attachments' => ['lampiran', 'foto', 'attach', 'upload', 'unggah', '첨부', '사진'],
+    ];
+
+    /** Reviewer teams that may be named in a duration question. */
+    private const DEPARTMENT_PATTERN = '/(?<![\p{L}\p{N}])(prod|prd|rni|qac|prni|pie|pi)(?![\p{L}\p{N}])/u';
+
     private const TRIAL_WORDS = ['trial', '트라이얼'];
 
     /** Standalone words that mean "mine"; Korean has no word boundaries so those are plain substrings. */
@@ -126,9 +174,19 @@ class IntentRecognizer
             return $this->result(self::INTENT_UNKNOWN);
         }
 
-        // A concrete trial code beats everything else.
+        // A concrete trial code beats everything else; the extra words only pick which question about that trial.
         if (preg_match('/TRIAL-\d{8}-\d{6}(?:-[A-Z0-9]+)?/i', $question, $m)) {
-            return $this->result(self::INTENT_TRIAL_STATUS, ['trial_code' => strtoupper($m[0])]);
+            $code = strtoupper($m[0]);
+            $rest = trim(str_ireplace($m[0], ' ', $text));
+
+            if ($this->containsAny($rest, self::TRIAL_NOT_OK_WORDS)) {
+                return $this->result(self::INTENT_TRIAL_NOT_OK, ['trial_code' => $code]);
+            }
+            if ($this->containsAny($rest, self::TRIAL_REVIEW_WORDS)) {
+                return $this->result(self::INTENT_TRIAL_REVIEWS, ['trial_code' => $code]);
+            }
+
+            return $this->result(self::INTENT_TRIAL_STATUS, ['trial_code' => $code]);
         }
 
         $productType = $this->matchProductType($text, $productTypes);
@@ -138,8 +196,17 @@ class IntentRecognizer
             return $this->result(self::INTENT_HELP);
         }
 
+        $howTo = $this->howTo($text, $extra(self::INTENT_HOW_TO));
+        if ($howTo !== null) {
+            return $howTo;
+        }
+
         if ($this->containsAny($text, [...self::MY_QUEUE_WORDS, ...$extra(self::INTENT_MY_QUEUE)])) {
             return $this->result(self::INTENT_MY_QUEUE);
+        }
+
+        if ($this->containsAny($text, [...self::STEP_DURATION_WORDS, ...$extra(self::INTENT_STEP_DURATION)])) {
+            return $this->result(self::INTENT_STEP_DURATION, $this->durationParams($text, $productType));
         }
 
         if ($this->containsAny($text, [...self::STUCK_WORDS, ...$extra(self::INTENT_STUCK_TRIALS)])) {
@@ -220,6 +287,10 @@ class IntentRecognizer
             self::INTENT_SUMMARY => self::SUMMARY_WORDS,
             self::INTENT_LATEST_TRIALS => self::LATEST_WORDS,
             self::INTENT_SEARCH_TRIALS => ['cari', 'search', 'find', '찾아', '검색'],
+            self::INTENT_STEP_DURATION => self::STEP_DURATION_WORDS,
+            self::INTENT_HOW_TO => [...self::HOW_TO_STRONG_WORDS, ...self::HOW_TO_WEAK_WORDS],
+            self::INTENT_TRIAL_NOT_OK => self::TRIAL_NOT_OK_WORDS,
+            self::INTENT_TRIAL_REVIEWS => self::TRIAL_REVIEW_WORDS,
         ];
     }
 
@@ -241,7 +312,48 @@ class IntentRecognizer
             self::INTENT_MY_TRIALS,
             self::INTENT_LATEST_TRIALS,
             self::INTENT_SEARCH_TRIALS,
+            self::INTENT_TRIAL_NOT_OK,
+            self::INTENT_TRIAL_REVIEWS,
+            self::INTENT_STEP_DURATION,
+            self::INTENT_HOW_TO,
         ];
+    }
+
+    /**
+     * @param  array<int, string>  $taught  phrases an admin taught for how_to
+     * @return array{intent:string, params:array<string, mixed>}|null
+     */
+    private function howTo(string $text, array $taught): ?array
+    {
+        $topic = $this->matchAliases($text, self::HOW_TO_TOPICS);
+
+        $padded = ' '.$text;
+        $strong = $this->containsAny($padded, self::HOW_TO_STRONG_WORDS) || $this->containsAny($text, $taught);
+        $weak = $topic !== null && $this->containsAny($padded, self::HOW_TO_WEAK_WORDS);
+
+        return $strong || $weak ? $this->result(self::INTENT_HOW_TO, ['topic' => $topic]) : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function durationParams(string $text, ?string $productType): array
+    {
+        $stage = null;
+        if ($this->containsAny($text, ['approval', 'approve', 'persetujuan', '승인'])) {
+            $stage = 'approval';
+        } elseif ($this->containsAny($text, ['review', 'direview', '검토', '리뷰'])) {
+            $stage = 'review';
+        } elseif ($this->containsAny($text, ['siapkan', 'menyiapkan', 'persiapan', 'prepare', 'preparation', 'draft', 'membuat', 'pembuatan', '준비', '작성'])) {
+            $stage = 'prepare';
+        }
+
+        $department = null;
+        if ($stage === 'review' && preg_match(self::DEPARTMENT_PATTERN, $text, $m)) {
+            $department = strtoupper($m[1]) === 'PRD' ? 'PROD' : strtoupper($m[1]);
+        }
+
+        return ['stage' => $stage, 'department' => $department, 'product_type' => $productType];
     }
 
     /** The text to look for after "cari / search / find" (or before Korean 찾아), or null when there is none. */

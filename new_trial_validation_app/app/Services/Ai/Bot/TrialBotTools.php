@@ -4,6 +4,7 @@ namespace App\Services\Ai\Bot;
 
 use App\Models\AiLesson;
 use App\Models\Trial;
+use App\Models\TrialResult;
 use App\Models\TrialReview;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -173,6 +174,112 @@ class TrialBotTools
             'current_step' => $trial->current_step,
             'revision_no' => (int) $trial->revision_no,
             'final_decision' => $trial->final_decision,
+        ];
+    }
+
+    /**
+     * The validation parameters of one trial that came out NOT OK, with the
+     * recorded result and remark. Null when the trial is missing or hidden.
+     *
+     * @return array{trial:array<string,mixed>, checked:int, not_ok:array<int, array<string,mixed>>}|null
+     */
+    public function trialNotOk(User $user, string $trialCode): ?array
+    {
+        $trial = Trial::query()->visibleTo($user)
+            ->where('trials_header.trial_code', trim($trialCode))
+            ->first();
+
+        if ($trial === null) {
+            return null;
+        }
+
+        $results = TrialResult::query()
+            ->where('trial_id', $trial->id)
+            ->with('parameter:id,parameter_name')
+            ->get();
+
+        return [
+            'trial' => $this->trialRow($trial),
+            'checked' => $results->whereIn('decision', ['OK', 'NOT OK'])->count(),
+            'not_ok' => $results->where('decision', 'NOT OK')
+                ->map(fn (TrialResult $r) => [
+                    'parameter_name' => $r->parameter->parameter_name ?? '-',
+                    'result_value' => $r->result_value,
+                    'remark' => $r->remark,
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * Per-department review progress of one trial for its current round.
+     * Null when the trial is missing or hidden.
+     *
+     * @return array{trial:array<string,mixed>, round:int, reviews:array<int, array<string,mixed>>}|null
+     */
+    public function trialReviews(User $user, string $trialCode): ?array
+    {
+        $trial = Trial::query()->visibleTo($user)
+            ->where('trials_header.trial_code', trim($trialCode))
+            ->first();
+
+        if ($trial === null) {
+            return null;
+        }
+
+        $reviews = [];
+        foreach ($trial->reviewStatusByDepartment() as $department => $info) {
+            if ($info['review'] === null) {
+                continue;
+            }
+            $reviews[] = [
+                'department' => $department,
+                'status' => $info['status'],
+                'reviewer' => $info['review']->reviewer->name ?? $info['review']->reviewer_name,
+                'reviewed_at' => $info['review']->reviewed_at?->toDateTimeString(),
+            ];
+        }
+
+        return [
+            'trial' => $this->trialRow($trial),
+            'round' => $trial->currentReviewRound(),
+            'reviews' => $reviews,
+        ];
+    }
+
+    /**
+     * Learned typical / slow durations per process stage (aggregates only):
+     * `prepare` per product type, `review` per department, `approval` overall.
+     *
+     * @return array{stage:?string, durations:array<int, array<string,mixed>>}
+     */
+    public function stepDuration(?string $stage = null, ?string $department = null, ?string $productType = null): array
+    {
+        $lessons = AiLesson::query()
+            ->where('kind', AiLesson::KIND_STEP_DURATION)
+            ->where('status', AiLesson::STATUS_ACTIVE)
+            ->get()
+            ->filter(fn (AiLesson $l) => $stage === null || ($l->payload['metric'] ?? null) === $stage)
+            ->filter(fn (AiLesson $l) => $department === null
+                || ($l->payload['metric'] ?? null) !== 'review'
+                || strtoupper((string) ($l->payload['scope'] ?? '')) === strtoupper($department))
+            ->filter(fn (AiLesson $l) => $productType === null
+                || ($l->payload['metric'] ?? null) !== 'prepare'
+                || mb_strtolower((string) ($l->payload['scope'] ?? '')) === mb_strtolower($productType))
+            ->sortBy(fn (AiLesson $l) => ($l->payload['metric'] ?? '').'|'.($l->payload['scope'] ?? ''))
+            ->take(self::MAX_LIMIT);
+
+        return [
+            'stage' => $stage,
+            'durations' => $lessons->map(fn (AiLesson $l) => [
+                'metric' => $l->payload['metric'] ?? null,
+                'scope' => $l->payload['scope'] ?? null,
+                'typical_hours' => (float) ($l->payload['typical_hours'] ?? 0),
+                'slow_hours' => (float) ($l->payload['slow_hours'] ?? 0),
+                'n' => (int) ($l->payload['n'] ?? 0),
+                'confidence' => $l->confidence,
+            ])->values()->all(),
         ];
     }
 
