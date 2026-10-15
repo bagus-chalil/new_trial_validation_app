@@ -20,7 +20,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $feedback_at
  * @property Carbon|null $created_at
  */
-#[Fillable(['user_ref', 'locale', 'question', 'intent', 'matched', 'answer_summary', 'feedback', 'feedback_at'])]
+#[Fillable(['user_ref', 'locale', 'question', 'intent', 'matched', 'answer_summary', 'feedback', 'feedback_at', 'from_id'])]
 class AiBotInteraction extends Model
 {
     protected $table = 'ai_bot_interactions';

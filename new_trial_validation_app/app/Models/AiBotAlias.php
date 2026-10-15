@@ -23,7 +23,7 @@ class AiBotAlias extends Model
     public const TARGET_IGNORE = 'ignore';
 
     /** Intents an alias may point at (plus TARGET_IGNORE). */
-    public const TARGETS = ['my_queue', 'trials_by_status', 'stuck_trials', 'not_ok_hotspots', 'weighing_norm', 'help'];
+    public const TARGETS = ['my_queue', 'trials_by_status', 'stuck_trials', 'not_ok_hotspots', 'weighing_norm', 'help', 'summary', 'my_trials', 'latest_trials', 'step_duration', 'how_to'];
 
     public const STATUSES = ['Draft', 'In Review', 'Ready for Approval', 'Approved', 'Need Revision', 'Rejected'];
 

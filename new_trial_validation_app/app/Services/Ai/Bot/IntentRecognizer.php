@@ -28,6 +28,16 @@ class IntentRecognizer
 
     public const INTENT_HELP = 'help';
 
+    public const INTENT_SUMMARY = 'summary';
+
+    public const INTENT_MY_TRIALS = 'my_trials';
+
+    public const INTENT_LATEST_TRIALS = 'latest_trials';
+
+    public const INTENT_STEP_DURATION = 'step_duration';
+
+    public const INTENT_HOW_TO = 'how_to';
+
     public const INTENT_UNKNOWN = 'unknown';
 
     private const HELP_WORDS = [
@@ -139,6 +149,24 @@ class IntentRecognizer
         }
 
         return $this->result(self::INTENT_UNKNOWN);
+    }
+
+    /**
+     * Built-in keyword lists per intent, so a suggester can compare an
+     * unanswered question against what each intent already understands.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public function keywords(): array
+    {
+        return [
+            self::INTENT_HELP => self::HELP_WORDS,
+            self::INTENT_MY_QUEUE => self::MY_QUEUE_WORDS,
+            self::INTENT_STUCK_TRIALS => self::STUCK_WORDS,
+            self::INTENT_NOT_OK_HOTSPOTS => self::NOT_OK_WORDS,
+            self::INTENT_WEIGHING_NORM => self::WEIGHING_WORDS,
+            self::INTENT_TRIALS_BY_STATUS => [...self::LIST_WORDS, ...array_merge(...array_values(self::STATUS_ALIASES))],
+        ];
     }
 
     /**

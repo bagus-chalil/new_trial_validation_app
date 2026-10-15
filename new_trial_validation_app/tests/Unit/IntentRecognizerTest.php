@@ -46,3 +46,11 @@ test('longest product type wins and partial words do not match', function () use
 test('unrecognized or empty questions fall back to unknown', function (string $question) {
     expect((new IntentRecognizer)->recognize($question, ['Tube'])['intent'])->toBe('unknown');
 })->with(['', '   ', 'halo apa kabar', 'cuaca hari ini']);
+
+test('keywords() exposes the built-in keyword list of every keyword-driven intent', function () {
+    $keywords = (new IntentRecognizer)->keywords();
+
+    expect($keywords)->toHaveKeys(['my_queue', 'trials_by_status', 'stuck_trials', 'not_ok_hotspots', 'weighing_norm', 'help'])
+        ->and($keywords['stuck_trials'])->toContain('macet')
+        ->and($keywords['trials_by_status'])->toContain('ready for approval');
+});
