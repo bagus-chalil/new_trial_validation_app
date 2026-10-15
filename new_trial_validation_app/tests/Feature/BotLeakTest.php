@@ -65,6 +65,15 @@ dataset('bot questions', [
     'reviews deleted' => 'siapa reviewer TRIAL-SECRET-DELETED',
     'duration' => 'berapa lama proses review biasanya',
     'how to' => 'bagaimana cara membuat trial baru',
+    'typo status' => 'statuss TRIAL-SECRET-DRAFT',
+    'typo draft list' => 'tampilkan trial drafft secretproduct',
+    'typo unknown' => 'revisinyaa secretproduct-trial-secret-draft',
+    'en not ok draft' => 'what failed in TRIAL-SECRET-DRAFT',
+    'en search' => 'find secretproduct',
+    'ko status' => 'TRIAL-SECRET-DRAFT 상태',
+    'ko search' => 'secretproduct 찾아줘',
+    'ko my trials' => '내 트라이얼 보여줘',
+    'did you mean bait' => 'sttatus trial secret',
 ]);
 
 test('a plain staff stranger never receives another user\'s trial data', function (string $question) {
