@@ -397,9 +397,9 @@ class Trial extends Model
         $query->where('trials_header.progress_status', 'Ready for Approval')
             ->whereNull('trials_header.deleted_at');
 
-        $canSeeAll = $user->isAdmin() || in_array($user->effectiveRole(), User::approverEligibleRoles(), true);
-
-        if (! $canSeeAll) {
+        // Only Admin sees every trial — TrialPolicy::approve() lets nobody else
+        // act on a trial assigned to someone else, so showing it is just noise.
+        if (! $user->isAdmin()) {
             $query->where('trials_header.approver_user_id', $user->id);
         }
 

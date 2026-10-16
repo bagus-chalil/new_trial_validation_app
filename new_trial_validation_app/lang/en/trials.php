@@ -89,12 +89,17 @@ return [
 
     'approvals' => [
         'title' => 'Pending Approval',
-        'description' => 'Trials awaiting a final decision from the QAC Manager / approver. All assigned approvers can record their decision on this page.',
+        'description' => 'Trials waiting for your action as approver. Trials you have already decided on, or that are assigned to someone else, are not shown.',
         'approver' => 'Approver',
         'action' => 'Open & Decide',
         'line_config_title' => 'Line Configuration awaiting your signature',
         'line_config_description' => 'Trials whose Line Configuration Report is waiting for your signature.',
-        'line_config_stage' => 'Your stage',
-        'empty' => 'No trials are awaiting approval.',
+        'line_config_stage' => 'Awaiting your signature',
+        'line_config_stage_badge' => 'Your turn: :stage',
+        'final_title' => 'Trials awaiting your final decision',
+        'final_description' => 'Only trials assigned to you as the approver are shown here.',
+        'sign_action' => 'Review & Sign',
+        'summary' => ':count awaiting your action',
+        'empty' => 'No trials are awaiting your approval.',
     ],
 ];

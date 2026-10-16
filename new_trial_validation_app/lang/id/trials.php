@@ -89,12 +89,17 @@ return [
 
     'approvals' => [
         'title' => 'Perlu Disetujui',
-        'description' => 'Trial yang menunggu keputusan akhir dari Manager QAC / approver. Seluruh approver yang ditunjuk dapat memberikan keputusan melalui halaman ini.',
+        'description' => 'Daftar trial yang menunggu tindakan Anda sebagai approver. Trial yang sudah Anda putuskan atau ditugaskan ke orang lain tidak ditampilkan.',
         'approver' => 'Approver',
         'action' => 'Tinjau & Putuskan',
         'line_config_title' => 'Line Configuration menunggu tanda tangan Anda',
         'line_config_description' => 'Trial yang laporan Line Configuration-nya menunggu tanda tangan Anda.',
-        'line_config_stage' => 'Tahap Anda',
-        'empty' => 'Tidak ada trial yang menunggu approval.',
+        'line_config_stage' => 'Menunggu tanda tangan Anda',
+        'line_config_stage_badge' => 'Giliran Anda: :stage',
+        'final_title' => 'Trial menunggu keputusan akhir Anda',
+        'final_description' => 'Hanya trial yang ditugaskan kepada Anda sebagai approver yang tampil di sini.',
+        'sign_action' => 'Tinjau & Tanda Tangan',
+        'summary' => ':count menunggu tindakan Anda',
+        'empty' => 'Tidak ada trial yang menunggu approval dari Anda.',
     ],
 ];

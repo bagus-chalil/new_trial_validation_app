@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { Clock } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
@@ -53,6 +54,30 @@ type PageProps = {
     filters: Filters;
 };
 
+function SectionHeader({
+    title,
+    description,
+    count,
+}: {
+    title: string;
+    description: string;
+    count: number;
+}) {
+    const { t } = useTranslation();
+
+    return (
+        <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+                <h2 className="font-semibold">{title}</h2>
+                <p className="text-sm text-muted-foreground">{description}</p>
+            </div>
+            <Badge variant="secondary">
+                {t('trials.approvals.summary', { count })}
+            </Badge>
+        </div>
+    );
+}
+
 export default function ApprovalsIndex({
     items,
     lineConfigItems,
@@ -82,19 +107,15 @@ export default function ApprovalsIndex({
                 />
 
                 {lineConfigItems.length > 0 && (
-                    <Card>
-                        <CardContent className="space-y-3">
-                            <div>
-                                <h2 className="font-semibold">
-                                    {t('trials.approvals.line_config_title')} (
-                                    {lineConfigItems.length})
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    {t(
-                                        'trials.approvals.line_config_description',
-                                    )}
-                                </p>
-                            </div>
+                    <Card className="border-amber-300/60 dark:border-amber-500/30">
+                        <CardContent className="space-y-4">
+                            <SectionHeader
+                                title={t('trials.approvals.line_config_title')}
+                                description={t(
+                                    'trials.approvals.line_config_description',
+                                )}
+                                count={lineConfigItems.length}
+                            />
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -119,18 +140,25 @@ export default function ApprovalsIndex({
                                 <TableBody>
                                     {lineConfigItems.map((lc) => (
                                         <TableRow key={lc.trial_id}>
-                                            <TableCell className="font-medium">
+                                            <TableCell className="font-medium whitespace-nowrap">
                                                 {lc.trial_code}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="max-w-md truncate">
                                                 {lc.product_name}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="outline">
-                                                    {lc.stage}
+                                                <Badge
+                                                    variant="outline"
+                                                    className="gap-1 border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+                                                >
+                                                    <Clock className="size-3" />
+                                                    {t(
+                                                        'trials.approvals.line_config_stage_badge',
+                                                        { stage: lc.stage },
+                                                    )}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-right">
                                                 <Button size="sm" asChild>
                                                     <Link
                                                         href={
@@ -140,7 +168,7 @@ export default function ApprovalsIndex({
                                                         }
                                                     >
                                                         {t(
-                                                            'trials.approvals.action',
+                                                            'trials.approvals.sign_action',
                                                         )}
                                                     </Link>
                                                 </Button>
@@ -163,7 +191,14 @@ export default function ApprovalsIndex({
                 />
 
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4">
+                        <SectionHeader
+                            title={t('trials.approvals.final_title')}
+                            description={t(
+                                'trials.approvals.final_description',
+                            )}
+                            count={items.total}
+                        />
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -178,9 +213,6 @@ export default function ApprovalsIndex({
                                     </TableHead>
                                     <TableHead>
                                         {t('trials.queue.status')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('trials.approvals.approver')}
                                     </TableHead>
                                     <TableHead>
                                         <span className="sr-only">
@@ -224,13 +256,7 @@ export default function ApprovalsIndex({
                                                 )}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>
-                                            {item.approver
-                                                ? (item.approver.name ??
-                                                  item.approver.email)
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell>
+                                        <TableCell className="text-right">
                                             <Button size="sm" asChild>
                                                 <Link
                                                     href={
@@ -250,7 +276,7 @@ export default function ApprovalsIndex({
                                 {items.data.length === 0 && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={6}
+                                            colSpan={5}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             {t('trials.approvals.empty')}

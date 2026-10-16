@@ -32,35 +32,27 @@ test('a non-approver is forbidden from viewing the approval queue', function () 
     $this->actingAs($staff)->get(route('approvals.index'))->assertForbidden();
 });
 
-test('Manager QAC sees every trial in the approval queue', function () {
-    $manager = User::factory()->role('Manager QAC')->create();
+test('Admin sees every trial in the approval queue', function () {
+    $admin = User::factory()->role('Admin')->create();
     $other = User::factory()->create();
     makeApprovableTrial(['trial_code' => 'TRIAL-A', 'approver_user_id' => $other->id]);
     makeApprovableTrial(['trial_code' => 'TRIAL-B']);
 
-    $response = $this->actingAs($manager)->get(route('approvals.index'));
+    $response = $this->actingAs($admin)->get(route('approvals.index'));
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page->has('items.data', 2));
 });
 
-test('an assigned approver only sees their own assigned trials in the queue', function () {
-    $approver = User::factory()->role('Team Leader')->create();
+test('an approver only sees trials assigned to them, never someone else\'s', function () {
+    $approver = User::factory()->role('Manager QAC')->create();
     $other = User::factory()->create();
-    $mine = makeApprovableTrial(['trial_code' => 'TRIAL-MINE', 'approver_user_id' => $approver->id]);
+    makeApprovableTrial(['trial_code' => 'TRIAL-MINE', 'approver_user_id' => $approver->id]);
     makeApprovableTrial(['trial_code' => 'TRIAL-OTHER', 'approver_user_id' => $other->id]);
-
-    // Team Leader canSeeAll in legacy — confirm both are visible via the "see all" path.
-    $response = $this->actingAs($approver)->get(route('approvals.index'));
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page->has('items.data', 2));
-
-    // A plain approver role not in the canSeeAll list only sees their own.
-    $approver->update(['role' => 'Staff']);
-    $approver->refresh();
-    $mine->update(['approver_user_id' => $approver->id]);
+    makeApprovableTrial(['trial_code' => 'TRIAL-UNASSIGNED']);
 
     $response = $this->actingAs($approver)->get(route('approvals.index'));
+
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->has('items.data', 1)
@@ -69,9 +61,9 @@ test('an assigned approver only sees their own assigned trials in the queue', fu
 
 test('the approval queue can be searched by trial code or product name', function () {
     $manager = User::factory()->role('Manager QAC')->create();
-    $target = makeApprovableTrial(['trial_code' => 'TRIAL-FINDME-2']);
+    $target = makeApprovableTrial(['trial_code' => 'TRIAL-FINDME-2', 'approver_user_id' => $manager->id]);
     $target->update(['product_name' => 'Special Lotion']);
-    makeApprovableTrial(['trial_code' => 'TRIAL-OTHER-2']);
+    makeApprovableTrial(['trial_code' => 'TRIAL-OTHER-2', 'approver_user_id' => $manager->id]);
 
     $response = $this->actingAs($manager)->get(route('approvals.index', ['q' => 'Special Lotion']));
 
