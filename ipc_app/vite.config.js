@@ -1,9 +1,7 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import {
-    defineConfig
-} from 'vite';
-import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from 'vite';
 
 export default defineConfig({
     plugins: [
@@ -15,6 +13,10 @@ export default defineConfig({
         react(),
         tailwindcss(),
     ],
+    build: {
+        // Older tablet browsers (Chrome 106, UC, Huawei Browser).
+        target: ['es2019', 'chrome80', 'safari13'],
+    },
     esbuild: {
         jsx: 'automatic',
     },

@@ -1,13 +1,16 @@
 import InputError from '@/components/input-error';
 import { AccordionCard } from '@/components/ipc/accordion-card';
 import { ChipToggleGroup, StatusChip } from '@/components/ipc/chip-toggle-group';
-import { PdfViewer } from '@/components/ipc/pdf-viewer';
+
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/react';
 import { Eye, Printer } from 'lucide-react';
-import { FormEventHandler, type ReactNode, useState } from 'react';
+import { FormEventHandler, type ReactNode, Suspense, lazy, useState } from 'react';
+
+// pdf.js is large: load it only when someone actually opens a document (weak tablets, slow Wi-Fi).
+const PdfViewer = lazy(() => import('@/components/ipc/pdf-viewer').then((m) => ({ default: m.PdfViewer })));
 
 export interface ChecklistGroup {
     key: string;
@@ -193,7 +196,11 @@ export function PrintPreviewButton({ href, label = 'Preview Cetak' }: { href: st
                 <Printer className="size-4" strokeWidth={2.2} />
                 <span className="hidden sm:inline">{label}</span>
             </button>
-            {open && <PdfViewer url={href} title={label} onClose={() => setOpen(false)} />}
+            {open && (
+                <Suspense fallback={null}>
+                    <PdfViewer url={href} title={label} onClose={() => setOpen(false)} />
+                </Suspense>
+            )}
         </>
     );
 }
@@ -245,11 +252,13 @@ export function PrintActionCard({ batchId, info }: { batchId: number; info: Prin
                 Preview {info.label}
             </button>
             {previewOpen && (
-                <PdfViewer
-                    url={`/batches/${batchId}/print/${info.stage}/preview`}
-                    title={`Preview ${info.label}`}
-                    onClose={() => setPreviewOpen(false)}
-                />
+                <Suspense fallback={null}>
+                    <PdfViewer
+                        url={`/batches/${batchId}/print/${info.stage}/preview`}
+                        title={`Preview ${info.label}`}
+                        onClose={() => setPreviewOpen(false)}
+                    />
+                </Suspense>
             )}
         </div>
     );
