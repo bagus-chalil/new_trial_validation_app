@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SsoController;
+use App\Http\Controllers\TrialMonitorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -13,6 +14,7 @@ Route::get('sso/exchange', [SsoController::class, 'exchange'])->name('sso.exchan
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('my-work', [DashboardController::class, 'myWork'])->name('my-work');
+    Route::get('monitoring', [TrialMonitorController::class, 'index'])->name('monitoring.index');
     Route::get('sso/to-old', [SsoController::class, 'toOld'])->name('sso.to-old');
 });
 

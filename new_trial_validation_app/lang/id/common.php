@@ -14,6 +14,7 @@ return [
         'user_management' => 'Manajemen Pengguna',
         'system' => 'Sistem',
         'dashboard' => 'Dashboard',
+        'monitoring' => 'Ikhtisar Seluruh Trial',
         'my_work' => 'Pekerjaan Saya',
         'tracking' => 'Pemantauan Proses',
         'need_review' => 'Perlu Ditinjau',

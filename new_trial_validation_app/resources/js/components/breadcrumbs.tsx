@@ -58,6 +58,7 @@ const adminTitles: Record<string, string> = {
 const singlePages: Record<string, string> = {
     '/dashboard': 'common.nav.dashboard',
     '/my-work': 'common.nav.my_work',
+    '/monitoring': 'common.nav.monitoring',
 };
 
 function item(title: string, href: string): BreadcrumbItemType {

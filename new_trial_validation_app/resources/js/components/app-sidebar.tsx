@@ -11,6 +11,7 @@ import {
     ClipboardCheck,
     FlaskConical,
     History,
+    Hourglass,
     KeyRound,
     LayoutGrid,
     ListTree,
@@ -48,6 +49,7 @@ import { index as productsIndex } from '@/routes/admin/products';
 import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
 import { index as approvalsIndex } from '@/routes/approvals';
+import { index as monitoringIndex } from '@/routes/monitoring';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { index as trialsIndex } from '@/routes/trials';
@@ -72,6 +74,11 @@ export function AppSidebar() {
                     title: t('common.nav.dashboard'),
                     href: dashboard(),
                     icon: LayoutGrid,
+                },
+                {
+                    title: t('common.nav.monitoring'),
+                    href: monitoringIndex(),
+                    icon: Hourglass,
                 },
             ],
         },

@@ -12,6 +12,7 @@ return [
         'user_management' => 'User Management',
         'system' => 'System',
         'dashboard' => 'Dashboard',
+        'monitoring' => 'All Trials Overview',
         'my_work' => 'My Work',
         'tracking' => 'Process Tracking',
         'need_review' => 'Pending Review',

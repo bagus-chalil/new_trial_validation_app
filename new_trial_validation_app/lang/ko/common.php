@@ -12,6 +12,7 @@ return [
         'user_management' => '사용자 관리',
         'system' => '시스템',
         'dashboard' => '대시보드',
+        'monitoring' => '전체 트라이얼 현황',
         'my_work' => '내 업무',
         'tracking' => '진행 현황',
         'need_review' => '검토 대기',
