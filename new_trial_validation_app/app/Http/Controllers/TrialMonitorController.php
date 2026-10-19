@@ -11,7 +11,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * All-trials overview (2026-10-19, owner request): one read-only page that
+ * All Trials page (2026-10-19, owner request): one read-only page that
  * every logged-in user can open, listing every trial still moving through the
  * process regardless of who owns it, so a manager can see where trials are
  * piling up. Deliberately does NOT use Trial::scopeVisibleTo() — that scope

@@ -14,6 +14,9 @@ return [
     ],
 
     'notes' => [
+        'view_only_title' => 'Mode lihat saja',
+        'view_only' => 'Halaman ini dibuka dari Seluruh Trial sehingga hanya dapat dilihat, tanpa tindakan.',
+        'view_only_go' => 'Anda memiliki tindakan pada trial ini. Lanjutkan melalui menu :menu.',
         'not_your_turn_title' => 'Belum giliran Anda',
         'approval_blocked' => 'Menunggu approval oleh :name, bukan giliran Anda.',
         'other_approver' => 'approver lain',

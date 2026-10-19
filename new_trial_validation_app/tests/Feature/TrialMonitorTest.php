@@ -1,9 +1,17 @@
 <?php
 
+use App\Models\LineConfigurationLane;
+use App\Models\MasterOption;
 use App\Models\Trial;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+
+// A fresh test DB leaves the PIE lane open to everyone, so pin it to the PIE team like production.
+beforeEach(function () {
+    $pie = MasterOption::firstWhere(['type' => 'reviewer_department', 'name' => 'PIE']);
+    LineConfigurationLane::where('stage_key', 'approved_pie')->update(['required_team_id' => $pie->id]);
+});
 
 function makeMonitorTrial(array $attributes = [], ?int $idleDays = null): Trial
 {
@@ -123,4 +131,35 @@ test('the status and search filters narrow the list', function () {
 
     $this->actingAs($user)->get('/monitoring?q=Alpha')
         ->assertInertia(fn ($page) => $page->where('trials.total', 1)->where('trials.data.0.trial_code', 'TRIAL-ONE'));
+});
+
+test('the report opened from the all trials page is view only for someone who could otherwise act', function () {
+    $owner = User::factory()->create(['role' => 'Staff', 'email' => 'owner@local.test']);
+    $trial = makeMonitorTrial(['progress_status' => 'Need Revision', 'pending_with' => 'Staff']);
+
+    $this->actingAs($owner)->get("/trials/{$trial->id}/report")
+        ->assertInertia(fn ($page) => $page
+            ->where('readOnlyMode', false)
+            ->where('canEdit', true));
+
+    $this->actingAs($owner)->get("/trials/{$trial->id}/report?from=overview")
+        ->assertInertia(fn ($page) => $page
+            ->where('readOnlyMode', true)
+            ->where('canEdit', false)
+            ->where('canUploadAdditionalAttachment', false)
+            ->where('canApprove', false)
+            ->where('pendingReviews', [])
+            ->where('editableReviews', [])
+            ->where('canEditLineConfigurationReport', false)
+            ->where('actionMenuKey', 'common.nav.need_revision'));
+});
+
+test('a viewer with nothing to act on gets no redirect hint in view only mode', function () {
+    $viewer = User::factory()->create(['role' => 'Viewer', 'department' => 'Other']);
+    $trial = makeMonitorTrial(['progress_status' => 'In Review', 'pending_with' => 'QAC']);
+
+    $this->actingAs($viewer)->get("/trials/{$trial->id}/report?from=overview")
+        ->assertInertia(fn ($page) => $page
+            ->where('readOnlyMode', true)
+            ->where('actionMenuKey', null));
 });

@@ -14,6 +14,9 @@ return [
     ],
 
     'notes' => [
+        'view_only_title' => '조회 전용 모드',
+        'view_only' => '이 페이지는 전체 트라이얼에서 열렸으므로 조회만 가능하며 작업은 할 수 없습니다.',
+        'view_only_go' => '이 트라이얼에 수행할 작업이 있습니다. :menu 메뉴에서 계속 진행하세요.',
         'not_your_turn_title' => '승인 차례가 아닙니다',
         'approval_blocked' => ':name의 승인을 기다리고 있습니다. 귀하의 승인 차례가 아닙니다.',
         'other_approver' => '다른 승인자',

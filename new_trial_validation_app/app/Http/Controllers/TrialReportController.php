@@ -160,10 +160,48 @@ class TrialReportController extends Controller
             }
         }
 
+        $canEditLine = Gate::allows('manage-line-configuration-report')
+            && (
+                $user->isAdmin()
+                || (
+                    (! $lineConfigurationReport || ! $lineConfigurationReport->blocksEditFor($user))
+                    && (! $lineConfigurationReport || ! $lineConfigurationReport->isSubmittedForApproval())
+                )
+            );
+        $canUpload = Gate::allows('uploadAdditionalAttachment', $trial);
+        $canEdit = Gate::allows('update', $trial);
+        $canApprovePie = $lineConfigurationReport ? Gate::allows('approvePie', $lineConfigurationReport) : false;
+        $canCheckProd = $lineConfigurationReport ? Gate::allows('checkProd', $lineConfigurationReport) : false;
+        $canReturn = $lineConfigurationReport ? Gate::allows('returnReport', $lineConfigurationReport) : false;
+
+        // "View only" mode: the All Trials page links here with
+        // ?from=overview. Everyone who lands from there only looks — every
+        // action block is switched off — and a user who does have something
+        // to act on is pointed to the menu where that work is done. This is a
+        // UI mode only; the POST endpoints keep enforcing their own policies.
+        $readOnlyMode = $request->query('from') === 'overview';
+        $hasActions = $canEdit || $canApprove || $pendingReviews->isNotEmpty() || $editableReviews->isNotEmpty()
+            || $canUpload || $canEditLine || $canApprovePie || $canCheckProd || $canReturn;
+        if ($readOnlyMode) {
+            $canEdit = $canApprove = $canUpload = $canEditLine = $canApprovePie = $canCheckProd = $canReturn = false;
+            $pendingReviews = collect();
+            $editableReviews = collect();
+            $approvalBlockedNote = null;
+            $reviewCompletedNote = null;
+        }
+        $actionMenu = match ($trial->progress_status) {
+            'Draft' => ['common.nav.my_work', route('my-work')],
+            'Need Revision' => ['common.nav.need_revision', route('trials.index', 'need-revision')],
+            default => ['common.nav.tracking', route('trials.index', 'tracking')],
+        };
+
         return Inertia::render('trials/report', [
+            'readOnlyMode' => $readOnlyMode,
+            'actionMenuKey' => $readOnlyMode && $hasActions ? $actionMenu[0] : null,
+            'actionMenuHref' => $readOnlyMode && $hasActions ? $actionMenu[1] : null,
             'trial' => $trial,
             'additionalAttachments' => $this->additionalAttachmentsFor($trial),
-            'canUploadAdditionalAttachment' => Gate::allows('uploadAdditionalAttachment', $trial),
+            'canUploadAdditionalAttachment' => $canUpload,
             'additionalAttachmentLimit' => TrialAdditionalAttachment::MAX_PER_TRIAL,
             'results' => $core['results'],
             'weighingSections' => $core['weighingSections'],
@@ -172,7 +210,7 @@ class TrialReportController extends Controller
             'approvedByName' => $core['approvedByName'],
             'rejectedByName' => $core['rejectedByName'],
             'completeness' => (new CheckTrialCompleteness)($trial),
-            'canEdit' => Gate::allows('update', $trial),
+            'canEdit' => $canEdit,
             'canApprove' => $canApprove,
             'pendingReviews' => $pendingReviews->map(fn (TrialReview $r) => [
                 'id' => $r->id,
@@ -195,14 +233,7 @@ class TrialReportController extends Controller
             // start/claim a report nobody has drafted yet; (2) the
             // maker-checker lock — once submitted, even the drafter must
             // wait for a Return. Admin bypasses both.
-            'canEditLineConfigurationReport' => Gate::allows('manage-line-configuration-report')
-                && (
-                    $user->isAdmin()
-                    || (
-                        (! $lineConfigurationReport || ! $lineConfigurationReport->blocksEditFor($user))
-                        && (! $lineConfigurationReport || ! $lineConfigurationReport->isSubmittedForApproval())
-                    )
-                ),
+            'canEditLineConfigurationReport' => $canEditLine,
             'lineConfigurationReportLocked' => $lineConfigurationReport?->isSubmittedForApproval() ?? false,
             'lineConfigurationReturnNote' => $lineConfigurationReturnNote,
             'lineConfigurationReportVersions' => $lineConfigurationReportVersions->map(fn (TrialLineConfigurationReport $v) => [
@@ -215,9 +246,9 @@ class TrialReportController extends Controller
             'lineConfigurationApprovers' => $lineConfigurationApprovers,
             'lineConfigurationProdApprovers' => $lineConfigurationProdApprovers,
             'lineConfigurationLanes' => LineConfigurationLane::labels(),
-            'canApprovePieLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('approvePie', $lineConfigurationReport) : false,
-            'canCheckProdLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('checkProd', $lineConfigurationReport) : false,
-            'canReturnLineConfigurationReport' => $lineConfigurationReport ? Gate::allows('returnReport', $lineConfigurationReport) : false,
+            'canApprovePieLineConfigurationReport' => $canApprovePie,
+            'canCheckProdLineConfigurationReport' => $canCheckProd,
+            'canReturnLineConfigurationReport' => $canReturn,
         ]);
     }
 

@@ -2,7 +2,7 @@
 
 // Bottleneck monitor: read-only overview of every active trial for all users.
 return [
-    'title' => 'All Trials Overview',
+    'title' => 'All Trials',
     'description' => 'Every trial still in progress, regardless of who owns it, so you can see at which stage and with whom trials are held up. This page is view-only.',
     'stage_cards' => [
         'count' => ':count trials',

@@ -14,6 +14,9 @@ return [
     ],
 
     'notes' => [
+        'view_only_title' => 'View-only mode',
+        'view_only' => 'This page was opened from All Trials, so it is view-only with no actions.',
+        'view_only_go' => 'You have an action on this trial. Continue through the :menu menu.',
         'not_your_turn_title' => 'Not your turn yet',
         'approval_blocked' => 'Awaiting approval by :name; this approval is not assigned to you.',
         'other_approver' => 'another approver',

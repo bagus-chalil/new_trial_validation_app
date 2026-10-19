@@ -202,95 +202,6 @@ export default function MonitoringIndex({
                     ))}
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('monitoring.holders.title')}</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            {t('monitoring.holders.subtitle')}
-                        </p>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>
-                                        {t('monitoring.holders.name')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('monitoring.holders.kind')}
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        {t('monitoring.holders.count')}
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        {t('monitoring.holders.avg_days')}
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        {t('monitoring.holders.oldest_days')}
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {holders.map((holder) => (
-                                    <TableRow
-                                        key={holder.name}
-                                        onClick={() =>
-                                            setFilter(
-                                                'holder',
-                                                filters.holder === holder.name
-                                                    ? ''
-                                                    : holder.name,
-                                            )
-                                        }
-                                        className={cn(
-                                            'cursor-pointer',
-                                            filters.holder === holder.name &&
-                                                'bg-muted',
-                                        )}
-                                    >
-                                        <TableCell className="font-medium">
-                                            {holder.name}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {t(
-                                                `monitoring.holders.kinds.${holder.kind}`,
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right font-semibold">
-                                            {holder.count}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {holder.avg_days}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Badge
-                                                variant="outline"
-                                                className={idleClassName(
-                                                    holder.oldest_days,
-                                                    thresholds.warn,
-                                                    thresholds.critical,
-                                                )}
-                                            >
-                                                {holder.oldest_days}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {holders.length === 0 && (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            className="p-4 text-center text-muted-foreground"
-                                        >
-                                            {t('monitoring.holders.empty')}
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-
                 <FilterBar
                     searchValue={form.q}
                     onSearchChange={(value) => setForm({ ...form, q: value })}
@@ -351,7 +262,11 @@ export default function MonitoringIndex({
                                             {trial.can_view ? (
                                                 <Link
                                                     href={
-                                                        showReport(trial.id).url
+                                                        showReport(trial.id, {
+                                                            query: {
+                                                                from: 'overview',
+                                                            },
+                                                        }).url
                                                     }
                                                     className="font-medium underline underline-offset-2"
                                                 >
@@ -447,6 +362,95 @@ export default function MonitoringIndex({
                         </p>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('monitoring.holders.title')}</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            {t('monitoring.holders.subtitle')}
+                        </p>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>
+                                        {t('monitoring.holders.name')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('monitoring.holders.kind')}
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        {t('monitoring.holders.count')}
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        {t('monitoring.holders.avg_days')}
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        {t('monitoring.holders.oldest_days')}
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {holders.map((holder) => (
+                                    <TableRow
+                                        key={holder.name}
+                                        onClick={() =>
+                                            setFilter(
+                                                'holder',
+                                                filters.holder === holder.name
+                                                    ? ''
+                                                    : holder.name,
+                                            )
+                                        }
+                                        className={cn(
+                                            'cursor-pointer',
+                                            filters.holder === holder.name &&
+                                                'bg-muted',
+                                        )}
+                                    >
+                                        <TableCell className="font-medium">
+                                            {holder.name}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {t(
+                                                `monitoring.holders.kinds.${holder.kind}`,
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-semibold">
+                                            {holder.count}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {holder.avg_days}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Badge
+                                                variant="outline"
+                                                className={idleClassName(
+                                                    holder.oldest_days,
+                                                    thresholds.warn,
+                                                    thresholds.critical,
+                                                )}
+                                            >
+                                                {holder.oldest_days}
+                                            </Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {holders.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="p-4 text-center text-muted-foreground"
+                                        >
+                                            {t('monitoring.holders.empty')}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </div>
         </>
     );
@@ -455,6 +459,6 @@ export default function MonitoringIndex({
 MonitoringIndex.layout = {
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
-        { title: 'Overview', href: '#' },
+        { title: 'All Trials', href: '#' },
     ],
 };

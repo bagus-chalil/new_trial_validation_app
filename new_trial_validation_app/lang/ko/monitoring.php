@@ -2,7 +2,7 @@
 
 // Bottleneck monitor: read-only overview of every active trial for all users.
 return [
-    'title' => '전체 트라이얼 현황',
+    'title' => '전체 트라이얼',
     'description' => '소유자와 관계없이 진행 중인 모든 트라이얼을 표시하여 어느 단계, 누구에게서 지연되고 있는지 확인할 수 있습니다. 이 페이지는 조회 전용입니다.',
     'stage_cards' => [
         'count' => '트라이얼 :count건',

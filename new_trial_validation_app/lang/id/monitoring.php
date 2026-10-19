@@ -2,7 +2,7 @@
 
 // Bottleneck monitor: read-only overview of every active trial for all users.
 return [
-    'title' => 'Ikhtisar Seluruh Trial',
+    'title' => 'Seluruh Trial',
     'description' => 'Seluruh trial yang masih berjalan, terlepas dari siapa pemiliknya, agar terlihat di tahap dan di pihak mana trial tertahan. Halaman ini hanya untuk dilihat.',
     'stage_cards' => [
         'count' => ':count trial',

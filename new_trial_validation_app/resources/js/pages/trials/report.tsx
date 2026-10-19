@@ -121,6 +121,9 @@ type EditableReview = {
 };
 
 type PageProps = {
+    readOnlyMode: boolean;
+    actionMenuKey: string | null;
+    actionMenuHref: string | null;
     trial: TrialData;
     additionalAttachments: AdditionalAttachment[];
     canUploadAdditionalAttachment: boolean;
@@ -209,6 +212,9 @@ function formatNumber(value: number | null): string {
 }
 
 export default function TrialReport({
+    readOnlyMode,
+    actionMenuKey,
+    actionMenuHref,
     trial,
     additionalAttachments,
     canUploadAdditionalAttachment,
@@ -288,6 +294,31 @@ export default function TrialReport({
                         />
                     </div>
                 </div>
+
+                {readOnlyMode && (
+                    <Alert className="print:hidden">
+                        <AlertTitle>
+                            {t('report.notes.view_only_title')}
+                        </AlertTitle>
+                        <AlertDescription>
+                            <p>{t('report.notes.view_only')}</p>
+                            {actionMenuKey && actionMenuHref && (
+                                <div className="mt-2 flex flex-wrap items-center gap-3">
+                                    <span>
+                                        {t('report.notes.view_only_go', {
+                                            menu: t(actionMenuKey),
+                                        })}
+                                    </span>
+                                    <Button asChild size="sm">
+                                        <Link href={actionMenuHref}>
+                                            {t(actionMenuKey)}
+                                        </Link>
+                                    </Button>
+                                </div>
+                            )}
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 {approvalBlockedNote && (
                     <Alert className="print:hidden">
