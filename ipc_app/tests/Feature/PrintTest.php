@@ -87,8 +87,9 @@ class PrintTest extends TestCase
             ->component('print/index')
             ->where('stages.0.stage', 'startup')
             ->where('stages.0.printCount', 0)
-            ->where('stages.1.stage', 'filling_packing')
-            ->where('stages.2.stage', 'finished')
+            ->where('stages.1.stage', 'filling')
+            ->where('stages.2.stage', 'packing')
+            ->where('stages.3.stage', 'finished')
         );
     }
 
@@ -101,9 +102,13 @@ class PrintTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('print/startup')->where('printInfo.stage', 'startup'));
 
-        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling-packing")
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling")
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('print/filling-packing')->where('printInfo.stage', 'filling_packing'));
+            ->assertInertia(fn ($page) => $page->component('print/filling-packing')->where('side', 'filling')->where('printInfo.stage', 'filling'));
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/packing")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('print/filling-packing')->where('side', 'packing')->where('printInfo.stage', 'packing'));
 
         $this->actingAs($user)->get("/batches/{$batch->id}/print/finished")
             ->assertOk()
@@ -116,7 +121,8 @@ class PrintTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)->get("/batches/{$batch->id}/print/startup")->assertForbidden();
-        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling-packing")->assertForbidden();
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling")->assertForbidden();
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/packing")->assertForbidden();
         $this->actingAs($user)->get("/batches/{$batch->id}/print/finished")->assertForbidden();
     }
 
@@ -125,7 +131,7 @@ class PrintTest extends TestCase
         $batch = $this->makeBatchAtPrintStage();
         $user = User::factory()->create();
 
-        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+        foreach (['startup', 'filling', 'packing', 'finished'] as $stage) {
             $response = $this->actingAs($user)->get("/batches/{$batch->id}/print/{$stage}/pdf");
             $response->assertOk();
             $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
@@ -170,7 +176,7 @@ class PrintTest extends TestCase
         $batch = $this->makeBatchAtPrintStage();
         $user = User::factory()->create();
 
-        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+        foreach (['startup', 'filling', 'packing', 'finished'] as $stage) {
             $response = $this->actingAs($user)->get("/batches/{$batch->id}/print/{$stage}/preview");
             $response->assertOk();
             $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
@@ -202,7 +208,7 @@ class PrintTest extends TestCase
         $response->assertSee('Rina Coordinator');
     }
 
-    public function test_startup_pdf_falls_back_to_filling_packing_approver_when_startup_has_no_approval(): void
+    public function test_startup_pdf_falls_back_to_filling_approver_when_startup_has_no_approval(): void
     {
         $batch = $this->makeBatchAtPrintStage();
         $inspection = StartupInspection::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'completed_at' => now()]);
@@ -212,7 +218,7 @@ class PrintTest extends TestCase
         $coordinator = User::factory()->create(['name' => 'Dewi Coordinator']);
         IpcApproval::query()
             ->where('ipc_batch_id', $batch->id)
-            ->where('stage', IpcApproval::STAGE_FILLING_PACKING)
+            ->where('stage', IpcApproval::STAGE_FILLING)
             ->update(['approver_user_id' => $coordinator->id]);
 
         $response = $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/print/startup/preview");
@@ -238,7 +244,7 @@ class PrintTest extends TestCase
         ]);
         $viewer = User::factory()->create();
 
-        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+        foreach (['startup', 'filling', 'packing', 'finished'] as $stage) {
             $this->actingAs($viewer)->get("/batches/{$batch->id}/print/{$stage}/preview")
                 ->assertOk()
                 ->assertSee('Rudi Coordinator')
@@ -247,31 +253,37 @@ class PrintTest extends TestCase
         }
     }
 
-    public function test_filling_packing_pdf_issued_by_is_the_user_of_the_latest_round(): void
+    public function test_filling_and_packing_pdfs_are_issued_by_their_own_latest_round_user(): void
     {
         $batch = $this->makeBatchAtPrintStage();
         $fillingUser = User::factory()->create(['name' => 'Ani Filling']);
         $packingUser = User::factory()->create(['name' => 'Budi Packing']);
 
-        // Filling's round was saved after Packing's, so it is the latest round overall.
-        $batch->fillingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $fillingUser->id])
-            ->forceFill(['created_at' => now()->subHour()])->save();
-        $batch->packingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $packingUser->id])
-            ->forceFill(['created_at' => now()->subHours(2)])->save();
+        $batch->fillingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $fillingUser->id]);
+        $batch->packingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $packingUser->id]);
+        $viewer = User::factory()->create();
 
-        $html = $this->actingAs(User::factory()->create())
-            ->get("/batches/{$batch->id}/print/filling_packing/preview")
-            ->assertOk()
-            ->getContent();
+        $fillingHtml = $this->actingAs($viewer)->get("/batches/{$batch->id}/print/filling/preview")->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/Issued By \(QC Filling\)<\/span>\s*<strong>Ani Filling<\/strong>/', $fillingHtml);
+        $this->assertStringNotContainsString('Budi Packing', $fillingHtml);
 
-        $this->assertMatchesRegularExpression('/Issued By \(QC Filling \/ Packing\)<\/span>\s*<strong>Ani Filling<\/strong>/', $html);
+        $packingHtml = $this->actingAs($viewer)->get("/batches/{$batch->id}/print/packing/preview")->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/Issued By \(QC Packing\)<\/span>\s*<strong>Budi Packing<\/strong>/', $packingHtml);
+        $this->assertStringNotContainsString('Ani Filling', $packingHtml);
+    }
+
+    public function test_legacy_filling_packing_verification_link_still_resolves(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+
+        $this->get("/verify/{$batch->id}/filling_packing")->assertOk();
     }
 
     public function test_filling_pdf_photo_labels_match_the_filling_form(): void
     {
         $batch = $this->makeBatchAtPrintStage();
 
-        $response = $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/print/filling_packing/preview");
+        $response = $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/print/filling/preview");
 
         $response->assertOk();
         foreach (FillingCheck::PHOTO_LABELS as $label) {
@@ -302,7 +314,7 @@ class PrintTest extends TestCase
         $batch = $this->makeBatchAtPrintStage();
         $user = User::factory()->create();
 
-        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+        foreach (['startup', 'filling', 'packing', 'finished'] as $stage) {
             $this->actingAs($user)->get("/batches/{$batch->id}/print/{$stage}/pdf")->assertOk();
         }
 
@@ -315,7 +327,7 @@ class PrintTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)->get("/batches/{$batch->id}/print/startup/pdf")->assertOk();
-        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing/pdf")->assertOk();
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling/pdf")->assertOk();
 
         $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
     }
@@ -346,7 +358,7 @@ class PrintTest extends TestCase
         $batch = $this->makeBatchAtPrintStage();
         $user = User::factory()->create();
 
-        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+        foreach (['startup', 'filling', 'packing', 'finished'] as $stage) {
             $this->actingAs($user)->get("/batches/{$batch->id}/print/{$stage}/pdf")->assertOk();
         }
         $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);

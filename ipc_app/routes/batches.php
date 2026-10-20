@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Route;
 // QR code links to (see App\Services\Verification\VerificationQrCode), so it must be reachable
 // without a login.
 Route::get('verify/{batch}/{stage}', [VerificationController::class, 'show'])
-    ->whereIn('stage', IpcApproval::STAGES)
+    ->whereIn('stage', [...IpcApproval::STAGES, IpcApproval::LEGACY_STAGE_FILLING_PACKING])
     ->name('verify.show');
 
 Route::middleware(['auth'])->group(function () {
@@ -103,7 +103,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('batches/{batch}/approval', [ApprovalController::class, 'edit'])->name('approval.edit');
         Route::get('batches/{batch}/approval/startup', [ApprovalController::class, 'startup'])->name('approval.startup');
-        Route::get('batches/{batch}/approval/filling-packing', [ApprovalController::class, 'fillingPacking'])->name('approval.filling-packing');
+        Route::get('batches/{batch}/approval/filling', [ApprovalController::class, 'filling'])->name('approval.filling');
+        Route::get('batches/{batch}/approval/packing', [ApprovalController::class, 'packing'])->name('approval.packing');
         Route::get('batches/{batch}/approval/finished', [ApprovalController::class, 'finished'])->name('approval.finished');
         Route::put('batches/{batch}/approval/{stage}', [ApprovalController::class, 'update'])
             ->whereIn('stage', IpcApproval::STAGES)
@@ -115,7 +116,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('batches/{batch}/print', [PrintController::class, 'edit'])->name('print.edit');
     Route::get('batches/{batch}/print/startup', [PrintController::class, 'startup'])->name('print.startup');
-    Route::get('batches/{batch}/print/filling-packing', [PrintController::class, 'fillingPacking'])->name('print.filling-packing');
+    Route::get('batches/{batch}/print/filling', [PrintController::class, 'filling'])->name('print.filling');
+    Route::get('batches/{batch}/print/packing', [PrintController::class, 'packing'])->name('print.packing');
     Route::get('batches/{batch}/print/finished', [PrintController::class, 'finished'])->name('print.finished');
     Route::get('batches/{batch}/print/{stage}/pdf', [PrintController::class, 'pdf'])
         ->whereIn('stage', IpcApproval::STAGES)

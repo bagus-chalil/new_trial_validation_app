@@ -9,32 +9,46 @@ class IpcApproval extends Model
 {
     public const STAGE_STARTUP = 'startup';
 
-    public const STAGE_FILLING_PACKING = 'filling_packing';
+    public const STAGE_FILLING = 'filling';
+
+    public const STAGE_PACKING = 'packing';
 
     public const STAGE_FINISHED = 'finished';
 
+    /**
+     * Pre-2026-10-20 combined "Filling & Packing" stage. Split into STAGE_FILLING + STAGE_PACKING
+     * (migration 2026_10_20_000000); kept only so old printed QR codes (verify/{batch}/filling_packing)
+     * still resolve — see VerificationController. Never stored in ipc_approvals any more.
+     */
+    public const LEGACY_STAGE_FILLING_PACKING = 'filling_packing';
+
     public const STAGES = [
         self::STAGE_STARTUP,
-        self::STAGE_FILLING_PACKING,
+        self::STAGE_FILLING,
+        self::STAGE_PACKING,
         self::STAGE_FINISHED,
     ];
 
     /**
-     * Stages that must be Approved before a batch advances to Print. Startup is excluded since
-     * 2026-09-23, when its card was hidden from the Approval overview per direct user request —
-     * with no way to reach it from the overview, requiring it left batches stuck at Approval
-     * forever even after every visible stage was Approved. Its detail page still exists and an
-     * optional Startup decision is still recorded, it just no longer gates the batch.
+     * Every stage that can gate a batch's advance to Print, across all flows (see
+     * requiredStagesFor() for the per-flow subset). Startup is excluded since 2026-09-23, when its
+     * card was hidden from the Approval overview per direct user request — with no way to reach it
+     * from the overview, requiring it left batches stuck at Approval forever even after every
+     * visible stage was Approved. Its detail page still exists and an optional Startup decision is
+     * still recorded, it just no longer gates the batch.
      */
     public const APPROVAL_REQUIRED_STAGES = [
-        self::STAGE_FILLING_PACKING,
+        self::STAGE_FILLING,
+        self::STAGE_PACKING,
         self::STAGE_FINISHED,
     ];
 
     public const STAGE_LABELS = [
         self::STAGE_STARTUP => 'Startup',
-        self::STAGE_FILLING_PACKING => 'Filling & Packing',
+        self::STAGE_FILLING => 'Filling',
+        self::STAGE_PACKING => 'Packing',
         self::STAGE_FINISHED => 'Finished',
+        self::LEGACY_STAGE_FILLING_PACKING => 'Filling & Packing',
     ];
 
     public const DECISION_APPROVED = 'Approved';
@@ -84,7 +98,7 @@ class IpcApproval extends Model
 
     /**
      * The approval that signs a stage's report. Startup has had no approval card since
-     * 2026-09-23, so its report falls back to the QC Coordinator's Filling & Packing approval
+     * 2026-09-23, so its report falls back to the QC Coordinator's Filling (else Packing) approval
      * (user request 2026-10-07: approving the batch also verifies its Startup form). A real Startup
      * approval, if one was ever recorded, still wins.
      *
@@ -95,40 +109,45 @@ class IpcApproval extends Model
         $byStage = collect($approvals)->keyBy('stage');
 
         if ($stage === self::STAGE_STARTUP) {
-            return $byStage->get(self::STAGE_STARTUP) ?? $byStage->get(self::STAGE_FILLING_PACKING);
+            return $byStage->get(self::STAGE_STARTUP) ?? $byStage->get(self::STAGE_FILLING) ?? $byStage->get(self::STAGE_PACKING);
+        }
+
+        if ($stage === self::LEGACY_STAGE_FILLING_PACKING) {
+            return $byStage->get(self::STAGE_FILLING) ?? $byStage->get(self::STAGE_PACKING);
         }
 
         return $byStage->get($stage);
     }
 
     /**
-     * Whether the underlying check(s) for a given approval stage are done, i.e. this stage can
-     * actually be approved yet. "filling_packing" combines two separate check tables into one
-     * approval action, matching legacy's FIllingPackingReport_Approval screen exactly.
+     * Whether the underlying check for a given approval stage is done, i.e. this stage can
+     * actually be approved yet. Filling, Packing and Finished each have their own report and
+     * approval (Filling's output is WIP, Packing's is FG — user decision 2026-10-20).
      */
     public static function stageReady(IpcBatch $batch, string $stage): bool
     {
         return match ($stage) {
             self::STAGE_STARTUP => (bool) $batch->startupCheck?->completed_at,
-            // A side the batch's flow doesn't have (see IpcBatch::hasFillingStage()/
-            // hasPackingStage()) is vacuously ready — e.g. the Filling flow's combined stage is
-            // ready once Filling alone is completed, since Packing never exists for it.
-            self::STAGE_FILLING_PACKING => (! $batch->hasFillingStage() || (bool) $batch->fillingCheck?->completed_at)
-                && (! $batch->hasPackingStage() || (bool) $batch->packingCheck?->completed_at),
-            self::STAGE_FINISHED => (bool) $batch->finishedCheck?->completed_at,
+            self::STAGE_FILLING => $batch->hasFillingStage() && (bool) $batch->fillingCheck?->completed_at,
+            self::STAGE_PACKING => $batch->hasPackingStage() && (bool) $batch->packingCheck?->completed_at,
+            self::STAGE_FINISHED => $batch->hasFinishedStage() && (bool) $batch->finishedCheck?->completed_at,
             default => false,
         };
     }
 
     /**
-     * Which approval stages apply to this batch's flow at all — the Filling flow has no Finished
-     * Good stage, so it never needs a Finished approval decision. See IpcBatch::activeStages().
+     * Which approval stages apply to this batch's flow at all: Filling flow → Filling only (output
+     * is WIP, no Finished Good); Packing + FG → Packing and Finished; Full → all three. Derived
+     * from IpcBatch::activeStages().
      *
      * @return list<string>
      */
     public static function requiredStagesFor(IpcBatch $batch): array
     {
-        return $batch->hasFinishedStage() ? self::APPROVAL_REQUIRED_STAGES : [self::STAGE_FILLING_PACKING];
+        return array_values(array_filter(
+            self::APPROVAL_REQUIRED_STAGES,
+            fn (string $stage) => in_array($stage, $batch->activeStages(), true),
+        ));
     }
 
     /**

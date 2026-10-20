@@ -28,6 +28,8 @@ class VerificationController extends Controller
             'batch' => $batch,
             'stage' => $stage,
             'stageLabel' => IpcApproval::STAGE_LABELS[$stage] ?? $stage,
+            // $stage is only echoed back for display; QR codes printed before the 2026-10-20 split
+            // use the legacy 'filling_packing' stage, which forReport() resolves to Filling/Packing.
             'approval' => $approval,
         ]);
     }

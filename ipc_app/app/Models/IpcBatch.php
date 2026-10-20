@@ -342,19 +342,14 @@ class IpcBatch extends Model
                 ->orWhere(fn ($q) => $q->where('flow_type', '!=', self::FLOW_FILLING)->whereHas('finishedCheck', $completed)))
             ->where(function ($query) use ($approvedFor, $completed) {
                 $query
-                    // Full flow: filling_packing needs both Filling and Packing completed.
-                    ->where(fn ($q) => $q->where('flow_type', self::FLOW_FULL)
+                    // Filling approval: flows that have a Filling stage (Full, Filling).
+                    ->where(fn ($q) => $q->whereIn('flow_type', [self::FLOW_FULL, self::FLOW_FILLING])
                         ->whereHas('fillingCheck', $completed)
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING)))
+                    // Packing approval: flows that have a Packing stage (Full, Packing + FG).
+                    ->orWhere(fn ($q) => $q->whereIn('flow_type', [self::FLOW_FULL, self::FLOW_PACKING_FG])
                         ->whereHas('packingCheck', $completed)
-                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
-                    // Filling flow: filling_packing only needs Filling completed (Packing doesn't exist).
-                    ->orWhere(fn ($q) => $q->where('flow_type', self::FLOW_FILLING)
-                        ->whereHas('fillingCheck', $completed)
-                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
-                    // Packing+FG flow: filling_packing only needs Packing completed (Filling doesn't exist).
-                    ->orWhere(fn ($q) => $q->where('flow_type', self::FLOW_PACKING_FG)
-                        ->whereHas('packingCheck', $completed)
-                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING_PACKING)))
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_PACKING)))
                     // Finished approval only applies to flows that actually have a Finished Good stage.
                     ->orWhere(fn ($q) => $q->where('flow_type', '!=', self::FLOW_FILLING)
                         ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FINISHED)));

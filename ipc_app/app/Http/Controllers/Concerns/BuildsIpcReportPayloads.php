@@ -189,17 +189,47 @@ trait BuildsIpcReportPayloads
     /**
      * @return array<string, mixed>
      */
-    private function fillingPackingPayload(IpcBatch $batch, array $photoUrls): array
+    private function fillingPackingPayload(IpcBatch $batch, array $photoUrls, string $side): array
     {
+        $isFilling = $side === IpcApproval::STAGE_FILLING;
+
         return [
+            'side' => $side,
             'startupCheck' => $batch->startupCheck,
-            'fillingCheck' => $batch->fillingCheck,
-            'packingCheck' => $batch->packingCheck,
+            'fillingCheck' => $isFilling ? $batch->fillingCheck : null,
+            'packingCheck' => $isFilling ? null : $batch->packingCheck,
             'photoUrls' => $photoUrls,
             'packingChecklistGroups' => PackingCheck::checklistGroups(),
-            'fillingPackingApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FILLING_PACKING),
-            'verificationUrl' => VerificationQrCode::url($batch, IpcApproval::STAGE_FILLING_PACKING),
-            'verificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_FILLING_PACKING),
+            'reportApproval' => $batch->approvals->firstWhere('stage', $side),
+            'verificationUrl' => VerificationQrCode::url($batch, $side),
+            'verificationQr' => VerificationQrCode::svg($batch, $side),
+        ];
+    }
+
+    /**
+     * Eager loads for one side of the split Filling / Packing report.
+     *
+     * @return array<int|string, mixed>
+     */
+    private function fillingPackingRelations(string $side): array
+    {
+        if ($side === IpcApproval::STAGE_FILLING) {
+            return [
+                'fillingCheck.user',
+                'fillingCheck.samples',
+                'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                'fillingCheck.revisions.user',
+                'fillingCheck.revisions.samples',
+            ];
+        }
+
+        return [
+            'packingCheck.user',
+            'packingCheck.masterLine',
+            'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+            'packingCheck.revisions.user',
+            'packingCheck.revisions.photos',
+            'packingCheck.revisions.masterLine',
         ];
     }
 
@@ -242,35 +272,30 @@ trait BuildsIpcReportPayloads
                 })(),
                 "Startup-Inspection-{$batch->no_batch}.pdf",
             ],
-            IpcApproval::STAGE_FILLING_PACKING => [
+            IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING => [
                 'pdf.approval-filling-packing',
-                (function () use ($batch) {
+                (function () use ($batch, $stage) {
+                    abort_unless(in_array($stage, $batch->activeStages(), true), 404);
+
                     $batch->load([
                         'startupCheck',
-                        'fillingCheck.user',
-                        'fillingCheck.samples',
-                        'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'fillingCheck.revisions.user',
-                        'fillingCheck.revisions.samples',
-                        'packingCheck.user',
-                        'packingCheck.masterLine',
-                        'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-                        'packingCheck.revisions.user',
-                        'packingCheck.revisions.photos',
-                        'packingCheck.revisions.masterLine',
+                        ...$this->fillingPackingRelations($stage),
                         'approvals.approver',
                     ]);
 
+                    $isFilling = $stage === IpcApproval::STAGE_FILLING;
+
                     return [
-                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing'])),
-                        'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
-                        // Title + document control number of the paper form this report mirrors.
-                        'title' => 'Laporan Pemeriksaan In Process Control Filling & Packing',
+                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, [$stage]), $stage),
+                        'packingRevisionPhotoUris' => $isFilling ? [] : $this->packingRevisionPhotoUris($batch),
+                        // Filling and Packing are separate documents but share the paper form's
+                        // document control number (FR.QAC.193.00 Rev 0).
+                        'title' => 'Laporan Pemeriksaan In Process Control '.($isFilling ? 'Filling' : 'Packing'),
                         'docNumber' => 'FR.QAC.193.00',
                         'docRevision' => '0',
                     ];
                 })(),
-                "Filling-Packing-Report-{$batch->no_batch}.pdf",
+                ($stage === IpcApproval::STAGE_FILLING ? 'Filling' : 'Packing')."-Report-{$batch->no_batch}.pdf",
             ],
             IpcApproval::STAGE_FINISHED => [
                 'pdf.approval-finished',

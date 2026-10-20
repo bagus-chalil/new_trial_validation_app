@@ -22,10 +22,15 @@ const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Dr
         icon: Droplets,
         description: 'Start Up Inspection Form + Start Inspection (checklist, sample, test type).',
     },
-    filling_packing: {
-        href: (id) => `/batches/${id}/approval/filling-packing`,
+    filling: {
+        href: (id) => `/batches/${id}/approval/filling`,
+        icon: Droplets,
+        description: 'In Process Control Inspection Report — Filling (output WIP).',
+    },
+    packing: {
+        href: (id) => `/batches/${id}/approval/packing`,
         icon: Package,
-        description: 'In Process Control Inspection Report — Filling & Packing.',
+        description: 'In Process Control Inspection Report — Packing (output Finished Good).',
     },
     finished: {
         href: (id) => `/batches/${id}/approval/finished`,

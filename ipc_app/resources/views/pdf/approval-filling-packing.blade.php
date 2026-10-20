@@ -1,7 +1,9 @@
 @extends('pdf.layout')
 
 @section('content')
-    <div class="section-title">A. Filling Inspection</div>
+    {{-- Filling and Packing are separate documents (split 2026-10-20): $side picks which one. --}}
+    @if ($side === 'filling')
+    <div class="section-title">Filling Inspection</div>
 
     @if ($fillingCheck)
         <div class="info-grid" style="grid-template-columns: repeat(4, 1fr);">
@@ -133,8 +135,8 @@
         </table>
     @endif
 
-    <div class="page-break"></div>
-    <div class="section-title">B. Packing Inspection</div>
+    @else
+    <div class="section-title">Packing Inspection</div>
 
     @if ($packingCheck)
         <div class="info-grid" style="grid-template-columns: repeat(4, 1fr);">
@@ -325,20 +327,18 @@
     @endif
 
     <p class="muted" style="margin-top: 6px;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
+    @endif
 
     @php
-        // Issued By = whoever saved the latest TH_PROGRESS round across Filling and Packing.
-        $lastRound = collect([$fillingCheck?->revisions, $packingCheck?->revisions])
-            ->filter()
-            ->flatten(1)
-            ->sortByDesc('created_at')
-            ->first();
-        $issuedBy = $lastRound?->user ?? $packingCheck?->user ?? $fillingCheck?->user;
-        $issuedAt = $lastRound?->created_at ?? $packingCheck?->completed_at ?? $fillingCheck?->completed_at;
+        // Issued By = whoever saved the latest TH_PROGRESS round of this document's own check.
+        $sideCheck = $side === 'filling' ? $fillingCheck : $packingCheck;
+        $lastRound = $sideCheck?->revisions?->sortByDesc('created_at')->first();
+        $issuedBy = $lastRound?->user ?? $sideCheck?->user;
+        $issuedAt = $lastRound?->created_at ?? $sideCheck?->completed_at;
     @endphp
     <div class="sign-grid">
         <div>
-            <span>Issued By (QC Filling / Packing)</span>
+            <span>Issued By (QC {{ $side === 'filling' ? 'Filling' : 'Packing' }})</span>
             @if ($issuedBy)
                 <strong>{{ $issuedBy->name }}</strong>
                 <small class="sign-date">{{ optional($issuedAt)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
@@ -346,20 +346,20 @@
         </div>
         <div>
             <span>Review By (QC IPC Coordinator)</span>
-            @if ($fillingPackingApproval)
-                <strong>{{ $fillingPackingApproval->approver->name ?? '—' }}</strong>
-                <small class="sign-date">{{ optional($fillingPackingApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+            @if ($reportApproval)
+                <strong>{{ $reportApproval->approver->name ?? '—' }}</strong>
+                <small class="sign-date">{{ optional($reportApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
             @endif
         </div>
         <div class="qr-box">
             <span>Verifikasi</span>
-            @if ($fillingPackingApproval)
+            @if ($reportApproval)
                 <div class="qr-code">{!! $verificationQr !!}</div>
-                <small>{{ $fillingPackingApproval->decision }}</small>
+                <small>{{ $reportApproval->decision }}</small>
             @else
                 <small class="muted">Belum disetujui</small>
             @endif
         </div>
     </div>
-    @include('pdf._approval-remarks', ['approval' => $fillingPackingApproval])
+    @include('pdf._approval-remarks', ['approval' => $reportApproval])
 @endsection

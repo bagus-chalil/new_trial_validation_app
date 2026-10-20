@@ -33,7 +33,7 @@ class LogPrint
                 ->distinct()
                 ->pluck('stage');
 
-            $allPrinted = collect(IpcApproval::STAGES)->every(fn ($s) => $printedStages->contains($s));
+            $allPrinted = collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->every(fn ($s) => $printedStages->contains($s));
 
             if ($allPrinted && $batch->current_stage === IpcBatch::STAGE_PRINT) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);

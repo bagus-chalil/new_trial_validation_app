@@ -81,6 +81,7 @@ interface StartupCheckSlice {
 
 export default function PrintFillingPacking({
     batch,
+    side,
     startupCheck,
     fillingCheck,
     packingCheck,
@@ -89,6 +90,7 @@ export default function PrintFillingPacking({
     packingChecklistGroups,
 }: {
     batch: Batch;
+    side: 'filling' | 'packing';
     startupCheck: StartupCheckSlice | null;
     fillingCheck: FillingCheckData | null;
     packingCheck: PackingCheckData | null;
@@ -97,17 +99,18 @@ export default function PrintFillingPacking({
     packingChecklistGroups: ChecklistGroup[];
 }) {
     const { props } = usePage<SharedData>();
+    const sideLabel = side === 'filling' ? 'Filling' : 'Packing';
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const fillingSamplesByNo = Object.fromEntries((fillingCheck?.samples ?? []).map((s) => [s.sample_no, s]));
 
     return (
         <IpcShell
-            title="Filling & Packing Report"
+            title={`${sideLabel} Report`}
             subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
             backHref={`/batches/${batch.id}/print`}
-            headerActions={<PrintPreviewButton href={`/batches/${batch.id}/print/filling_packing/pdf`} label="Cetak" />}
+            headerActions={<PrintPreviewButton href={`/batches/${batch.id}/print/${side}/pdf`} label="Cetak" />}
         >
-            <Head title={`Print — Filling & Packing Report — ${batch.no_batch}`} />
+            <Head title={`Print — ${sideLabel} Report — ${batch.no_batch}`} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
                 <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-6 md:px-8">
                     <div className="border-border-soft bg-card grid grid-cols-2 gap-3 rounded-[20px] border p-[18px] md:grid-cols-4 md:gap-4">
@@ -117,123 +120,125 @@ export default function PrintFillingPacking({
                         <InfoField label="Line" value={lineLabel(batch.master_line)} />
                     </div>
 
-                    {fillingCheck ? (
-                        <AccordionCard title="A. Filling Inspection" defaultOpen={false}>
-                            <InfoField label="QC Inspector" value={fillingCheck.user?.name ?? '—'} />
-                            <InfoField label="Line Leader" value={startupCheck?.line_leader_name ?? '—'} />
-                            <InfoField label="Density" value={startupCheck?.density_not_applicable ? 'N/A' : (startupCheck?.density ?? '—')} />
-                            <InfoField label="Average Weight" value={fillingCheck.average_weight ?? '—'} />
-                            <ChecklistRow label="Kebersihan Bulk & Odor" value={fillingCheck.sample_bulk_odor_status} />
-                            <ChecklistRow label="Uji Kebocoran (Vaccum / Press)" value={fillingCheck.sample_leakage_test_status} />
-                            <div className="col-span-full overflow-x-auto">
-                                <table className="w-full text-[12.5px]">
-                                    <thead>
-                                        <tr className="text-muted-foreground/70 border-border-soft border-b text-left uppercase">
-                                            <th className="py-1.5 pr-2 font-semibold">Sample</th>
-                                            <th className="py-1.5 pr-2 font-semibold">Weight Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Array.from({ length: 10 }, (_, i) => i + 1).map((no) => (
-                                            <tr key={no} className="border-border-soft border-b last:border-0">
-                                                <td className="py-1.5 pr-2 font-semibold">{no}</td>
-                                                <td className="py-1.5 pr-2">{fillingSamplesByNo[no]?.weight_value ?? '—'}</td>
+                    {side === 'filling' &&
+                        (fillingCheck ? (
+                            <AccordionCard title="Filling Inspection" defaultOpen={false}>
+                                <InfoField label="QC Inspector" value={fillingCheck.user?.name ?? '—'} />
+                                <InfoField label="Line Leader" value={startupCheck?.line_leader_name ?? '—'} />
+                                <InfoField label="Density" value={startupCheck?.density_not_applicable ? 'N/A' : (startupCheck?.density ?? '—')} />
+                                <InfoField label="Average Weight" value={fillingCheck.average_weight ?? '—'} />
+                                <ChecklistRow label="Kebersihan Bulk & Odor" value={fillingCheck.sample_bulk_odor_status} />
+                                <ChecklistRow label="Uji Kebocoran (Vaccum / Press)" value={fillingCheck.sample_leakage_test_status} />
+                                <div className="col-span-full overflow-x-auto">
+                                    <table className="w-full text-[12.5px]">
+                                        <thead>
+                                            <tr className="text-muted-foreground/70 border-border-soft border-b text-left uppercase">
+                                                <th className="py-1.5 pr-2 font-semibold">Sample</th>
+                                                <th className="py-1.5 pr-2 font-semibold">Weight Value</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <ChecklistRow label="Decision" value={fillingCheck.decision} />
-                            <InfoField label="Remarks" value={fillingCheck.remarks ?? '—'} full />
-                            <PhotoRow
-                                photos={[
-                                    { key: 'color', label: 'Color', url: photoUrls.filling?.color ?? null },
-                                    { key: 'wo_image', label: 'WI Image', url: photoUrls.filling?.wo_image ?? null },
-                                    { key: 'date_bulk', label: 'Identity Bulk', url: photoUrls.filling?.date_bulk ?? null },
-                                    { key: 'image_tube', label: 'Appearance', url: photoUrls.filling?.image_tube ?? null },
-                                ]}
-                            />
-                        </AccordionCard>
-                    ) : (
-                        <EmptyNote>
-                            {batch.flow_type === 'packing_fg' ? 'Filling Check tidak digunakan pada alur ini.' : 'Filling Check belum diisi.'}
-                        </EmptyNote>
-                    )}
-
-                    <RevisionHistoryCard
-                        title="Riwayat Simpan — Filling Check"
-                        revisions={fillingCheck?.revisions ?? []}
-                        renderSummary={(rev) => (
-                            <>
-                                {rev.decision && <span>Decision: {rev.decision}</span>}
-                                {rev.average_weight != null && Number(rev.average_weight) !== 0 && <span>Avg Weight: {rev.average_weight}</span>}
-                            </>
-                        )}
-                        renderRemarks={(rev) => rev.remarks}
-                    />
-
-                    {packingCheck ? (
-                        <AccordionCard title="B. Packing Inspection" defaultOpen={false}>
-                            <InfoField label="QC" value={packingCheck.user?.name ?? '—'} />
-                            <InfoField label="Line Packing" value={lineLabel(packingCheck.master_line ?? batch.master_line)} />
-                            <InfoField label="Line Leader" value={packingCheck.line_leader_name ?? '—'} />
-                            <InfoField label="Machines Coding" value={packingCheck.coding_machine ?? '—'} />
-                            <InfoField label="Std Bruto MB" value={packingCheck.standard_weight_mb ?? '—'} />
-                            <InfoField label="Data Timbang" value={packingCheck.weighing_data ?? '—'} />
-
-                            {packingChecklistGroups.map((group) => (
-                                <div key={group.key} className="col-span-full">
-                                    <p className="text-muted-foreground/70 mb-1.5 text-[11.5px] font-semibold tracking-wide uppercase">
-                                        {groupLabel(group.key)} Packaging
-                                    </p>
-                                    {Object.entries(group.fields).map(([field, label]) => (
-                                        <ChecklistRow key={field} label={label} value={packingCheck[field] as string | null} />
-                                    ))}
+                                        </thead>
+                                        <tbody>
+                                            {Array.from({ length: 10 }, (_, i) => i + 1).map((no) => (
+                                                <tr key={no} className="border-border-soft border-b last:border-0">
+                                                    <td className="py-1.5 pr-2 font-semibold">{no}</td>
+                                                    <td className="py-1.5 pr-2">{fillingSamplesByNo[no]?.weight_value ?? '—'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                            ))}
+                                <ChecklistRow label="Decision" value={fillingCheck.decision} />
+                                <InfoField label="Remarks" value={fillingCheck.remarks ?? '—'} full />
+                                <PhotoRow
+                                    photos={[
+                                        { key: 'color', label: 'Color', url: photoUrls.filling?.color ?? null },
+                                        { key: 'wo_image', label: 'WI Image', url: photoUrls.filling?.wo_image ?? null },
+                                        { key: 'date_bulk', label: 'Identity Bulk', url: photoUrls.filling?.date_bulk ?? null },
+                                        { key: 'image_tube', label: 'Appearance', url: photoUrls.filling?.image_tube ?? null },
+                                    ]}
+                                />
+                            </AccordionCard>
+                        ) : (
+                            <EmptyNote>Filling Check belum diisi.</EmptyNote>
+                        ))}
 
-                            <PhotoRow
-                                photos={[
-                                    { key: 'palletisasi', label: 'Palletisasi', url: photoUrls.packing?.palletisasi ?? null },
-                                    { key: 'color', label: 'Color', url: photoUrls.packing?.color ?? null },
-                                    {
-                                        key: 'primary_coding_batch_exp',
-                                        label: 'Primary Coding Batch/EXP',
-                                        url: photoUrls.packing?.primary_coding_batch_exp ?? null,
-                                    },
-                                    {
-                                        key: 'secondary_coding_batch_exp',
-                                        label: 'Secondary Coding',
-                                        url: photoUrls.packing?.secondary_coding_batch_exp ?? null,
-                                    },
-                                    {
-                                        key: 'tersier_coding_batch',
-                                        label: 'Tersier Coding / Shipper',
-                                        url: photoUrls.packing?.tersier_coding_batch ?? null,
-                                    },
-                                ]}
-                            />
-
-                            <ChecklistRow label="Decision" value={packingCheck.decision} />
-                            <InfoField label="Remarks / Notes" value={packingCheck.remarks ?? '—'} full />
-                        </AccordionCard>
-                    ) : (
-                        <EmptyNote>
-                            {batch.flow_type === 'filling' ? 'Packing Check tidak digunakan pada alur ini.' : 'Packing Check belum diisi.'}
-                        </EmptyNote>
+                    {side === 'filling' && (
+                        <RevisionHistoryCard
+                            title="Riwayat Simpan — Filling Check"
+                            revisions={fillingCheck?.revisions ?? []}
+                            renderSummary={(rev) => (
+                                <>
+                                    {rev.decision && <span>Decision: {rev.decision}</span>}
+                                    {rev.average_weight != null && Number(rev.average_weight) !== 0 && <span>Avg Weight: {rev.average_weight}</span>}
+                                </>
+                            )}
+                            renderRemarks={(rev) => rev.remarks}
+                        />
                     )}
 
-                    <RevisionHistoryCard
-                        title="Riwayat Simpan — Packing Check"
-                        revisions={packingCheck?.revisions ?? []}
-                        renderSummary={(rev) => (
-                            <>
-                                {rev.decision && <span>Decision: {rev.decision}</span>}
-                                {rev.sum_weight_mb && <span>Weight of MB: {rev.sum_weight_mb}</span>}
-                            </>
-                        )}
-                        renderRemarks={(rev) => rev.remarks}
-                    />
+                    {side === 'packing' &&
+                        (packingCheck ? (
+                            <AccordionCard title="Packing Inspection" defaultOpen={false}>
+                                <InfoField label="QC" value={packingCheck.user?.name ?? '—'} />
+                                <InfoField label="Line Packing" value={lineLabel(packingCheck.master_line ?? batch.master_line)} />
+                                <InfoField label="Line Leader" value={packingCheck.line_leader_name ?? '—'} />
+                                <InfoField label="Machines Coding" value={packingCheck.coding_machine ?? '—'} />
+                                <InfoField label="Std Bruto MB" value={packingCheck.standard_weight_mb ?? '—'} />
+                                <InfoField label="Data Timbang" value={packingCheck.weighing_data ?? '—'} />
+
+                                {packingChecklistGroups.map((group) => (
+                                    <div key={group.key} className="col-span-full">
+                                        <p className="text-muted-foreground/70 mb-1.5 text-[11.5px] font-semibold tracking-wide uppercase">
+                                            {groupLabel(group.key)} Packaging
+                                        </p>
+                                        {Object.entries(group.fields).map(([field, label]) => (
+                                            <ChecklistRow key={field} label={label} value={packingCheck[field] as string | null} />
+                                        ))}
+                                    </div>
+                                ))}
+
+                                <PhotoRow
+                                    photos={[
+                                        { key: 'palletisasi', label: 'Palletisasi', url: photoUrls.packing?.palletisasi ?? null },
+                                        { key: 'color', label: 'Color', url: photoUrls.packing?.color ?? null },
+                                        {
+                                            key: 'primary_coding_batch_exp',
+                                            label: 'Primary Coding Batch/EXP',
+                                            url: photoUrls.packing?.primary_coding_batch_exp ?? null,
+                                        },
+                                        {
+                                            key: 'secondary_coding_batch_exp',
+                                            label: 'Secondary Coding',
+                                            url: photoUrls.packing?.secondary_coding_batch_exp ?? null,
+                                        },
+                                        {
+                                            key: 'tersier_coding_batch',
+                                            label: 'Tersier Coding / Shipper',
+                                            url: photoUrls.packing?.tersier_coding_batch ?? null,
+                                        },
+                                    ]}
+                                />
+
+                                <ChecklistRow label="Decision" value={packingCheck.decision} />
+                                <InfoField label="Remarks / Notes" value={packingCheck.remarks ?? '—'} full />
+                            </AccordionCard>
+                        ) : (
+                            <EmptyNote>Packing Check belum diisi.</EmptyNote>
+                        ))}
+
+                    {side === 'packing' && (
+                        <RevisionHistoryCard
+                            title="Riwayat Simpan — Packing Check"
+                            revisions={packingCheck?.revisions ?? []}
+                            renderSummary={(rev) => (
+                                <>
+                                    {rev.decision && <span>Decision: {rev.decision}</span>}
+                                    {rev.sum_weight_mb && <span>Weight of MB: {rev.sum_weight_mb}</span>}
+                                </>
+                            )}
+                            renderRemarks={(rev) => rev.remarks}
+                        />
+                    )}
 
                     <PrintActionCard batchId={batch.id} info={printInfo} />
                 </div>

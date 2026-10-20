@@ -72,11 +72,13 @@ class ApprovalTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('approval/index')
-            ->has('stages', 2)
-            ->where('stages.0.stage', 'filling_packing')
+            ->has('stages', 3)
+            ->where('stages.0.stage', 'filling')
             ->where('stages.0.ready', true)
-            ->where('stages.1.stage', 'finished')
+            ->where('stages.1.stage', 'packing')
             ->where('stages.1.ready', true)
+            ->where('stages.2.stage', 'finished')
+            ->where('stages.2.ready', true)
         );
     }
 
@@ -89,9 +91,13 @@ class ApprovalTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('approval/startup')->where('stage.stage', 'startup'));
 
-        $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling-packing")
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling")
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('approval/filling-packing')->where('stage.stage', 'filling_packing'));
+            ->assertInertia(fn ($page) => $page->component('approval/filling-packing')->where('side', 'filling')->where('stage.stage', 'filling'));
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval/packing")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('approval/filling-packing')->where('side', 'packing')->where('stage.stage', 'packing'));
 
         $this->actingAs($user)->get("/batches/{$batch->id}/approval/finished")
             ->assertOk()
@@ -112,7 +118,7 @@ class ApprovalTest extends TestCase
         ]);
 
         $this->actingAs($user)->get("/batches/{$batch->id}/approval/startup")->assertForbidden();
-        $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling-packing")->assertForbidden();
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling")->assertForbidden();
         $this->actingAs($user)->get("/batches/{$batch->id}/approval/finished")->assertForbidden();
     }
 
@@ -126,8 +132,12 @@ class ApprovalTest extends TestCase
             ->assertRedirect("/batches/{$batch->id}/approval/startup");
 
         $this->actingAs($user)
-            ->put("/batches/{$batch->id}/approval/filling_packing", ['decision' => 'Approved'])
-            ->assertRedirect("/batches/{$batch->id}/approval/filling-packing");
+            ->put("/batches/{$batch->id}/approval/filling", ['decision' => 'Approved'])
+            ->assertRedirect("/batches/{$batch->id}/approval/filling");
+
+        $this->actingAs($user)
+            ->put("/batches/{$batch->id}/approval/packing", ['decision' => 'Approved'])
+            ->assertRedirect("/batches/{$batch->id}/approval/packing");
 
         $this->actingAs($user)
             ->put("/batches/{$batch->id}/approval/finished", ['decision' => 'Approved'])
@@ -139,7 +149,7 @@ class ApprovalTest extends TestCase
         $batch = $this->makeBatchAtApprovalStage();
         $user = User::factory()->approver()->create();
 
-        foreach (['startup', 'filling_packing', 'finished'] as $stage) {
+        foreach (['startup', 'filling', 'packing', 'finished'] as $stage) {
             $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/{$stage}/print");
             $response->assertOk();
             $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
@@ -152,7 +162,7 @@ class ApprovalTest extends TestCase
         $user = User::factory()->approver()->create();
         $approver = User::factory()->create(['name' => 'Approver Cetak']);
 
-        foreach ([IpcApproval::STAGE_FILLING_PACKING, IpcApproval::STAGE_FINISHED] as $stage) {
+        foreach ([IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING, IpcApproval::STAGE_FINISHED] as $stage) {
             IpcApproval::create([
                 'ipc_batch_id' => $batch->id,
                 'stage' => $stage,
@@ -162,7 +172,7 @@ class ApprovalTest extends TestCase
             ]);
         }
 
-        foreach ([IpcApproval::STAGE_FILLING_PACKING, IpcApproval::STAGE_FINISHED] as $stage) {
+        foreach ([IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING, IpcApproval::STAGE_FINISHED] as $stage) {
             $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/{$stage}/print");
             $response->assertOk();
             $response->assertSee('Approver Cetak');
@@ -256,7 +266,7 @@ class ApprovalTest extends TestCase
         $user = User::factory()->approver()->create();
 
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved']);
-        $this->actingAs($user)->put("/batches/{$batch->id}/approval/filling_packing", ['decision' => 'Rejected', 'remarks' => 'Cacat produksi']);
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/filling", ['decision' => 'Rejected', 'remarks' => 'Cacat produksi']);
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/finished", ['decision' => 'Approved']);
 
         $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
@@ -343,14 +353,18 @@ class ApprovalTest extends TestCase
     public function test_approving_a_stage_that_is_not_ready_is_forbidden(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
-        // Simulate the (currently impossible in the real flow) case where Filling & Packing
-        // isn't actually ready — proves stageReady() is really enforced server-side, not just
-        // trusted from the always-gated real workflow.
+        // Simulate the (currently impossible in the real flow) case where Packing isn't actually
+        // ready — proves stageReady() is really enforced server-side, not just trusted from the
+        // always-gated real workflow. Filling, which is still done, stays approvable.
         $batch->packingCheck->update(['completed_at' => null]);
+        $approver = User::factory()->approver()->create();
 
-        $this->actingAs(User::factory()->approver()->create())
-            ->put("/batches/{$batch->id}/approval/filling_packing", ['decision' => 'Approved'])
+        $this->actingAs($approver)
+            ->put("/batches/{$batch->id}/approval/packing", ['decision' => 'Approved'])
             ->assertForbidden();
+        $this->actingAs($approver)
+            ->put("/batches/{$batch->id}/approval/filling", ['decision' => 'Approved'])
+            ->assertRedirect();
     }
 
     public function test_filling_packing_detail_page_shows_save_history_with_timestamps(): void
@@ -386,21 +400,31 @@ class ApprovalTest extends TestCase
             'user_id' => $user->id,
         ]);
 
-        $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling-packing");
+        $response = $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling");
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('approval/filling-packing')
             ->has('fillingCheck.revisions', 2)
-            ->has('packingCheck.revisions', 1)
+            ->where('packingCheck', null)
             ->where('fillingCheck.revisions.0.user.name', $user->name)
         );
 
-        $pdfResponse = $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling_packing/print");
-        $pdfResponse->assertOk();
-        $pdfHtml = $pdfResponse->getContent();
-        $this->assertStringContainsString('Progress pertama', $pdfHtml);
-        $this->assertStringContainsString('Packing OK', $pdfHtml);
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval/packing")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('packingCheck.revisions', 1)
+                ->where('fillingCheck', null)
+            );
+
+        // Separate documents: each PDF carries only its own side.
+        $fillingHtml = $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling/print")->assertOk()->getContent();
+        $this->assertStringContainsString('Progress pertama', $fillingHtml);
+        $this->assertStringNotContainsString('Packing OK', $fillingHtml);
+
+        $packingHtml = $this->actingAs($user)->get("/batches/{$batch->id}/approval/packing/print")->assertOk()->getContent();
+        $this->assertStringContainsString('Packing OK', $packingHtml);
+        $this->assertStringNotContainsString('Progress pertama', $packingHtml);
     }
 
     public function test_finished_detail_page_shows_save_history_with_timestamps(): void
@@ -475,20 +499,30 @@ class ApprovalTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('approval/index')
                 ->has('stages', 1)
-                ->where('stages.0.stage', 'filling_packing')
+                ->where('stages.0.stage', 'filling')
                 ->where('stages.0.ready', true)
             );
     }
 
-    public function test_approving_filling_packing_alone_advances_a_filling_only_batch_to_print(): void
+    public function test_approving_filling_alone_advances_a_filling_only_batch_to_print(): void
     {
         $batch = $this->makeFillingFlowBatchAtApprovalStage();
         $user = User::factory()->approver()->create();
 
         $this->actingAs($user)
-            ->put("/batches/{$batch->id}/approval/filling_packing", ['decision' => 'Approved'])
+            ->put("/batches/{$batch->id}/approval/filling", ['decision' => 'Approved'])
             ->assertRedirect();
 
         $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+    }
+
+    public function test_filling_flow_has_no_packing_report_or_approval(): void
+    {
+        $batch = $this->makeFillingFlowBatchAtApprovalStage();
+        $user = User::factory()->approver()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval/packing")->assertNotFound();
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval/packing/print")->assertNotFound();
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/packing", ['decision' => 'Approved'])->assertForbidden();
     }
 }

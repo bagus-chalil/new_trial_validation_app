@@ -44,7 +44,7 @@ class AdvanceApprovedBatchesTest extends TestCase
     public function test_fully_approved_batch_stuck_at_approval_is_advanced_to_print(): void
     {
         $stuck = $this->batchAtApproval('STUCK', IpcApproval::APPROVAL_REQUIRED_STAGES);
-        $partial = $this->batchAtApproval('PARTIAL', [IpcApproval::STAGE_FILLING_PACKING]);
+        $partial = $this->batchAtApproval('PARTIAL', [IpcApproval::STAGE_FILLING]);
 
         $this->artisan('ipc:advance-approved-batches')->assertSuccessful();
 

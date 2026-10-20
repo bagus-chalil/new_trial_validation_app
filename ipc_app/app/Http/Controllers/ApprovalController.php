@@ -63,22 +63,27 @@ class ApprovalController extends Controller
         ]);
     }
 
-    public function fillingPacking(IpcBatch $batch): Response
+    public function filling(IpcBatch $batch): Response
+    {
+        return $this->fillingOrPacking($batch, IpcApproval::STAGE_FILLING);
+    }
+
+    public function packing(IpcBatch $batch): Response
+    {
+        return $this->fillingOrPacking($batch, IpcApproval::STAGE_PACKING);
+    }
+
+    /** Filling and Packing are separate reports/approvals sharing one page component (`side`). */
+    private function fillingOrPacking(IpcBatch $batch, string $side): Response
     {
         $this->guardFinished($batch);
+        abort_unless(in_array($side, $batch->activeStages(), true), 404, 'Tahap ini tidak digunakan pada alur batch ini.');
 
         $batch->load([
             'masterProduct',
             'masterLine',
             'startupCheck',
-            'fillingCheck.user',
-            'fillingCheck.samples',
-            'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-            'fillingCheck.revisions.user',
-            'packingCheck.user',
-            'packingCheck.masterLine',
-            'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-            'packingCheck.revisions.user',
+            ...$this->fillingPackingRelations($side),
             'approvals.approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
@@ -86,9 +91,9 @@ class ApprovalController extends Controller
 
         return Inertia::render('approval/filling-packing', [
             'batch' => $batch,
-            'stage' => $this->stageInfo($batch, IpcApproval::STAGE_FILLING_PACKING),
+            'stage' => $this->stageInfo($batch, $side),
             'decisions' => IpcApproval::DECISIONS,
-            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, ['filling', 'packing'])),
+            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, [$side]), $side),
         ]);
     }
 
@@ -126,7 +131,8 @@ class ApprovalController extends Controller
 
         $route = match ($stage) {
             IpcApproval::STAGE_STARTUP => 'approval.startup',
-            IpcApproval::STAGE_FILLING_PACKING => 'approval.filling-packing',
+            IpcApproval::STAGE_FILLING => 'approval.filling',
+            IpcApproval::STAGE_PACKING => 'approval.packing',
             IpcApproval::STAGE_FINISHED => 'approval.finished',
             default => 'approval.edit',
         };

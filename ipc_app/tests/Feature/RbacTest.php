@@ -185,7 +185,8 @@ class RbacTest extends TestCase
                 ->has('queue.data', 1)
                 ->where('queue.data.0.batch.id', $batch->id)
                 ->where('queue.data.0.pendingStages', [
-                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING_PACKING],
+                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING],
+                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_PACKING],
                     IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED],
                 ]));
     }
@@ -317,12 +318,12 @@ class RbacTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->has('queue.data', 1)
                 ->where('queue.data.0.batch.id', $batch->id)
-                ->where('queue.data.0.pendingStages', [IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING_PACKING]])
+                ->where('queue.data.0.pendingStages', [IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING]])
             );
 
         IpcApproval::create([
             'ipc_batch_id' => $batch->id,
-            'stage' => IpcApproval::STAGE_FILLING_PACKING,
+            'stage' => IpcApproval::STAGE_FILLING,
             'decision' => IpcApproval::DECISION_APPROVED,
             'approver_user_id' => $approver->id,
             'approved_at' => now(),
@@ -358,7 +359,7 @@ class RbacTest extends TestCase
                 ->has('queue.data', 1)
                 ->where('queue.data.0.batch.id', $batch->id)
                 ->where('queue.data.0.pendingStages', [
-                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FILLING_PACKING],
+                    IpcApproval::STAGE_LABELS[IpcApproval::STAGE_PACKING],
                     IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED],
                 ])
             );

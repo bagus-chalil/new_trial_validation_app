@@ -61,29 +61,34 @@ class PrintController extends Controller
         ]);
     }
 
-    public function fillingPacking(IpcBatch $batch): Response
+    public function filling(IpcBatch $batch): Response
+    {
+        return $this->fillingOrPacking($batch, IpcApproval::STAGE_FILLING);
+    }
+
+    public function packing(IpcBatch $batch): Response
+    {
+        return $this->fillingOrPacking($batch, IpcApproval::STAGE_PACKING);
+    }
+
+    /** Filling and Packing are separate reports sharing one page component (`side`). */
+    private function fillingOrPacking(IpcBatch $batch, string $side): Response
     {
         $this->guardPrintable($batch);
+        abort_unless(in_array($side, $batch->activeStages(), true), 404, 'Tahap ini tidak digunakan pada alur batch ini.');
 
         $batch->load([
             'masterProduct',
             'masterLine',
             'startupCheck',
-            'fillingCheck.user',
-            'fillingCheck.samples',
-            'fillingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-            'fillingCheck.revisions.user',
-            'packingCheck.user',
-            'packingCheck.masterLine',
-            'packingCheck.revisions' => fn ($query) => $query->latest('revision_no'),
-            'packingCheck.revisions.user',
+            ...$this->fillingPackingRelations($side),
             'approvals.approver',
         ]);
 
         return Inertia::render('print/filling-packing', [
             'batch' => $batch,
-            'printInfo' => $this->printInfo($batch, IpcApproval::STAGE_FILLING_PACKING),
-            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, ['filling', 'packing'])),
+            'printInfo' => $this->printInfo($batch, $side),
+            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, [$side]), $side),
         ]);
     }
 

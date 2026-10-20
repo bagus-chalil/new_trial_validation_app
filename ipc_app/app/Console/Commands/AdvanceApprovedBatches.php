@@ -33,7 +33,7 @@ class AdvanceApprovedBatches extends Command
                     ->where('decision', IpcApproval::DECISION_APPROVED)
                     ->pluck('stage');
 
-                if (! collect(IpcApproval::APPROVAL_REQUIRED_STAGES)->every(fn ($s) => $approved->contains($s))) {
+                if (! collect(IpcApproval::requiredStagesFor($batch))->every(fn ($s) => $approved->contains($s))) {
                     return;
                 }
 
