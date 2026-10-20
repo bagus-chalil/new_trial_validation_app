@@ -22,7 +22,7 @@ class SaveStartupCheckRequest extends FormRequest
             'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],
             'filling_range_min' => ['nullable', 'numeric', 'decimal:0,2'],
             'filling_range_max' => ['nullable', 'numeric', 'decimal:0,2'],
-            'density' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
+            'density' => ['nullable', 'numeric', 'decimal:0,4', 'min:0'],
             'density_not_applicable' => ['nullable', 'boolean'],
             // Confirmed with real IPC users 2026-09-03: SOP no longer does the 30-sample
             // BottleData weighing — this is entered once, directly, matching the legacy

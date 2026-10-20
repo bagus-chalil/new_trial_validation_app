@@ -309,10 +309,10 @@ export default function StartupCheckEdit({
                                     <Input
                                         id="density"
                                         type={densityNotApplicable ? 'text' : 'number'}
-                                        step="0.01"
+                                        step="0.0001"
                                         className={`${inputClass} flex-1`}
                                         value={densityNotApplicable ? 'N/A' : (data.density ?? '')}
-                                        onChange={(e) => setData('density', limitDecimals(e.target.value))}
+                                        onChange={(e) => setData('density', limitDecimals(e.target.value, 4))}
                                         disabled={isReadOnly || densityNotApplicable}
                                     />
                                     <button

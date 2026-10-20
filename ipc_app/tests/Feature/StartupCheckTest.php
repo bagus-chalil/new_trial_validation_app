@@ -118,15 +118,26 @@ class StartupCheckTest extends TestCase
         $this->assertNull($startupCheck->density);
     }
 
-    public function test_numeric_parameters_allow_at_most_two_decimal_places(): void
+    public function test_numeric_parameters_decimal_limits(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'density' => 1.055, 'average_of_empty_bottle_weight' => 21.5001])
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'density' => 1.05555, 'average_of_empty_bottle_weight' => 21.5001])
             ->assertSessionHasErrors(['density', 'average_of_empty_bottle_weight']);
 
         $this->assertNull($batch->fresh()->startupCheck);
+    }
+
+    public function test_density_allows_four_decimal_places(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'density' => 1.0543])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('1.0543', $batch->fresh()->startupCheck->density);
     }
 
     public function test_missing_mixing_date_is_rejected(): void
