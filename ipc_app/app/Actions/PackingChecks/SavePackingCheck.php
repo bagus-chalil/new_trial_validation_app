@@ -99,7 +99,7 @@ class SavePackingCheck
             }
 
             if ($finalize && $batch->current_stage === IpcBatch::STAGE_PACKING) {
-                $batch->update(['current_stage' => IpcBatch::STAGE_FINISHED]);
+                $batch->update(['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_PACKING)]);
             }
 
             // Each draft save closes out one inspection round — its answers now live forever in

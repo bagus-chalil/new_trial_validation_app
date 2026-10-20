@@ -24,6 +24,7 @@ interface Batch {
     no_batch: string;
     bulk_code: string;
     created_at: string;
+    flow_type: string;
     master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string } | null;
 }
@@ -156,7 +157,9 @@ export default function ApprovalFillingPacking({
                             />
                         </AccordionCard>
                     ) : (
-                        <EmptyNote>Filling Check belum diisi.</EmptyNote>
+                        <EmptyNote>
+                            {batch.flow_type === 'packing_fg' ? 'Filling Check tidak digunakan pada alur ini.' : 'Filling Check belum diisi.'}
+                        </EmptyNote>
                     )}
 
                     <RevisionHistoryCard
@@ -217,7 +220,9 @@ export default function ApprovalFillingPacking({
                             <InfoField label="Remarks / Notes" value={packingCheck.remarks ?? '—'} full />
                         </AccordionCard>
                     ) : (
-                        <EmptyNote>Packing Check belum diisi.</EmptyNote>
+                        <EmptyNote>
+                            {batch.flow_type === 'filling' ? 'Packing Check tidak digunakan pada alur ini.' : 'Packing Check belum diisi.'}
+                        </EmptyNote>
                     )}
 
                     <RevisionHistoryCard

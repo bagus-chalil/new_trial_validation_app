@@ -21,7 +21,13 @@ const errorBorder = 'border-destructive ring-1 ring-destructive';
 // batches usually use all of them; the user unticks whatever this batch doesn't use.
 const allBulkCodeIds = (product: ProductOption | null) => product?.bulk_codes.map((bulkCode) => String(bulkCode.id)) ?? [];
 
-export default function BatchesCreate({ initialProduct = null }: { initialProduct?: ProductOption | null }) {
+interface FlowTypeOption {
+    value: string;
+    label: string;
+    description: string;
+}
+
+export default function BatchesCreate({ initialProduct = null, flowTypes }: { initialProduct?: ProductOption | null; flowTypes: FlowTypeOption[] }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const { message, toast } = useToast();
@@ -30,6 +36,9 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
         master_product_id: initialProduct ? String(initialProduct.id) : '',
         master_product_bulk_code_ids: allBulkCodeIds(initialProduct),
         no_batch: '',
+        // 'full' (Filling + Packing + Finished Good) matches today's only behavior — kept as the
+        // default so picking a flow is opt-in, not a surprise.
+        flow_type: 'full',
     });
 
     // The picker searches the server, so the chosen product (incl. its bulk codes) is kept
@@ -203,6 +212,33 @@ export default function BatchesCreate({ initialProduct = null }: { initialProduc
                                         placeholder="Masukkan no batch FG"
                                     />
                                     <InputError message={errors.no_batch} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label>Tipe Alur</Label>
+                                    <div className="divide-border-soft border-input divide-y overflow-hidden rounded-md border">
+                                        {flowTypes.map((flow) => (
+                                            <label
+                                                key={flow.value}
+                                                htmlFor={`flow-type-${flow.value}`}
+                                                className="hover:bg-muted/40 flex cursor-pointer items-start gap-3 px-3 py-2.5 text-sm"
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    id={`flow-type-${flow.value}`}
+                                                    name="flow_type"
+                                                    className="accent-primary mt-1 size-4 shrink-0"
+                                                    checked={data.flow_type === flow.value}
+                                                    onChange={() => setData('flow_type', flow.value)}
+                                                />
+                                                <span className="flex flex-col gap-0.5">
+                                                    <span className="font-semibold">{flow.label}</span>
+                                                    <span className="text-muted-foreground text-[12.5px]">{flow.description}</span>
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <InputError message={errors.flow_type} />
                                 </div>
 
                                 <Button type="submit" disabled={processing} size="lg" className="w-full sm:w-auto">

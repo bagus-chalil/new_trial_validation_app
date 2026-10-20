@@ -43,7 +43,7 @@ class SaveApproval
                 ->where('decision', IpcApproval::DECISION_APPROVED)
                 ->pluck('stage');
 
-            $allApproved = collect(IpcApproval::APPROVAL_REQUIRED_STAGES)->every(fn ($s) => $approvedStages->contains($s));
+            $allApproved = collect(IpcApproval::requiredStagesFor($batch))->every(fn ($s) => $approvedStages->contains($s));
 
             if ($allApproved && $batch->current_stage === IpcBatch::STAGE_APPROVAL) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_PRINT]);
