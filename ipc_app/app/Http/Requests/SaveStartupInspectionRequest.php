@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\IpcBatch;
 use App\Models\StartupInspectionItem;
 use App\Models\StartupInspectionSample;
 use Illuminate\Foundation\Http\FormRequest;
@@ -46,6 +47,12 @@ class SaveStartupInspectionRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            // Packing + Finished Good flow has no Filling Check, so there is no filling weight to enter.
+            $batch = $this->route('batch');
+            if ($batch instanceof IpcBatch && ! $batch->hasFillingStage()) {
+                return;
+            }
+
             $rows = collect($this->input('samples', []))
                 ->keyBy(fn ($row) => (int) ($row['sample_no'] ?? 0));
 

@@ -180,6 +180,7 @@ export default function StartupInspectionEdit({
 
     const answeredCount = parameterKeys.filter((key) => data.items[key]?.status).length;
     const volumeWeightFilledCount = data.samples.filter((sample) => String(sample.volume_weight ?? '').trim() !== '').length;
+    const hasFilling = batch.flow_type !== 'packing_fg';
     const volumeWeightComplete = volumeWeightFilledCount === SAMPLE_NUMBERS.length;
     const masterBoxFilledCount = data.samples.filter((sample) => String(sample.weight_master_box ?? '').trim() !== '').length;
     const masterBoxEditable = masterBoxOnly || !isReadOnly;
@@ -247,9 +248,11 @@ export default function StartupInspectionEdit({
             if (!data.items[key]?.status) empty.add(key);
         });
         const emptyChecklistCount = empty.size;
-        data.samples.forEach((sample) => {
-            if (String(sample.volume_weight ?? '').trim() === '') empty.add(`volume_weight.${sample.sample_no}`);
-        });
+        if (hasFilling) {
+            data.samples.forEach((sample) => {
+                if (String(sample.volume_weight ?? '').trim() === '') empty.add(`volume_weight.${sample.sample_no}`);
+            });
+        }
         if (empty.size) {
             setErrorFields(empty);
             const emptySampleCount = empty.size - emptyChecklistCount;
@@ -334,35 +337,37 @@ export default function StartupInspectionEdit({
                             ))}
                         </AccordionCard>
 
-                        <AccordionCard
-                            title="Volume / Weight"
-                            progress={`${volumeWeightFilledCount}/${SAMPLE_NUMBERS.length} terisi`}
-                            complete={volumeWeightComplete}
-                            forceOpen={[...errorFields].some((field) => field.startsWith('volume_weight.'))}
-                        >
-                            <div className="col-span-full grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
-                                {SAMPLE_NUMBERS.map((n) => {
-                                    const sample = data.samples.find((s) => s.sample_no === n)!;
-                                    return (
-                                        <div key={n} className="flex items-center gap-1.5">
-                                            <span className="text-muted-foreground w-5 shrink-0 text-[11px] font-semibold">{n}</span>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                className={cn(
-                                                    inputClass,
-                                                    errorFields.has(`volume_weight.${n}`) && 'border-destructive ring-destructive ring-1',
-                                                )}
-                                                value={sample.volume_weight}
-                                                onChange={(e) => setSampleField(n, 'volume_weight', e.target.value)}
-                                                disabled={isReadOnly}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            {!masterBoxOnly && <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />}
-                        </AccordionCard>
+                        {hasFilling && (
+                            <AccordionCard
+                                title="Volume / Weight"
+                                progress={`${volumeWeightFilledCount}/${SAMPLE_NUMBERS.length} terisi`}
+                                complete={volumeWeightComplete}
+                                forceOpen={[...errorFields].some((field) => field.startsWith('volume_weight.'))}
+                            >
+                                <div className="col-span-full grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
+                                    {SAMPLE_NUMBERS.map((n) => {
+                                        const sample = data.samples.find((s) => s.sample_no === n)!;
+                                        return (
+                                            <div key={n} className="flex items-center gap-1.5">
+                                                <span className="text-muted-foreground w-5 shrink-0 text-[11px] font-semibold">{n}</span>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    className={cn(
+                                                        inputClass,
+                                                        errorFields.has(`volume_weight.${n}`) && 'border-destructive ring-destructive ring-1',
+                                                    )}
+                                                    value={sample.volume_weight}
+                                                    onChange={(e) => setSampleField(n, 'volume_weight', e.target.value)}
+                                                    disabled={isReadOnly}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {!masterBoxOnly && <InputError message={(errors as Record<string, string>).samples} className="col-span-full" />}
+                            </AccordionCard>
+                        )}
 
                         {batch.flow_type !== 'filling' && (
                             <AccordionCard

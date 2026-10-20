@@ -378,6 +378,44 @@ class StartupInspectionTest extends TestCase
         $this->assertSame(0, $batch->fresh()->startupInspection->samples()->whereNotNull('weight_master_box')->count());
     }
 
+    // --- Flow type: Volume / Weight (filling data) doesn't apply to the Packing + FG flow ---
+
+    public function test_volume_weight_is_not_required_and_is_ignored_for_the_packing_fg_flow(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_PACKING_FG);
+
+        $samples = array_map(
+            fn (int $n) => ['sample_no' => $n, 'volume_weight' => $n === 1 ? 12.5 : null, 'weight_master_box' => 2600],
+            range(1, StartupInspectionSample::SAMPLE_COUNT),
+        );
+
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload(), 'samples' => $samples])
+            ->assertSessionHasNoErrors();
+
+        $inspection = $batch->fresh()->startupInspection;
+        $this->assertSame(0, $inspection->samples()->whereNotNull('volume_weight')->count());
+        $this->assertSame(30, $inspection->samples()->whereNotNull('weight_master_box')->count());
+    }
+
+    public function test_volume_weight_is_still_required_for_the_full_flow(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_FULL);
+
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload(), 'samples' => []])
+            ->assertSessionHasErrors('samples');
+    }
+
+    public function test_volume_weight_is_still_required_for_the_filling_flow(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_FILLING);
+
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $this->validItemsPayload(), 'samples' => []])
+            ->assertSessionHasErrors('samples');
+    }
+
     public function test_master_box_route_is_forbidden_for_the_filling_only_flow(): void
     {
         $this->actingAs(User::factory()->create());
