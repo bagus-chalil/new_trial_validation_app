@@ -1,11 +1,14 @@
 {{--
     "VERIFIKASI SEBELUM PRODUKSI" — Filling side only (paper form FR.QAC.192.02's 6-parameter ×
-    Jam/Sample-1..30 grid). Four of the 6 parameters (Warna Bulk/Tekstur, Aroma Bulk, Tampilan
+    Jam/Sample-1..30 grid). Orientation matches the real paper form exactly: PARAMETER is the row
+    axis, SAMPEL 1-30 is the column axis (the app's first build had this transposed — sample as
+    rows, parameter as columns — a real layout bug fixed 2026-10-21 per direct user comparison
+    against the real form). Four of the 6 parameters (Warna Bulk/Tekstur, Aroma Bulk, Tampilan
     Setelah Filling, Uji Kebocoran, Uji Kegunaan) are captured as ONE status for the whole batch
-    (StartupInspectionItem), not per sample, so they render as a single rowspan=30 cell — the
-    honest shape of the data this app captures, same pattern as approval-startup.blade.php's own
-    copy of this grid. Only Volume/Berat has a genuine per-sample reading (StartupInspectionSample)
-    and gets its own value per row.
+    (StartupInspectionItem), not per sample, so they render as a single colspan=30 cell — the
+    honest shape of the data this app captures. Only Volume/Berat has a genuine per-sample reading
+    (StartupInspectionSample) and gets its own value per column. This transposition also collapses
+    the grid from 30 rows to 6, which is most of why this section used to spill across two pages.
 
     Expects $startupInspection in scope (added to fillingPackingPayload() for the Filling side).
 --}}
@@ -15,48 +18,61 @@
         $samplesByNo = $startupInspection->samples->keyBy('sample_no');
         $inspectionTime = optional($startupInspection->completed_at ?? $startupInspection->created_at)->translatedFormat('d/m/Y H:i') ?? '—';
         $statusOf = fn (string $key) => $itemsByKey[$key]->status ?? null;
+        // Trims trailing zeros (15.00 -> 15, 15.60 -> 15.6) so a value fits one of 30 very narrow
+        // columns on an A4 page without wrapping.
+        $trimVal = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
+        $singleValueRows = [
+            'bulk_color_texture' => 'Warna Bulk / Tekstur',
+            'bulk_odor' => 'Aroma Bulk',
+            'appearance_after_filling' => 'Tampilan Setelah Filling',
+        ];
     @endphp
 
-    {{-- record-table--compact: tighter padding/font so 30 fixed rows don't push the rest of this
-         report onto an extra page (see layout.blade.php's definition). --}}
+    {{-- record-table--compact: tighter padding/font so the grid stays short. --}}
     <table class="record-table record-table--compact">
         <colgroup>
-            <col style="width: 6%;">
             <col style="width: 10%;">
-            <col style="width: 14%;"><col style="width: 14%;"><col style="width: 16%;"><col style="width: 12%;"><col style="width: 14%;"><col style="width: 14%;">
+            <col style="width: 6%;">
+            @for ($i = 0; $i < 30; $i++)
+                <col style="width: {{ 84 / 30 }}%;">
+            @endfor
         </colgroup>
         <thead>
             <tr>
-                <th rowspan="2">Sample</th>
+                <th rowspan="2">Parameter</th>
                 <th rowspan="2">Jam</th>
-                <th colspan="6">Parameter</th>
+                <th colspan="30">Sampel</th>
             </tr>
             <tr>
-                <th>Warna Bulk / Tekstur</th>
-                <th>Aroma Bulk</th>
-                <th>Tampilan Setelah Filling</th>
-                <th>Volume / Berat</th>
-                <th>Uji Kebocoran</th>
-                <th>Uji Kegunaan</th>
+                @for ($i = 1; $i <= 30; $i++)
+                    <th class="center" style="padding: 1px;">{{ $i }}</th>
+                @endfor
             </tr>
         </thead>
         <tbody>
-            @for ($no = 1; $no <= 30; $no++)
+            @foreach ($singleValueRows as $key => $label)
                 <tr>
-                    <td class="center">{{ $no }}</td>
-                    @if ($no === 1)
-                        <td class="center" rowspan="30">{{ $inspectionTime }}</td>
-                        <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('bulk_color_texture')])</td>
-                        <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('bulk_odor')])</td>
-                        <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('appearance_after_filling')])</td>
+                    <td>{{ $label }}</td>
+                    @if ($loop->first)
+                        <td class="center" rowspan="{{ count($singleValueRows) + 3 }}">{{ $inspectionTime }}</td>
                     @endif
-                    <td class="center">{{ $samplesByNo[$no]->volume_weight ?? '—' }}</td>
-                    @if ($no === 1)
-                        <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('leakage_test')])</td>
-                        <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('functional_test')])</td>
-                    @endif
+                    <td colspan="30" class="center">@include('pdf._status-pill', ['value' => $statusOf($key), 'abbreviate' => true])</td>
                 </tr>
-            @endfor
+            @endforeach
+            <tr>
+                <td>Volume / Berat</td>
+                @for ($no = 1; $no <= 30; $no++)
+                    <td class="center" style="padding: 1px; font-size: 6.5px;">{{ $trimVal($samplesByNo[$no]->volume_weight ?? null) }}</td>
+                @endfor
+            </tr>
+            <tr>
+                <td>Uji Kebocoran</td>
+                <td colspan="30" class="center">@include('pdf._status-pill', ['value' => $statusOf('leakage_test'), 'abbreviate' => true])</td>
+            </tr>
+            <tr>
+                <td>Uji Kegunaan</td>
+                <td colspan="30" class="center">@include('pdf._status-pill', ['value' => $statusOf('functional_test'), 'abbreviate' => true])</td>
+            </tr>
         </tbody>
     </table>
 

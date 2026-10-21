@@ -5,7 +5,14 @@
          Both real paper forms (FR.QAC.192.02 / FR.QAC.182.03) open with the same "FORM
          PEMERIKSAAN START UP" section before their own stage-specific content — shared via
          pdf._startup-checklist so the three reports (this one + approval-startup.blade.php) can't
-         drift apart on it. --}}
+         drift apart on it.
+
+         .fp-compact: both real paper forms are one-page forms (see docs/report/), so this report
+         gets extra spacing/font tightening beyond Startup/Finished's own reports — see
+         layout.blade.php's .fp-compact rules. Best effort, not a guarantee: a batch with many
+         TH_PROGRESS save rounds (a feature with no equivalent on the blank paper form) can still
+         spill onto a second page. --}}
+    <div class="fp-compact">
     <div class="section-title">Form Pemeriksaan Start Up</div>
     @include('pdf._startup-checklist')
 
@@ -445,4 +452,5 @@
         </div>
     </div>
     @include('pdf._approval-remarks', ['approval' => $reportApproval])
+    </div>
 @endsection

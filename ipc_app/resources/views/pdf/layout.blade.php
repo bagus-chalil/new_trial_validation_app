@@ -193,7 +193,7 @@
     /* Smaller photo tile for reports with several photo groups on one page (Filling & Packing) —
        the default 40mm tile is sized for the Startup report's own smaller photo count; reusing it
        as-is here pushed this report onto an extra page. */
-    .attachment-tile--sm img, .attachment-tile--sm .placeholder { height: 18mm; }
+    .attachment-tile--sm img, .attachment-tile--sm .placeholder { height: 10mm; }
 
     /* Tighter table for a long fixed-row grid (e.g. the 30-sample "Verifikasi Sebelum Produksi"
        grid) where the default padding/font-size costs a whole extra page across 30 rows. */
@@ -202,8 +202,8 @@
     /* Labeled photo groups (e.g. "IM Number" vs. "Attach Label and Color check actual in this
        area" vs. "Temperature Setting") — legacy keeps these visually separate rather than one
        flat tile grid, so each group gets its own heading and its own attachment-grid. */
-    .photo-groups { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin: 4px 0 10px; }
-    .photo-group { margin: 0 0 10px; }
+    .photo-groups { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin: 4px 0 6px; }
+    .photo-group { margin: 0 0 6px; }
     .photo-group-title {
         font-size: 8px;
         font-weight: 800;
@@ -253,6 +253,21 @@
     }
 
     .page-break { break-before: page; page-break-before: always; }
+
+    /* Scoped tightening for the Filling/Packing report only (.fp-compact wraps the whole report
+       body — both real paper forms, FR.QAC.192.02 and FR.QAC.182.03, are one-page
+       forms, so this report gets a more aggressive squeeze than Startup/Finished's own reports,
+       which don't opt into this class. Deliberately excludes .record-table/.record-table--compact
+       so it doesn't fight their own (already tighter) padding/font rules. Direct user request
+       2026-10-21, best effort to keep this report to one page — see
+       approval-filling-packing.blade.php. */
+    .fp-compact table:not(.record-table):not(.record-table--compact) { margin: 4px 0 6px; }
+    .fp-compact table:not(.record-table):not(.record-table--compact) th,
+    .fp-compact table:not(.record-table):not(.record-table--compact) td { padding: 3px 5px; font-size: 8.5px; }
+    .fp-compact .section-title { margin: 8px 0 3px; padding: 3px 6px; font-size: 10.5px; }
+    .fp-compact .info-grid { margin: 4px 0 6px; gap: 3px; }
+    .fp-compact .info-grid div { padding: 3px 5px; min-height: 22px; }
+    .fp-compact .attachment-grid { margin: 3px 0 6px; }
     .muted { color: #6b7280; }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -284,9 +299,10 @@
     /* Nested sub-table for a checklist row that groups several sub-items (e.g. "Check Detection
        Machine" bundling 5 individual machine checks) — sits inside a single <td>, no outer border
        of its own since the parent cell already has one. */
-    .nested-cell { padding: 2px 4px; }
-    .nested-table { width: 100%; border-collapse: collapse; margin: 0; }
-    .nested-table td { border: none; border-bottom: 1px solid #e5e7eb; padding: 2px 4px; font-size: 8.5px; }
+    .nested-cell { padding: 1px 4px; }
+    .nested-table { width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed; }
+    .nested-table td { border: none; border-bottom: 1px solid #e5e7eb; padding: 1px 4px; font-size: 7.5px; white-space: nowrap; overflow: hidden; }
+    .nested-table td:first-child { width: 55%; }
     .nested-table tr:last-child td { border-bottom: none; }
 </style>
 </head>

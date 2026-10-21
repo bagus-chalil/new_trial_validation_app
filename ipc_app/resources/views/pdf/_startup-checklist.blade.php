@@ -52,46 +52,74 @@
         <div class="startup-main">
             <table class="record-table--compact">
                 <thead>
-                    <tr><th style="width: 5%;">No</th><th>Parameter Pemeriksaan</th><th style="width: 24%;">Sesuai (Y/N)</th></tr>
+                    <tr><th style="width: 5%;">No</th><th>Parameter Pemeriksaan</th><th style="width: 30%;">Sesuai (Y/N)</th></tr>
                 </thead>
                 <tbody>
-                    @php $no = 1; @endphp
-                    @foreach ($startupChecklistGroups as $group)
-                        @php
-                            $machineFields = collect($group['fields'])->filter(fn ($label, $field) => str_starts_with($field, 'machine_'));
-                            $otherFields = collect($group['fields'])->reject(fn ($label, $field) => str_starts_with($field, 'machine_'));
-                        @endphp
-                        @foreach ($otherFields as $field => $label)
-                            <tr>
-                                <td class="center">{{ $no++ }}</td>
-                                <td>{{ $label }}</td>
-                                <td>@include('pdf._status-pill', ['value' => $startupCheck[$field] ?? null])</td>
-                            </tr>
-                        @endforeach
-                        @if ($machineFields->count() > 0)
+                    @php
+                        // Display order on this report follows the original 9-point paper checklist
+                        // (Standar Produk / Sample Challenge Test / WI-IM / Semua PM & BOM / Bulk
+                        // Release / Scan NA / Periksa Mesin Pendeteksi / Laporan Validasi / Papan
+                        // Identitas Line), with the app's own 4 extra items — not on that original
+                        // form — appended at the end instead of interleaved. StartupCheck::checklistGroups()
+                        // itself is left untouched (still drives the live Startup Check form and
+                        // approval-startup.blade.php's own report) — this ordering/labeling is scoped
+                        // to this shared Filling/Packing partial only, direct user request 2026-10-21.
+                        $checklistByField = collect($startupChecklistGroups)->flatMap(fn ($group) => $group['fields']);
+                        $machineFields = $checklistByField->filter(fn ($label, $field) => str_starts_with($field, 'machine_'));
+                        $labelOverrides = [
+                            'sample_30pcs_vacuum_status' => 'Vacuum Test',
+                            'sample_30pcs_appearance_status' => 'Appearance, Coding, Attribute',
+                            'functional_test_status' => 'Functional Test',
+                        ];
+                        $orderedFields = [
+                            'product_standard_status',
+                            'sample_challenge_test_status',
+                            'wi_im_match_status',
+                            'pm_bom_match_status',
+                            'bulk_status_status',
+                            'scan_bpom_status',
+                            '__machine_check__',
+                            '__validation_report__',
+                            'identity_line_board_status',
+                            'sample_30pcs_vacuum_status',
+                            'standard_weight_masterbox_status',
+                            'sample_30pcs_appearance_status',
+                            'functional_test_status',
+                        ];
+                        $no = 1;
+                    @endphp
+                    @foreach ($orderedFields as $field)
+                        @if ($field === '__machine_check__')
                             <tr>
                                 <td class="center">{{ $no++ }}</td>
                                 <td>Check Detection Machine</td>
                                 <td class="nested-cell">
                                     <table class="nested-table">
                                         <tbody>
-                                            @foreach ($machineFields as $field => $label)
+                                            @foreach ($machineFields as $mField => $mLabel)
                                                 <tr>
-                                                    <td>{{ str_replace('Machine ', '', $label) }}</td>
-                                                    <td>@include('pdf._status-pill', ['value' => $startupCheck[$field] ?? null])</td>
+                                                    <td>{{ str_replace('Machine ', '', $mLabel) }}</td>
+                                                    <td>@include('pdf._status-pill', ['value' => $startupCheck[$mField] ?? null])</td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
                                     </table>
                                 </td>
                             </tr>
+                        @elseif ($field === '__validation_report__')
+                            <tr>
+                                <td class="center">{{ $no++ }}</td>
+                                <td>Validation Report (NPD Product)</td>
+                                <td>@include('pdf._status-pill', ['value' => $startupCheck->validation_report_status ?? null])</td>
+                            </tr>
+                        @else
+                            <tr>
+                                <td class="center">{{ $no++ }}</td>
+                                <td>{{ $labelOverrides[$field] ?? ($checklistByField[$field] ?? $field) }}</td>
+                                <td>@include('pdf._status-pill', ['value' => $startupCheck[$field] ?? null])</td>
+                            </tr>
                         @endif
                     @endforeach
-                    <tr>
-                        <td class="center">{{ $no++ }}</td>
-                        <td>Validation Report (NPD Product)</td>
-                        <td>@include('pdf._status-pill', ['value' => $startupCheck->validation_report_status ?? null])</td>
-                    </tr>
                 </tbody>
             </table>
 
