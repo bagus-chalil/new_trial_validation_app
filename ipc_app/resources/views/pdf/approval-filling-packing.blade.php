@@ -10,21 +10,23 @@
     @include('pdf._startup-checklist')
 
     @if ($side === 'filling')
-    <div class="section-title" style="margin-top: 10px;">Verifikasi Sebelum Produksi</div>
+    <div class="section-title" style="margin-top: 6px;">Verifikasi Sebelum Produksi</div>
     @include('pdf._verifikasi-sebelum-produksi')
 
-    <div class="section-title">Filling Inspection</div>
+    <div class="section-title" style="margin-top: 6px;">Filling Inspection</div>
 
     @if ($fillingCheck)
         <div class="info-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div><span>Date / Shift Filling</span><strong>{{ optional($fillingCheck->completed_at ?? $fillingCheck->updated_at)->translatedFormat('d/m/Y H:i') ?? '—' }}</strong></div>
             <div><span>Machines / Lines</span><strong>{{ $batch->masterLine->name ?? '—' }} ({{ $batch->masterLine->code ?? '—' }})</strong></div>
+            {{-- "Standard" on the paper form is one combined min–max value (e.g. "3,92 - 4,00"),
+                 confirmed against a real filled example in docs/report/Start up+Filling report.pdf
+                 — not two separate boxes as this used to render. --}}
+            <div><span>Standard</span><strong>{{ $startupCheck->filling_range_min ?? '—' }} – {{ $startupCheck->filling_range_max ?? '—' }}</strong></div>
+            <div><span>QC</span><strong>{{ $fillingCheck->user->name ?? '—' }}</strong></div>
             <div><span>Density</span><strong>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck?->density ?? '—') }}</strong></div>
-            <div><span>TH Progress</span><strong>{{ $fillingCheck->save_count ?? 0 }}</strong></div>
-            <div><span>QC Inspector</span><strong>{{ $fillingCheck->user->name ?? '—' }}</strong></div>
             <div><span>Line Leader</span><strong>{{ $startupCheck->line_leader_name ?? '—' }}</strong></div>
-            <div><span>Min Volume</span><strong>{{ $startupCheck->filling_range_min ?? '—' }}</strong></div>
-            <div><span>Max Weight</span><strong>{{ $startupCheck->filling_range_max ?? '—' }}</strong></div>
+            <div><span>TH Progress</span><strong>{{ $fillingCheck->save_count ?? 0 }}</strong></div>
         </div>
 
         @php
@@ -44,7 +46,7 @@
             $fillingTimeColWidth = (100 - $parameterWidth) / max($fillingRounds->count(), 1);
         @endphp
 
-        <table class="record-table">
+        <table class="record-table record-table--compact">
             <colgroup>
                 <col style="width: {{ $parameterWidth }}%;">
                 @foreach ($fillingRounds as $round)
@@ -86,7 +88,7 @@
             </tbody>
         </table>
 
-        <table>
+        <table style="margin-bottom: 6px;">
             <tbody>
                 <tr>
                     <td style="width: 15%;"><strong>Summary (semua TH Progress)</strong></td>
@@ -96,7 +98,19 @@
                         &nbsp;&nbsp; Average: {{ $results->isNotEmpty() ? number_format($results->avg(), 2) : '—' }}
                     </td>
                     <td style="width: 15%;"><strong>Decision</strong></td>
-                    <td>@include('pdf._status-pill', ['value' => $fillingCheck->decision])</td>
+                    <td>
+                        {{-- Passed / Hold / Reject with the chosen one circled, matching the paper
+                             form (and the same treatment Packing's own Decision row already uses
+                             below). --}}
+                        @foreach (\App\Models\FillingCheck::DECISIONS as $option)
+                            @if ($option === $fillingCheck->decision)
+                                @include('pdf._status-pill', ['value' => $option])
+                            @else
+                                <span class="muted">{{ $option }}</span>
+                            @endif
+                            @if (! $loop->last) / @endif
+                        @endforeach
+                    </td>
                 </tr>
                 <tr>
                     <td><strong>Remarks</strong></td>
@@ -105,9 +119,9 @@
             </tbody>
         </table>
 
-        <div class="attachment-grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="attachment-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 4px;">
             @foreach (\App\Models\FillingCheck::PHOTO_LABELS as $field => $label)
-                <figure class="attachment-tile">
+                <figure class="attachment-tile attachment-tile--sm">
                     @if ($photoUrls['filling'][$field] ?? null)
                         <img src="{{ $photoUrls['filling'][$field] }}" alt="{{ $label }}">
                     @else
@@ -123,7 +137,7 @@
 
     @if ($fillingCheck && $fillingCheck->revisions->count() > 0)
         <div class="section-title" style="margin-top: 4px;">Riwayat Simpan — Filling Check (TH Progress)</div>
-        <table>
+        <table class="record-table--compact">
             <thead>
                 <tr><th style="width: 6%;">#</th><th style="width: 20%;">Waktu</th><th style="width: 16%;">User</th><th style="width: 10%;">Status</th><th>Ringkasan</th></tr>
             </thead>
@@ -352,7 +366,7 @@
                 ['palletisasi', 'Palletisasi'],
                 ['color', 'Color Test'],
             ] as [$field, $label])
-                <figure class="attachment-tile">
+                <figure class="attachment-tile attachment-tile--sm">
                     @if ($photoUrls['packing'][$field] ?? null)
                         <img src="{{ $photoUrls['packing'][$field] }}" alt="{{ $label }}">
                     @else
@@ -390,9 +404,13 @@
             </tbody>
         </table>
     @endif
-
-    <p class="muted" style="margin-top: 6px;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
     @endif
+
+    {{-- Matches the real paper form's own "Notes" line, present on both FR.QAC.192.02 (Filling)
+         and FR.QAC.182.03 (Packing) — previously only rendered on the Packing side by mistake
+         (it sat inside the Packing-only @else branch above), leaving CF/NC on the Filling side
+         unexplained. --}}
+    <p class="muted" style="margin: 4px 0;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
 
     @php
         // Issued By = whoever saved the latest TH_PROGRESS round of this document's own check.
@@ -401,7 +419,7 @@
         $issuedBy = $lastRound?->user ?? $sideCheck?->user;
         $issuedAt = $lastRound?->created_at ?? $sideCheck?->completed_at;
     @endphp
-    <div class="sign-grid">
+    <div class="sign-grid sign-grid--tight" style="margin: 6px 0;">
         <div>
             <span>Issued By (QC {{ $side === 'filling' ? 'Filling' : 'Packing' }})</span>
             @if ($issuedBy)

@@ -25,9 +25,13 @@
         margin-bottom: 12px;
     }
     .report-header .brand {
-        font-size: 13px;
-        font-weight: 800;
-        color: #2f6fed;
+        display: flex;
+        align-items: center;
+    }
+    .report-header .brand img {
+        height: 36px;
+        width: auto;
+        display: block;
     }
     .report-header .title {
         text-align: center;
@@ -186,6 +190,15 @@
     .attachment-grid--cols-1 { grid-template-columns: 1fr; }
     .attachment-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
 
+    /* Smaller photo tile for reports with several photo groups on one page (Filling & Packing) —
+       the default 40mm tile is sized for the Startup report's own smaller photo count; reusing it
+       as-is here pushed this report onto an extra page. */
+    .attachment-tile--sm img, .attachment-tile--sm .placeholder { height: 18mm; }
+
+    /* Tighter table for a long fixed-row grid (e.g. the 30-sample "Verifikasi Sebelum Produksi"
+       grid) where the default padding/font-size costs a whole extra page across 30 rows. */
+    .record-table--compact td, .record-table--compact th { padding: 1.5px 4px; font-size: 7.5px; }
+
     /* Labeled photo groups (e.g. "IM Number" vs. "Attach Label and Color check actual in this
        area" vs. "Temperature Setting") — legacy keeps these visually separate rather than one
        flat tile grid, so each group gets its own heading and its own attachment-grid. */
@@ -249,6 +262,9 @@
     .startup-layout { display: grid; grid-template-columns: 74% 24%; gap: 10px; align-items: start; }
     .startup-side { display: flex; flex-direction: column; gap: 8px; }
     .sign-grid--stack { grid-template-columns: 1fr; gap: 6px; margin: 0; }
+    /* No role caption used (no <small class="role">) — the base .sign-grid div's 26px bottom
+       padding exists purely to reserve room for that caption, which is otherwise wasted space. */
+    .sign-grid--tight div { padding: 4px 8px; }
     .sign-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
 
     /* Sign-off box's actual signer value (a name, or a decision date) — distinct from the plain
@@ -275,8 +291,20 @@
 </style>
 </head>
 <body>
+    @php
+        $logoPath = resource_path('images/cosmax-idn-logo.jpg');
+        $logoDataUri = is_file($logoPath)
+            ? 'data:image/jpeg;base64,'.base64_encode(file_get_contents($logoPath))
+            : null;
+    @endphp
     <div class="report-header">
-        <div class="brand">IPC<br><span style="font-weight:400;font-size:8px;">In Process Control</span></div>
+        <div class="brand">
+            @if ($logoDataUri)
+                <img src="{{ $logoDataUri }}" alt="Cosmax">
+            @else
+                IPC<br><span style="font-weight:400;font-size:8px;">In Process Control</span>
+            @endif
+        </div>
         <div>
             <div class="title">{{ $title ?? 'Report' }}</div>
             <div style="text-align:center;"><span class="approval-badge">Approval</span></div>

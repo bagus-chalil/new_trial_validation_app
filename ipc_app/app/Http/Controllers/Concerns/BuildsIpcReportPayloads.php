@@ -309,7 +309,11 @@ trait BuildsIpcReportPayloads
                     $reportDocument = IpcReportDocument::forKey($isFilling ? IpcReportDocument::KEY_FILLING : IpcReportDocument::KEY_PACKING);
 
                     return [
-                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, [$stage]), $stage),
+                        // 'startup' is included so the shared pdf._startup-checklist partial can
+                        // render the Startup Check's IM Number / Warna / Hasil Coding photos —
+                        // both FR.QAC.192.02 and FR.QAC.182.03 show them at the top of this same
+                        // document, not just on the standalone Startup report.
+                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['startup', $stage]), $stage),
                         'packingRevisionPhotoUris' => $isFilling ? [] : $this->packingRevisionPhotoUris($batch),
                         'title' => $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control '.($isFilling ? 'Filling' : 'Packing'),
                         'docNumber' => $reportDocument?->doc_number ?? ($isFilling ? 'FR.QAC.192.02' : 'FR.QAC.182.03'),

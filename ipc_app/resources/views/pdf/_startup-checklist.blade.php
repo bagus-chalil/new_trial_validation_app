@@ -8,9 +8,49 @@
     Expects $startupCheck and $startupChecklistGroups (StartupCheck::checklistGroups()) in scope.
 --}}
 @if ($startupCheck)
+    <p style="margin: 0 0 8px; font-size: 9.5px;">
+        <strong>Tanggal:</strong> {{ optional($startupCheck->completed_at ?? $startupCheck->created_at)->translatedFormat('d/m/Y') ?? '—' }}
+    </p>
+
+    {{-- Paper forms FR.QAC.192.02 / FR.QAC.182.03 show IM Number and "Lampirkan Label/Warna"
+         (Warna + Hasil Coding Primer/Sekunder/Tersier) right at the top, beside the Tanggal/Kode
+         FG/Kode Bulk/No Batch block — all 3 are real ipc_attachments photo fields on
+         startup_checks (im_number/color/coding), same source data approval-startup.blade.php's
+         own copy of this header already uses, just not previously rendered on this document. --}}
+    <div class="photo-groups">
+        <div class="photo-group">
+            <div class="photo-group-title">IM Number</div>
+            <div class="attachment-grid attachment-grid--cols-1">
+                <figure class="attachment-tile attachment-tile--sm">
+                    @if ($photoUrls['startup']['im_number'] ?? null)
+                        <img src="{{ $photoUrls['startup']['im_number'] }}" alt="IM Number">
+                    @else
+                        <div class="placeholder">Belum ada foto</div>
+                    @endif
+                </figure>
+            </div>
+        </div>
+
+        <div class="photo-group">
+            <div class="photo-group-title">Lampirkan Label / Warna Dibawah Ini</div>
+            <div class="attachment-grid attachment-grid--cols-2">
+                @foreach ([['color', 'Warna'], ['coding', 'Hasil Coding (Primer, Sekunder, Tersier)']] as [$field, $label])
+                    <figure class="attachment-tile attachment-tile--sm">
+                        @if ($photoUrls['startup'][$field] ?? null)
+                            <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
+                        @else
+                            <div class="placeholder">Belum ada foto</div>
+                        @endif
+                        <figcaption><strong>{{ $label }}</strong></figcaption>
+                    </figure>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
     <div class="startup-layout">
         <div class="startup-main">
-            <table>
+            <table class="record-table--compact">
                 <thead>
                     <tr><th style="width: 5%;">No</th><th>Parameter Pemeriksaan</th><th style="width: 24%;">Sesuai (Y/N)</th></tr>
                 </thead>
@@ -56,13 +96,13 @@
             </table>
 
             <div class="two-col">
-                <table>
+                <table style="margin-bottom: 4px;">
                     <tbody>
                         <tr><td><strong>Setting Suhu</strong></td><td>{{ $startupCheck->heating ?? '—' }}</td></tr>
                         <tr><td><strong>Density</strong></td><td>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck?->density ?? '—') }}</td></tr>
                     </tbody>
                 </table>
-                <table>
+                <table style="margin-bottom: 4px;">
                     <tbody>
                         <tr><td><strong>Filling Range Min</strong></td><td>{{ $startupCheck->filling_range_min ?? '—' }}</td></tr>
                         <tr><td><strong>Filling Range Max</strong></td><td>{{ $startupCheck->filling_range_max ?? '—' }}</td></tr>

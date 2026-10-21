@@ -17,7 +17,9 @@
         $statusOf = fn (string $key) => $itemsByKey[$key]->status ?? null;
     @endphp
 
-    <table class="record-table">
+    {{-- record-table--compact: tighter padding/font so 30 fixed rows don't push the rest of this
+         report onto an extra page (see layout.blade.php's definition). --}}
+    <table class="record-table record-table--compact">
         <colgroup>
             <col style="width: 6%;">
             <col style="width: 10%;">
