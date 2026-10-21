@@ -11,7 +11,7 @@ use App\Models\MasterProductBulkCode;
  * - master_products is keyed by fg_code (unique, case-insensitive under MySQL's collation), so a
  *   product can only hold one name: the first row for an FG Code sets it, later rows for the same
  *   FG Code with a different name are still imported for their bulk code.
- * - Only a row identical in FG Code + Nama Produk + Bulk Code to an earlier row is skipped.
+ * - Only a row identical in FG Code + Nama Produk + Bulk Code + Shelf Life is skipped.
  * - Shelf Life is optional; a blank cell never clears an existing value.
  * - A soft-deleted product/bulk code matching a row is restored (fg_code / (product, bulk_code)
  *   uniqueness includes trashed rows, so a fresh insert would fail anyway).
@@ -63,7 +63,7 @@ class MasterProductsImportProcessor implements MasterImportProcessor
             }
 
             $fgKey = mb_strtolower($values['fg_code']);
-            $rowKey = $fgKey."\0".$values['nama_produk']."\0".mb_strtolower($values['bulk_code']);
+            $rowKey = $fgKey."\0".$values['nama_produk']."\0".mb_strtolower($values['bulk_code'])."\0".$values['shelf_life'];
             if (isset($seenRows[$rowKey])) {
                 $plan->warning($rowNumber, "Duplikat identik dengan baris {$seenRows[$rowKey]}, dilewati.", $values);
                 $this->tick($progress, $i, $plan->totalRows);
@@ -117,14 +117,18 @@ class MasterProductsImportProcessor implements MasterImportProcessor
         $result['skipped_duplicates'] = $plan->preview['skipped_duplicates'] ?? 0;
         $total = count($plan->operations);
         $done = 0;
-        $now = now();
 
         foreach ($plan->operations as $op) {
-            $product = $op['product_id'] !== null
-                ? MasterProduct::withTrashed()->find($op['product_id'])
-                : new MasterProduct(['fg_code' => $op['fg_code'], 'is_active' => true]);
+            // Resolve by the unique key again at write time, using the database's own
+            // comparison rules (including collation / trailing spaces on MySQL).
+            // firstOrCreate also recovers if another writer inserts the key meanwhile.
+            $product = MasterProduct::withTrashed()->lockForUpdate()->firstOrCreate(
+                ['fg_code' => $op['fg_code']],
+                ['product_name' => $op['name'], 'shelf_life_months' => $op['shelf_life'], 'is_active' => true],
+            );
+            $action = $product->wasRecentlyCreated ? 'new' : ($product->trashed() ? 'restored' : 'unchanged');
 
-            if ($op['action'] === 'restored') {
+            if ($product->trashed()) {
                 $product->deleted_at = null;
                 $product->deleted_by = null;
             }
@@ -133,13 +137,16 @@ class MasterProductsImportProcessor implements MasterImportProcessor
                 $product->shelf_life_months = $op['shelf_life'];
             }
             if ($product->isDirty() || ! $product->exists) {
+                if ($action === 'unchanged') {
+                    $action = 'updated';
+                }
                 $product->save();
             }
-            $result['products_'.$op['action']]++;
+            $result['products_'.$action]++;
 
             foreach ($op['bulk_codes'] as $bulk) {
-                $this->applyBulkCode($product->id, $bulk, $now);
-                $result['bulk_codes_'.$bulk['action']]++;
+                $bulkAction = $this->applyBulkCode($product->id, $bulk);
+                $result['bulk_codes_'.$bulkAction]++;
             }
 
             if (++$done % 200 === 0) {
@@ -152,19 +159,25 @@ class MasterProductsImportProcessor implements MasterImportProcessor
     }
 
     /** @param array{action: string, bulk_code: string, id: ?int} $bulk */
-    private function applyBulkCode(int $productId, array $bulk, mixed $now): void
+    private function applyBulkCode(int $productId, array $bulk): string
     {
-        if ($bulk['action'] === 'new') {
-            MasterProductBulkCode::insert([
-                'master_product_id' => $productId,
-                'bulk_code' => $bulk['bulk_code'],
-                'is_active' => true,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        } elseif ($bulk['action'] === 'restored') {
-            MasterProductBulkCode::withTrashed()->whereKey($bulk['id'])->update(['deleted_at' => null, 'deleted_by' => null, 'updated_at' => $now]);
+        $record = MasterProductBulkCode::withTrashed()->lockForUpdate()->firstOrCreate(
+            ['master_product_id' => $productId, 'bulk_code' => $bulk['bulk_code']],
+            ['is_active' => true],
+        );
+
+        if ($record->wasRecentlyCreated) {
+            return 'new';
         }
+        if ($record->trashed()) {
+            $record->deleted_at = null;
+            $record->deleted_by = null;
+            $record->save();
+
+            return 'restored';
+        }
+
+        return 'existing';
     }
 
     /** @return list<string> */
@@ -218,7 +231,9 @@ class MasterProductsImportProcessor implements MasterImportProcessor
         ];
 
         foreach ($groups as $fgKey => $group) {
-            $product = $existing->get($fgKey);
+            // A PHP lowercase map cannot reproduce every database collation rule.
+            $product = $existing->get($fgKey)
+                ?? MasterProduct::withTrashed()->where('fg_code', $group['fg_code'])->first();
 
             if ($product === null) {
                 $action = 'new';
@@ -233,7 +248,10 @@ class MasterProductsImportProcessor implements MasterImportProcessor
 
             $bulkOps = [];
             foreach ($group['bulk_codes'] as $bulkKey => $bulkCode) {
-                $existingRow = $product !== null ? $existingBulk->get($product->id."\0".$bulkKey) : null;
+                $existingRow = $product !== null
+                    ? ($existingBulk->get($product->id."\0".$bulkKey)
+                        ?? MasterProductBulkCode::withTrashed()->where('master_product_id', $product->id)->where('bulk_code', $bulkCode)->first())
+                    : null;
                 $bulkAction = match (true) {
                     $existingRow === null => 'new',
                     $existingRow->deleted_at !== null => 'restored',

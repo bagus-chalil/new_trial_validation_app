@@ -6,6 +6,7 @@ use App\Models\FinishedCheckSample;
 use App\Models\IpcApproval;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
+use App\Models\IpcReportDocument;
 use App\Models\MasterTestType;
 use App\Models\PackingCheck;
 use App\Models\StartupCheck;
@@ -285,14 +286,17 @@ trait BuildsIpcReportPayloads
 
                     $isFilling = $stage === IpcApproval::STAGE_FILLING;
 
+                    // Filling and Packing are now separate documents — each maps onto its own
+                    // real paper form (FR.QAC.192.02 / FR.QAC.182.03), tracked in its own
+                    // ipc_report_documents row, editable by QAC staff via Master > Dokumen Laporan.
+                    $reportDocument = IpcReportDocument::forKey($isFilling ? IpcReportDocument::KEY_FILLING : IpcReportDocument::KEY_PACKING);
+
                     return [
                         ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, [$stage]), $stage),
                         'packingRevisionPhotoUris' => $isFilling ? [] : $this->packingRevisionPhotoUris($batch),
-                        // Filling and Packing are separate documents but share the paper form's
-                        // document control number (FR.QAC.193.00 Rev 0).
-                        'title' => 'Laporan Pemeriksaan In Process Control '.($isFilling ? 'Filling' : 'Packing'),
-                        'docNumber' => 'FR.QAC.193.00',
-                        'docRevision' => '0',
+                        'title' => $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control '.($isFilling ? 'Filling' : 'Packing'),
+                        'docNumber' => $reportDocument?->doc_number ?? ($isFilling ? 'FR.QAC.192.02' : 'FR.QAC.182.03'),
+                        'docRevision' => $reportDocument?->revision ?? ($isFilling ? '02' : '03'),
                     ];
                 })(),
                 ($stage === IpcApproval::STAGE_FILLING ? 'Filling' : 'Packing')."-Report-{$batch->no_batch}.pdf",

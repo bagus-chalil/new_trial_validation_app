@@ -9,8 +9,11 @@ use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
 use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -147,6 +150,118 @@ class MasterImportTest extends TestCase
 
         $this->assertSame('validated', $state['status']);
         $this->assertSame(1, $state['valid_rows']);
+    }
+
+    public function test_reimporting_identical_data_does_not_write_products_or_bulk_codes(): void
+    {
+        $product = MasterProduct::create(['fg_code' => '663402008', 'product_name' => 'Product', 'shelf_life_months' => 24, 'is_active' => false]);
+        $bulk = $product->bulkCodes()->create(['bulk_code' => 'BLK-1', 'is_active' => false]);
+        $processor = new MasterProductsImportProcessor;
+        $plan = $processor->plan([
+            ['row' => 2, 'data' => ['fg_code' => '663402008', 'nama_produk' => 'Product', 'bulk_code' => 'BLK-1', 'shelf_life' => '24']],
+        ], fn () => null);
+
+        DB::enableQueryLog();
+        try {
+            $result = DB::transaction(fn () => $processor->apply($plan, fn () => null));
+            $writes = array_filter(DB::getQueryLog(), fn ($query) => preg_match('/^\s*(insert|update|delete)\b/i', $query['query']));
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        $this->assertSame([], array_values($writes));
+        $this->assertSame(1, $result['products_unchanged']);
+        $this->assertSame(1, $result['bulk_codes_existing']);
+        $this->assertFalse($product->fresh()->is_active);
+        $this->assertFalse($bulk->fresh()->is_active);
+    }
+
+    public function test_existing_unique_keys_are_updated_even_if_created_after_planning(): void
+    {
+        $processor = new MasterProductsImportProcessor;
+        $plan = $processor->plan([
+            ['row' => 2, 'data' => ['fg_code' => '663402008', 'nama_produk' => 'Updated', 'bulk_code' => 'BLK-1', 'shelf_life' => '36']],
+            ['row' => 3, 'data' => ['fg_code' => '663402008', 'nama_produk' => 'Updated', 'bulk_code' => 'BLK-2']],
+        ], fn () => null);
+        $this->assertSame(1, $plan->preview['products_new']);
+
+        $product = MasterProduct::create(['fg_code' => '663402008', 'product_name' => 'Old', 'shelf_life_months' => 24, 'is_active' => true]);
+        $bulk = $product->bulkCodes()->create(['bulk_code' => 'BLK-1', 'is_active' => true]);
+
+        $result = DB::transaction(fn () => $processor->apply($plan, fn () => null));
+
+        $this->assertSame(0, $result['products_new']);
+        $this->assertSame(1, $result['products_updated']);
+        $this->assertSame(1, $result['bulk_codes_existing']);
+        $this->assertSame(1, $result['bulk_codes_new']);
+        $this->assertSame(1, MasterProduct::count());
+        $this->assertSame('Updated', $product->fresh()->product_name);
+        $this->assertSame(36, $product->fresh()->shelf_life_months);
+        $this->assertSame($bulk->id, $product->bulkCodes()->where('bulk_code', 'BLK-1')->value('id'));
+    }
+
+    public function test_rechecking_unique_keys_restores_products_and_bulk_codes_created_after_planning(): void
+    {
+        $processor = new MasterProductsImportProcessor;
+        $plan = $processor->plan([
+            ['row' => 2, 'data' => ['fg_code' => 'FG-1', 'nama_produk' => 'Restored', 'bulk_code' => 'BLK-1']],
+        ], fn () => null);
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Old', 'is_active' => true]);
+        $bulk = $product->bulkCodes()->create(['bulk_code' => 'BLK-1', 'is_active' => true]);
+        $bulk->delete();
+        $product->delete();
+
+        $result = DB::transaction(fn () => $processor->apply($plan, fn () => null));
+
+        $this->assertSame(1, $result['products_restored']);
+        $this->assertSame(1, $result['bulk_codes_restored']);
+        $this->assertNotSoftDeleted($product);
+        $this->assertNotSoftDeleted($bulk);
+        $this->assertSame('Restored', $product->fresh()->product_name);
+    }
+
+    public function test_import_uses_database_key_comparison_when_existing_codes_have_trailing_spaces(): void
+    {
+        if (DB::getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('This fixture uses SQLite RTRIM to simulate padded database keys.');
+        }
+        Schema::table('master_products', fn (Blueprint $table) => $table->string('fg_code')->collation('RTRIM')->change());
+        Schema::table('master_product_bulk_codes', fn (Blueprint $table) => $table->string('bulk_code')->collation('RTRIM')->change());
+        $product = MasterProduct::create(['fg_code' => '663402008 ', 'product_name' => 'Old', 'is_active' => true]);
+        $bulk = $product->bulkCodes()->create(['bulk_code' => 'BLK-1 ', 'is_active' => true]);
+        $processor = new MasterProductsImportProcessor;
+        $plan = $processor->plan([
+            ['row' => 2, 'data' => ['fg_code' => '663402008', 'nama_produk' => 'Updated', 'bulk_code' => 'BLK-1']],
+        ], fn () => null);
+
+        $this->assertSame(0, $plan->preview['products_new']);
+        $this->assertSame(1, $plan->preview['products_updated']);
+        $this->assertSame(1, $plan->preview['bulk_codes_existing']);
+        $result = DB::transaction(fn () => $processor->apply($plan, fn () => null));
+
+        $this->assertSame(1, $result['products_updated']);
+        $this->assertSame(1, $result['bulk_codes_existing']);
+        $this->assertSame(1, MasterProduct::count());
+        $this->assertSame(1, MasterProductBulkCode::count());
+        $this->assertSame('Updated', $product->fresh()->product_name);
+        $this->assertSame('663402008 ', $product->fresh()->fg_code);
+        $this->assertSame('BLK-1 ', $bulk->fresh()->bulk_code);
+    }
+
+    public function test_a_repeated_row_with_a_new_shelf_life_is_not_skipped_as_identical(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $state = $this->upload($admin, $this->excel(self::PRODUCT_HEADINGS, [
+            ['FG-1', 'Product', 'BLK-1', ''],
+            ['FG-1', 'Product', 'BLK-1', 36],
+        ]));
+
+        $this->assertSame(0, $state['preview']['skipped_duplicates']);
+        $this->actingAs($admin)->postJson("/masters/imports/{$state['id']}/commit")
+            ->assertOk()->assertJsonPath('status', 'completed');
+        $this->assertDatabaseHas('master_products', ['fg_code' => 'FG-1', 'shelf_life_months' => 36]);
+        $this->assertSame(1, MasterProductBulkCode::count());
     }
 
     public function test_a_file_missing_required_columns_fails_with_a_clear_message(): void
