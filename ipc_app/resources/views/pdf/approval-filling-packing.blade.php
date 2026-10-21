@@ -1,8 +1,18 @@
 @extends('pdf.layout')
 
 @section('content')
-    {{-- Filling and Packing are separate documents (split 2026-10-20): $side picks which one. --}}
+    {{-- Filling and Packing are separate documents (split 2026-10-20): $side picks which one.
+         Both real paper forms (FR.QAC.192.02 / FR.QAC.182.03) open with the same "FORM
+         PEMERIKSAAN START UP" section before their own stage-specific content — shared via
+         pdf._startup-checklist so the three reports (this one + approval-startup.blade.php) can't
+         drift apart on it. --}}
+    <div class="section-title">Form Pemeriksaan Start Up</div>
+    @include('pdf._startup-checklist')
+
     @if ($side === 'filling')
+    <div class="section-title" style="margin-top: 10px;">Verifikasi Sebelum Produksi</div>
+    @include('pdf._verifikasi-sebelum-produksi')
+
     <div class="section-title">Filling Inspection</div>
 
     @if ($fillingCheck)
@@ -149,6 +159,61 @@
             <div><span>Std Bruto MB</span><strong>{{ $packingCheck->standard_weight_mb ?? '—' }}</strong></div>
             <div><span>Data Timbang</span><strong>{{ $packingCheck->weighing_data ?? '—' }}</strong></div>
         </div>
+
+        <div class="section-title" style="margin-top: 4px;">Pemeriksaan Format Coding</div>
+        {{-- No field on packing_checks captures coding-format text (Format Penulisan Coding,
+             Operator/Line Leader/QC IPC per tier, Paraf) — only coding_machine (shown above) and
+             the per-tier coding-batch-exp photos (rendered in the checklist table below) exist.
+             Rendered with the paper form's real row/column shape so a reviewer sees the expected
+             structure rather than a missing section, with an explicit note on what's uncaptured. --}}
+        <table>
+            <thead>
+                <tr><th style="width: 18%;">Keterangan</th><th>Primer</th><th>Sekunder</th><th>Tersier</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Format Penulisan Coding dan Penjelasan</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td></tr>
+                <tr><td>Operator (Actual Coding)</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td></tr>
+                <tr><td>Line Leader</td><td colspan="3">{{ $packingCheck->line_leader_name ?? '—' }}</td></tr>
+                <tr><td>QC IPC</td><td colspan="3">{{ $packingCheck->user->name ?? '—' }}</td></tr>
+            </tbody>
+        </table>
+        <p class="muted" style="font-size: 8px;">Format penulisan coding per tier dan paraf operator belum ditangkap sebagai data terstruktur di aplikasi ini — lihat foto Coding Batch & EXP pada tabel checklist di bawah.</p>
+
+        <div class="section-title">Pemeriksaan Berat Produk</div>
+        {{-- Standar Filling / Berat Filling and Standar Berat Masterbox / Berat Masterbox,
+             30-sample grids per the paper form's own numbering (see _packing-sample-grid). The
+             per-sample readings are the real StartupInspectionSample rows captured once at Start
+             Inspection (no separate per-sample weight capture exists on packing_checks itself —
+             only the aggregate standard_weight_mb/sum_weight_mb pair). --}}
+        @php $weightSamplesByNo = $startupInspection?->samples->keyBy('sample_no') ?? collect(); @endphp
+        <table>
+            <tbody>
+                <tr><td style="width: 18%;"><strong>Standar Filling</strong></td><td>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck->filling_range_min ?? '—').' – '.($startupCheck->filling_range_max ?? '—') }}</td></tr>
+            </tbody>
+        </table>
+        @include('pdf._packing-sample-grid', ['label' => 'Berat Filling', 'samplesByNo' => $weightSamplesByNo, 'field' => 'volume_weight'])
+
+        <table>
+            <tbody>
+                <tr><td style="width: 18%;"><strong>Standar Berat Masterbox</strong></td><td>{{ $packingCheck->standard_weight_mb ?? '—' }}</td></tr>
+            </tbody>
+        </table>
+        @include('pdf._packing-sample-grid', ['label' => 'Berat Masterbox', 'samplesByNo' => $weightSamplesByNo, 'field' => 'weight_master_box'])
+
+        <table>
+            <tbody>
+                {{-- No single aggregate Appearance / Uji Kebocoran / Uji Fungsional field exists on
+                     packing_checks — only the per-tier equivalents in the detailed checklist below
+                     (e.g. primary_functional_test_status). Left as a plain gap note rather than
+                     guessing which tier's value should stand in for the whole-form summary. --}}
+                <tr><td style="width: 18%;"><strong>Appereance</strong></td><td class="muted">— (lihat detail per tier di bawah)</td></tr>
+                <tr><td><strong>Uji Kebocoran</strong></td><td class="muted">— (tidak ditangkap terpisah)</td></tr>
+                <tr><td><strong>Uji Fungsional</strong></td><td>@include('pdf._status-pill', ['value' => $packingCheck->primary_functional_test_status ?? null])</td></tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">Detail Pemeriksaan Kemasan (Primary / Secondary / Tersier)</div>
+        <p class="muted" style="font-size: 8px; margin-top: -4px;">Checklist 17-item ini mengikuti form gabungan FR.QAC.193.00 — tidak ada pada form FR.QAC.182.03 asli, namun datanya tetap ditampilkan di sini karena ini data inspeksi riil yang sudah tercatat di aplikasi.</p>
 
         @php
             // One column per TH_PROGRESS round, same rationale as Filling above — every draft

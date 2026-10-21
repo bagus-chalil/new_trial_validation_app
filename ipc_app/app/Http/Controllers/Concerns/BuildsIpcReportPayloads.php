@@ -197,6 +197,14 @@ trait BuildsIpcReportPayloads
         return [
             'side' => $side,
             'startupCheck' => $batch->startupCheck,
+            'startupChecklistGroups' => StartupCheck::checklistGroups(),
+            // Paper form's "VERIFIKASI SEBELUM PRODUKSI" grid (Filling only) is per-sample per
+            // parameter; this app's Start Inspection only captures one status per parameter for
+            // the whole batch (StartupInspectionItem), not per sample — see
+            // startup_inspection_items' doc comment. The Filling side of this report renders that
+            // coarser summary rather than fabricating 30 blank sample columns.
+            'startupInspection' => $batch->startupInspection,
+            'startupInspectionParameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
             'fillingCheck' => $isFilling ? $batch->fillingCheck : null,
             'packingCheck' => $isFilling ? null : $batch->packingCheck,
             'photoUrls' => $photoUrls,
@@ -280,6 +288,15 @@ trait BuildsIpcReportPayloads
 
                     $batch->load([
                         'startupCheck',
+                        'startupCheck.user',
+                        'startupInspection.items',
+                        // Packing's "PEMERIKSAAN BERAT PRODUK" section (paper form FR.QAC.182.03)
+                        // reuses the same per-sample Volume/Berat + Berat Masterbox readings
+                        // captured once at Start Inspection — there is no separate per-sample
+                        // weight capture on packing_checks itself (only an aggregate
+                        // standard_weight_mb/sum_weight_mb pair), so this is the real underlying
+                        // data, not a fabrication.
+                        'startupInspection.samples',
                         ...$this->fillingPackingRelations($stage),
                         'approvals.approver',
                     ]);
