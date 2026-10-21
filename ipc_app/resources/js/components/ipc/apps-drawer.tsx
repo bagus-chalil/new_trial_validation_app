@@ -3,7 +3,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
-import { Archive, FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, ScanText, Sun, Trash2, UserRound, Users } from 'lucide-react';
+import { Archive, FileText, FlaskConical, KeyRound, LogOut, MapPin, Moon, Package, ScanText, Sun, Trash2, UserRound, Users } from 'lucide-react';
 
 interface AppItem {
     label: string;
@@ -71,6 +71,7 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                           { label: 'Master Line', icon: MapPin, color: '#2563eb', bg: '#eff6ff', href: route('master-lines.index') },
                           { label: 'Master Produk', icon: Package, color: '#16a34a', bg: '#f0fdf4', href: route('master-products.index') },
                           { label: 'Master Test Type', icon: FlaskConical, color: '#9333ea', bg: '#faf5ff', href: route('master-test-types.index') },
+                          { label: 'Dokumen Laporan', icon: FileText, color: '#be123c', bg: '#fff1f2', href: route('report-documents.index') },
                           { label: 'Manajemen User', icon: Users, color: '#0d9488', bg: '#f0fdfa', href: route('users.index') },
                       ],
                   },

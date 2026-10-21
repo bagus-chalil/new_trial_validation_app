@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\IpcReportDocumentController;
 use App\Http\Controllers\MasterImportController;
 use App\Http\Controllers\MasterLineController;
 use App\Http\Controllers\MasterProductBulkCodeController;
@@ -26,6 +27,9 @@ Route::middleware(['auth', 'can:manage-master'])->prefix('masters')->group(funct
     Route::get('test-types', [MasterTestTypeController::class, 'index'])->name('master-test-types.index');
     Route::post('test-types', [MasterTestTypeController::class, 'store'])->name('master-test-types.store');
     Route::delete('test-types/{masterTestType}', [MasterTestTypeController::class, 'destroy'])->name('master-test-types.destroy');
+
+    Route::get('report-documents', [IpcReportDocumentController::class, 'index'])->name('report-documents.index');
+    Route::put('report-documents/{ipcReportDocument}', [IpcReportDocumentController::class, 'update'])->name('report-documents.update');
 
     // Spreadsheet imports (JSON, polled by the import dialog). See MasterImportController.
     Route::post('imports/{type}', [MasterImportController::class, 'store'])->whereIn('type', MasterImport::TYPES)->name('master-imports.store');

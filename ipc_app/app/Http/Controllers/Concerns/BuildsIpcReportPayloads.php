@@ -6,6 +6,7 @@ use App\Models\FinishedCheckSample;
 use App\Models\IpcApproval;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
+use App\Models\IpcReportDocument;
 use App\Models\MasterTestType;
 use App\Models\PackingCheck;
 use App\Models\StartupCheck;
@@ -261,13 +262,16 @@ trait BuildsIpcReportPayloads
                         'approvals.approver',
                     ]);
 
+                    $reportDocument = IpcReportDocument::forKey(IpcReportDocument::KEY_FILLING_PACKING_FG);
+
                     return [
                         ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['filling', 'packing'])),
                         'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
-                        // Title + document control number of the paper form this report mirrors.
-                        'title' => 'Laporan Pemeriksaan In Process Control Filling & Packing',
-                        'docNumber' => 'FR.QAC.193.00',
-                        'docRevision' => '0',
+                        // Title + document control number of the paper form this report mirrors,
+                        // editable by QAC staff via the Master > Dokumen Laporan admin screen.
+                        'title' => $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control Filling & Packing',
+                        'docNumber' => $reportDocument?->doc_number ?? 'FR.QAC.193.00',
+                        'docRevision' => $reportDocument?->revision ?? '0',
                     ];
                 })(),
                 "Filling-Packing-Report-{$batch->no_batch}.pdf",
