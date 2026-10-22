@@ -193,6 +193,11 @@ trait BuildsIpcReportPayloads
     private function fillingPackingPayload(IpcBatch $batch, array $photoUrls, string $side): array
     {
         $isFilling = $side === IpcApproval::STAGE_FILLING;
+        // 'both' is the combined FR.QAC.193.00 document (flow Lengkap only, see
+        // "filling_packing_fg" branch of resolveReportPdf()) — renders Filling AND Packing in one
+        // PDF instead of this report's usual one-side-per-document split.
+        $includeFilling = $side === 'both' || $isFilling;
+        $includePacking = $side === 'both' || $side === IpcApproval::STAGE_PACKING;
 
         return [
             'side' => $side,
@@ -205,13 +210,21 @@ trait BuildsIpcReportPayloads
             // coarser summary rather than fabricating 30 blank sample columns.
             'startupInspection' => $batch->startupInspection,
             'startupInspectionParameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
-            'fillingCheck' => $isFilling ? $batch->fillingCheck : null,
-            'packingCheck' => $isFilling ? null : $batch->packingCheck,
+            'fillingCheck' => $includeFilling ? $batch->fillingCheck : null,
+            'packingCheck' => $includePacking ? $batch->packingCheck : null,
             'photoUrls' => $photoUrls,
             'packingChecklistGroups' => PackingCheck::checklistGroups(),
-            'reportApproval' => $batch->approvals->firstWhere('stage', $side),
-            'verificationUrl' => VerificationQrCode::url($batch, $side),
-            'verificationQr' => VerificationQrCode::svg($batch, $side),
+            // Single-side keys (kept as-is for the existing standalone Filling/Packing reports).
+            'reportApproval' => $side !== 'both' ? $batch->approvals->firstWhere('stage', $side) : null,
+            'verificationUrl' => $side !== 'both' ? VerificationQrCode::url($batch, $side) : null,
+            'verificationQr' => $side !== 'both' ? VerificationQrCode::svg($batch, $side) : null,
+            // Per-side keys, always populated, used by the combined 'both' document so each
+            // section can show its own Issued By / Review By / QR instead of collapsing two real,
+            // separately-timed approvals into one signature box.
+            'fillingApproval' => $includeFilling ? $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FILLING) : null,
+            'packingApproval' => $includePacking ? $batch->approvals->firstWhere('stage', IpcApproval::STAGE_PACKING) : null,
+            'fillingVerificationQr' => $includeFilling ? VerificationQrCode::svg($batch, IpcApproval::STAGE_FILLING) : null,
+            'packingVerificationQr' => $includePacking ? VerificationQrCode::svg($batch, IpcApproval::STAGE_PACKING) : null,
         ];
     }
 
@@ -334,12 +347,60 @@ trait BuildsIpcReportPayloads
                         'approvals.approver',
                     ]);
 
+                    // Finished Good has no standalone paper form of its own — it only ever appears
+                    // as page 2 of FR.QAC.193.00 (confirmed against docs/report/: FR.QAC.182.03,
+                    // the standalone Packing form, does NOT include FG at all) — so this always
+                    // reads the same filling_packing_fg metadata row, for every flow that has a
+                    // Finished Check (full and packing_fg both).
+                    $reportDocument = IpcReportDocument::forKey(IpcReportDocument::KEY_FILLING_PACKING_FG);
+
                     return [
                         ...$this->finishedPayload($batch, $this->photoDataUris($batch, ['finished'])),
-                        'title' => 'Finished Good Inspection Report',
+                        // Real page 2 title is its own ("Laporan Pemeriksaan Finished Good"), not
+                        // page 1's — only the doc number/revision are shared (same form, 2 pages).
+                        'title' => 'Laporan Pemeriksaan Finished Good',
+                        'docNumber' => $reportDocument?->doc_number ?? 'FR.QAC.193.00',
+                        'docRevision' => $reportDocument?->revision ?? '0',
                     ];
                 })(),
                 "Finished-Good-Report-{$batch->no_batch}.pdf",
+            ],
+            // Combined Filling + Packing document (FR.QAC.193.00 page 1) — additive to, not a
+            // replacement for, the two standalone Filling/Packing documents above: flow Lengkap
+            // (full) is the only flow where the real paper record is this ONE combined form rather
+            // than two separate ones, so it's offered as an extra "Cetak Gabungan" option on the
+            // Print hub instead of changing what the per-stage Approval/Print pages already do.
+            IpcReportDocument::KEY_FILLING_PACKING_FG => [
+                'pdf.approval-filling-packing',
+                (function () use ($batch) {
+                    abort_unless($batch->flow_type === IpcBatch::FLOW_FULL, 404, 'Laporan gabungan Filling & Packing hanya tersedia untuk alur Lengkap.');
+                    abort_unless(
+                        in_array(IpcApproval::STAGE_FILLING, $batch->activeStages(), true)
+                            && in_array(IpcApproval::STAGE_PACKING, $batch->activeStages(), true),
+                        404
+                    );
+
+                    $batch->load([
+                        'startupCheck',
+                        'startupCheck.user',
+                        'startupInspection.items',
+                        'startupInspection.samples',
+                        ...$this->fillingPackingRelations(IpcApproval::STAGE_FILLING),
+                        ...$this->fillingPackingRelations(IpcApproval::STAGE_PACKING),
+                        'approvals.approver',
+                    ]);
+
+                    $reportDocument = IpcReportDocument::forKey(IpcReportDocument::KEY_FILLING_PACKING_FG);
+
+                    return [
+                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['startup', IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING]), 'both'),
+                        'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
+                        'title' => $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control Filling & Packing',
+                        'docNumber' => $reportDocument?->doc_number ?? 'FR.QAC.193.00',
+                        'docRevision' => $reportDocument?->revision ?? '0',
+                    ];
+                })(),
+                "Filling-Packing-Report-{$batch->no_batch}.pdf",
             ],
             default => abort(404),
         };

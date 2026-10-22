@@ -272,6 +272,112 @@ class PrintTest extends TestCase
         $this->assertStringNotContainsString('Ani Filling', $packingHtml);
     }
 
+    // --- Combined Filling + Packing document (FR.QAC.193.00) — additive, flow Lengkap (full) only ---
+
+    private function makeFillingFlowBatchAtPrintStage(): IpcBatch
+    {
+        $product = MasterProduct::create(['fg_code' => 'FG-FILLING-ONLY', 'product_name' => 'Product Filling Only', 'is_active' => true]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 02', 'name' => 'Make Up 02', 'is_active' => true]);
+        $user = User::factory()->create();
+
+        $batch = IpcBatch::create([
+            'master_product_id' => $product->id,
+            'no_batch' => 'BATCH-FILLING-ONLY',
+            'master_line_id' => $line->id,
+            'created_by' => $user->id,
+            'current_stage' => IpcBatch::STAGE_PRINT,
+            'flow_type' => IpcBatch::FLOW_FILLING,
+        ]);
+
+        StartupCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $user->id, 'completed_at' => now()]);
+        FillingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $user->id, 'save_count' => 1, 'completed_at' => now()]);
+        IpcApproval::create([
+            'ipc_batch_id' => $batch->id,
+            'stage' => IpcApproval::STAGE_FILLING,
+            'decision' => IpcApproval::DECISION_APPROVED,
+            'approver_user_id' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        return $batch->fresh();
+    }
+
+    public function test_combined_filling_packing_document_is_only_offered_for_the_full_flow(): void
+    {
+        $fullFlowBatch = $this->makeBatchAtPrintStage();
+        $fillingOnlyBatch = $this->makeFillingFlowBatchAtPrintStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get("/batches/{$fullFlowBatch->id}/print")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('stages.4.stage', 'filling_packing_fg'));
+
+        $this->actingAs($user)->get("/batches/{$fillingOnlyBatch->id}/print")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('stages', 2));
+    }
+
+    public function test_combined_filling_packing_pdf_404s_for_a_non_full_flow_batch(): void
+    {
+        $batch = $this->makeFillingFlowBatchAtPrintStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing_fg/preview")->assertNotFound();
+    }
+
+    public function test_combined_filling_packing_pdf_renders_both_sections_with_their_own_sign_off(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $fillingUser = User::factory()->create(['name' => 'Ani Filling']);
+        $packingUser = User::factory()->create(['name' => 'Budi Packing']);
+        $batch->fillingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $fillingUser->id]);
+        $batch->packingCheck->revisions()->create(['revision_no' => 1, 'finalize' => true, 'user_id' => $packingUser->id]);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing_fg/preview");
+
+        $response->assertOk();
+        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        $html = $response->getContent();
+        $this->assertStringContainsString('FR.QAC.193.00', $html);
+        $this->assertStringContainsString('Filling Inspection', $html);
+        $this->assertStringContainsString('Packing Inspection', $html);
+        $this->assertMatchesRegularExpression('/Issued By \(QC Filling\)<\/span>\s*<strong>Ani Filling<\/strong>/', $html);
+        $this->assertMatchesRegularExpression('/Issued By \(QC Packing\)<\/span>\s*<strong>Budi Packing<\/strong>/', $html);
+    }
+
+    public function test_combined_filling_packing_pdf_is_logged_as_its_own_print_stage(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing_fg/pdf")->assertOk();
+
+        $this->assertDatabaseHas('ipc_print_logs', [
+            'ipc_batch_id' => $batch->id,
+            'stage' => 'filling_packing_fg',
+            'printed_by_user_id' => $user->id,
+        ]);
+    }
+
+    public function test_finished_good_pdf_uses_the_shared_fr_qac_193_doc_number_and_checkbox_disposition(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $batch->finishedCheck->update(['disposition' => FinishedCheck::DISPOSITION_ACCEPTED]);
+        $user = User::factory()->create();
+
+        $html = $this->actingAs($user)->get("/batches/{$batch->id}/print/finished/preview")->assertOk()->getContent();
+
+        $this->assertStringContainsString('FR.QAC.193.00', $html);
+        $this->assertStringContainsString('☑ Accepted', $html);
+        $this->assertStringContainsString('☐ Rejected', $html);
+        // Functional Test + Bulk/Color/Odor share one "Special Inspection" group header in the
+        // item list, not two separate "... Packaging" headers.
+        $this->assertStringNotContainsString('Functional Test Packaging', $html);
+        $this->assertStringNotContainsString('Special Test Packaging', $html);
+        $this->assertStringContainsString('Tersier Packaging', $html);
+    }
+
     public function test_legacy_filling_packing_verification_link_still_resolves(): void
     {
         $batch = $this->makeBatchAtPrintStage();

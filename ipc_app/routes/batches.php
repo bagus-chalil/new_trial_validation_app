@@ -12,6 +12,7 @@ use App\Http\Controllers\StartupCheckController;
 use App\Http\Controllers\StartupInspectionController;
 use App\Http\Controllers\VerificationController;
 use App\Models\IpcApproval;
+use App\Models\IpcReportDocument;
 use Illuminate\Support\Facades\Route;
 
 // Public — deliberately outside the `auth` group. This is what a printed report's verification
@@ -120,9 +121,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('batches/{batch}/print/packing', [PrintController::class, 'packing'])->name('print.packing');
     Route::get('batches/{batch}/print/finished', [PrintController::class, 'finished'])->name('print.finished');
     Route::get('batches/{batch}/print/{stage}/pdf', [PrintController::class, 'pdf'])
-        ->whereIn('stage', IpcApproval::STAGES)
+        ->whereIn('stage', [...IpcApproval::STAGES, IpcReportDocument::KEY_FILLING_PACKING_FG])
         ->name('print.pdf');
     Route::get('batches/{batch}/print/{stage}/preview', [PrintController::class, 'preview'])
-        ->whereIn('stage', IpcApproval::STAGES)
+        ->whereIn('stage', [...IpcApproval::STAGES, IpcReportDocument::KEY_FILLING_PACKING_FG])
         ->name('print.preview');
 });

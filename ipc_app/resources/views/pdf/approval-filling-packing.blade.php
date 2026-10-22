@@ -16,7 +16,7 @@
     <div class="section-title">Form Pemeriksaan Start Up</div>
     @include('pdf._startup-checklist')
 
-    @if ($side === 'filling')
+    @if ($side === 'filling' || $side === 'both')
     <div class="section-title" style="margin-top: 6px;">Verifikasi Sebelum Produksi</div>
     @include('pdf._verifikasi-sebelum-produksi')
 
@@ -165,8 +165,9 @@
             </tbody>
         </table>
     @endif
+    @endif
 
-    @else
+    @if ($side === 'packing' || $side === 'both')
     <div class="section-title">Packing Inspection</div>
 
     @if ($packingCheck)
@@ -439,37 +440,52 @@
     <p class="muted" style="margin: 2px 0; font-size: 7.5px;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
 
     @php
-        // Issued By = whoever saved the latest TH_PROGRESS round of this document's own check.
-        $sideCheck = $side === 'filling' ? $fillingCheck : $packingCheck;
-        $lastRound = $sideCheck?->revisions?->sortByDesc('created_at')->first();
-        $issuedBy = $lastRound?->user ?? $sideCheck?->user;
-        $issuedAt = $lastRound?->created_at ?? $sideCheck?->completed_at;
+        // One sign-off block per section rendered. On the combined ($side === 'both') document
+        // this is two real, separately-timed approvals (Filling can be signed off well before
+        // Packing happens), so it renders one block per section rather than collapsing them into
+        // the single generic "QC Filling/Packing" box the blank paper form has room for — same
+        // "keep the real captured granularity" precedent as the rest of this report.
+        $signOffSections = [];
+        if ($side === 'filling' || $side === 'both') {
+            $signOffSections[] = ['label' => 'Filling', 'check' => $fillingCheck, 'approval' => $side === 'both' ? $fillingApproval : $reportApproval, 'qr' => $side === 'both' ? $fillingVerificationQr : $verificationQr];
+        }
+        if ($side === 'packing' || $side === 'both') {
+            $signOffSections[] = ['label' => 'Packing', 'check' => $packingCheck, 'approval' => $side === 'both' ? $packingApproval : $reportApproval, 'qr' => $side === 'both' ? $packingVerificationQr : $verificationQr];
+        }
     @endphp
-    <div class="sign-grid sign-grid--tight" style="margin: 6px 0;">
-        <div>
-            <span>Issued By (QC {{ $side === 'filling' ? 'Filling' : 'Packing' }})</span>
-            @if ($issuedBy)
-                <strong>{{ $issuedBy->name }}</strong>
-                <small class="sign-date">{{ optional($issuedAt)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
-            @endif
+    @foreach ($signOffSections as $sectionIdx => $section)
+        @php
+            $lastRound = $section['check']?->revisions?->sortByDesc('created_at')->first();
+            $issuedBy = $lastRound?->user ?? $section['check']?->user;
+            $issuedAt = $lastRound?->created_at ?? $section['check']?->completed_at;
+            $sectionApproval = $section['approval'];
+        @endphp
+        <div class="sign-grid sign-grid--tight" style="margin: 6px 0;">
+            <div>
+                <span>Issued By (QC {{ $section['label'] }})</span>
+                @if ($issuedBy)
+                    <strong>{{ $issuedBy->name }}</strong>
+                    <small class="sign-date">{{ optional($issuedAt)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+                @endif
+            </div>
+            <div>
+                <span>Review By (QC IPC Coordinator)</span>
+                @if ($sectionApproval)
+                    <strong>{{ $sectionApproval->approver->name ?? '—' }}</strong>
+                    <small class="sign-date">{{ optional($sectionApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+                @endif
+            </div>
+            <div class="qr-box">
+                <span>Verifikasi</span>
+                @if ($sectionApproval)
+                    <div class="qr-code">{!! $section['qr'] !!}</div>
+                    <small>{{ $sectionApproval->decision }}</small>
+                @else
+                    <small class="muted">Belum disetujui</small>
+                @endif
+            </div>
         </div>
-        <div>
-            <span>Review By (QC IPC Coordinator)</span>
-            @if ($reportApproval)
-                <strong>{{ $reportApproval->approver->name ?? '—' }}</strong>
-                <small class="sign-date">{{ optional($reportApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
-            @endif
-        </div>
-        <div class="qr-box">
-            <span>Verifikasi</span>
-            @if ($reportApproval)
-                <div class="qr-code">{!! $verificationQr !!}</div>
-                <small>{{ $reportApproval->decision }}</small>
-            @else
-                <small class="muted">Belum disetujui</small>
-            @endif
-        </div>
-    </div>
-    @include('pdf._approval-remarks', ['approval' => $reportApproval])
+        @include('pdf._approval-remarks', ['approval' => $sectionApproval])
+    @endforeach
     </div>
 @endsection

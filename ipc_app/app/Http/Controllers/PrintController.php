@@ -6,6 +6,7 @@ use App\Actions\Prints\LogPrint;
 use App\Http\Controllers\Concerns\BuildsIpcReportPayloads;
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
+use App\Models\IpcReportDocument;
 use App\Services\Pdf\PdfService;
 use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
@@ -158,11 +159,25 @@ class PrintController extends Controller
     {
         $logsByStage = $batch->printLogs->groupBy('stage');
 
-        return collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->map(fn (string $stage) => [
+        $stages = collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->map(fn (string $stage) => [
             'stage' => $stage,
             'label' => IpcApproval::STAGE_LABELS[$stage],
             ...$this->summarizeLogs($logsByStage->get($stage, collect())),
-        ])->values()->all();
+        ])->values();
+
+        // Flow Lengkap's real paper record is the ONE combined FR.QAC.193.00 document (not two
+        // separate Filling/Packing forms — those map onto the standalone FR.QAC.192.02/182.03
+        // forms used by the single-stage flows) — offered here as an extra print option alongside
+        // the per-stage ones above, not a replacement for them.
+        if ($batch->flow_type === IpcBatch::FLOW_FULL) {
+            $stages->push([
+                'stage' => IpcReportDocument::KEY_FILLING_PACKING_FG,
+                'label' => 'Filling & Packing (Gabungan)',
+                ...$this->summarizeLogs($logsByStage->get(IpcReportDocument::KEY_FILLING_PACKING_FG, collect())),
+            ]);
+        }
+
+        return $stages->values()->all();
     }
 
     /**

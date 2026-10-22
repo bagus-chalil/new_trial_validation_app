@@ -1,11 +1,14 @@
-import { formatDateTime, type PrintInfo } from '@/components/ipc/approval-report';
+import { formatDateTime, PrintPreviewButton, type PrintInfo } from '@/components/ipc/approval-report';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { lineLabel } from '@/lib/batch-line';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { CheckCircle2, ChevronRight, Clock3, Droplets, Package, Printer } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Clock3, Droplets, Files, Package, Printer } from 'lucide-react';
+
+/** Combined Filling + Packing FR.QAC.193.00 document — additive print option, flow Lengkap only (see PrintController::stagesSummary()). */
+const COMBINED_STAGE = 'filling_packing_fg';
 
 interface Batch {
     id: number;
@@ -38,6 +41,51 @@ const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Dr
         description: 'Finished Good Inspection Report.',
     },
 };
+
+/**
+ * Unlike the other cards, this one isn't a Link to a dedicated detail page (none exists for the
+ * combined document — it's a print-only addition, see BuildsIpcReportPayloads::resolveReportPdf()'s
+ * `filling_packing_fg` branch): Preview opens the PDF in-app, "Cetak" opens the logged PDF route
+ * directly in a new tab.
+ */
+function CombinedStageCard({ batchId, stage }: { batchId: number; stage: PrintInfo }) {
+    return (
+        <div className="border-border-soft bg-card flex flex-col gap-3.5 rounded-[22px] border p-5">
+            <div className="flex items-start justify-between gap-3">
+                <div className="bg-primary/[0.08] text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
+                    <Files className="size-5" strokeWidth={2.2} />
+                </div>
+                <PrintBadge stage={stage} />
+            </div>
+
+            <div>
+                <p className="text-[15.5px] font-bold">{stage.label}</p>
+                <p className="text-muted-foreground/70 mt-1 text-[12.5px] font-medium">
+                    Laporan gabungan Filling &amp; Packing (FR.QAC.193.00) untuk batch alur Lengkap — selain dua dokumen per tahap di atas.
+                </p>
+            </div>
+
+            {stage.lastPrintedAt && (
+                <p className="text-muted-foreground/70 text-[12px] font-medium">
+                    Terakhir oleh {stage.lastPrintedBy ?? '—'} · {formatDateTime(stage.lastPrintedAt)}
+                </p>
+            )}
+
+            <div className="mt-auto flex items-center gap-2.5 pt-1">
+                <PrintPreviewButton href={`/batches/${batchId}/print/${stage.stage}/preview`} label="Preview" />
+                <a
+                    href={`/batches/${batchId}/print/${stage.stage}/pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="bg-primary text-primary-foreground flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl text-[13px] font-bold"
+                >
+                    <Printer className="size-4" strokeWidth={2.2} />
+                    Cetak
+                </a>
+            </div>
+        </div>
+    );
+}
 
 function PrintBadge({ stage }: { stage: PrintInfo }) {
     if (stage.printCount === 0) return null;
@@ -127,9 +175,13 @@ export default function PrintOverview({ batch, stages }: { batch: Batch; stages:
                     </p>
 
                     <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-                        {stages.map((stage) => (
-                            <StageCard key={stage.stage} batchId={batch.id} stage={stage} />
-                        ))}
+                        {stages.map((stage) =>
+                            stage.stage === COMBINED_STAGE ? (
+                                <CombinedStageCard key={stage.stage} batchId={batch.id} stage={stage} />
+                            ) : (
+                                <StageCard key={stage.stage} batchId={batch.id} stage={stage} />
+                            ),
+                        )}
                     </div>
                 </div>
             </TwoPane>
