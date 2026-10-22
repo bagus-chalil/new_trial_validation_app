@@ -128,6 +128,18 @@
                     <tbody>
                         <tr><td><strong>Setting Suhu</strong></td><td>{{ $startupCheck->heating ?? '—' }}</td></tr>
                         <tr><td><strong>Density</strong></td><td>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck?->density ?? '—') }}</td></tr>
+                        {{-- "Hasil Cek Warna (STD vs Running)" is a field on the real FR.QAC.182.03
+                             (Packing) paper form — filled by hand (e.g. a drawn color swatch), with
+                             no equivalent column on startup_checks, so it can't be rendered with a
+                             real value, same gap-documentation convention used elsewhere in this
+                             report (e.g. "Format Penulisan Coding..." below). FR.QAC.192.02 (Filling)
+                             has no such row, so this is Packing-only, direct user request 2026-10-22. --}}
+                        @if ($side === 'packing')
+                            <tr>
+                                <td><strong>Hasil Cek Warna (STD vs Running)</strong></td>
+                                <td class="muted">— (tidak ditangkap sebagai data terstruktur, lihat foto Warna di atas)</td>
+                            </tr>
+                        @endif
                     </tbody>
                 </table>
                 <table style="margin-bottom: 4px;">
@@ -142,25 +154,37 @@
         <div class="startup-side">
             {{-- Operator / Line Leader are typed in on the Startup Check form; the IPC verifier
                  is whoever saved that form. Paper form labels these Prepared By (Operator) /
-                 Review By (LL Produksi) / Verification By (IPC). --}}
-            <div class="sign-grid sign-grid--stack">
-                <div>
-                    <span>Prepared By</span>
-                    <strong>{{ $startupCheck->operator_name ?: '—' }}</strong>
-                    <small class="role">Operator</small>
+                 Review By (LL Produksi) / Verification By (IPC).
+
+                 Packing-only exception (direct user request 2026-10-22): the real FR.QAC.182.03
+                 (Packing) paper form has no "Verification By" box here at all — only two
+                 signatures ("Prepared By (Line Leader Production)" / "Review By (QC IPC)"), placed
+                 at the very bottom of its own page (after Pemeriksaan Berat Produk), not beside the
+                 checklist. So on the Packing side this mid-page block is skipped entirely and the
+                 2-signature version is rendered later, right after the Appereance/Uji Kebocoran/Uji
+                 Fungsional summary — see approval-filling-packing.blade.php. The Filling side (and
+                 the standalone Startup report, which has no $side at all) keep this 3-signature
+                 block unchanged. --}}
+            @if ($side !== 'packing')
+                <div class="sign-grid sign-grid--stack">
+                    <div>
+                        <span>Prepared By</span>
+                        <strong>{{ $startupCheck->operator_name ?: '—' }}</strong>
+                        <small class="role">Operator</small>
+                    </div>
+                    <div>
+                        <span>Review By</span>
+                        <strong>{{ $startupCheck->line_leader_name ?: '—' }}</strong>
+                        <small class="role">LL Produksi</small>
+                    </div>
+                    <div>
+                        <span>Verification By</span>
+                        <strong>{{ $startupCheck->user->name ?? '—' }}</strong>
+                        <small class="sign-date">{{ optional($startupCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+                        <small class="role">IPC</small>
+                    </div>
                 </div>
-                <div>
-                    <span>Review By</span>
-                    <strong>{{ $startupCheck->line_leader_name ?: '—' }}</strong>
-                    <small class="role">LL Produksi</small>
-                </div>
-                <div>
-                    <span>Verification By</span>
-                    <strong>{{ $startupCheck->user->name ?? '—' }}</strong>
-                    <small class="sign-date">{{ optional($startupCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
-                    <small class="role">IPC</small>
-                </div>
-            </div>
+            @endif
         </div>
     </div>
 @else
