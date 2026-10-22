@@ -48,8 +48,22 @@
         </div>
     </div>
 
+    @php
+        // Packing's own sign-off box moved out of this section entirely (see the @if below), so
+        // there is nothing left to put in the right-hand .startup-side column — rendering the
+        // 74%/24% .startup-layout grid anyway left that whole right column empty, which both
+        // wasted width (room the checklist itself could have used) and, worse, visibly narrowed
+        // the checklist table enough that its "Sesuai (Y/N)" pills (e.g. "Not Available") crashed
+        // into the cell border — direct user report, real screenshot, 2026-10-22. So the Packing
+        // side skips the two-column grid altogether and renders the checklist/Setting-Suhu tables
+        // at full width; Filling and the standalone Startup report (which both still use this
+        // column for the 3-signature block) keep the grid.
+        $useStartupLayoutGrid = $side !== 'packing';
+    @endphp
+    @if ($useStartupLayoutGrid)
     <div class="startup-layout">
         <div class="startup-main">
+    @endif
             <table class="record-table--compact">
                 <thead>
                     <tr><th style="width: 5%;">No</th><th>Parameter Pemeriksaan</th><th style="width: 30%;">Sesuai (Y/N)</th></tr>
@@ -149,44 +163,37 @@
                     </tbody>
                 </table>
             </div>
+    @if ($useStartupLayoutGrid)
         </div>
 
         <div class="startup-side">
             {{-- Operator / Line Leader are typed in on the Startup Check form; the IPC verifier
                  is whoever saved that form. Paper form labels these Prepared By (Operator) /
-                 Review By (LL Produksi) / Verification By (IPC).
-
-                 Packing-only exception (direct user request 2026-10-22): the real FR.QAC.182.03
-                 (Packing) paper form has no "Verification By" box here at all — only two
-                 signatures ("Prepared By (Line Leader Production)" / "Review By (QC IPC)"), placed
-                 at the very bottom of its own page (after Pemeriksaan Berat Produk), not beside the
-                 checklist. So on the Packing side this mid-page block is skipped entirely and the
-                 2-signature version is rendered later, right after the Appereance/Uji Kebocoran/Uji
-                 Fungsional summary — see approval-filling-packing.blade.php. The Filling side (and
-                 the standalone Startup report, which has no $side at all) keep this 3-signature
-                 block unchanged. --}}
-            @if ($side !== 'packing')
-                <div class="sign-grid sign-grid--stack">
-                    <div>
-                        <span>Prepared By</span>
-                        <strong>{{ $startupCheck->operator_name ?: '—' }}</strong>
-                        <small class="role">Operator</small>
-                    </div>
-                    <div>
-                        <span>Review By</span>
-                        <strong>{{ $startupCheck->line_leader_name ?: '—' }}</strong>
-                        <small class="role">LL Produksi</small>
-                    </div>
-                    <div>
-                        <span>Verification By</span>
-                        <strong>{{ $startupCheck->user->name ?? '—' }}</strong>
-                        <small class="sign-date">{{ optional($startupCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
-                        <small class="role">IPC</small>
-                    </div>
+                 Review By (LL Produksi) / Verification By (IPC). Packing doesn't reach here at all
+                 (see $useStartupLayoutGrid above) — its own 2-signature sign-off is rendered later,
+                 right after the Appereance/Uji Kebocoran/Uji Fungsional summary — see
+                 approval-filling-packing.blade.php. --}}
+            <div class="sign-grid sign-grid--stack">
+                <div>
+                    <span>Prepared By</span>
+                    <strong>{{ $startupCheck->operator_name ?: '—' }}</strong>
+                    <small class="role">Operator</small>
                 </div>
-            @endif
+                <div>
+                    <span>Review By</span>
+                    <strong>{{ $startupCheck->line_leader_name ?: '—' }}</strong>
+                    <small class="role">LL Produksi</small>
+                </div>
+                <div>
+                    <span>Verification By</span>
+                    <strong>{{ $startupCheck->user->name ?? '—' }}</strong>
+                    <small class="sign-date">{{ optional($startupCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
+                    <small class="role">IPC</small>
+                </div>
+            </div>
         </div>
     </div>
+    @endif
 @else
     <p class="muted">Startup Check belum diisi.</p>
 @endif

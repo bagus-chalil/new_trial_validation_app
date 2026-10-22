@@ -9,7 +9,7 @@
     underlying data, not fabricated per-packing-check capture), $field (the attribute to read off
     each sample, e.g. "volume_weight" or "weight_master_box").
 --}}
-<table class="record-table">
+<table class="record-table record-table--compact">
     <colgroup>
         <col style="width: 10%;">
         @for ($col = 0; $col < 10; $col++)

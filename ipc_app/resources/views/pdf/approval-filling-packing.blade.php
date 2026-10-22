@@ -238,7 +238,7 @@
              comment for why this is split out from the shared 3-signature block it uses for Filling.
              Same data source as that block's Review By / Verification By fields (line_leader_name /
              the startup check's own verifier), just different roles/position for this form. --}}
-        <div class="sign-grid sign-grid--tight" style="margin: 6px 0;">
+        <div class="sign-grid sign-grid--tight sign-grid--role-tight" style="margin: 6px 0;">
             <div>
                 <span>Prepared By</span>
                 <strong>{{ $startupCheck->line_leader_name ?: '—' }}</strong>
@@ -277,7 +277,7 @@
             $roundCount = max($packingRounds->count(), 1);
             $timeColWidth = (100 - $noWidth - $kodeWidth - $itemWidth) / $roundCount;
         @endphp
-        <table class="record-table">
+        <table class="record-table record-table--compact">
             <colgroup>
                 <col style="width: {{ $noWidth }}%;">
                 <col style="width: {{ $kodeWidth }}%;">
@@ -342,7 +342,7 @@
                                 <td class="center photo-cell">
                                     @include('pdf._status-pill', ['value' => $round[$field] ?? null, 'abbreviate' => true])
                                     @if ($roundPhotoUrl)
-                                        <img src="{{ $roundPhotoUrl }}" alt="{{ $label }}" style="width: 100%; max-height: 18mm; object-fit: contain; margin-top: 3px;">
+                                        <img src="{{ $roundPhotoUrl }}" alt="{{ $label }}" style="width: 100%; max-height: 11mm; object-fit: contain; margin-top: 2px;">
                                     @elseif ($photoField)
                                         <div class="muted" style="margin-top: 2px;">Belum ada foto</div>
                                     @endif
@@ -407,8 +407,8 @@
     @endif
 
     @if ($packingCheck && $packingCheck->revisions->count() > 0)
-        <div class="section-title" style="margin-top: 4px;">Riwayat Simpan — Packing Check (TH Progress)</div>
-        <table>
+        <div class="section-title" style="margin-top: 2px;">Riwayat Simpan — Packing Check (TH Progress)</div>
+        <table class="record-table--compact">
             <thead>
                 <tr><th style="width: 6%;">#</th><th style="width: 20%;">Waktu</th><th style="width: 16%;">User</th><th style="width: 10%;">Status</th><th>Ringkasan</th></tr>
             </thead>
@@ -436,7 +436,7 @@
          and FR.QAC.182.03 (Packing) — previously only rendered on the Packing side by mistake
          (it sat inside the Packing-only @else branch above), leaving CF/NC on the Filling side
          unexplained. --}}
-    <p class="muted" style="margin: 4px 0;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
+    <p class="muted" style="margin: 2px 0; font-size: 7.5px;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;&nbsp;|&nbsp;&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
 
     @php
         // Issued By = whoever saved the latest TH_PROGRESS round of this document's own check.

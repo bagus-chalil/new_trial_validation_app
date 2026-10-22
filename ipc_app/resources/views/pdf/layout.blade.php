@@ -196,8 +196,11 @@
     .attachment-tile--sm img, .attachment-tile--sm .placeholder { height: 10mm; }
 
     /* Tighter table for a long fixed-row grid (e.g. the 30-sample "Verifikasi Sebelum Produksi"
-       grid) where the default padding/font-size costs a whole extra page across 30 rows. */
-    .record-table--compact td, .record-table--compact th { padding: 1.5px 4px; font-size: 7.5px; }
+       grid) where the default padding/font-size costs a whole extra page across 30 rows. Tightened
+       further 2026-10-22 (direct user request, "maksimal 2 halaman", matching how tightly packed
+       the real FR.QAC.182.03 paper form itself is) for the Packing report's own sample/checklist
+       grids specifically. */
+    .record-table--compact td, .record-table--compact th { padding: 1px 3px; font-size: 7px; }
 
     /* Labeled photo groups (e.g. "IM Number" vs. "Attach Label and Color check actual in this
        area" vs. "Temperature Setting") — legacy keeps these visually separate rather than one
@@ -261,13 +264,18 @@
        so it doesn't fight their own (already tighter) padding/font rules. Direct user request
        2026-10-21, best effort to keep this report to one page — see
        approval-filling-packing.blade.php. */
-    .fp-compact table:not(.record-table):not(.record-table--compact) { margin: 4px 0 6px; }
+    .fp-compact table:not(.record-table):not(.record-table--compact) { margin: 3px 0 5px; }
     .fp-compact table:not(.record-table):not(.record-table--compact) th,
-    .fp-compact table:not(.record-table):not(.record-table--compact) td { padding: 3px 5px; font-size: 8.5px; }
-    .fp-compact .section-title { margin: 8px 0 3px; padding: 3px 6px; font-size: 10.5px; }
-    .fp-compact .info-grid { margin: 4px 0 6px; gap: 3px; }
-    .fp-compact .info-grid div { padding: 3px 5px; min-height: 22px; }
-    .fp-compact .attachment-grid { margin: 3px 0 6px; }
+    .fp-compact table:not(.record-table):not(.record-table--compact) td { padding: 2px 5px; font-size: 8px; }
+    .fp-compact .section-title { margin: 6px 0 2px; padding: 2px 6px; font-size: 10px; }
+    .fp-compact .info-grid { margin: 3px 0 5px; gap: 3px; }
+    .fp-compact .info-grid div { padding: 2px 5px; min-height: 18px; }
+    .fp-compact .attachment-grid { margin: 2px 0 5px; }
+    .fp-compact .attachment-tile--sm img, .fp-compact .attachment-tile--sm .placeholder { height: 8mm; }
+    .fp-compact .sign-grid { margin: 4px 0; }
+    .fp-compact .record-table .group-row td { padding: 2px 4px; }
+    .fp-compact table.record-table, .fp-compact table.record-table--compact { margin: 3px 0 5px; }
+    .fp-compact p { margin: 0 0 3px; }
     .muted { color: #6b7280; }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -279,7 +287,15 @@
     .sign-grid--stack { grid-template-columns: 1fr; gap: 6px; margin: 0; }
     /* No role caption used (no <small class="role">) — the base .sign-grid div's 26px bottom
        padding exists purely to reserve room for that caption, which is otherwise wasted space. */
-    .sign-grid--tight div { padding: 4px 8px; }
+    .sign-grid--tight div { padding: 3px 6px; }
+    .fp-compact .sign-grid--tight { margin: 3px 0 !important; }
+    /* .sign-grid--tight's 3px bottom padding is fine for a box with no role caption (e.g. the
+       Issued By/Review By/QR block, which only has a plain sign-date), but a role caption is
+       absolutely positioned and needs real room reserved under the signer's name or it visually
+       crowds it — direct user report ("ttd Tamara terlalu rapat"), real screenshot, 2026-10-22.
+       Combine with .sign-grid--tight (not a replacement for it) on any box that uses <small
+       class="role">. */
+    .sign-grid--role-tight div { padding-bottom: 18px; }
     .sign-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
 
     /* Sign-off box's actual signer value (a name, or a decision date) — distinct from the plain
