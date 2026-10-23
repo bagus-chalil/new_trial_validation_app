@@ -137,11 +137,15 @@
                 </tbody>
             </table>
 
-            <div class="two-col">
+            {{-- Packing (FR.QAC.182.03): Density and Filling Range Min/Max are not shown, direct
+                 user request 2026-10-23. Filling and the standalone Startup report keep them. --}}
+            <div class="{{ $side === 'packing' ? '' : 'two-col' }}">
                 <table style="margin-bottom: 4px;">
                     <tbody>
                         <tr><td><strong>Setting Suhu</strong></td><td>{{ $startupCheck->heating ?? '—' }}</td></tr>
-                        <tr><td><strong>Density</strong></td><td>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck?->density ?? '—') }}</td></tr>
+                        @if ($side !== 'packing')
+                            <tr><td><strong>Density</strong></td><td>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck?->density ?? '—') }}</td></tr>
+                        @endif
                         {{-- "Hasil Cek Warna (STD vs Running)" is a field on the real FR.QAC.182.03
                              (Packing) paper form — filled by hand (e.g. a drawn color swatch), with
                              no equivalent column on startup_checks, so it can't be rendered with a
@@ -156,12 +160,14 @@
                         @endif
                     </tbody>
                 </table>
-                <table style="margin-bottom: 4px;">
-                    <tbody>
-                        <tr><td><strong>Filling Range Min</strong></td><td>{{ $startupCheck->filling_range_min ?? '—' }}</td></tr>
-                        <tr><td><strong>Filling Range Max</strong></td><td>{{ $startupCheck->filling_range_max ?? '—' }}</td></tr>
-                    </tbody>
-                </table>
+                @if ($side !== 'packing')
+                    <table style="margin-bottom: 4px;">
+                        <tbody>
+                            <tr><td><strong>Filling Range Min</strong></td><td>{{ $startupCheck->filling_range_min ?? '—' }}</td></tr>
+                            <tr><td><strong>Filling Range Max</strong></td><td>{{ $startupCheck->filling_range_max ?? '—' }}</td></tr>
+                        </tbody>
+                    </table>
+                @endif
             </div>
     @if ($useStartupLayoutGrid)
         </div>

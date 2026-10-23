@@ -207,13 +207,9 @@
              per-sample readings are the real StartupInspectionSample rows captured once at Start
              Inspection (no separate per-sample weight capture exists on packing_checks itself —
              only the aggregate standard_weight_mb/sum_weight_mb pair). --}}
+        {{-- Standar Filling / Berat Filling are not shown on the Packing report, direct user
+             request 2026-10-23. --}}
         @php $weightSamplesByNo = $startupInspection?->samples->keyBy('sample_no') ?? collect(); @endphp
-        <table>
-            <tbody>
-                <tr><td style="width: 18%;"><strong>Standar Filling</strong></td><td>{{ $startupCheck?->density_not_applicable ? 'N/A' : ($startupCheck->filling_range_min ?? '—').' – '.($startupCheck->filling_range_max ?? '—') }}</td></tr>
-            </tbody>
-        </table>
-        @include('pdf._packing-sample-grid', ['label' => 'Berat Filling', 'samplesByNo' => $weightSamplesByNo, 'field' => 'volume_weight'])
 
         <table>
             <tbody>
