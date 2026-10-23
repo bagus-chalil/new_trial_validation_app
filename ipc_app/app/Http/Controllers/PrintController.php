@@ -133,7 +133,8 @@ class PrintController extends Controller
 
         $logPrint->handle($batch, request()->user(), $stage);
 
-        return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename);
+        // Finished Good (FR.QAC.193.00 page 2) is a landscape paper form.
+        return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename, $stage === IpcApproval::STAGE_FINISHED, $stage === IpcReportDocument::KEY_FILLING_PACKING_FG);
     }
 
     /**
@@ -149,7 +150,8 @@ class PrintController extends Controller
 
         [$view, $data, $filename] = $this->resolveReportPdf($batch, $stage);
 
-        return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename);
+        // Finished Good (FR.QAC.193.00 page 2) is a landscape paper form.
+        return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename, $stage === IpcApproval::STAGE_FINISHED, $stage === IpcReportDocument::KEY_FILLING_PACKING_FG);
     }
 
     /**
@@ -159,7 +161,16 @@ class PrintController extends Controller
     {
         $logsByStage = $batch->printLogs->groupBy('stage');
 
-        $stages = collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->map(fn (string $stage) => [
+        // Flow Lengkap prints as exactly three documents - Filling, Packing and Fillpack (the
+        // combined FR.QAC.193.00 = Filling+Packing page + landscape Finished Good page). Startup is
+        // embedded in the Filling/Packing forms and Finished Good lives inside Fillpack, so neither
+        // gets its own card there. Other flows keep their per-stage cards.
+        $isFull = $batch->flow_type === IpcBatch::FLOW_FULL;
+        $baseStages = $isFull
+            ? [IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING]
+            : [IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)];
+
+        $stages = collect($baseStages)->map(fn (string $stage) => [
             'stage' => $stage,
             'label' => IpcApproval::STAGE_LABELS[$stage],
             ...$this->summarizeLogs($logsByStage->get($stage, collect())),

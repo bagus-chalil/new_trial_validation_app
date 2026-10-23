@@ -5,6 +5,7 @@ namespace App\Actions\Prints;
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use App\Models\IpcPrintLog;
+use App\Models\IpcReportDocument;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -32,6 +33,17 @@ class LogPrint
                 ->where('ipc_batch_id', $batch->id)
                 ->distinct()
                 ->pluck('stage');
+
+            // Printing the combined Fillpack document (flow Lengkap) also covers Startup, Filling,
+            // Packing and Finished Good - they are all inside it.
+            if ($printedStages->contains(IpcReportDocument::KEY_FILLING_PACKING_FG)) {
+                $printedStages = $printedStages->merge([
+                    IpcApproval::STAGE_STARTUP,
+                    IpcApproval::STAGE_FILLING,
+                    IpcApproval::STAGE_PACKING,
+                    IpcApproval::STAGE_FINISHED,
+                ]);
+            }
 
             $allPrinted = collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->every(fn ($s) => $printedStages->contains($s));
 

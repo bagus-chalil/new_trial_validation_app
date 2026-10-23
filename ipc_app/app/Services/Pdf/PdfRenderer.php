@@ -10,5 +10,5 @@ namespace App\Services\Pdf;
  */
 interface PdfRenderer
 {
-    public function render(string $html): string;
+    public function render(string $html, bool $landscape = false, bool $cssPageSize = false): string;
 }

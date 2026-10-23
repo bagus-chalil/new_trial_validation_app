@@ -12,8 +12,8 @@ use App\Services\Pdf\PdfRenderer;
  */
 class FakePdfRenderer implements PdfRenderer
 {
-    public function render(string $html): string
+    public function render(string $html, bool $landscape = false, bool $cssPageSize = false): string
     {
-        return "%PDF-FAKE\n".$html;
+        return '%PDF-FAKE'.($cssPageSize ? '-MIXED' : ($landscape ? '-LANDSCAPE' : ''))."\n".$html;
     }
 }

@@ -76,7 +76,7 @@ class PrintTest extends TestCase
         $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}/print")->assertForbidden();
     }
 
-    public function test_edit_shows_all_three_stages_with_zero_prints(): void
+    public function test_edit_shows_filling_packing_and_fillpack_cards_for_the_full_flow(): void
     {
         $batch = $this->makeBatchAtPrintStage();
 
@@ -85,11 +85,11 @@ class PrintTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('print/index')
-            ->where('stages.0.stage', 'startup')
+            ->has('stages', 3)
+            ->where('stages.0.stage', 'filling')
             ->where('stages.0.printCount', 0)
-            ->where('stages.1.stage', 'filling')
-            ->where('stages.2.stage', 'packing')
-            ->where('stages.3.stage', 'finished')
+            ->where('stages.1.stage', 'packing')
+            ->where('stages.2.stage', 'filling_packing_fg')
         );
     }
 
@@ -310,7 +310,7 @@ class PrintTest extends TestCase
 
         $this->actingAs($user)->get("/batches/{$fullFlowBatch->id}/print")
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('stages.4.stage', 'filling_packing_fg'));
+            ->assertInertia(fn ($page) => $page->where('stages.2.stage', 'filling_packing_fg'));
 
         $this->actingAs($user)->get("/batches/{$fillingOnlyBatch->id}/print")
             ->assertOk()
@@ -339,6 +339,10 @@ class PrintTest extends TestCase
         $response->assertOk();
         $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
         $html = $response->getContent();
+        // Portrait Filling+Packing page followed by a landscape Finished Good page in one PDF.
+        $this->assertStringStartsWith('%PDF-FAKE-MIXED', $html);
+        $this->assertStringContainsString('size: A4 landscape', $html);
+        $this->assertStringContainsString('Laporan Pemeriksaan Finished Good', $html);
         $this->assertStringContainsString('FR.QAC.193.00', $html);
         $this->assertStringContainsString('Filling Inspection', $html);
         $this->assertStringContainsString('Packing Inspection', $html);
@@ -358,6 +362,16 @@ class PrintTest extends TestCase
             'stage' => 'filling_packing_fg',
             'printed_by_user_id' => $user->id,
         ]);
+    }
+
+    public function test_printing_the_fillpack_document_completes_a_full_flow_batch(): void
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing_fg/pdf")->assertOk();
+
+        $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 
     public function test_finished_good_pdf_uses_the_shared_fr_qac_193_doc_number_and_checkbox_disposition(): void
@@ -443,8 +457,8 @@ class PrintTest extends TestCase
         $batch = $this->makeBatchAtPrintStage();
         $user = User::factory()->create();
 
-        $this->actingAs($user)->get("/batches/{$batch->id}/print/startup/pdf")->assertOk();
-        $this->actingAs($user)->get("/batches/{$batch->id}/print/startup/pdf")->assertOk();
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling/pdf")->assertOk();
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling/pdf")->assertOk();
 
         $this->actingAs($user)->get("/batches/{$batch->id}/print")
             ->assertInertia(fn ($page) => $page
@@ -452,7 +466,7 @@ class PrintTest extends TestCase
                 ->where('stages.0.lastPrintedBy', $user->name)
             );
 
-        $this->actingAs($user)->get("/batches/{$batch->id}/print/startup")
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling")
             ->assertInertia(fn ($page) => $page
                 ->where('printInfo.printCount', 2)
                 ->where('printInfo.lastPrintedBy', $user->name)

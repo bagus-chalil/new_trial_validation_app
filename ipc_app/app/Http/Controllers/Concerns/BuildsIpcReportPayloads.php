@@ -371,7 +371,7 @@ trait BuildsIpcReportPayloads
             // than two separate ones, so it's offered as an extra "Cetak Gabungan" option on the
             // Print hub instead of changing what the per-stage Approval/Print pages already do.
             IpcReportDocument::KEY_FILLING_PACKING_FG => [
-                'pdf.approval-filling-packing',
+                'pdf.approval-fillpack',
                 (function () use ($batch) {
                     abort_unless($batch->flow_type === IpcBatch::FLOW_FULL, 404, 'Laporan gabungan Filling & Packing hanya tersedia untuk alur Lengkap.');
                     abort_unless(
@@ -387,13 +387,23 @@ trait BuildsIpcReportPayloads
                         'startupInspection.samples',
                         ...$this->fillingPackingRelations(IpcApproval::STAGE_FILLING),
                         ...$this->fillingPackingRelations(IpcApproval::STAGE_PACKING),
+                        // Page 2 of the combined document is Finished Good (landscape).
+                        'finishedCheck.user',
+                        'finishedCheck.samples',
+                        'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
+                        'finishedCheck.revisions.user',
+                        'finishedCheck.revisions.samples',
                         'approvals.approver',
                     ]);
 
                     $reportDocument = IpcReportDocument::forKey(IpcReportDocument::KEY_FILLING_PACKING_FG);
 
                     return [
-                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['startup', IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING]), 'both'),
+                        ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['startup', IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING, IpcApproval::STAGE_FINISHED]), 'both'),
+                        'finishedCheck' => $batch->finishedCheck,
+                        'finishedSampleGroups' => FinishedCheckSample::sampleGroups(),
+                        'finishedApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
+                        'finishedVerificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_FINISHED),
                         'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
                         'title' => $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control Filling & Packing',
                         'docNumber' => $reportDocument?->doc_number ?? 'FR.QAC.193.00',

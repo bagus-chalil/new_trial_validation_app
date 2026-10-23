@@ -345,7 +345,7 @@
                                     @if ($roundPhotoUrl)
                                         <img src="{{ $roundPhotoUrl }}" alt="{{ $label }}" style="width: 100%; max-height: 11mm; object-fit: contain; margin-top: 2px;">
                                     @elseif ($photoField)
-                                        <div class="muted" style="margin-top: 2px;">Belum ada foto</div>
+                                        
                                     @endif
                                 </td>
                             @endforeach

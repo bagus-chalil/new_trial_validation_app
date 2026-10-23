@@ -276,6 +276,41 @@
     .fp-compact .record-table .group-row td { padding: 2px 4px; }
     .fp-compact table.record-table, .fp-compact table.record-table--compact { margin: 3px 0 5px; }
     .fp-compact p { margin: 0 0 3px; }
+    /* Dense status pills + photo placeholders so the combined Filling & Packing report fits 2 pages. */
+    .fp-compact .status-pill { padding: 0 6px; font-size: 7.5px; line-height: 1.35; }
+    .fp-compact .attachment-tile .placeholder { font-size: 7px; }
+    .fp-compact .attachment-tile { padding: 1px; }
+    .fp-compact .record-table--compact td small, .fp-compact .record-table td small { font-size: 6px; line-height: 1.1; }
+    .fp-compact .startup-layout table td, .fp-compact .startup-layout table th { padding: 1px 4px; }
+    .fp-compact .nested-table td { padding: 0 4px; }
+    .fp-compact .status-pill { padding: 0 5px; font-size: 7px; line-height: 1.2; vertical-align: middle; }
+    .fp-compact td, .fp-compact th { line-height: 1.15; }
+    .fp-compact .attachment-tile .placeholder { height: 5mm; }
+    .fp-compact .attachment-tile--sm img { height: 8mm; }
+    .fp-compact .attachment-tile figcaption { padding: 0; }
+    .fp-compact .attachment-tile img { height: 14mm; }
+    .fp-compact .photo-group .attachment-grid, .fp-compact .attachment-grid { gap: 4px; }
+    .fp-compact .sign-grid div { padding-top: 3px; }
+    .fp-compact .sign-grid strong { margin-top: 4px; }
+    .fp-compact .sign-grid--tight div { padding-bottom: 4px; }
+    .fp-compact .record-table td.photo-cell { padding: 0 3px; }
+    .fp-compact .record-table td, .fp-compact .record-table th { padding-top: 0; padding-bottom: 0; }
+    .fp-compact .nested-table td { font-size: 7px; padding: 0 4px; line-height: 1.1; }
+    .fp-compact .nested-cell { padding: 0 4px; }
+    .fp-compact p.muted { font-size: 6.5px !important; margin: 0 0 2px; line-height: 1.15; }
+    .fp-compact .photo-groups { margin: 2px 0; }
+    .fp-compact .photo-group-title { margin-bottom: 2px; }
+    .fp-compact .attachment-tile { margin: 0; }
+    .fp-compact .section-title { break-after: avoid; page-break-after: avoid; }
+    /* Portrait Fillpack page has room to spare: looser rows than the 1-page-squeeze defaults. */
+    .fp-form .record-table td, .fp-form .record-table th { padding-top: 1.5px; padding-bottom: 1.5px; }
+    /* Finished Good (FR.QAC.193.00 page 2) is a landscape form: photos in one row, tighter tiles. */
+    .fg-compact .attachment-grid { grid-template-columns: repeat(6, 1fr); }
+    .fg-compact .attachment-tile--sm img, .fg-compact .attachment-tile--sm .placeholder { height: 14mm; }
+    .fg-compact .two-col { align-items: start; }
+    .fg-compact .two-col > * { min-width: 0; }
+    .fg-compact .section-title { break-after: avoid; page-break-after: avoid; }
+    .fg-compact table { break-inside: avoid; }
     .muted { color: #6b7280; }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -321,6 +356,7 @@
     .nested-table td:first-child { width: 55%; }
     .nested-table tr:last-child td { border-bottom: none; }
 </style>
+@stack('head')
 </head>
 <body>
     @php

@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\BuildsIpcReportPayloads;
 use App\Http\Requests\SaveApprovalRequest;
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
+use App\Models\IpcReportDocument;
 use App\Services\Pdf\PdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response as HttpResponse;
@@ -152,7 +153,8 @@ class ApprovalController extends Controller
 
         [$view, $data, $filename] = $this->resolveReportPdf($batch, $stage);
 
-        return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename);
+        // Finished Good (FR.QAC.193.00 page 2) is a landscape paper form.
+        return $pdf->fromView($view, ['batch' => $batch, ...$data], $filename, $stage === IpcApproval::STAGE_FINISHED, $stage === IpcReportDocument::KEY_FILLING_PACKING_FG);
     }
 
     /**

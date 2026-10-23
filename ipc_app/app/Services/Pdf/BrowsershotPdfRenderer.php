@@ -49,15 +49,23 @@ use Spatie\Browsershot\Browsershot;
  */
 class BrowsershotPdfRenderer implements PdfRenderer
 {
-    public function render(string $html): string
+    public function render(string $html, bool $landscape = false, bool $cssPageSize = false): string
     {
         $cacheDir = storage_path('app/puppeteer-cache');
         putenv("PUPPETEER_CACHE_DIR={$cacheDir}");
         $_ENV['PUPPETEER_CACHE_DIR'] = $cacheDir;
 
-        return Browsershot::html($html)
-            ->format('A4')
-            ->margins(10, 10, 10, 10)
+        $browsershot = Browsershot::html($html);
+
+        // $cssPageSize: the HTML declares its own @page sizes/margins (the Fillpack document mixes a
+        // portrait and a landscape page), so Chrome must follow those instead of one fixed format.
+        if ($cssPageSize) {
+            $browsershot->preferCssPageSize(true);
+        } else {
+            $browsershot->format('A4')->landscape($landscape)->margins(10, 10, 10, 10);
+        }
+
+        return $browsershot
             ->showBackground()
             ->waitUntilNetworkIdle()
             ->timeout(60)
