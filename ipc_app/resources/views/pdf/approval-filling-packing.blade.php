@@ -297,15 +297,6 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- Line per round: Packing can switch lines between TH_PROGRESS rounds. Rounds
-                     saved before per-round lines were recorded fall back to the current line. --}}
-                <tr>
-                    <td colspan="3"><strong>Machines / Lines</strong></td>
-                    @foreach ($packingRounds as $round)
-                        @php $roundLine = $round->masterLine ?? $packingCheck->masterLine ?? $batch->masterLine; @endphp
-                        <td class="center">{{ $roundLine->code ?? '—' }}</td>
-                    @endforeach
-                </tr>
                 @foreach ($packingChecklistGroups as $group)
                     <tr class="group-row">
                         <td colspan="{{ 3 + $packingRounds->count() }}">{{ ucfirst($group['key']) }} Packaging</td>
