@@ -761,4 +761,35 @@ class PackingCheckTest extends TestCase
 
         $this->assertNotNull($batch->fresh()->packingCheck);
     }
+
+    public function test_packing_finished_good_flow_can_complete_from_history_without_filling_check(): void
+    {
+        $this->actingAs($user = User::factory()->create());
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+
+        $batch = IpcBatch::create([
+            'master_product_id' => $product->id,
+            'no_batch' => 'BATCH-PACKING-FG-COMPLETE',
+            'master_line_id' => $line->id,
+            'created_by' => $user->id,
+            'current_stage' => IpcBatch::STAGE_PACKING,
+            'flow_type' => IpcBatch::FLOW_PACKING_FG,
+        ]);
+        StartupCheck::create([
+            'ipc_batch_id' => $batch->id,
+            'user_id' => $user->id,
+            'density' => 1.0,
+            'average_of_empty_bottle_weight' => 20.0,
+            'completed_at' => now(),
+        ]);
+
+        $this->seedPackingPhotos($batch);
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false]))
+            ->assertSessionHasNoErrors();
+
+        $this->post("/batches/{$batch->id}/packing-check/complete")->assertSessionHasNoErrors();
+
+        $this->assertNotNull($batch->fresh()->packingCheck->completed_at);
+    }
 }

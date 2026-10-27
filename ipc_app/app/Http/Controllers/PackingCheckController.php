@@ -121,14 +121,19 @@ class PackingCheckController extends Controller
      */
     public function complete(IpcBatch $batch, CompletePackingCheckFromHistory $action): RedirectResponse
     {
-        abort_unless($batch->fillingCheck, 403, 'Filling Check untuk batch ini belum disimpan.');
+        abort_unless($batch->hasPackingStage(), 404);
+        if ($batch->hasFillingStage()) {
+            abort_unless($batch->fillingCheck, 403, 'Filling Check untuk batch ini belum disimpan.');
+        } else {
+            abort_unless($batch->startupCheck?->completed_at, 403, 'Startup Check untuk batch ini belum selesai.');
+        }
         abort_if($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini sudah selesai dan bersifat read-only.');
 
         if (! $batch->packingCheck?->revisions()->exists()) {
             return back()->withErrors(['progress' => 'Belum ada riwayat simpan untuk diselesaikan.']);
         }
 
-        if (! $batch->fillingCheck?->completed_at) {
+        if ($batch->hasFillingStage() && ! $batch->fillingCheck?->completed_at) {
             return back()->withErrors(['progress' => 'Selesaikan Filling Check terlebih dahulu.']);
         }
 

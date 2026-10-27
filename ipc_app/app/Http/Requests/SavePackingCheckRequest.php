@@ -95,7 +95,7 @@ class SavePackingCheckRequest extends FormRequest
                 $validator,
                 (int) $batch->packingCheck?->save_count,
                 $this->boolean('finalize'),
-                'Filling Check',
+                $batch->hasFillingStage() ? 'Filling Check' : null,
                 (bool) $batch->fillingCheck?->completed_at,
             );
         });
