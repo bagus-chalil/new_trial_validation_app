@@ -514,7 +514,7 @@ Closes the "per-flow report output" plan above (step 5/6). Direct user requests,
 
 ```powershell
 # Backend dev server (from ipc_app/)
-php artisan serve --port=8002
+php artisan serve --port=9002
 
 # Frontend build/dev (separate terminal)
 npm run dev      # Vite HMR
@@ -535,9 +535,9 @@ npx tsc --noEmit
 Run alongside the other two apps for local dev:
 ```powershell
 php -S localhost:8000 -t public                 # legacy, from repo root
-cd new_trial_validation_app; composer run dev    # :8001
-cd ipc_app; php artisan serve --port=8002        # :8002
-php -S localhost:8003 -t portal                  # portal chooser, from repo root
+cd new_trial_validation_app; composer run dev    # :9001
+cd ipc_app; php artisan serve --port=9002        # :9002
+php -S localhost:9003 -t portal                  # portal chooser, from repo root
 ```
 
 ## Database

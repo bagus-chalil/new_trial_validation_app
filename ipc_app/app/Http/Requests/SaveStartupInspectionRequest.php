@@ -22,7 +22,10 @@ class SaveStartupInspectionRequest extends FormRequest
 
         // All 10 checklist items required, unlike legacy which only enforces 7 of them (very
         // likely a legacy bug — see ipc_app/CLAUDE.md). Deliberate improvement, not a port.
-        foreach (StartupInspectionItem::PARAMETER_KEYS as $key) {
+        $batch = $this->route('batch');
+        $keys = $batch instanceof IpcBatch ? StartupInspectionItem::parameterKeysFor($batch) : StartupInspectionItem::PARAMETER_KEYS;
+
+        foreach ($keys as $key) {
             $statuses = in_array($key, StartupInspectionItem::NOT_APPLICABLE_KEYS, true)
                 ? [...StartupInspectionItem::STATUSES, StartupInspectionItem::STATUS_NA]
                 : StartupInspectionItem::STATUSES;

@@ -136,6 +136,8 @@ export default function StartupCheckEdit({
     });
 
     const densityNotApplicable = data.density_not_applicable === '1';
+    // Heating is free text; "N/A" is stored as that literal value.
+    const heatingNotApplicable = data.heating === 'N/A';
 
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
@@ -357,13 +359,28 @@ export default function StartupCheckEdit({
                                 <Label htmlFor="heating" className="text-muted-foreground text-xs font-semibold">
                                     Heating
                                 </Label>
-                                <Input
-                                    id="heating"
-                                    className={inputClass}
-                                    value={data.heating ?? ''}
-                                    onChange={(e) => setData('heating', e.target.value)}
-                                    disabled={isReadOnly}
-                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        id="heating"
+                                        className={`${inputClass} flex-1`}
+                                        value={data.heating ?? ''}
+                                        onChange={(e) => setData('heating', e.target.value)}
+                                        disabled={isReadOnly || heatingNotApplicable}
+                                    />
+                                    <button
+                                        type="button"
+                                        aria-pressed={heatingNotApplicable}
+                                        onClick={() => setData('heating', heatingNotApplicable ? '' : 'N/A')}
+                                        disabled={isReadOnly}
+                                        className={`h-[46px] shrink-0 rounded-xl border-[1.5px] px-4 text-[13.5px] font-bold transition-colors disabled:opacity-60 ${
+                                            heatingNotApplicable
+                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                                        }`}
+                                    >
+                                        N/A
+                                    </button>
+                                </div>
                                 <InputError message={errors.heating} />
                             </div>
                             <div className="flex flex-col gap-2">

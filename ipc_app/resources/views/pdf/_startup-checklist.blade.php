@@ -103,6 +103,8 @@
                         $no = 1;
                     @endphp
                     @foreach ($orderedFields as $field)
+                        {{-- Items dropped for this flow (e.g. Standard Weight Masterbox on Filling-only) --}}
+                        @continue(! str_starts_with($field, '__') && ! isset($checklistByField[$field]))
                         @if ($field === '__machine_check__')
                             <tr>
                                 <td class="center">{{ $no++ }}</td>

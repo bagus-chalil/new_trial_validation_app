@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\IpcBatch;
 use App\Models\StartupCheck;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,10 @@ class SaveStartupCheckRequest extends FormRequest
             'remarks' => ['nullable', 'string'],
         ];
 
-        foreach (StartupCheck::checklistGroups() as $group) {
+        $batch = $this->route('batch');
+        $groups = $batch instanceof IpcBatch ? StartupCheck::checklistGroupsFor($batch) : StartupCheck::checklistGroups();
+
+        foreach ($groups as $group) {
             foreach (array_keys($group['fields']) as $field) {
                 $rules[$field] = ['required', 'in:'.implode(',', $group['options'])];
             }

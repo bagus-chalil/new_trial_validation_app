@@ -184,9 +184,20 @@ export default function StartupInspectionEdit({
     const volumeWeightComplete = volumeWeightFilledCount === SAMPLE_NUMBERS.length;
     const masterBoxFilledCount = data.samples.filter((sample) => String(sample.weight_master_box ?? '').trim() !== '').length;
     const masterBoxEditable = masterBoxOnly || !isReadOnly;
+    const attributeNotApplicable = data.items.attribute?.status === notApplicableStatus;
 
     const setItemField = (key: string, field: 'status' | 'remark', value: string) => {
-        setData('items', { ...data.items, [key]: { ...data.items[key], [field]: value } });
+        const items = { ...data.items, [key]: { ...data.items[key], [field]: value } };
+        if (key === 'attribute' && field === 'status' && value === notApplicableStatus) {
+            // Attribute is N/A, so none of the Attribute tests below were performed.
+            const cleared = { ...data.test_results };
+            (testTypesByCategory.get('Attribute') ?? []).forEach((type) => {
+                cleared[type.id] = { is_performed: false };
+            });
+            setData((prev) => ({ ...prev, items, test_results: cleared }));
+        } else {
+            setData('items', items);
+        }
         if (field === 'status') {
             setErrorFields((prev) => {
                 const n = new Set(prev);
@@ -213,7 +224,7 @@ export default function StartupInspectionEdit({
     };
 
     const toggleTestResult = (typeId: number) => {
-        if (isReadOnly) return;
+        if (isReadOnly || attributeNotApplicable) return;
         setData('test_results', {
             ...data.test_results,
             [typeId]: { is_performed: !data.test_results[typeId]?.is_performed },
@@ -416,7 +427,7 @@ export default function StartupInspectionEdit({
                                                 <button
                                                     key={type.id}
                                                     type="button"
-                                                    disabled={isReadOnly}
+                                                    disabled={isReadOnly || (category === 'Attribute' && attributeNotApplicable)}
                                                     onClick={() => toggleTestResult(type.id)}
                                                     className={cn(
                                                         'min-h-11 rounded-xl border-[1.5px] px-2.5 py-2 text-center text-[13px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60',

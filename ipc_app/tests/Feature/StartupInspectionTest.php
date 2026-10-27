@@ -334,7 +334,7 @@ class StartupInspectionTest extends TestCase
         $this->get("/batches/{$batch->id}/startup-inspection")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('notApplicableKeys', ['leakage_test', 'sekunder'])
+                ->where('notApplicableKeys', ['leakage_test', 'sekunder', 'attribute'])
                 ->where('notApplicableStatus', StartupInspectionItem::STATUS_NA)
                 ->where('testTypes', fn ($types) => collect($types)->pluck('name')->intersect(['SHRINK', 'BODY_LABEL', 'BOTTOM_LABEL', 'PUMP_TEST'])->count() === 4));
     }
@@ -376,6 +376,27 @@ class StartupInspectionTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(0, $batch->fresh()->startupInspection->samples()->whereNotNull('weight_master_box')->count());
+    }
+
+    public function test_tersier_is_not_asked_and_not_saved_for_the_filling_only_flow(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_FILLING);
+
+        $this->get("/batches/{$batch->id}/startup-inspection")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('parameterKeys', fn ($keys) => ! in_array('tersier', collect($keys)->all(), true)));
+
+        $items = $this->validItemsPayload();
+        unset($items['tersier']);
+        $items['attribute']['status'] = StartupInspectionItem::STATUS_NA;
+
+        $this->put("/batches/{$batch->id}/startup-inspection", ['items' => $items, 'samples' => $this->validSamplesPayload()])
+            ->assertSessionHasNoErrors();
+
+        $saved = $batch->fresh()->startupInspection->items;
+        $this->assertNull($saved->firstWhere('parameter_key', 'tersier'));
+        $this->assertSame('N/A', $saved->firstWhere('parameter_key', 'attribute')->status);
     }
 
     // --- Flow type: Volume / Weight (filling data) doesn't apply to the Packing + FG flow ---

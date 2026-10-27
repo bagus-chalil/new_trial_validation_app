@@ -121,6 +121,27 @@ class StartupCheck extends Model
         ];
     }
 
+    /**
+     * Same as checklistGroups(), minus Standard Weight Masterbox for the Filling-only flow —
+     * it has no master box, so the item isn't asked there (user, 2026-10-27).
+     *
+     * @return list<array{key: string, fields: array<string, string>, options: array<int, string>}>
+     */
+    public static function checklistGroupsFor(IpcBatch $batch): array
+    {
+        $groups = self::checklistGroups();
+
+        if ($batch->flow_type !== IpcBatch::FLOW_FILLING) {
+            return $groups;
+        }
+
+        return array_values(array_filter(array_map(function (array $group) {
+            unset($group['fields']['standard_weight_masterbox_status']);
+
+            return $group;
+        }, $groups), fn (array $group) => $group['fields'] !== []));
+    }
+
     protected $fillable = [
         'ipc_batch_id',
         'user_id',

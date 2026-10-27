@@ -176,8 +176,8 @@ trait BuildsIpcReportPayloads
             'verificationUrl' => VerificationQrCode::url($batch, IpcApproval::STAGE_STARTUP),
             'verificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_STARTUP),
             'photoUrls' => $photoUrls,
-            'startupChecklistGroups' => StartupCheck::checklistGroups(),
-            'startupInspectionParameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
+            'startupChecklistGroups' => StartupCheck::checklistGroupsFor($batch),
+            'startupInspectionParameterKeys' => StartupInspectionItem::parameterKeysFor($batch),
             'testTypesByCategory' => $testTypesByCategory->map(fn ($rows) => $rows->map(fn ($type) => [
                 'id' => $type->id,
                 'name' => $type->name,
@@ -202,14 +202,14 @@ trait BuildsIpcReportPayloads
         return [
             'side' => $side,
             'startupCheck' => $batch->startupCheck,
-            'startupChecklistGroups' => StartupCheck::checklistGroups(),
+            'startupChecklistGroups' => StartupCheck::checklistGroupsFor($batch),
             // Paper form's "VERIFIKASI SEBELUM PRODUKSI" grid (Filling only) is per-sample per
             // parameter; this app's Start Inspection only captures one status per parameter for
             // the whole batch (StartupInspectionItem), not per sample — see
             // startup_inspection_items' doc comment. The Filling side of this report renders that
             // coarser summary rather than fabricating 30 blank sample columns.
             'startupInspection' => $batch->startupInspection,
-            'startupInspectionParameterKeys' => StartupInspectionItem::PARAMETER_KEYS,
+            'startupInspectionParameterKeys' => StartupInspectionItem::parameterKeysFor($batch),
             'fillingCheck' => $includeFilling ? $batch->fillingCheck : null,
             'packingCheck' => $includePacking ? $batch->packingCheck : null,
             'photoUrls' => $photoUrls,

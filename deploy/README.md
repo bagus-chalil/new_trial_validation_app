@@ -137,10 +137,10 @@ deploy, supaya kredensial dan data runtime tidak pernah tertimpa oleh isi
 git — berlaku untuk kedua environment:
 
 - `config/database.php` — kredensial DB (beda dari default di git yang `127.0.0.1/root/no-password`)
-- `config/sso.php` — URL new_trial_validation_app yang sebenarnya (bukan `localhost:8001`)
+- `config/sso.php` — URL new_trial_validation_app yang sebenarnya (bukan `localhost:9001`)
 - `storage/sessions/` — session file runtime
 - `public/uploads/` — file attachment trial
-- `portal/config.js` — URL production new_trial_validation_app & ipc_app yang sebenarnya (bukan `localhost:8001`/`localhost:8002`) — lihat bagian "Routing semua aplikasi" di bawah untuk isi lengkapnya
+- `portal/config.js` — URL production new_trial_validation_app & ipc_app yang sebenarnya (bukan `localhost:9001`/`localhost:9002`) — lihat bagian "Routing semua aplikasi" di bawah untuk isi lengkapnya
 
 **⚠️ Insiden 2026-09-10 + fix:** rsync di atas awalnya cuma exclude path-path
 di atas (semuanya di root repo, punya legacy), padahal command-nya sendiri
@@ -857,7 +857,7 @@ berjalan di runner yang sama dan memblok deploy bila gagal.
 ## Catatan keamanan
 
 `config/database.php` dan `config/sso.php` **sudah ter-commit di git** dengan
-nilai default lokal (`127.0.0.1/root/no-password`, `localhost:8001`). Ini
+nilai default lokal (`127.0.0.1/root/no-password`, `localhost:9001`). Ini
 bukan hal baru dari setup CI/CD ini — sudah begitu dari awal — tapi sekarang
 kedua file ini juga akan ada di histori GitLab. Untuk jangka panjang,
 idealnya kredensial ini dipindah keluar dari git (mis. jadi

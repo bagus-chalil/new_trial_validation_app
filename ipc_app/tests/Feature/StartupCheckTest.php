@@ -127,6 +127,46 @@ class StartupCheckTest extends TestCase
         $this->assertSame(IpcBatch::STAGE_FILLING, $batch->fresh()->current_stage);
     }
 
+    public function test_standard_weight_masterbox_is_not_asked_for_the_filling_only_flow(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_FILLING);
+
+        $this->get("/batches/{$batch->id}/startup-check")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('checklistGroups', fn ($groups) => ! collect($groups)->contains(
+                fn ($group) => array_key_exists('standard_weight_masterbox_status', (array) $group['fields']),
+            )));
+
+        $payload = $this->validPayload();
+        unset($payload['standard_weight_masterbox_status']);
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)->assertSessionHasNoErrors();
+        $this->assertNull($batch->startupCheck()->first()->standard_weight_masterbox_status);
+    }
+
+    public function test_standard_weight_masterbox_is_still_required_for_the_full_flow(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        unset($payload['standard_weight_masterbox_status']);
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)->assertSessionHasErrors('standard_weight_masterbox_status');
+    }
+
+    public function test_heating_can_be_marked_not_applicable(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'heating' => 'N/A'])
+            ->assertRedirect("/batches/{$batch->id}");
+
+        $this->assertSame('N/A', $batch->startupCheck()->first()->heating);
+    }
+
     public function test_density_can_be_marked_not_applicable(): void
     {
         $this->actingAs(User::factory()->create());

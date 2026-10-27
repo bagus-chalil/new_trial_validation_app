@@ -185,6 +185,8 @@
             $samplesByNo = $startupInspection->samples->keyBy('sample_no');
             $inspectionTime = optional($startupInspection->completed_at ?? $startupInspection->created_at)->translatedFormat('d/m/Y H:i') ?? '—';
             $statusOf = fn (string $key) => $itemsByKey[$key]->status ?? null;
+            // Filling-only flow has no Tersier item (StartupInspectionItem::parameterKeysFor()).
+            $showTersier = in_array('tersier', \App\Models\StartupInspectionItem::parameterKeysFor($batch), true);
             // Same wording as the grid's column headers below.
             $parameterLabels = [
                 'bulk_color_texture' => 'Warna Bulk / Tekstur',
@@ -206,14 +208,14 @@
                 <col style="width: 4%;">
                 <col style="width: 7%;">
                 <col style="width: 8%;"><col style="width: 8%;"><col style="width: 9%;"><col style="width: 7%;"><col style="width: 8%;"><col style="width: 8%;">
-                <col style="width: 6%;"><col style="width: 6%;"><col style="width: 6%;"><col style="width: 7%;"><col style="width: 7%;"><col style="width: 8%;">
+                <col style="width: 6%;"><col style="width: 6%;"><col style="width: 6%;">@if ($showTersier)<col style="width: 7%;">@endif<col style="width: 7%;"><col style="width: 8%;">
             </colgroup>
             <thead>
                 <tr>
                     <th rowspan="2">Sample</th>
                     <th rowspan="2">Time</th>
                     <th colspan="6">Filling</th>
-                    <th colspan="6">Packing</th>
+                    <th colspan="{{ $showTersier ? 6 : 5 }}">Packing</th>
                 </tr>
                 <tr>
                     <th>Warna Bulk / Tekstur</th>
@@ -224,7 +226,7 @@
                     <th>Uji Kegunaan</th>
                     <th>Primer</th>
                     <th>Sekunder</th>
-                    <th>Tersier</th>
+                    @if ($showTersier)<th>Tersier</th>@endif
                     <th>Attribute</th>
                     <th>Tampilan</th>
                     <th>Berat M.Box</th>
@@ -246,7 +248,7 @@
                             <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('functional_test')])</td>
                             <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('primer')])</td>
                             <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('sekunder')])</td>
-                            <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('tersier')])</td>
+                            @if ($showTersier)<td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('tersier')])</td>@endif
                             <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('attribute')])</td>
                             <td rowspan="30">@include('pdf._status-pill', ['value' => $statusOf('appearance')])</td>
                         @endif
