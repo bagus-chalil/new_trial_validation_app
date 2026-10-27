@@ -39,6 +39,8 @@ export interface SharedData {
     canApproveIpc: boolean;
     canManageMaster: boolean;
     canUseVisionTest: boolean;
+    canCreateBatch: boolean;
+    canRecordMicroCheck: boolean;
     [key: string]: unknown;
 }
 

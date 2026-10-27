@@ -45,6 +45,7 @@ class LookupController extends Controller
         $q = trim($request->string('q')->toString());
 
         $batches = IpcBatch::query()
+            ->when(! $request->user()->isStaff(), fn ($query) => $query->visibleTo($request->user()))
             // Index-driven search (see IpcBatch::searchBranches) — a plain OR query here
             // full-scanned ~1M batches whenever the search had no hits.
             ->when($q !== '', fn ($query) => $query->whereIn('id', IpcBatch::searchIds($q, null, self::LIMIT)))

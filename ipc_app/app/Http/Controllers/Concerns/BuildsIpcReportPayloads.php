@@ -260,8 +260,11 @@ trait BuildsIpcReportPayloads
      */
     private function finishedPayload(IpcBatch $batch, array $photoUrls): array
     {
+        $batch->loadMissing('microCheck.user');
+
         return [
             'finishedCheck' => $batch->finishedCheck,
+            'microCheck' => $batch->microCheck,
             'photoUrls' => $photoUrls,
             'finishedSampleGroups' => FinishedCheckSample::sampleGroups(),
             'finishedApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
@@ -400,6 +403,7 @@ trait BuildsIpcReportPayloads
 
                     return [
                         ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['startup', IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING, IpcApproval::STAGE_FINISHED]), 'both'),
+                        'microCheck' => $batch->microCheck,
                         'finishedCheck' => $batch->finishedCheck,
                         'finishedSampleGroups' => FinishedCheckSample::sampleGroups(),
                         'finishedApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),

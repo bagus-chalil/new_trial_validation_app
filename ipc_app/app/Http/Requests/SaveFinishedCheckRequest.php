@@ -128,6 +128,10 @@ class SaveFinishedCheckRequest extends FormRequest
         }
 
         $validator->after(function (Validator $validator) {
+            $this->validateMicroCheckFilled($validator);
+        });
+
+        $validator->after(function (Validator $validator) {
             $this->validateFinalizePhotos($validator);
         });
     }
@@ -157,6 +161,20 @@ class SaveFinishedCheckRequest extends FormRequest
 
         if (! $hasHeaderValue && ! $hasSampleValue) {
             $validator->errors()->add('progress', 'Isi minimal satu data sebelum menyimpan progress.');
+        }
+    }
+
+    /**
+     * Selesaikan stays blocked until the Microbiologist has filled the whole Micro Check block —
+     * without it the paper form FR.QAC.193.00 is incomplete and the batch must not reach Approval.
+     */
+    private function validateMicroCheckFilled(Validator $validator): void
+    {
+        /** @var IpcBatch $batch */
+        $batch = $this->route('batch');
+
+        if (! $batch->microCheck?->isComplete()) {
+            $validator->errors()->add('micro_check', FinishedCheck::MICRO_CHECK_REQUIRED_MESSAGE);
         }
     }
 

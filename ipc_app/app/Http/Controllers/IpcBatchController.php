@@ -20,6 +20,8 @@ class IpcBatchController extends Controller
         $q = trim($request->string('q')->toString());
         $stage = $request->string('stage')->toString() ?: null;
         $perPage = 20;
+        $user = $request->user();
+        $scope = $user->isStaff() ? null : fn ($query) => $query->visibleTo($user);
 
         $query = IpcBatch::query()->with([
             'masterProduct:id,fg_code,product_name',
@@ -32,6 +34,7 @@ class IpcBatchController extends Controller
         if ($q === '') {
             $batches = $query
                 ->when($stage, fn ($query) => $query->where('current_stage', $stage))
+                ->when($scope, fn ($query) => $scope($query))
                 ->archived(false)
                 ->latest('id')
                 ->paginate($perPage)
@@ -40,10 +43,10 @@ class IpcBatchController extends Controller
             // Searched: page ids and total come from IpcBatch's index-driven search helpers
             // (see IpcBatch::searchBranches for why a plain OR query can't be used at 1M rows).
             $page = LengthAwarePaginator::resolveCurrentPage();
-            $ids = IpcBatch::searchIds($q, $stage, $perPage, ($page - 1) * $perPage, archived: false);
+            $ids = IpcBatch::searchIds($q, $stage, $perPage, ($page - 1) * $perPage, archived: false, scope: $scope);
             $items = $query->whereIn('id', $ids)->latest('id')->get();
 
-            $batches = (new LengthAwarePaginator($items, IpcBatch::searchCount($q, $stage, archived: false), $perPage, $page, [
+            $batches = (new LengthAwarePaginator($items, IpcBatch::searchCount($q, $stage, archived: false, scope: $scope), $perPage, $page, [
                 'path' => LengthAwarePaginator::resolveCurrentPath(),
             ]))->withQueryString();
         }

@@ -6,12 +6,14 @@ use App\Http\Controllers\BatchArchiveController;
 use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
+use App\Http\Controllers\MicroCheckController;
 use App\Http\Controllers\PackingCheckController;
 use App\Http\Controllers\PrintController;
 use App\Http\Controllers\StartupCheckController;
 use App\Http\Controllers\StartupInspectionController;
 use App\Http\Controllers\VerificationController;
 use App\Models\IpcApproval;
+use App\Models\IpcBatch;
 use App\Models\IpcReportDocument;
 use Illuminate\Support\Facades\Route;
 
@@ -24,9 +26,15 @@ Route::get('verify/{batch}/{stage}', [VerificationController::class, 'show'])
 
 Route::middleware(['auth'])->group(function () {
     Route::get('batches', [IpcBatchController::class, 'index'])->name('batches.index');
-    Route::get('batches/create', [IpcBatchController::class, 'create'])->name('batches.create');
-    Route::post('batches', [IpcBatchController::class, 'store'])->name('batches.store');
-    Route::get('batches/{batch}', [IpcBatchController::class, 'show'])->name('batches.show');
+    // Only Staff/Admin open batches (IpcBatchPolicy::create) — not Approver or Microbiologist.
+    Route::get('batches/create', [IpcBatchController::class, 'create'])->middleware('can:create,'.IpcBatch::class)->name('batches.create');
+    Route::post('batches', [IpcBatchController::class, 'store'])->middleware('can:create,'.IpcBatch::class)->name('batches.store');
+    Route::get('batches/{batch}', [IpcBatchController::class, 'show'])->middleware('can:view,batch')->name('batches.show');
+
+    // Micro Check: the Microbiologist's own queue + the one block of Finished Good they fill.
+    Route::get('micro-checks', [MicroCheckController::class, 'index'])->middleware('can:record-micro-check')->name('micro-checks.index');
+    Route::get('batches/{batch}/micro-check', [MicroCheckController::class, 'edit'])->name('micro-checks.edit');
+    Route::put('batches/{batch}/micro-check', [MicroCheckController::class, 'update'])->name('micro-checks.update');
 
     // Archive + delete (soft, restorable from the Recycle Bin) — Admin only, same as the
     // Recycle Bin itself, so whoever can delete a batch can also bring it back.
@@ -38,7 +46,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('batches/{batch}/archive', [BatchArchiveController::class, 'destroy'])->name('archive.destroy');
     });
 
-    Route::get('batches/{batch}/startup-check', [StartupCheckController::class, 'edit'])->name('startup-check.edit');
+    Route::get('batches/{batch}/startup-check', [StartupCheckController::class, 'edit'])->middleware('can:update,batch')->name('startup-check.edit');
     Route::put('batches/{batch}/startup-check', [StartupCheckController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('startup-check.update');
@@ -51,7 +59,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:update,batch')
         ->name('startup-check.photo.delete');
 
-    Route::get('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'edit'])->name('startup-inspection.edit');
+    Route::get('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'edit'])->middleware('can:update,batch')->name('startup-inspection.edit');
     Route::put('batches/{batch}/startup-inspection', [StartupInspectionController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('startup-inspection.update');
@@ -59,7 +67,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:update,batch')
         ->name('startup-inspection.master-box');
 
-    Route::get('batches/{batch}/filling-check', [FillingCheckController::class, 'edit'])->name('filling-check.edit');
+    Route::get('batches/{batch}/filling-check', [FillingCheckController::class, 'edit'])->middleware('can:update,batch')->name('filling-check.edit');
     Route::put('batches/{batch}/filling-check', [FillingCheckController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('filling-check.update');
@@ -71,7 +79,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:update,batch')
         ->name('filling-check.photo');
 
-    Route::get('batches/{batch}/packing-check', [PackingCheckController::class, 'edit'])->name('packing-check.edit');
+    Route::get('batches/{batch}/packing-check', [PackingCheckController::class, 'edit'])->middleware('can:update,batch')->name('packing-check.edit');
     Route::put('batches/{batch}/packing-check', [PackingCheckController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('packing-check.update');
@@ -83,7 +91,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:update,batch')
         ->name('packing-check.photo');
 
-    Route::get('batches/{batch}/finished-check', [FinishedCheckController::class, 'edit'])->name('finished-check.edit');
+    Route::get('batches/{batch}/finished-check', [FinishedCheckController::class, 'edit'])->middleware('can:viewFinished,batch')->name('finished-check.edit');
     Route::put('batches/{batch}/finished-check', [FinishedCheckController::class, 'update'])
         ->middleware('can:update,batch')
         ->name('finished-check.update');
@@ -115,15 +123,15 @@ Route::middleware(['auth'])->group(function () {
             ->name('approval.print');
     });
 
-    Route::get('batches/{batch}/print', [PrintController::class, 'edit'])->name('print.edit');
-    Route::get('batches/{batch}/print/startup', [PrintController::class, 'startup'])->name('print.startup');
-    Route::get('batches/{batch}/print/filling', [PrintController::class, 'filling'])->name('print.filling');
-    Route::get('batches/{batch}/print/packing', [PrintController::class, 'packing'])->name('print.packing');
-    Route::get('batches/{batch}/print/finished', [PrintController::class, 'finished'])->name('print.finished');
+    Route::get('batches/{batch}/print', [PrintController::class, 'edit'])->middleware('can:print,batch')->name('print.edit');
+    Route::get('batches/{batch}/print/startup', [PrintController::class, 'startup'])->middleware('can:print,batch')->name('print.startup');
+    Route::get('batches/{batch}/print/filling', [PrintController::class, 'filling'])->middleware('can:print,batch')->name('print.filling');
+    Route::get('batches/{batch}/print/packing', [PrintController::class, 'packing'])->middleware('can:print,batch')->name('print.packing');
+    Route::get('batches/{batch}/print/finished', [PrintController::class, 'finished'])->middleware('can:print,batch')->name('print.finished');
     Route::get('batches/{batch}/print/{stage}/pdf', [PrintController::class, 'pdf'])
         ->whereIn('stage', [...IpcApproval::STAGES, IpcReportDocument::KEY_FILLING_PACKING_FG])
-        ->name('print.pdf');
+        ->middleware('can:print,batch')->name('print.pdf');
     Route::get('batches/{batch}/print/{stage}/preview', [PrintController::class, 'preview'])
         ->whereIn('stage', [...IpcApproval::STAGES, IpcReportDocument::KEY_FILLING_PACKING_FG])
-        ->name('print.preview');
+        ->middleware('can:print,batch')->name('print.preview');
 });

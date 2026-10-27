@@ -30,5 +30,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-users', fn (User $user) => $user->isAdmin());
         Gate::define('approve-ipc', fn (User $user) => $user->isApprover());
         Gate::define('use-vision-test', fn (User $user) => $user->isStaff());
+        // Role-level entry to the Micro Check queue; the per-batch rule is IpcBatchPolicy::recordMicroCheck().
+        Gate::define('record-micro-check', fn (User $user) => $user->isMicrobiologist());
     }
 }

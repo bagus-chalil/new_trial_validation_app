@@ -16,7 +16,7 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { AQL_DERIVED_FIELDS, aqlPlanForLotSize } from '@/lib/aql-sampling-plan';
 import { lineLabel } from '@/lib/batch-line';
 import { type RecentBatch, type SharedData } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Camera, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -109,6 +109,52 @@ const REQUIRED_FIELDS = [
     'remarks',
 ];
 
+function MicroCheckBanner({
+    batchId,
+    complete,
+    microCheck,
+    canRecord,
+    serverError,
+}: {
+    batchId: number;
+    complete: boolean;
+    microCheck: { user?: { name: string } | null; updated_at: string } | null;
+    canRecord: boolean;
+    serverError?: string;
+}) {
+    if (complete) {
+        return (
+            <div className="flex items-center justify-between gap-3 rounded-[20px] border border-green-200 bg-green-50 px-[18px] py-3.5 text-[13px] font-semibold text-green-800">
+                <span>Micro Check sudah terisi{microCheck?.user ? ` oleh ${microCheck.user.name}` : ''} — Selesaikan sudah bisa dilakukan.</span>
+                {canRecord && (
+                    <Link href={`/batches/${batchId}/micro-check`} className="font-bold underline">
+                        Lihat / koreksi
+                    </Link>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div
+            id="micro-check-banner"
+            className="flex flex-col gap-1.5 rounded-[20px] border border-amber-300 bg-amber-50 px-[18px] py-3.5 text-[13px] text-amber-900"
+        >
+            <p className="font-bold">Micro Check belum lengkap — Finished Good belum bisa diselesaikan</p>
+            <p className="font-medium">
+                Bagian Micro Check (Total Plate Count, Yeast &amp; Mold, Pathogen) diisi oleh Microbiologist. Selama belum terisi, tombol Selesaikan
+                diblokir dan batch tidak bisa lanjut ke Approval. Simpan Progress tetap bisa dilakukan.
+            </p>
+            {serverError && <p className="font-semibold text-red-700">{serverError}</p>}
+            {canRecord && (
+                <Link href={`/batches/${batchId}/micro-check`} className="font-bold underline">
+                    Isi Micro Check
+                </Link>
+            )}
+        </div>
+    );
+}
+
 export default function FinishedCheckEdit({
     batch,
     finishedCheck,
@@ -120,6 +166,9 @@ export default function FinishedCheckEdit({
     lineleaderName,
     maxThProgress,
     previousStageCompleted,
+    microCheck,
+    microCheckComplete,
+    canRecordMicroCheck,
 }: {
     batch: Batch;
     finishedCheck: FinishedCheckData | null;
@@ -131,6 +180,9 @@ export default function FinishedCheckEdit({
     lineleaderName: string | null;
     maxThProgress: number;
     previousStageCompleted: boolean;
+    microCheck: { user?: { name: string } | null; updated_at: string } | null;
+    microCheckComplete: boolean;
+    canRecordMicroCheck: boolean;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -317,6 +369,13 @@ export default function FinishedCheckEdit({
     // Selesaikan always asks for confirmation first — it sits next to Simpan Progress and locks the stage.
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        // Selesaikan is blocked until the Microbiologist has filled the Micro Check block (the server
+        // refuses it too — see SaveFinishedCheckRequest::validateMicroCheckFilled()).
+        if (!microCheckComplete) {
+            toast('Micro Check belum terisi — Finished Good belum bisa diselesaikan.');
+            document.getElementById('micro-check-banner')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
         setFinalizeConfirmOpen(true);
     };
 
@@ -388,6 +447,14 @@ export default function FinishedCheckEdit({
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
                 <form onSubmit={submit} className="flex flex-1 flex-col">
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
+                        <MicroCheckBanner
+                            batchId={batch.id}
+                            complete={microCheckComplete}
+                            microCheck={microCheck}
+                            canRecord={canRecordMicroCheck}
+                            serverError={errors.micro_check}
+                        />
+
                         {/* Info header — mirrors the legacy screen's top info block. */}
                         <div className="border-border-soft bg-card grid grid-cols-2 gap-3 rounded-[20px] border p-[18px] md:grid-cols-4 md:gap-4">
                             <InfoField label="Tanggal" value={formatDateTime(finishedCheck?.created_at ?? batch.created_at)} />
@@ -719,6 +786,7 @@ export default function FinishedCheckEdit({
                                 `${filledSampleCount} dari ${allParameterKeys.length} sample terisi`,
                                 isLastRound && `TH Progress ke-${maxThProgress} (terakhir) — wajib Selesaikan`,
                                 !previousStageCompleted && 'Selesaikan butuh Packing Check selesai dulu',
+                                !microCheckComplete && 'Selesaikan butuh Micro Check terisi oleh Microbiologist',
                             ]
                                 .filter(Boolean)
                                 .join(' · ')}

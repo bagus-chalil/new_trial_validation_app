@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'recentBatches' => fn () => $request->user()
                 ? IpcBatch::query()
+                    ->visibleTo($request->user())
                     ->with(['masterProduct:id,product_name,fg_code', 'masterLine:id,name'])
                     ->latest('id')
                     ->limit(20)
@@ -61,6 +62,8 @@ class HandleInertiaRequests extends Middleware
             'canApproveIpc' => fn () => (bool) $request->user()?->isApprover(),
             'canManageMaster' => fn () => (bool) $request->user()?->isAdmin(),
             'canUseVisionTest' => fn () => (bool) $request->user()?->can('use-vision-test'),
+            'canCreateBatch' => fn () => (bool) $request->user()?->can('create', IpcBatch::class),
+            'canRecordMicroCheck' => fn () => (bool) $request->user()?->can('record-micro-check'),
         ]);
     }
 }

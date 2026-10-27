@@ -18,6 +18,9 @@ class FinishedCheck extends Model
         self::DISPOSITION_REJECTED,
     ];
 
+    /** Shown wherever "Selesaikan" is refused because the Micro Check block is not complete yet. */
+    public const MICRO_CHECK_REQUIRED_MESSAGE = 'Micro Check belum terisi oleh Microbiologist, jadi Finished Good belum bisa diselesaikan dan batch belum bisa lanjut ke Approval. Minta Microbiologist mengisi Micro Check terlebih dahulu.';
+
     protected $fillable = [
         'ipc_batch_id',
         'user_id',

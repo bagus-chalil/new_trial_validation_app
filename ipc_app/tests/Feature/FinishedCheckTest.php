@@ -9,6 +9,7 @@ use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
+use App\Models\MicroCheck;
 use App\Models\PackingCheck;
 use App\Models\User;
 use App\Services\AqlSamplingPlan;
@@ -47,8 +48,26 @@ class FinishedCheckTest extends TestCase
         return $batch->fresh();
     }
 
+    private function seedCompleteMicroCheck(IpcBatch $batch): void
+    {
+        MicroCheck::create([
+            'ipc_batch_id' => $batch->id,
+            'user_id' => User::factory()->microbiologist()->create()->id,
+            'total_plate_count_result' => '<10',
+            'total_plate_count_std' => '<100',
+            'yeast_mold_result' => '<10',
+            'yeast_mold_std' => '<100',
+            'pathogen_result' => '(-)',
+            'pathogen_std' => '(-)',
+        ]);
+    }
+
     private function seedFinishedCheckPhotos(IpcBatch $batch): void
     {
+        // Selesaikan also needs a complete Micro Check (filled by the Microbiologist), so every
+        // test that can finalize gets one here alongside the photos.
+        $this->seedCompleteMicroCheck($batch);
+
         foreach (FinishedCheckController::PHOTO_FIELDS as $field) {
             IpcAttachment::create([
                 'ipc_batch_id' => $batch->id,
@@ -584,6 +603,8 @@ class FinishedCheckTest extends TestCase
             $this->post("/batches/{$batch->id}/finished-check/photo/{$field}", ['photo' => UploadedFile::fake()->image("{$field}.jpg")])
                 ->assertRedirect("/batches/{$batch->id}/finished-check");
         }
+
+        $this->seedCompleteMicroCheck($batch);
 
         $this->put("/batches/{$batch->id}/finished-check", $this->validPayload(['finalize' => true]))
             ->assertSessionHasNoErrors();

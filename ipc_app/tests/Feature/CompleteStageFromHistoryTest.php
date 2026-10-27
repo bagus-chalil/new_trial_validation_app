@@ -10,6 +10,7 @@ use App\Models\FinishedCheck;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
+use App\Models\MicroCheck;
 use App\Models\PackingCheck;
 use App\Models\StartupCheck;
 use App\Models\User;
@@ -176,6 +177,8 @@ class CompleteStageFromHistoryTest extends TestCase
             'remarks' => 'fg round 1',
             'samples' => ['tersier_identity' => ['ac' => 1, 'cd' => 0]],
         ]);
+
+        MicroCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $this->user->id, 'total_plate_count_result' => '<10', 'total_plate_count_std' => '<100', 'yeast_mold_result' => '<10', 'yeast_mold_std' => '<100', 'pathogen_result' => '(-)', 'pathogen_std' => '(-)']);
 
         $this->post(route('finished-check.complete', $batch))->assertRedirect(route('batches.show', $batch));
 

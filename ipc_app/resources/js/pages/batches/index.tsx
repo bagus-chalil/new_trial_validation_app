@@ -258,12 +258,14 @@ export default function BatchesIndex({
             subtitle={`${batches.total} batch`}
             headerActions={
                 <>
-                    <Link
-                        href="/batches/create"
-                        className="bg-primary hidden h-10 items-center gap-1.5 rounded-xl px-3.5 text-[13px] font-bold text-white md:flex"
-                    >
-                        + Batch Baru
-                    </Link>
+                    {props.canCreateBatch && (
+                        <Link
+                            href="/batches/create"
+                            className="bg-primary hidden h-10 items-center gap-1.5 rounded-xl px-3.5 text-[13px] font-bold text-white md:flex"
+                        >
+                            + Batch Baru
+                        </Link>
+                    )}
                     <div className="bg-primary/[0.1] text-primary flex size-11 items-center justify-center rounded-full text-[15px] font-bold">
                         {getInitials(props.auth.user.name)}
                     </div>

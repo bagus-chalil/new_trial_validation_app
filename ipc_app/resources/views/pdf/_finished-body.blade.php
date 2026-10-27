@@ -120,21 +120,24 @@
         <p class="muted">ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect &nbsp; (AC = Accepted Sample count per parameter)</p>
         <p class="muted" style="margin-top: 0;">Form FR.QAC.193.00 menyediakan hingga 7 kolom Pal/qty (satu set AC/CD/MD/mD per pallet/lot) — aplikasi ini baru menangkap satu set nilai per parameter untuk seluruh batch, belum per pallet/lot.</p>
 
-        {{-- Micro Check (Total Plate Count / Yeast & Mold / Pathogen + Microbiologist) is part of
-             the real FR.QAC.193.00 page 2 but has no captured field anywhere in this app yet — a
-             genuine data-model gap (would need new finished_checks columns + a Stage 5 form
-             change), not something a PDF-only pass can fabricate. Flagged explicitly rather than
-             silently omitted. --}}
+        {{-- Micro Check block of FR.QAC.193.00, filled by the Microbiologist (own role) once Finished Good has been saved. --}}
+        @php
+            $micro = $microCheck ?? null;
+        @endphp
         <div class="two-col">
         <table>
             <thead>
                 <tr><th colspan="3">Micro Check</th></tr>
             </thead>
             <tbody>
-                <tr><td style="width: 40%;">Total Plate Count</td><td class="center muted" style="width: 20%;">—</td><td class="muted">Std (cfu/gr): —</td></tr>
-                <tr><td>Yeast &amp; Mold</td><td class="center muted">—</td><td class="muted">Std (cfu/gr): —</td></tr>
-                <tr><td>Pathogen</td><td class="center muted">—</td><td class="muted">Std (cfu/gr): —</td></tr>
-                <tr><td colspan="3" class="muted" style="font-size: 8px;">Belum ditangkap sebagai data di aplikasi — Microbiologist: — </td></tr>
+                @foreach (\App\Models\MicroCheck::PARAMETERS as $key => $label)
+                    <tr>
+                        <td style="width: 40%;">{{ $label }}</td>
+                        <td class="center" style="width: 20%;">{{ $micro?->{$key.'_result'} ?? '—' }}</td>
+                        <td>Std (cfu/gr): {{ $micro?->{$key.'_std'} ?? '—' }}</td>
+                    </tr>
+                @endforeach
+                <tr><td colspan="3" style="font-size: 8px;">Microbiologist: {{ $micro?->user?->name ?? '—' }}{{ $micro ? ' · '.$micro->updated_at?->format('d M Y H:i') : '' }}</td></tr>
             </tbody>
         </table>
 

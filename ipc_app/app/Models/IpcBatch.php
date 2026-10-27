@@ -238,6 +238,47 @@ class IpcBatch extends Model
         return $this->hasOne(FinishedCheck::class);
     }
 
+    public function microCheck()
+    {
+        return $this->hasOne(MicroCheck::class);
+    }
+
+    /** Stages from which an Approver may open a batch: Approval onwards (see IpcBatchPolicy::view). */
+    public const APPROVER_VISIBLE_STAGES = [
+        self::STAGE_APPROVAL,
+        self::STAGE_PRINT,
+        self::STAGE_COMPLETED,
+    ];
+
+    /**
+     * Row-level visibility per role: Admin/Staff see every batch; an Approver only batches that
+     * reached Approval/Print/Completed; a Microbiologist only batches whose Finished Good has
+     * been saved at least once (nothing to micro-check before that). Mirrors IpcBatchPolicy::view.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isStaff()) {
+            return $query;
+        }
+
+        $isApprover = $user->isApprover();
+        $isMicro = $user->isMicrobiologist();
+
+        return $query->where(function (Builder $query) use ($isApprover, $isMicro) {
+            if (! $isApprover && ! $isMicro) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+            if ($isApprover) {
+                $query->orWhereIn('current_stage', self::APPROVER_VISIBLE_STAGES);
+            }
+            if ($isMicro) {
+                $query->orWhereHas('finishedCheck');
+            }
+        });
+    }
+
     public function approvals()
     {
         return $this->hasMany(IpcApproval::class);
@@ -261,10 +302,11 @@ class IpcBatch extends Model
      *
      * @return array{0: Builder, 1: Builder} [by no_batch, by product name], unordered
      */
-    public static function searchBranches(string $q, ?string $stage = null, ?bool $archived = null): array
+    public static function searchBranches(string $q, ?string $stage = null, ?bool $archived = null, ?\Closure $scope = null): array
     {
         $base = fn () => static::query()
             ->when($stage, fn ($query) => $query->where('current_stage', $stage))
+            ->when($scope, fn ($query) => $scope($query))
             ->archived($archived);
 
         return [
@@ -284,9 +326,9 @@ class IpcBatch extends Model
     }
 
     /** Ids of the newest matching batches, newest first: `$take` rows after skipping `$skip`. */
-    public static function searchIds(string $q, ?string $stage, int $take, int $skip = 0, ?bool $archived = null): array
+    public static function searchIds(string $q, ?string $stage, int $take, int $skip = 0, ?bool $archived = null, ?\Closure $scope = null): array
     {
-        [$byNo, $byProduct] = static::searchBranches($q, $stage, $archived);
+        [$byNo, $byProduct] = static::searchBranches($q, $stage, $archived, $scope);
         $n = $skip + $take;
 
         return $byNo->select('id')->orderByDesc('id')->limit($n)
@@ -301,9 +343,9 @@ class IpcBatch extends Model
     }
 
     /** Exact match count as |A| + |B| - |A∩B| — three index-only counts, no big dedupe. */
-    public static function searchCount(string $q, ?string $stage, ?bool $archived = null): int
+    public static function searchCount(string $q, ?string $stage, ?bool $archived = null, ?\Closure $scope = null): int
     {
-        [$byNo, $byProduct] = static::searchBranches($q, $stage, $archived);
+        [$byNo, $byProduct] = static::searchBranches($q, $stage, $archived, $scope);
 
         return (clone $byNo)->count()
             + $byProduct->count()

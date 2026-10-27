@@ -50,6 +50,13 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function microbiologist(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_MICROBIOLOGIST,
+        ]);
+    }
+
     public function admin(): static
     {
         return $this->state(fn (array $attributes) => [
