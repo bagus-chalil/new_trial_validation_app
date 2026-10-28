@@ -165,7 +165,7 @@ class PrintController extends Controller
         // (the combined FR.QAC.193.00 = Filling+Packing page + landscape Finished Good page).
         // Finished Good lives inside Fillpack, so it gets no card of its own. Other flows keep their
         // per-stage cards.
-        $isFull = $batch->flow_type === IpcBatch::FLOW_FULL;
+        $isFull = IpcApproval::combinedStagesFor($batch) !== [];
         $baseStages = $isFull
             ? [IpcApproval::STAGE_STARTUP]
             : array_values(array_unique([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)]));
@@ -180,10 +180,10 @@ class PrintController extends Controller
         // separate Filling/Packing forms — those map onto the standalone FR.QAC.192.02/182.03
         // forms used by the single-stage flows) — offered here as an extra print option alongside
         // the per-stage ones above, not a replacement for them.
-        if ($batch->flow_type === IpcBatch::FLOW_FULL) {
+        if ($isFull) {
             $stages->push([
                 'stage' => IpcReportDocument::KEY_FILLING_PACKING_FG,
-                'label' => 'Filling & Packing (Gabungan)',
+                'label' => $batch->flow_type === IpcBatch::FLOW_PACKING_FG ? 'Packing & FG (Gabungan)' : 'Filling & Packing (Gabungan)',
                 ...$this->summarizeLogs($logsByStage->get(IpcReportDocument::KEY_FILLING_PACKING_FG, collect())),
             ]);
         }

@@ -35,7 +35,7 @@ const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Dr
     filling_packing_fg: {
         href: (id) => `/batches/${id}/approval/filling_packing_fg`,
         icon: Package,
-        description: 'Form gabungan FR.QAC.193.00 — Filling + Packing dan halaman Finished Good. Satu keputusan untuk ketiganya.',
+        description: 'Form gabungan FR.QAC.193.00 — halaman Packing (dan Filling bila ada) + Finished Good. Satu keputusan untuk semuanya.',
     },
     finished: {
         href: (id) => `/batches/${id}/approval/finished`,

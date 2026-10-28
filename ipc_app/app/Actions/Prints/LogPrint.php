@@ -48,7 +48,7 @@ class LogPrint
             }
 
             // Flow Lengkap prints 2 forms (Startup + Fillpack): both must have been printed.
-            $allPrinted = $batch->flow_type === IpcBatch::FLOW_FULL
+            $allPrinted = IpcApproval::combinedStagesFor($batch) !== []
                 ? $logged->contains(IpcApproval::STAGE_STARTUP) && $logged->contains(IpcReportDocument::KEY_FILLING_PACKING_FG)
                 : collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->every(fn ($s) => $printedStages->contains($s));
 

@@ -535,4 +535,31 @@ class ApprovalTest extends TestCase
         $this->actingAs($user)->get("/batches/{$batch->id}/approval/packing/print")->assertNotFound();
         $this->actingAs($user)->put("/batches/{$batch->id}/approval/packing", ['decision' => 'Approved'])->assertForbidden();
     }
+
+    public function test_packing_fg_flow_approves_two_forms_with_one_combined_decision(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $batch->update(['flow_type' => IpcBatch::FLOW_PACKING_FG]);
+        $batch->fillingCheck()->delete();
+        $user = User::factory()->approver()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('stages', 2)
+                ->where('stages.0.stage', 'startup')
+                ->where('stages.1.stage', 'filling_packing_fg')
+                ->where('stages.1.label', 'Packing & FG')
+                ->where('stages.1.ready', true));
+        $this->actingAs($user)->get("/batches/{$batch->id}/approval/filling_packing_fg")->assertOk();
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved'])->assertRedirect();
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/filling_packing_fg", ['decision' => 'Approved'])->assertRedirect();
+
+        foreach (['packing', 'finished'] as $stage) {
+            $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => $stage, 'decision' => 'Approved']);
+        }
+        $this->assertDatabaseMissing('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => 'filling']);
+        $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+    }
 }

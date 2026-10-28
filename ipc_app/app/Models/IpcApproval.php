@@ -135,11 +135,24 @@ class IpcApproval extends Model
             self::STAGE_FINISHED => $batch->hasFinishedStage() && (bool) $batch->finishedCheck?->completed_at
                 && $batch->current_stage !== IpcBatch::STAGE_FINISHED,
             // Flow Lengkap's combined Fillpack + FG form: one decision covering all three stages.
-            IpcReportDocument::KEY_FILLING_PACKING_FG => $batch->flow_type === IpcBatch::FLOW_FULL
-                && self::stageReady($batch, self::STAGE_FILLING)
-                && self::stageReady($batch, self::STAGE_PACKING)
-                && self::stageReady($batch, self::STAGE_FINISHED),
+            IpcReportDocument::KEY_FILLING_PACKING_FG => self::combinedStagesFor($batch) !== []
+                && collect(self::combinedStagesFor($batch))->every(fn (string $part) => self::stageReady($batch, $part)),
             default => false,
+        };
+    }
+
+    /**
+     * The stages one combined-form decision (Fillpack + FG on Lengkap, Packing + FG on Packing + FG)
+     * is written to; empty for flows that have no combined form.
+     *
+     * @return list<string>
+     */
+    public static function combinedStagesFor(IpcBatch $batch): array
+    {
+        return match ($batch->flow_type) {
+            IpcBatch::FLOW_FULL => [self::STAGE_FILLING, self::STAGE_PACKING, self::STAGE_FINISHED],
+            IpcBatch::FLOW_PACKING_FG => [self::STAGE_PACKING, self::STAGE_FINISHED],
+            default => [],
         };
     }
 

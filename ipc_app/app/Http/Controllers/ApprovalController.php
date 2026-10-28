@@ -127,7 +127,7 @@ class ApprovalController extends Controller
     public function fillpack(IpcBatch $batch): Response
     {
         $this->guardFinished($batch);
-        abort_unless($batch->flow_type === IpcBatch::FLOW_FULL, 404);
+        abort_unless(IpcApproval::combinedStagesFor($batch) !== [], 404);
 
         $batch->load(['masterProduct', 'masterLine', 'approvals.approver']);
 
@@ -135,7 +135,7 @@ class ApprovalController extends Controller
             'batch' => $batch,
             'stage' => [
                 'stage' => IpcReportDocument::KEY_FILLING_PACKING_FG,
-                'label' => 'Filling, Packing & FG',
+                'label' => $this->combinedLabel($batch),
                 'ready' => IpcApproval::stageReady($batch, IpcReportDocument::KEY_FILLING_PACKING_FG),
                 'approval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
             ],
@@ -149,7 +149,7 @@ class ApprovalController extends Controller
         abort_unless(IpcApproval::stageReady($batch, $stage), 403, 'Tahap ini belum selesai, belum bisa di-approve.');
 
         if ($stage === IpcReportDocument::KEY_FILLING_PACKING_FG) {
-            foreach ([IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING, IpcApproval::STAGE_FINISHED] as $part) {
+            foreach (IpcApproval::combinedStagesFor($batch) as $part) {
                 $action->handle($batch, $request->user(), $part, $request->validated());
             }
         } else {
@@ -198,14 +198,14 @@ class ApprovalController extends Controller
         // scoped this to Approval only.
         // Flow Lengkap approves 2 forms: Startup, and Fillpack + FG (one decision that is written
         // to the Filling, Packing and Finished approvals alike - see update()).
-        $summaryStages = $batch->flow_type === IpcBatch::FLOW_FULL
+        $summaryStages = IpcApproval::combinedStagesFor($batch) !== []
             ? [IpcApproval::STAGE_STARTUP, IpcReportDocument::KEY_FILLING_PACKING_FG]
             : IpcApproval::requiredStagesFor($batch);
 
         $stages = collect($summaryStages)
             ->map(fn (string $stage) => [
                 'stage' => $stage,
-                'label' => $stage === IpcReportDocument::KEY_FILLING_PACKING_FG ? 'Filling, Packing & FG' : IpcApproval::STAGE_LABELS[$stage],
+                'label' => $stage === IpcReportDocument::KEY_FILLING_PACKING_FG ? $this->combinedLabel($batch) : IpcApproval::STAGE_LABELS[$stage],
                 'ready' => IpcApproval::stageReady($batch, $stage),
                 'approval' => $stage === IpcReportDocument::KEY_FILLING_PACKING_FG ? $approvals->get(IpcApproval::STAGE_FINISHED) : $approvals->get($stage),
             ]);
@@ -224,6 +224,11 @@ class ApprovalController extends Controller
             'ready' => IpcApproval::stageReady($batch, $stage),
             'approval' => $batch->approvals->firstWhere('stage', $stage),
         ];
+    }
+
+    private function combinedLabel(IpcBatch $batch): string
+    {
+        return $batch->flow_type === IpcBatch::FLOW_PACKING_FG ? 'Packing & FG' : 'Filling, Packing & FG';
     }
 
     private function guardFinished(IpcBatch $batch): void

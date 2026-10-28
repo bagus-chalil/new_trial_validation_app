@@ -386,12 +386,8 @@ trait BuildsIpcReportPayloads
             IpcReportDocument::KEY_FILLING_PACKING_FG => [
                 'pdf.approval-fillpack',
                 (function () use ($batch) {
-                    abort_unless($batch->flow_type === IpcBatch::FLOW_FULL, 404, 'Laporan gabungan Filling & Packing hanya tersedia untuk alur Lengkap.');
-                    abort_unless(
-                        in_array(IpcApproval::STAGE_FILLING, $batch->activeStages(), true)
-                            && in_array(IpcApproval::STAGE_PACKING, $batch->activeStages(), true),
-                        404
-                    );
+                    abort_unless(in_array($batch->flow_type, [IpcBatch::FLOW_FULL, IpcBatch::FLOW_PACKING_FG], true), 404, 'Laporan gabungan hanya tersedia untuk alur Lengkap dan Packing + FG.');
+                    abort_unless(in_array(IpcApproval::STAGE_PACKING, $batch->activeStages(), true), 404);
 
                     $batch->load([
                         'startupCheck',
@@ -420,8 +416,9 @@ trait BuildsIpcReportPayloads
                         'finishedVerificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_FINISHED),
                         'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
                         // Header breaks before "Filling & Packing" so the long title stacks neatly on two lines.
-                        'title' => preg_replace('/\s+(Filling\s*&\s*Packing)$/i', "
-$1", $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control Filling & Packing'),
+                        'title' => $batch->flow_type === IpcBatch::FLOW_PACKING_FG
+                            ? "Laporan Pemeriksaan In Process Control\nPacking & FG"
+                            : preg_replace('/\s+(Filling\s*&\s*Packing)$/i', "\n$1", $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control Filling & Packing'),
                         'docNumber' => $reportDocument?->doc_number ?? 'FR.QAC.193.00',
                         'docRevision' => $reportDocument?->revision ?? '0',
                     ];

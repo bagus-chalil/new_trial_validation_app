@@ -25,12 +25,12 @@ export default function ApprovalFillpack({ batch, stage, decisions }: { batch: B
 
     return (
         <IpcShell
-            title="Filling, Packing & FG"
+            title={stage.label}
             subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
             backHref={`/batches/${batch.id}/approval`}
             headerActions={<PrintPreviewButton href={`/batches/${batch.id}/approval/filling_packing_fg/print`} />}
         >
-            <Head title={`Filling, Packing & FG — ${batch.no_batch}`} />
+            <Head title={`${stage.label} — ${batch.no_batch}`} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
                 <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-6 md:px-8">
                     <div className="border-border-soft bg-card grid grid-cols-2 gap-3 rounded-[20px] border p-[18px] md:grid-cols-4 md:gap-4">
@@ -42,8 +42,8 @@ export default function ApprovalFillpack({ batch, stage, decisions }: { batch: B
                     </div>
 
                     <p className="text-muted-foreground/70 text-[12.5px] font-medium">
-                        Form gabungan FR.QAC.193.00 (Filling + Packing + Finished Good). Buka Preview Cetak di kanan atas untuk memeriksa dokumennya,
-                        lalu putuskan di bawah — satu keputusan berlaku untuk ketiga tahap.
+                        Form gabungan FR.QAC.193.00 ({stage.label}). Buka Preview Cetak di kanan atas untuk memeriksa dokumennya, lalu putuskan di
+                        bawah — satu keputusan berlaku untuk semua tahap di dalamnya.
                     </p>
 
                     <ApprovalActionCard batchId={batch.id} decisions={decisions} stage={stage} />

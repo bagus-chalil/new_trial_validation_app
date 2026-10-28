@@ -549,4 +549,27 @@ class PrintTest extends TestCase
             strpos($html, '>Pemeriksaan Format Coding<'),
         );
     }
+
+    public function test_packing_fg_flow_prints_two_forms_startup_and_combined_packing_fg(): void
+    {
+        $batch = $this->makePackingFgBatchAtPrintStage();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('stages', 2)
+                ->where('stages.0.stage', 'startup')
+                ->where('stages.1.stage', 'filling_packing_fg')
+                ->where('stages.1.label', 'Packing & FG (Gabungan)'));
+
+        $html = $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing_fg/preview")->assertOk()->getContent();
+        $this->assertStringContainsString('FR.QAC.193.00', $html);
+        $this->assertStringContainsString('A. Packing Inspection', $html);
+        $this->assertStringNotContainsString('Filling Inspection', $html);
+
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing_fg/pdf")->assertOk();
+        $this->actingAs($user)->get("/batches/{$batch->id}/print/startup/pdf")->assertOk();
+        $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
+    }
 }

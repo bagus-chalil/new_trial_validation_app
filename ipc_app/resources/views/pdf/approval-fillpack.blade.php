@@ -16,6 +16,8 @@
      Inspection in one page, one column per TH_PROGRESS round. The paper form has no Startup
      section, photos or save history on this page, so none are rendered here. --}}
 <div class="fp-compact fp-form">
+    @php $hasFilling = $batch->flow_type !== 'packing_fg'; @endphp
+    @if ($hasFilling)
     <div class="section-title">A. Filling Inspection</div>
     @if ($fillingCheck)
         <div class="info-grid">
@@ -101,8 +103,9 @@
     @else
         <p class="muted">Filling Check belum diisi.</p>
     @endif
+    @endif
 
-    <div class="section-title">B. Packing Inspection</div>
+    <div class="section-title">{{ $hasFilling ? 'B' : 'A' }}. Packing Inspection</div>
     @if ($packingCheck)
         <div class="info-grid">
             <div><span>Date / Shift Packing</span><strong>{{ optional($packingCheck->completed_at ?? $packingCheck->updated_at)->translatedFormat('d/m/Y H:i') ?? '—' }}</strong></div>
@@ -197,10 +200,11 @@
     <p class="muted" style="margin: 2px 0;">CF = Conform &nbsp; NC = Not Conform &nbsp; N/A = Not Applicable &nbsp;|&nbsp; ZD = Zero Defect &nbsp; C = Critical Defect &nbsp; M = Major Defect &nbsp; m = Minor Defect</p>
 
     @php
-        $signOffSections = [
-            ['label' => 'Filling', 'check' => $fillingCheck, 'approval' => $fillingApproval, 'qr' => $fillingVerificationQr],
-            ['label' => 'Packing', 'check' => $packingCheck, 'approval' => $packingApproval, 'qr' => $packingVerificationQr],
-        ];
+        $signOffSections = [];
+        if ($hasFilling) {
+            $signOffSections[] = ['label' => 'Filling', 'check' => $fillingCheck, 'approval' => $fillingApproval, 'qr' => $fillingVerificationQr];
+        }
+        $signOffSections[] = ['label' => 'Packing', 'check' => $packingCheck, 'approval' => $packingApproval, 'qr' => $packingVerificationQr];
     @endphp
     @foreach ($signOffSections as $section)
         @php
