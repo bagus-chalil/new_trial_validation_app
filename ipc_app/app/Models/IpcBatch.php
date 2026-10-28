@@ -48,9 +48,9 @@ class IpcBatch extends Model
     public const FLOW_PACKING_FG = 'packing_fg';
 
     public const FLOW_TYPES = [
-        self::FLOW_FULL,
         self::FLOW_FILLING,
         self::FLOW_PACKING_FG,
+        self::FLOW_FULL,
     ];
 
     public const FLOW_LABELS = [

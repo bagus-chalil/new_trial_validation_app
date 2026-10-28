@@ -94,6 +94,8 @@ export default function StartupCheckEdit({
     startupCheck,
     isReadOnly,
     checklistGroups,
+    productCheckFields,
+    productCheckOptions,
     validationReportOptions,
     lines,
     photoUrls,
@@ -103,6 +105,8 @@ export default function StartupCheckEdit({
     startupCheck: StartupCheckData | null;
     isReadOnly: boolean;
     checklistGroups: ChecklistGroup[];
+    productCheckFields: Record<string, string>;
+    productCheckOptions: string[];
     validationReportOptions: string[];
     lines: MasterLine[];
     photoUrls: Record<string, string | null | { id: number; url: string }[]>;
@@ -149,6 +153,8 @@ export default function StartupCheckEdit({
         coding_operator_na_primary: startupCheck?.coding_operator_na_primary ? '1' : '0',
         coding_operator_na_secondary: startupCheck?.coding_operator_na_secondary ? '1' : '0',
         coding_operator_na_tersier: startupCheck?.coding_operator_na_tersier ? '1' : '0',
+        product_appearance_status: (startupCheck?.product_appearance_status as string) ?? '',
+        product_leakage_test_status: (startupCheck?.product_leakage_test_status as string) ?? '',
         line_leader_name: (startupCheck?.line_leader_name as string) ?? '',
         operator_name: (startupCheck?.operator_name as string) ?? '',
         remarks: (startupCheck?.remarks as string) ?? '',
@@ -173,7 +179,8 @@ export default function StartupCheckEdit({
         Boolean(data.exp_date?.trim()) &&
         Boolean(data.master_line_id?.trim()) &&
         Boolean(data.average_of_empty_bottle_weight?.toString().trim()) &&
-        Boolean(data.validation_report_status?.trim());
+        Boolean(data.validation_report_status?.trim()) &&
+        Object.keys(productCheckFields).every((key) => Boolean(data[key]));
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -183,6 +190,9 @@ export default function StartupCheckEdit({
         if (!data.master_line_id?.trim()) empty.add('master_line_id');
         if (!data.validation_report_status?.trim()) empty.add('validation_report_status');
         if (!data.average_of_empty_bottle_weight?.toString().trim()) empty.add('average_of_empty_bottle_weight');
+        Object.keys(productCheckFields).forEach((key) => {
+            if (!data[key]) empty.add(key);
+        });
         allChecklistKeys.forEach((key) => {
             if (!data[key]) empty.add(key);
         });
@@ -527,6 +537,31 @@ export default function StartupCheckEdit({
                                     />
                                 </div>
                                 <InputError message={errors.validation_report_status} />
+                            </div>
+                            <div className="col-span-full flex flex-col gap-3">
+                                <Label className="text-foreground text-[13px] font-semibold">Pemeriksaan Produk</Label>
+                                {Object.entries(productCheckFields).map(([key, label]) => (
+                                    <div key={key} id={key} className="flex flex-col gap-2">
+                                        <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
+                                        <div className={errorFields.has(key) ? 'outline-destructive rounded-xl outline outline-2' : ''}>
+                                            <ChipToggleGroup
+                                                name={label}
+                                                options={productCheckOptions}
+                                                value={data[key] ?? ''}
+                                                onChange={(value) => {
+                                                    setData(key, value);
+                                                    setErrorFields((prev) => {
+                                                        const n = new Set(prev);
+                                                        n.delete(key);
+                                                        return n;
+                                                    });
+                                                }}
+                                                disabled={isReadOnly}
+                                            />
+                                        </div>
+                                        <InputError message={errors[key]} />
+                                    </div>
+                                ))}
                             </div>
                             <div className="col-span-full flex flex-col gap-3">
                                 <Label className="text-foreground text-[13px] font-semibold">Pemeriksaan Format Coding</Label>

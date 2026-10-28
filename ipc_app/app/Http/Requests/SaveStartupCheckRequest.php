@@ -36,6 +36,8 @@ class SaveStartupCheckRequest extends FormRequest
             'coding_operator_na_primary' => ['nullable', 'boolean'],
             'coding_operator_na_secondary' => ['nullable', 'boolean'],
             'coding_operator_na_tersier' => ['nullable', 'boolean'],
+            'product_appearance_status' => ['required', 'in:'.implode(',', StartupCheck::PRODUCT_CHECK_OPTIONS)],
+            'product_leakage_test_status' => ['required', 'in:'.implode(',', StartupCheck::PRODUCT_CHECK_OPTIONS)],
             'line_leader_name' => ['nullable', 'string', 'max:255'],
             'operator_name' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],

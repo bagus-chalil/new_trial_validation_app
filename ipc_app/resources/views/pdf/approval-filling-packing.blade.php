@@ -17,10 +17,8 @@
     @include('pdf._startup-checklist')
 
     {{-- Pemeriksaan Format Coding / Berat Produk belong to the Start Up part of the paper form, so
-         they print right after it — before the Packing Inspection heading. --}}
-    @if ($side === 'packing' || $side === 'both')
-        @include('pdf._pemeriksaan-produk')
-    @endif
+         they print right after it — before the Filling / Packing Inspection headings (all three flows). --}}
+    @include('pdf._pemeriksaan-produk')
 
     @if ($side === 'filling' || $side === 'both')
     <div class="section-title" style="margin-top: 6px;">Verifikasi Sebelum Produksi</div>

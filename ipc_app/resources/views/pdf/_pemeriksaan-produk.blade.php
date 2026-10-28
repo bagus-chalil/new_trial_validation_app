@@ -1,13 +1,14 @@
 {{--
     "PEMERIKSAAN FORMAT CODING" + "PEMERIKSAAN BERAT PRODUK" — part of the Start Up section of the
-    paper forms (FR.QAC.182.03 / 193.00), so every value comes from Startup Check / Start
-    Inspection, not from Packing Check:
+    paper forms (FR.QAC.182.03 / 193.00):
       - Format Penulisan Coding / Operator (Actual Coding): startup_checks.coding_format_* and the
         per-tier coding photos.
       - Berat Masterbox: the Start Inspection weight_master_box samples (only for flows that have
         a Packing stage); Standar Berat Masterbox is the Std Bruto MB typed on Packing Check.
-      - Appearance / Uji Kebocoran / Uji Fungsional: the Startup Check's 30 PCS Appearance,
-        30 PCS Vacuum Test and Functional Test answers.
+      - Appearance / Uji Kebocoran: their own Startup Check inputs (product_appearance_status /
+        product_leakage_test_status), distinct from the numbered checklist's Vacuum Test and
+        Appearance, Coding, Attribute items. Uji Fungsional: the Packing Check's Primary
+        Functional Test, as before.
     Needs: $batch, $startupCheck, $startupInspection, $photoUrls.
 --}}
 <div class="section-title" style="margin-top: 4px;">Pemeriksaan Format Coding</div>
@@ -55,8 +56,10 @@
 
 <table>
     <tbody>
-        <tr><td style="width: 18%;"><strong>Appereance</strong></td><td>@include('pdf._status-pill', ['value' => $startupCheck?->sample_30pcs_appearance_status])</td></tr>
-        <tr><td><strong>Uji Kebocoran</strong></td><td>@include('pdf._status-pill', ['value' => $startupCheck?->sample_30pcs_vacuum_status])</td></tr>
-        <tr><td><strong>Uji Fungsional</strong></td><td>@include('pdf._status-pill', ['value' => $startupCheck?->functional_test_status])</td></tr>
+        <tr><td style="width: 18%;"><strong>Appereance</strong></td><td>@include('pdf._status-pill', ['value' => $startupCheck?->product_appearance_status])</td></tr>
+        <tr><td><strong>Uji Kebocoran</strong></td><td>@include('pdf._status-pill', ['value' => $startupCheck?->product_leakage_test_status])</td></tr>
+        @if ($batch->hasPackingStage())
+        <tr><td><strong>Uji Fungsional</strong></td><td>@include('pdf._status-pill', ['value' => $batch->packingCheck?->primary_functional_test_status])</td></tr>
+        @endif
     </tbody>
 </table>

@@ -53,6 +53,8 @@ class StartupCheckController extends Controller
             'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->startupCheck?->completed_at,
             'startupInspectionComplete' => (bool) $batch->startupInspection?->completed_at,
             'checklistGroups' => StartupCheck::checklistGroupsFor($batch),
+            'productCheckFields' => StartupCheck::PRODUCT_CHECK_FIELDS,
+            'productCheckOptions' => StartupCheck::PRODUCT_CHECK_OPTIONS,
             'validationReportOptions' => StartupCheck::VALIDATION_REPORT_OPTIONS,
             'lines' => MasterLine::query()->where('is_active', true)->orderBy('name')->get(['id', 'category', 'area', 'code', 'name']),
             'photoUrls' => $photoUrls,

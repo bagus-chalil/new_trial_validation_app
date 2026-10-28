@@ -55,10 +55,33 @@ class StartupCheckTest extends TestCase
             'density' => 1.05,
             'average_of_empty_bottle_weight' => 21.5,
             'heating' => 'Yes',
+            'product_appearance_status' => StartupCheck::STATUS_CONFORM,
+            'product_leakage_test_status' => StartupCheck::STATUS_CONFORM,
             'line_leader_name' => 'Budi',
             'operator_name' => 'Sari',
             'remarks' => 'OK',
         ];
+    }
+
+    public function test_product_appearance_and_leakage_are_required_and_saved(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        unset($payload['product_appearance_status'], $payload['product_leakage_test_status']);
+        $this->put("/batches/{$batch->id}/startup-check", $payload)
+            ->assertSessionHasErrors(['product_appearance_status', 'product_leakage_test_status']);
+
+        $this->put("/batches/{$batch->id}/startup-check", [
+            ...$this->validPayload(),
+            'product_appearance_status' => StartupCheck::STATUS_NOT_CONFORM,
+            'product_leakage_test_status' => StartupCheck::STATUS_NA,
+        ])->assertSessionHasNoErrors();
+
+        $startupCheck = $batch->fresh()->startupCheck;
+        $this->assertSame(StartupCheck::STATUS_NOT_CONFORM, $startupCheck->product_appearance_status);
+        $this->assertSame(StartupCheck::STATUS_NA, $startupCheck->product_leakage_test_status);
     }
 
     public function test_guests_are_redirected_to_the_login_page(): void

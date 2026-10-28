@@ -72,7 +72,7 @@ class StartupCheck extends Model
      */
     public const CONFORM_FIELDS = [
         'scan_bpom_status' => 'Scan Number NA with BPOM Mobile',
-        'sample_30pcs_vacuum_status' => '30 PCS Start Up Sample — Vacuum Test',
+        'sample_30pcs_vacuum_status' => 'Vacuum Test',
         'standard_weight_masterbox_status' => 'Standard Weight Masterbox',
     ];
 
@@ -83,9 +83,24 @@ class StartupCheck extends Model
      * @var array<string, string>
      */
     public const CONFORM_NA_FIELDS = [
-        'sample_30pcs_appearance_status' => '30 PCS Start Up Sample — Appearance, Coding, Attribute',
+        'sample_30pcs_appearance_status' => 'Appearance, Coding, Attribute',
         'functional_test_status' => 'Functional Test (5 PCS Sample)',
     ];
+
+    /**
+     * "Pemeriksaan Berat Produk" block of the paper forms — asked once on the Startup Check form
+     * as their own card, not part of the numbered checklist above (which has its own, different
+     * Vacuum Test / Appearance, Coding, Attribute items). Conform / Not Conform / N/A.
+     *
+     * @var array<string, string>
+     */
+    public const PRODUCT_CHECK_FIELDS = [
+        'product_appearance_status' => 'Appearance',
+        'product_leakage_test_status' => 'Uji Kebocoran',
+    ];
+
+    /** @var array<int, string> */
+    public const PRODUCT_CHECK_OPTIONS = [self::STATUS_CONFORM, self::STATUS_NOT_CONFORM, self::STATUS_NA];
 
     /** @var array<string, string> */
     public const PM_BOM_MATCH_FIELDS = [
@@ -174,6 +189,8 @@ class StartupCheck extends Model
         'coding_operator_na_primary',
         'coding_operator_na_secondary',
         'coding_operator_na_tersier',
+        'product_appearance_status',
+        'product_leakage_test_status',
         'line_leader_name',
         'operator_name',
         'remarks',
