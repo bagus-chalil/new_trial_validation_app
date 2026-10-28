@@ -13,12 +13,22 @@
          TH_PROGRESS save rounds (a feature with no equivalent on the blank paper form) can still
          spill onto a second page. --}}
     <div class="fp-compact">
+    {{-- $part (Packing + FG flow only): 'startup' = the Startup form (FR.QAC.182.03), 'packing' =
+         the Packing form (FR.QAC.193.00) - one paper form split in two, user decision 2026-10-28.
+         null = every other flow, unchanged. --}}
+    @php $part = $part ?? null; @endphp
+    @if ($part !== 'packing')
     <div class="section-title">Form Pemeriksaan Start Up</div>
     @include('pdf._startup-checklist')
 
     {{-- Pemeriksaan Format Coding / Berat Produk belong to the Start Up part of the paper form, so
          they print right after it — before the Filling / Packing Inspection headings (all three flows). --}}
     @include('pdf._pemeriksaan-produk')
+
+    @if ($part === 'startup')
+        @include('pdf._startup-two-sign')
+    @endif
+    @endif
 
     @if ($side === 'filling' || $side === 'both')
     <div class="section-title" style="margin-top: 6px;">Verifikasi Sebelum Produksi</div>
@@ -171,7 +181,7 @@
     @endif
     @endif
 
-    @if ($side === 'packing' || $side === 'both')
+    @if (($side === 'packing' || $side === 'both') && $part !== 'startup')
     <div class="section-title">Packing Inspection</div>
 
     @if ($packingCheck)
@@ -186,27 +196,14 @@
             <div><span>Data Timbang</span><strong>{{ $packingCheck->weighing_data ?? '—' }}</strong></div>
         </div>
 
-        {{-- FR.QAC.182.03's own sign-off: two signatures ("Prepared By (Line Leader Production)" /
-             "Review By (QC IPC)") at the very bottom of its page — see pdf._startup-checklist's own
-             comment for why this is split out from the shared 3-signature block it uses for Filling.
-             Same data source as that block's Review By / Verification By fields (line_leader_name /
-             the startup check's own verifier), just different roles/position for this form. --}}
-        <div class="sign-grid sign-grid--tight sign-grid--role-tight" style="margin: 6px 0;">
-            <div>
-                <span>Prepared By</span>
-                <strong>{{ $startupCheck->line_leader_name ?: '—' }}</strong>
-                <small class="role">Line Leader Production</small>
-            </div>
-            <div>
-                <span>Review By</span>
-                <strong>{{ $startupCheck->user->name ?? '—' }}</strong>
-                <small class="sign-date">{{ optional($startupCheck->completed_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
-                <small class="role">QC IPC</small>
-            </div>
-        </div>
+        @if ($part === null)
+            @include('pdf._startup-two-sign')
+        @endif
 
         <div class="section-title">Detail Pemeriksaan Kemasan (Primary / Secondary / Tersier)</div>
+        @if ($part !== 'packing')
         <p class="muted" style="font-size: 8px; margin-top: -4px;">Checklist 17-item ini mengikuti form gabungan FR.QAC.193.00 — tidak ada pada form FR.QAC.182.03 asli, namun datanya tetap ditampilkan di sini karena ini data inspeksi riil yang sudah tercatat di aplikasi.</p>
+        @endif
 
         @php
             // One column per TH_PROGRESS round, same rationale as Filling above — every draft
@@ -392,7 +389,9 @@
         if ($side === 'filling' || $side === 'both') {
             $signOffSections[] = ['label' => 'Filling', 'check' => $fillingCheck, 'approval' => $side === 'both' ? $fillingApproval : $reportApproval, 'qr' => $side === 'both' ? $fillingVerificationQr : $verificationQr];
         }
-        if ($side === 'packing' || $side === 'both') {
+        if ($part === 'startup') {
+            $signOffSections[] = ['label' => 'Startup', 'check' => $startupCheck, 'approval' => $reportApproval, 'qr' => $verificationQr];
+        } elseif ($side === 'packing' || $side === 'both') {
             $signOffSections[] = ['label' => 'Packing', 'check' => $packingCheck, 'approval' => $side === 'both' ? $packingApproval : $reportApproval, 'qr' => $side === 'both' ? $packingVerificationQr : $verificationQr];
         }
     @endphp

@@ -284,6 +284,11 @@ trait BuildsIpcReportPayloads
      */
     private function resolveReportPdf(IpcBatch $batch, string $stage): array
     {
+        // Packing + FG prints as 3 forms: Startup (FR.QAC.182.03), Packing (FR.QAC.193.00), Finished.
+        if ($batch->flow_type === IpcBatch::FLOW_PACKING_FG && in_array($stage, [IpcApproval::STAGE_STARTUP, IpcApproval::STAGE_PACKING], true)) {
+            return $this->resolvePackingFgPart($batch, $stage);
+        }
+
         return match ($stage) {
             IpcApproval::STAGE_STARTUP => [
                 'pdf.approval-startup',
@@ -418,5 +423,50 @@ trait BuildsIpcReportPayloads
             ],
             default => abort(404),
         };
+    }
+
+    /**
+     * Flow Packing + FG only: the old single Packing PDF split in two (user decision 2026-10-28).
+     * 'startup' = Form Pemeriksaan Start Up + Format Coding + Berat Produk, numbered
+     * FR.QAC.182.03 (the `startup` ipc_report_documents row); 'packing' =
+     * Packing Inspection + Detail Pemeriksaan Kemasan + history, numbered FR.QAC.193.00 (the
+     * `filling_packing_fg` row, same number as the Finished Good page that follows it).
+     *
+     * @return array{0: string, 1: array<string, mixed>, 2: string}
+     */
+    private function resolvePackingFgPart(IpcBatch $batch, string $part): array
+    {
+        $batch->load([
+            'startupCheck',
+            'startupCheck.user',
+            'startupInspection.items',
+            'startupInspection.samples',
+            ...$this->fillingPackingRelations(IpcApproval::STAGE_PACKING),
+            'approvals.approver',
+        ]);
+
+        $isStartup = $part === IpcApproval::STAGE_STARTUP;
+        $reportDocument = IpcReportDocument::forKey($isStartup ? IpcReportDocument::KEY_STARTUP : IpcReportDocument::KEY_FILLING_PACKING_FG);
+
+        $data = [
+            ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['startup', IpcApproval::STAGE_PACKING]), IpcApproval::STAGE_PACKING),
+            'part' => $part,
+            'packingRevisionPhotoUris' => $isStartup ? [] : $this->packingRevisionPhotoUris($batch),
+            'title' => $isStartup ? 'Form Start Up' : 'Form Packing',
+            'docNumber' => $reportDocument?->doc_number ?? ($isStartup ? 'FR.QAC.182.03' : 'FR.QAC.193.00'),
+            'docRevision' => $reportDocument?->revision ?? ($isStartup ? '03' : '0'),
+        ];
+
+        if ($isStartup) {
+            $data['reportApproval'] = IpcApproval::forReport($batch->approvals, IpcApproval::STAGE_STARTUP);
+            $data['verificationUrl'] = VerificationQrCode::url($batch, IpcApproval::STAGE_STARTUP);
+            $data['verificationQr'] = VerificationQrCode::svg($batch, IpcApproval::STAGE_STARTUP);
+        }
+
+        return [
+            'pdf.approval-filling-packing',
+            $data,
+            ($isStartup ? 'Startup-Form-' : 'Packing-Report-')."{$batch->no_batch}.pdf",
+        ];
     }
 }

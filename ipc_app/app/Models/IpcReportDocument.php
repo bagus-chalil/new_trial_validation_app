@@ -12,10 +12,14 @@ class IpcReportDocument extends Model
 
     public const KEY_FILLING_PACKING_FG = 'filling_packing_fg';
 
+    /** Startup form of the Packing + FG flow (FR.QAC.182.03). */
+    public const KEY_STARTUP = 'startup';
+
     public const REPORT_KEYS = [
         self::KEY_FILLING,
         self::KEY_PACKING,
         self::KEY_FILLING_PACKING_FG,
+        self::KEY_STARTUP,
     ];
 
     protected $fillable = [

@@ -147,10 +147,19 @@ class IpcApproval extends Model
      */
     public static function requiredStagesFor(IpcBatch $batch): array
     {
-        return array_values(array_filter(
+        $stages = array_values(array_filter(
             self::APPROVAL_REQUIRED_STAGES,
             fn (string $stage) => in_array($stage, $batch->activeStages(), true),
         ));
+
+        // Packing + FG prints as 3 separate forms — Startup (FR.QAC.182.03), Packing and Finished
+        // (FR.QAC.193.00), user decision 2026-10-28 — so Startup gets its own approval card there
+        // and gates Print like the other two. Every other flow is unchanged.
+        if ($batch->flow_type === IpcBatch::FLOW_PACKING_FG) {
+            array_unshift($stages, self::STAGE_STARTUP);
+        }
+
+        return $stages;
     }
 
     /**

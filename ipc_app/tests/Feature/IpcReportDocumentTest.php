@@ -16,9 +16,10 @@ class IpcReportDocumentTest extends TestCase
         $this->get('/masters/report-documents')->assertRedirect('/login');
     }
 
-    public function test_migration_seeds_the_three_real_report_documents(): void
+    public function test_migration_seeds_the_real_report_documents(): void
     {
-        $this->assertDatabaseCount('ipc_report_documents', 3);
+        $this->assertDatabaseCount('ipc_report_documents', 4);
+        $this->assertDatabaseHas('ipc_report_documents', ['report_key' => 'startup', 'doc_number' => 'FR.QAC.182.03', 'revision' => '03']);
         $this->assertDatabaseHas('ipc_report_documents', ['report_key' => 'filling', 'doc_number' => 'FR.QAC.192.02', 'revision' => '02']);
         $this->assertDatabaseHas('ipc_report_documents', ['report_key' => 'packing', 'doc_number' => 'FR.QAC.182.03', 'revision' => '03']);
         $this->assertDatabaseHas('ipc_report_documents', ['report_key' => 'filling_packing_fg', 'doc_number' => 'FR.QAC.193.00', 'revision' => '0']);
@@ -29,7 +30,7 @@ class IpcReportDocumentTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->get('/masters/report-documents')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('masters/report-documents/index')->has('reportDocuments', 3));
+            ->assertInertia(fn ($page) => $page->component('masters/report-documents/index')->has('reportDocuments', 4));
     }
 
     public function test_non_admin_is_forbidden(): void

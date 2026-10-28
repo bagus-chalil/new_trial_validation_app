@@ -21,6 +21,7 @@ const reportKeyLabels: Record<string, string> = {
     filling: 'Form Filling',
     packing: 'Form Packing',
     filling_packing_fg: 'Form Filling & Packing + FG',
+    startup: 'Form Start Up (alur Packing + FG)',
 };
 
 export default function IpcReportDocumentsIndex({ reportDocuments }: { reportDocuments: IpcReportDocument[] }) {

@@ -488,4 +488,44 @@ class PrintTest extends TestCase
 
         $this->assertSame(2, IpcPrintLog::query()->where('ipc_batch_id', $batch->id)->where('stage', 'startup')->count());
     }
+
+    // --- Flow Packing + FG: Startup (182.03) / Packing (193.00) / Finished are 3 separate forms ---
+
+    private function makePackingFgBatchAtPrintStage(): IpcBatch
+    {
+        $batch = $this->makeBatchAtPrintStage();
+        $batch->update(['flow_type' => IpcBatch::FLOW_PACKING_FG]);
+        $batch->fillingCheck()->delete();
+        $batch->approvals()->where('stage', IpcApproval::STAGE_FILLING)->delete();
+
+        return $batch->fresh();
+    }
+
+    public function test_packing_fg_flow_splits_startup_and_packing_into_separate_forms(): void
+    {
+        $batch = $this->makePackingFgBatchAtPrintStage();
+        $viewer = User::factory()->create();
+
+        $startup = $this->actingAs($viewer)->get("/batches/{$batch->id}/print/startup/preview")->assertOk()->getContent();
+        $this->assertStringContainsString('Form Start Up', $startup);
+        $this->assertStringContainsString('FR.QAC.182.03', $startup);
+        $this->assertStringContainsString('Form Pemeriksaan Start Up', $startup);
+        $this->assertStringNotContainsString('Packing Inspection', $startup);
+
+        $packing = $this->actingAs($viewer)->get("/batches/{$batch->id}/print/packing/preview")->assertOk()->getContent();
+        $this->assertStringContainsString('Form Packing', $packing);
+        $this->assertStringContainsString('FR.QAC.193.00', $packing);
+        $this->assertStringContainsString('Packing Inspection', $packing);
+        $this->assertStringNotContainsString('Form Pemeriksaan Start Up', $packing);
+    }
+
+    public function test_packing_fg_flow_requires_a_startup_approval_before_print(): void
+    {
+        $batch = $this->makePackingFgBatchAtPrintStage();
+
+        $this->assertSame(
+            [IpcApproval::STAGE_STARTUP, IpcApproval::STAGE_PACKING, IpcApproval::STAGE_FINISHED],
+            IpcApproval::requiredStagesFor($batch),
+        );
+    }
 }

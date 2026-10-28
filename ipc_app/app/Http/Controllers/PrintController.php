@@ -168,7 +168,7 @@ class PrintController extends Controller
         $isFull = $batch->flow_type === IpcBatch::FLOW_FULL;
         $baseStages = $isFull
             ? [IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING]
-            : [IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)];
+            : array_values(array_unique([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)]));
 
         $stages = collect($baseStages)->map(fn (string $stage) => [
             'stage' => $stage,

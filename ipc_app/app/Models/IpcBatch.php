@@ -372,7 +372,7 @@ class IpcBatch extends Model
                 $query->whereNotIn('current_stage', [self::STAGE_PRINT, self::STAGE_COMPLETED])
                     ->orWhereIn('id', IpcApproval::query()
                         ->select('ipc_batch_id')
-                        ->whereIn('stage', IpcApproval::APPROVAL_REQUIRED_STAGES)
+                        ->whereIn('stage', [...IpcApproval::APPROVAL_REQUIRED_STAGES, IpcApproval::STAGE_STARTUP])
                         ->where(fn ($q) => $q->where('decision', '!=', IpcApproval::DECISION_APPROVED)->orWhereNull('decision')));
             })
             // The flow's last required check stage must be done before a batch is even a
@@ -384,8 +384,12 @@ class IpcBatch extends Model
                 ->orWhere(fn ($q) => $q->where('flow_type', '!=', self::FLOW_FILLING)->whereHas('finishedCheck', $completed)))
             ->where(function ($query) use ($approvedFor, $completed) {
                 $query
+                    // Startup approval: only the Packing + FG flow, where Startup is its own form.
+                    ->where(fn ($q) => $q->where('flow_type', self::FLOW_PACKING_FG)
+                        ->whereHas('startupCheck', $completed)
+                        ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_STARTUP)))
                     // Filling approval: flows that have a Filling stage (Full, Filling).
-                    ->where(fn ($q) => $q->whereIn('flow_type', [self::FLOW_FULL, self::FLOW_FILLING])
+                    ->orWhere(fn ($q) => $q->whereIn('flow_type', [self::FLOW_FULL, self::FLOW_FILLING])
                         ->whereHas('fillingCheck', $completed)
                         ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_FILLING)))
                     // Packing approval: flows that have a Packing stage (Full, Packing + FG).
