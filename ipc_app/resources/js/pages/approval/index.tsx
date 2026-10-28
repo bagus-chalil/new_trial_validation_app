@@ -32,6 +32,11 @@ const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Dr
         icon: Package,
         description: 'In Process Control Inspection Report — Packing (output Finished Good).',
     },
+    filling_packing_fg: {
+        href: (id) => `/batches/${id}/approval/filling_packing_fg/print`,
+        icon: Package,
+        description: 'Form gabungan FR.QAC.193.00 — Filling + Packing dan halaman Finished Good (PDF).',
+    },
     finished: {
         href: (id) => `/batches/${id}/approval/finished`,
         icon: CheckCircle2,
@@ -57,10 +62,15 @@ function DecisionBadge({ approval }: { approval: ApprovalData | null }) {
 function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
     const meta = STAGE_META[stage.stage];
     const Icon = meta.icon;
+    // The combined Fillpack document has no decision of its own: it just opens the PDF.
+    const isDocument = stage.stage === 'filling_packing_fg';
+    const Wrapper = isDocument ? 'a' : Link;
+    const wrapperProps = isDocument ? { target: '_blank', rel: 'noreferrer' } : {};
 
     return (
-        <Link
+        <Wrapper
             href={meta.href(batchId)}
+            {...wrapperProps}
             className="border-border-soft bg-card group hover:border-primary/40 flex flex-col gap-3.5 rounded-[22px] border p-5 transition-colors"
         >
             <div className="flex items-start justify-between gap-3">
@@ -82,7 +92,7 @@ function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
             )}
 
             <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-                {!stage.approval?.decision && (
+                {!isDocument && !stage.approval?.decision && (
                     <span
                         className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold ${
                             stage.ready ? 'bg-blue-50 text-blue-700' : 'bg-muted text-muted-foreground'
@@ -93,11 +103,11 @@ function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
                     </span>
                 )}
                 <span className="text-primary ml-auto flex items-center gap-1 text-[13px] font-bold">
-                    Lihat Detail
+                    {isDocument ? 'Buka PDF' : 'Lihat Detail'}
                     <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.4} />
                 </span>
             </div>
-        </Link>
+        </Wrapper>
     );
 }
 

@@ -119,7 +119,7 @@ Route::middleware(['auth'])->group(function () {
             ->whereIn('stage', IpcApproval::STAGES)
             ->name('approval.update');
         Route::get('batches/{batch}/approval/{stage}/print', [ApprovalController::class, 'print'])
-            ->whereIn('stage', IpcApproval::STAGES)
+            ->whereIn('stage', [...IpcApproval::STAGES, IpcReportDocument::KEY_FILLING_PACKING_FG])
             ->name('approval.print');
     });
 

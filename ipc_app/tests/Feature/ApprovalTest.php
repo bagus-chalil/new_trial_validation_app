@@ -72,14 +72,28 @@ class ApprovalTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('approval/index')
-            ->has('stages', 3)
+            ->has('stages', 4)
             ->where('stages.0.stage', 'filling')
             ->where('stages.0.ready', true)
             ->where('stages.1.stage', 'packing')
             ->where('stages.1.ready', true)
             ->where('stages.2.stage', 'finished')
             ->where('stages.2.ready', true)
+            // Flow Lengkap also lists the combined FR.QAC.193.00 document (PDF only, no decision).
+            ->where('stages.3.stage', 'filling_packing_fg')
+            ->where('stages.3.approval', null)
         );
+    }
+
+    public function test_combined_fillpack_pdf_is_available_from_approval_for_the_full_flow(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+
+        $response = $this->actingAs(User::factory()->approver()->create())
+            ->get("/batches/{$batch->id}/approval/filling_packing_fg/print");
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('Content-Type'));
     }
 
     public function test_each_stage_has_its_own_detail_page(): void

@@ -169,13 +169,27 @@ class ApprovalController extends Controller
         // still reachable directly, this only removes its card from this list. Print's own
         // overview (PrintController::stagesSummary(), a separate method) is untouched — the user
         // scoped this to Approval only.
-        return collect(IpcApproval::requiredStagesFor($batch))
+        $stages = collect(IpcApproval::requiredStagesFor($batch))
             ->map(fn (string $stage) => [
                 'stage' => $stage,
                 'label' => IpcApproval::STAGE_LABELS[$stage],
                 'ready' => IpcApproval::stageReady($batch, $stage),
                 'approval' => $approvals->get($stage),
-            ])->values()->all();
+            ]);
+
+        // Flow Lengkap also has the combined FR.QAC.193.00 document (Filling + Packing page plus
+        // the landscape Finished Good page). It has no decision of its own — each stage above is
+        // still approved separately — so this is a PDF-only card, same as on the Print hub.
+        if ($batch->flow_type === IpcBatch::FLOW_FULL) {
+            $stages->push([
+                'stage' => IpcReportDocument::KEY_FILLING_PACKING_FG,
+                'label' => 'Filling & Packing (Gabungan)',
+                'ready' => true,
+                'approval' => null,
+            ]);
+        }
+
+        return $stages->values()->all();
     }
 
     /**
