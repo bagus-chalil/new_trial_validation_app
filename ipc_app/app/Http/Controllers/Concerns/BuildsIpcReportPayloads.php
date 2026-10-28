@@ -289,6 +289,11 @@ trait BuildsIpcReportPayloads
             return $this->resolvePackingFgPart($batch, $stage);
         }
 
+        // Flow Lengkap prints 2 forms: Startup (this one - no Filling Inspection) and Fillpack.
+        if ($batch->flow_type === IpcBatch::FLOW_FULL && $stage === IpcApproval::STAGE_STARTUP) {
+            return $this->resolveFullStartupForm($batch);
+        }
+
         return match ($stage) {
             IpcApproval::STAGE_STARTUP => [
                 'pdf.approval-startup',
@@ -414,7 +419,9 @@ trait BuildsIpcReportPayloads
                         'finishedApproval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
                         'finishedVerificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_FINISHED),
                         'packingRevisionPhotoUris' => $this->packingRevisionPhotoUris($batch),
-                        'title' => $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control Filling & Packing',
+                        // Header breaks before "Filling & Packing" so the long title stacks neatly on two lines.
+                        'title' => preg_replace('/\s+(Filling\s*&\s*Packing)$/i', "
+$1", $reportDocument?->title ?? 'Laporan Pemeriksaan In Process Control Filling & Packing'),
                         'docNumber' => $reportDocument?->doc_number ?? 'FR.QAC.193.00',
                         'docRevision' => $reportDocument?->revision ?? '0',
                     ];
@@ -467,6 +474,44 @@ trait BuildsIpcReportPayloads
             'pdf.approval-filling-packing',
             $data,
             ($isStartup ? 'Startup-Form-' : 'Packing-Report-')."{$batch->no_batch}.pdf",
+        ];
+    }
+
+    /**
+     * Flow Lengkap only: the Startup form split out of the Filling form (user decision
+     * 2026-10-28) - Form Pemeriksaan Start Up, Format Coding, Verifikasi Sebelum Produksi, then
+     * Pemeriksaan Berat Produk last; no Filling Inspection. Numbered FR.QAC.182.03 like the
+     * Packing + FG flow's Startup form (the shared `startup` ipc_report_documents row).
+     *
+     * @return array{0: string, 1: array<string, mixed>, 2: string}
+     */
+    private function resolveFullStartupForm(IpcBatch $batch): array
+    {
+        $batch->load([
+            'startupCheck',
+            'startupCheck.user',
+            'startupInspection.items',
+            'startupInspection.samples',
+            'approvals.approver',
+        ]);
+
+        $reportDocument = IpcReportDocument::forKey(IpcReportDocument::KEY_STARTUP);
+
+        return [
+            'pdf.approval-filling-packing',
+            [
+                ...$this->fillingPackingPayload($batch, $this->photoDataUris($batch, ['startup']), IpcApproval::STAGE_FILLING),
+                'part' => 'startup',
+                'startupWithVerifikasi' => true,
+                'packingRevisionPhotoUris' => [],
+                'reportApproval' => IpcApproval::forReport($batch->approvals, IpcApproval::STAGE_STARTUP),
+                'verificationUrl' => VerificationQrCode::url($batch, IpcApproval::STAGE_STARTUP),
+                'verificationQr' => VerificationQrCode::svg($batch, IpcApproval::STAGE_STARTUP),
+                'title' => 'Form Start Up',
+                'docNumber' => $reportDocument?->doc_number ?? 'FR.QAC.182.03',
+                'docRevision' => $reportDocument?->revision ?? '03',
+            ],
+            "Startup-Form-{$batch->no_batch}.pdf",
         ];
     }
 }

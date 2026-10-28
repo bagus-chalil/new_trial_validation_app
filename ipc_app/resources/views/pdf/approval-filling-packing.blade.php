@@ -23,14 +23,23 @@
 
     {{-- Pemeriksaan Format Coding / Berat Produk belong to the Start Up part of the paper form, so
          they print right after it — before the Filling / Packing Inspection headings (all three flows). --}}
-    @include('pdf._pemeriksaan-produk')
+    @if ($part === 'startup' && ($startupWithVerifikasi ?? false))
+        {{-- Flow Lengkap's Startup form: Verifikasi Sebelum Produksi sits above Pemeriksaan Berat
+             Produk, which comes last. --}}
+        @include('pdf._pemeriksaan-produk', ['produkSection' => 'coding'])
+        <div class="section-title" style="margin-top: 6px;">Verifikasi Sebelum Produksi</div>
+        @include('pdf._verifikasi-sebelum-produksi')
+        @include('pdf._pemeriksaan-produk', ['produkSection' => 'berat'])
+    @else
+        @include('pdf._pemeriksaan-produk')
+    @endif
 
-    @if ($part === 'startup')
+    @if ($part === 'startup' && $side === 'packing')
         @include('pdf._startup-two-sign')
     @endif
     @endif
 
-    @if ($side === 'filling' || $side === 'both')
+    @if (($side === 'filling' || $side === 'both') && $part !== 'startup')
     <div class="section-title" style="margin-top: 6px;">Verifikasi Sebelum Produksi</div>
     @include('pdf._verifikasi-sebelum-produksi')
 

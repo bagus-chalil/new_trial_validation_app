@@ -115,8 +115,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('batches/{batch}/approval/filling', [ApprovalController::class, 'filling'])->name('approval.filling');
         Route::get('batches/{batch}/approval/packing', [ApprovalController::class, 'packing'])->name('approval.packing');
         Route::get('batches/{batch}/approval/finished', [ApprovalController::class, 'finished'])->name('approval.finished');
+        Route::get('batches/{batch}/approval/filling_packing_fg', [ApprovalController::class, 'fillpack'])->name('approval.fillpack');
         Route::put('batches/{batch}/approval/{stage}', [ApprovalController::class, 'update'])
-            ->whereIn('stage', IpcApproval::STAGES)
+            ->whereIn('stage', [...IpcApproval::STAGES, IpcReportDocument::KEY_FILLING_PACKING_FG])
             ->name('approval.update');
         Route::get('batches/{batch}/approval/{stage}/print', [ApprovalController::class, 'print'])
             ->whereIn('stage', [...IpcApproval::STAGES, IpcReportDocument::KEY_FILLING_PACKING_FG])

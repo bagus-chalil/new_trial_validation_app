@@ -161,13 +161,13 @@ class PrintController extends Controller
     {
         $logsByStage = $batch->printLogs->groupBy('stage');
 
-        // Flow Lengkap prints as exactly three documents - Filling, Packing and Fillpack (the
-        // combined FR.QAC.193.00 = Filling+Packing page + landscape Finished Good page). Startup is
-        // embedded in the Filling/Packing forms and Finished Good lives inside Fillpack, so neither
-        // gets its own card there. Other flows keep their per-stage cards.
+        // Flow Lengkap prints as exactly two documents - Startup (no Filling Inspection) and Fillpack
+        // (the combined FR.QAC.193.00 = Filling+Packing page + landscape Finished Good page).
+        // Finished Good lives inside Fillpack, so it gets no card of its own. Other flows keep their
+        // per-stage cards.
         $isFull = $batch->flow_type === IpcBatch::FLOW_FULL;
         $baseStages = $isFull
-            ? [IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING]
+            ? [IpcApproval::STAGE_STARTUP]
             : array_values(array_unique([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)]));
 
         $stages = collect($baseStages)->map(fn (string $stage) => [

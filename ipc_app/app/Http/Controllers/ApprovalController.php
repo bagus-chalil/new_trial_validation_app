@@ -123,18 +123,45 @@ class ApprovalController extends Controller
         ]);
     }
 
+    /** Flow Lengkap: the one combined Fillpack + FG approval (decision applies to all three stages). */
+    public function fillpack(IpcBatch $batch): Response
+    {
+        $this->guardFinished($batch);
+        abort_unless($batch->flow_type === IpcBatch::FLOW_FULL, 404);
+
+        $batch->load(['masterProduct', 'masterLine', 'approvals.approver']);
+
+        return Inertia::render('approval/fillpack', [
+            'batch' => $batch,
+            'stage' => [
+                'stage' => IpcReportDocument::KEY_FILLING_PACKING_FG,
+                'label' => 'Filling, Packing & FG',
+                'ready' => IpcApproval::stageReady($batch, IpcReportDocument::KEY_FILLING_PACKING_FG),
+                'approval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
+            ],
+            'decisions' => IpcApproval::DECISIONS,
+        ]);
+    }
+
     public function update(SaveApprovalRequest $request, IpcBatch $batch, string $stage, SaveApproval $action): RedirectResponse
     {
         $this->guardFinished($batch);
         abort_unless(IpcApproval::stageReady($batch, $stage), 403, 'Tahap ini belum selesai, belum bisa di-approve.');
 
-        $action->handle($batch, $request->user(), $stage, $request->validated());
+        if ($stage === IpcReportDocument::KEY_FILLING_PACKING_FG) {
+            foreach ([IpcApproval::STAGE_FILLING, IpcApproval::STAGE_PACKING, IpcApproval::STAGE_FINISHED] as $part) {
+                $action->handle($batch, $request->user(), $part, $request->validated());
+            }
+        } else {
+            $action->handle($batch, $request->user(), $stage, $request->validated());
+        }
 
         $route = match ($stage) {
             IpcApproval::STAGE_STARTUP => 'approval.startup',
             IpcApproval::STAGE_FILLING => 'approval.filling',
             IpcApproval::STAGE_PACKING => 'approval.packing',
             IpcApproval::STAGE_FINISHED => 'approval.finished',
+            IpcReportDocument::KEY_FILLING_PACKING_FG => 'approval.fillpack',
             default => 'approval.edit',
         };
 
@@ -169,25 +196,19 @@ class ApprovalController extends Controller
         // still reachable directly, this only removes its card from this list. Print's own
         // overview (PrintController::stagesSummary(), a separate method) is untouched — the user
         // scoped this to Approval only.
-        $stages = collect(IpcApproval::requiredStagesFor($batch))
+        // Flow Lengkap approves 2 forms: Startup, and Fillpack + FG (one decision that is written
+        // to the Filling, Packing and Finished approvals alike - see update()).
+        $summaryStages = $batch->flow_type === IpcBatch::FLOW_FULL
+            ? [IpcApproval::STAGE_STARTUP, IpcReportDocument::KEY_FILLING_PACKING_FG]
+            : IpcApproval::requiredStagesFor($batch);
+
+        $stages = collect($summaryStages)
             ->map(fn (string $stage) => [
                 'stage' => $stage,
-                'label' => IpcApproval::STAGE_LABELS[$stage],
+                'label' => $stage === IpcReportDocument::KEY_FILLING_PACKING_FG ? 'Filling, Packing & FG' : IpcApproval::STAGE_LABELS[$stage],
                 'ready' => IpcApproval::stageReady($batch, $stage),
-                'approval' => $approvals->get($stage),
+                'approval' => $stage === IpcReportDocument::KEY_FILLING_PACKING_FG ? $approvals->get(IpcApproval::STAGE_FINISHED) : $approvals->get($stage),
             ]);
-
-        // Flow Lengkap also has the combined FR.QAC.193.00 document (Filling + Packing page plus
-        // the landscape Finished Good page). It has no decision of its own — each stage above is
-        // still approved separately — so this is a PDF-only card, same as on the Print hub.
-        if ($batch->flow_type === IpcBatch::FLOW_FULL) {
-            $stages->push([
-                'stage' => IpcReportDocument::KEY_FILLING_PACKING_FG,
-                'label' => 'Filling & Packing (Gabungan)',
-                'ready' => true,
-                'approval' => null,
-            ]);
-        }
 
         return $stages->values()->all();
     }

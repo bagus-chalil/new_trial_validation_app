@@ -384,8 +384,8 @@ class IpcBatch extends Model
                 ->orWhere(fn ($q) => $q->where('flow_type', '!=', self::FLOW_FILLING)->whereHas('finishedCheck', $completed)))
             ->where(function ($query) use ($approvedFor, $completed) {
                 $query
-                    // Startup approval: only the Packing + FG flow, where Startup is its own form.
-                    ->where(fn ($q) => $q->where('flow_type', self::FLOW_PACKING_FG)
+                    // Startup approval: Packing + FG and Lengkap, where Startup is its own form.
+                    ->where(fn ($q) => $q->whereIn('flow_type', [self::FLOW_PACKING_FG, self::FLOW_FULL])
                         ->whereHas('startupCheck', $completed)
                         ->whereDoesntHave('approvals', $approvedFor(IpcApproval::STAGE_STARTUP)))
                     // Filling approval: flows that have a Filling stage (Full, Filling).

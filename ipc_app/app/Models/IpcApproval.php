@@ -134,6 +134,11 @@ class IpcApproval extends Model
             // (the batch leaves the Finished stage at that point).
             self::STAGE_FINISHED => $batch->hasFinishedStage() && (bool) $batch->finishedCheck?->completed_at
                 && $batch->current_stage !== IpcBatch::STAGE_FINISHED,
+            // Flow Lengkap's combined Fillpack + FG form: one decision covering all three stages.
+            IpcReportDocument::KEY_FILLING_PACKING_FG => $batch->flow_type === IpcBatch::FLOW_FULL
+                && self::stageReady($batch, self::STAGE_FILLING)
+                && self::stageReady($batch, self::STAGE_PACKING)
+                && self::stageReady($batch, self::STAGE_FINISHED),
             default => false,
         };
     }
@@ -152,10 +157,10 @@ class IpcApproval extends Model
             fn (string $stage) => in_array($stage, $batch->activeStages(), true),
         ));
 
-        // Packing + FG prints as 3 separate forms — Startup (FR.QAC.182.03), Packing and Finished
-        // (FR.QAC.193.00), user decision 2026-10-28 — so Startup gets its own approval card there
+        // Packing + FG and Lengkap each print Startup as its own form - Startup (FR.QAC.182.03), Packing and Finished
+        // (FR.QAC.193.00), user decision 2026-10-28 - so Startup gets its own approval card there
         // and gates Print like the other two. Every other flow is unchanged.
-        if ($batch->flow_type === IpcBatch::FLOW_PACKING_FG) {
+        if (in_array($batch->flow_type, [IpcBatch::FLOW_PACKING_FG, IpcBatch::FLOW_FULL], true)) {
             array_unshift($stages, self::STAGE_STARTUP);
         }
 

@@ -11,6 +11,10 @@
         Functional Test, as before.
     Needs: $batch, $startupCheck, $startupInspection, $photoUrls.
 --}}
+{{-- $produkSection: 'all' (default) | 'coding' | 'berat' - the Full flow's Startup form puts
+     Verifikasi Sebelum Produksi between the two (user decision 2026-10-28). --}}
+@php $produkSection = $produkSection ?? 'all'; @endphp
+@if ($produkSection !== 'berat')
 <div class="section-title" style="margin-top: 4px;">Pemeriksaan Format Coding</div>
 <table>
     <thead>
@@ -43,6 +47,9 @@
     </tbody>
 </table>
 
+@endif
+
+@if ($produkSection !== 'coding')
 <div class="section-title">Pemeriksaan Berat Produk</div>
 @if ($batch->hasPackingStage())
     @php $weightSamplesByNo = $startupInspection?->samples->keyBy('sample_no') ?? collect(); @endphp
@@ -63,3 +70,4 @@
         @endif
     </tbody>
 </table>
+@endif

@@ -374,7 +374,7 @@
             @endif
         </div>
         <div>
-            <div class="title">{{ $title ?? 'Report' }}</div>
+            <div class="title">{!! nl2br(e($title ?? 'Report')) !!}</div>
             <div style="text-align:center;"><span class="approval-badge">Approval</span></div>
         </div>
         <div class="meta">

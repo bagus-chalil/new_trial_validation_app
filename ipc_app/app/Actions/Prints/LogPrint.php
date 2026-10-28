@@ -34,6 +34,8 @@ class LogPrint
                 ->distinct()
                 ->pluck('stage');
 
+            $logged = $printedStages;
+
             // Printing the combined Fillpack document (flow Lengkap) also covers Startup, Filling,
             // Packing and Finished Good - they are all inside it.
             if ($printedStages->contains(IpcReportDocument::KEY_FILLING_PACKING_FG)) {
@@ -45,7 +47,10 @@ class LogPrint
                 ]);
             }
 
-            $allPrinted = collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->every(fn ($s) => $printedStages->contains($s));
+            // Flow Lengkap prints 2 forms (Startup + Fillpack): both must have been printed.
+            $allPrinted = $batch->flow_type === IpcBatch::FLOW_FULL
+                ? $logged->contains(IpcApproval::STAGE_STARTUP) && $logged->contains(IpcReportDocument::KEY_FILLING_PACKING_FG)
+                : collect([IpcApproval::STAGE_STARTUP, ...IpcApproval::requiredStagesFor($batch)])->every(fn ($s) => $printedStages->contains($s));
 
             if ($allPrinted && $batch->current_stage === IpcBatch::STAGE_PRINT) {
                 $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);

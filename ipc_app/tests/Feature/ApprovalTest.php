@@ -72,16 +72,13 @@ class ApprovalTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('approval/index')
-            ->has('stages', 4)
-            ->where('stages.0.stage', 'filling')
+            // Flow Lengkap approves 2 forms: Startup, and Fillpack + FG (one decision for all three).
+            ->has('stages', 2)
+            ->where('stages.0.stage', 'startup')
             ->where('stages.0.ready', true)
-            ->where('stages.1.stage', 'packing')
+            ->where('stages.1.stage', 'filling_packing_fg')
             ->where('stages.1.ready', true)
-            ->where('stages.2.stage', 'finished')
-            ->where('stages.2.ready', true)
-            // Flow Lengkap also lists the combined FR.QAC.193.00 document (PDF only, no decision).
-            ->where('stages.3.stage', 'filling_packing_fg')
-            ->where('stages.3.approval', null)
+            ->where('stages.1.approval', null)
         );
     }
 
@@ -243,20 +240,19 @@ class ApprovalTest extends TestCase
         $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
     }
 
-    public function test_approving_filling_packing_and_finished_advances_batch_to_print_without_startup(): void
+    public function test_approving_startup_and_the_combined_fillpack_form_advances_batch_to_print(): void
     {
-        // Startup is hidden from the Approval overview, so it must not gate the batch —
-        // regression for batches stuck at Approval with every visible stage Approved.
         $batch = $this->makeBatchAtApprovalStage();
         $user = User::factory()->approver()->create();
 
-        foreach (IpcApproval::APPROVAL_REQUIRED_STAGES as $stage) {
-            $this->actingAs($user)
-                ->put("/batches/{$batch->id}/approval/{$stage}", ['decision' => 'Approved'])
-                ->assertRedirect();
-        }
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved'])->assertRedirect();
+        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
 
-        $this->assertDatabaseMissing('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => 'startup']);
+        $this->actingAs($user)->put("/batches/{$batch->id}/approval/filling_packing_fg", ['decision' => 'Approved'])->assertRedirect();
+
+        foreach (['filling', 'packing', 'finished'] as $stage) {
+            $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => $stage, 'decision' => 'Approved']);
+        }
         $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
     }
 
