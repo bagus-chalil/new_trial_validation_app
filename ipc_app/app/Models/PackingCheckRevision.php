@@ -27,6 +27,8 @@ class PackingCheckRevision extends Model
         'tersier_coding_batch_exp_status',
         'tersier_coding_na_status',
         'tersier_shipper_label_status',
+        'appearance_status',
+        'leakage_test_status',
         'standard_weight_mb',
         'sum_weight_mb',
         'remarks',

@@ -76,8 +76,8 @@ class SavePackingCheckRequest extends FormRequest
             'decision' => [$required, 'in:'.implode(',', PackingCheck::DECISIONS)],
         ];
 
-        // The 17 checklist items are wajib on every save, draft included (user, 2026-10-01).
-        foreach (PackingCheck::checklistGroups() as $group) {
+        // The 17 checklist items plus Appearance / Uji Kebocoran are wajib on every save, draft included (user, 2026-10-01).
+        foreach (PackingCheck::formGroups() as $group) {
             foreach (array_keys($group['fields']) as $field) {
                 $rules[$field] = ['required', 'in:'.implode(',', $group['options'])];
             }
@@ -105,7 +105,7 @@ class SavePackingCheckRequest extends FormRequest
                 // A draft save is meant to let QC record whatever it has so far — but a save with
                 // literally nothing filled in is not "progress," it's an empty row. Block that,
                 // same intent as the finalize-required checks below, just a much lower bar.
-                $checklistFields = collect(PackingCheck::checklistGroups())
+                $checklistFields = collect(PackingCheck::formGroups())
                     ->flatMap(fn ($group) => array_keys($group['fields']));
 
                 $hasAnyValue = filled($this->input('sum_weight_mb'))

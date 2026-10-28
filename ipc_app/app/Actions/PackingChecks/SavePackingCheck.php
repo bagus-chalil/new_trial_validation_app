@@ -126,7 +126,7 @@ class SavePackingCheck
      */
     private static function checklistFieldKeys(): array
     {
-        return collect(PackingCheck::checklistGroups())
+        return collect(PackingCheck::formGroups())
             ->flatMap(fn (array $group) => array_keys($group['fields']))
             ->all();
     }

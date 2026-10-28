@@ -236,12 +236,12 @@
 
         <table>
             <tbody>
-                {{-- No single aggregate Appearance / Uji Kebocoran / Uji Fungsional field exists on
-                     packing_checks — only the per-tier equivalents in the detailed checklist below
-                     (e.g. primary_functional_test_status). Left as a plain gap note rather than
-                     guessing which tier's value should stand in for the whole-form summary. --}}
-                <tr><td style="width: 18%;"><strong>Appereance</strong></td><td class="muted">— (lihat detail per tier di bawah)</td></tr>
-                <tr><td><strong>Uji Kebocoran</strong></td><td class="muted">— (tidak ditangkap terpisah)</td></tr>
+                {{-- Appearance / Uji Kebocoran are their own Packing Check inputs (appearance_status /
+                     leakage_test_status). A draft save blanks the live row, so fall back to the
+                     latest round's snapshot, same as the finalized row would hold. --}}
+                @php $latestPackingRound = $packingCheck->revisions->sortBy('revision_no')->last(); @endphp
+                <tr><td style="width: 18%;"><strong>Appereance</strong></td><td>@include('pdf._status-pill', ['value' => $packingCheck->appearance_status ?? $latestPackingRound?->appearance_status])</td></tr>
+                <tr><td><strong>Uji Kebocoran</strong></td><td>@include('pdf._status-pill', ['value' => $packingCheck->leakage_test_status ?? $latestPackingRound?->leakage_test_status])</td></tr>
                 <tr><td><strong>Uji Fungsional</strong></td><td>@include('pdf._status-pill', ['value' => $packingCheck->primary_functional_test_status ?? null])</td></tr>
             </tbody>
         </table>
