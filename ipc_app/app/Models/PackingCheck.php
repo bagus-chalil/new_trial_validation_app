@@ -65,18 +65,6 @@ class PackingCheck extends Model
         'tersier_shipper_label_status' => 'Shipper Label',
     ];
 
-    /**
-     * Whole-form results shown in the summary block of the Packing report (FR.QAC.182.03), asked
-     * on the Packing Check form as their own card. Not part of checklistGroups(): the per-tier
-     * grids on the report iterate that, and these two are not tier rows.
-     *
-     * @var array<string, string>
-     */
-    public const SUMMARY_FIELDS = [
-        'appearance_status' => 'Appearance',
-        'leakage_test_status' => 'Uji Kebocoran',
-    ];
-
     /** "Data Timbang" header field on the paper form. */
     public const WEIGHING_DATA_OPTIONS = ['Ada', 'Tidak Ada'];
 
@@ -98,24 +86,6 @@ class PackingCheck extends Model
             ['key' => 'primary', 'fields' => self::PRIMARY_FIELDS, 'options' => $options],
             ['key' => 'secondary', 'fields' => self::SECONDARY_FIELDS, 'options' => $options],
             ['key' => 'tersier', 'fields' => self::TERSIER_FIELDS, 'options' => $options],
-        ];
-    }
-
-    /**
-     * checklistGroups() plus the summary card — every group the Packing Check form asks and
-     * validates (tri-state, wajib on every save).
-     *
-     * @return list<array{key: string, fields: array<string, string>, options: array<int, string>}>
-     */
-    public static function formGroups(): array
-    {
-        return [
-            ...self::checklistGroups(),
-            [
-                'key' => 'summary',
-                'fields' => self::SUMMARY_FIELDS,
-                'options' => [self::STATUS_CONFORM, self::STATUS_NOT_CONFORM, self::STATUS_NA],
-            ],
         ];
     }
 
@@ -182,8 +152,6 @@ class PackingCheck extends Model
         'tersier_coding_batch_exp_status',
         'tersier_coding_na_status',
         'tersier_shipper_label_status',
-        'appearance_status',
-        'leakage_test_status',
         'standard_weight_mb',
         'sum_weight_mb',
         'line_leader_name',

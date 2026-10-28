@@ -16,6 +16,12 @@
     <div class="section-title">Form Pemeriksaan Start Up</div>
     @include('pdf._startup-checklist')
 
+    {{-- Pemeriksaan Format Coding / Berat Produk belong to the Start Up part of the paper form, so
+         they print right after it — before the Packing Inspection heading. --}}
+    @if ($side === 'packing' || $side === 'both')
+        @include('pdf._pemeriksaan-produk')
+    @endif
+
     @if ($side === 'filling' || $side === 'both')
     <div class="section-title" style="margin-top: 6px;">Verifikasi Sebelum Produksi</div>
     @include('pdf._verifikasi-sebelum-produksi')
@@ -181,70 +187,6 @@
             <div><span>Std Bruto MB</span><strong>{{ $packingCheck->standard_weight_mb ?? '—' }}</strong></div>
             <div><span>Data Timbang</span><strong>{{ $packingCheck->weighing_data ?? '—' }}</strong></div>
         </div>
-
-        <div class="section-title" style="margin-top: 4px;">Pemeriksaan Format Coding</div>
-        {{-- Format Penulisan Coding per tier = free text typed on Startup Check
-             (startup_checks.coding_format_*). Operator (Actual Coding) = the per-tier Startup
-             Check coding_primary/secondary/tersier photos (or N/A). --}}
-        <table>
-            <thead>
-                <tr><th style="width: 18%;">Keterangan</th><th>Primer</th><th>Sekunder</th><th>Tersier</th></tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Format Penulisan Coding dan Penjelasan</td>
-                    <td style="white-space: pre-line;">{{ $startupCheck?->coding_format_primary ?: '—' }}</td>
-                    <td style="white-space: pre-line;">{{ $startupCheck?->coding_format_secondary ?: '—' }}</td>
-                    <td style="white-space: pre-line;">{{ $startupCheck?->coding_format_tersier ?: '—' }}</td>
-                </tr>
-                <tr>
-                    <td>Operator (Actual Coding)</td>
-                    @foreach (['primary', 'secondary', 'tersier'] as $tier)
-                        @php $actualCodingPhoto = $photoUrls['startup']['coding_'.$tier] ?? null; @endphp
-                        <td style="text-align: center;">
-                            @if ($startupCheck?->{'coding_operator_na_'.$tier})
-                                N/A
-                            @elseif ($actualCodingPhoto)
-                                <img src="{{ $actualCodingPhoto }}" alt="Operator (Actual Coding) {{ $tier }}" style="max-height: 14mm; max-width: 100%;">
-                            @else
-                                <span class="muted">—</span>
-                            @endif
-                        </td>
-                    @endforeach
-                </tr>
-                <tr><td>Line Leader</td><td colspan="3">{{ $packingCheck->line_leader_name ?? '—' }}</td></tr>
-                <tr><td>QC IPC</td><td colspan="3">{{ $packingCheck->user->name ?? '—' }}</td></tr>
-            </tbody>
-        </table>
-
-        <div class="section-title">Pemeriksaan Berat Produk</div>
-        {{-- Standar Filling / Berat Filling and Standar Berat Masterbox / Berat Masterbox,
-             30-sample grids per the paper form's own numbering (see _packing-sample-grid). The
-             per-sample readings are the real StartupInspectionSample rows captured once at Start
-             Inspection (no separate per-sample weight capture exists on packing_checks itself —
-             only the aggregate standard_weight_mb/sum_weight_mb pair). --}}
-        {{-- Standar Filling / Berat Filling are not shown on the Packing report, direct user
-             request 2026-10-23. --}}
-        @php $weightSamplesByNo = $startupInspection?->samples->keyBy('sample_no') ?? collect(); @endphp
-
-        <table>
-            <tbody>
-                <tr><td style="width: 18%;"><strong>Standar Berat Masterbox</strong></td><td>{{ $packingCheck->standard_weight_mb ?? '—' }}</td></tr>
-            </tbody>
-        </table>
-        @include('pdf._packing-sample-grid', ['label' => 'Berat Masterbox', 'samplesByNo' => $weightSamplesByNo, 'field' => 'weight_master_box'])
-
-        <table>
-            <tbody>
-                {{-- Appearance / Uji Kebocoran are their own Packing Check inputs (appearance_status /
-                     leakage_test_status). A draft save blanks the live row, so fall back to the
-                     latest round's snapshot, same as the finalized row would hold. --}}
-                @php $latestPackingRound = $packingCheck->revisions->sortBy('revision_no')->last(); @endphp
-                <tr><td style="width: 18%;"><strong>Appereance</strong></td><td>@include('pdf._status-pill', ['value' => $packingCheck->appearance_status ?? $latestPackingRound?->appearance_status])</td></tr>
-                <tr><td><strong>Uji Kebocoran</strong></td><td>@include('pdf._status-pill', ['value' => $packingCheck->leakage_test_status ?? $latestPackingRound?->leakage_test_status])</td></tr>
-                <tr><td><strong>Uji Fungsional</strong></td><td>@include('pdf._status-pill', ['value' => $packingCheck->primary_functional_test_status ?? null])</td></tr>
-            </tbody>
-        </table>
 
         {{-- FR.QAC.182.03's own sign-off: two signatures ("Prepared By (Line Leader Production)" /
              "Review By (QC IPC)") at the very bottom of its page — see pdf._startup-checklist's own

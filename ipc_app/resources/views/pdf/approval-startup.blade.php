@@ -323,5 +323,8 @@
     @else
         <p class="muted">Start Inspection belum diisi (opsional).</p>
     @endif
+
+    @include('pdf._pemeriksaan-produk')
+
     @include('pdf._approval-remarks', ['approval' => $startupApproval])
 @endsection

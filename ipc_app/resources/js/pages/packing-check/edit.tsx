@@ -85,7 +85,6 @@ const GROUP_TITLES: Record<string, string> = {
     primary: 'Primary',
     secondary: 'Secondary',
     tersier: 'Tersier',
-    summary: 'Appearance & Uji Kebocoran',
 };
 
 const inputClass =

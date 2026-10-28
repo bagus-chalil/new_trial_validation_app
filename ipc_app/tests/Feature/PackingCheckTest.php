@@ -75,7 +75,7 @@ class PackingCheckTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         $checklist = [];
-        foreach (PackingCheck::formGroups() as $group) {
+        foreach (PackingCheck::checklistGroups() as $group) {
             $checklist = [...$checklist, ...array_fill_keys(array_keys($group['fields']), $group['options'][0])];
         }
 
@@ -641,33 +641,6 @@ class PackingCheckTest extends TestCase
 
         $this->put("/batches/{$batch->id}/packing-check", $payload)
             ->assertSessionHasErrors(['primary_capping_sealing_status', 'tersier_shipper_label_status']);
-    }
-
-    public function test_appearance_and_leakage_are_saved_snapshotted_and_required(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $batch = $this->makeBatchWithCompletedFillingCheck();
-        $this->seedPackingFinalizePrereqs($batch);
-
-        $payload = $this->validPayload();
-        unset($payload['appearance_status'], $payload['leakage_test_status']);
-        $this->put("/batches/{$batch->id}/packing-check", $payload)
-            ->assertSessionHasErrors(['appearance_status', 'leakage_test_status']);
-
-        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload([
-            'appearance_status' => PackingCheck::STATUS_NOT_CONFORM,
-            'leakage_test_status' => PackingCheck::STATUS_NA,
-        ]))->assertSessionHasNoErrors();
-
-        $packingCheck = $batch->fresh()->packingCheck;
-        $this->assertSame(PackingCheck::STATUS_NOT_CONFORM, $packingCheck->appearance_status);
-        $this->assertSame(PackingCheck::STATUS_NA, $packingCheck->leakage_test_status);
-        $revision = $packingCheck->revisions()->first();
-        $this->assertSame(PackingCheck::STATUS_NOT_CONFORM, $revision->appearance_status);
-        $this->assertSame(PackingCheck::STATUS_NA, $revision->leakage_test_status);
-
-        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['appearance_status' => 'Bogus']))
-            ->assertSessionHasErrors('appearance_status');
     }
 
     public function test_weighing_data_is_required_to_finalize_and_must_be_ada_or_tidak_ada(): void

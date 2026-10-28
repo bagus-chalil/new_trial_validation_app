@@ -75,7 +75,7 @@ class PackingCheckController extends Controller
             'batch' => $batch,
             'packingCheck' => $batch->packingCheck,
             'isReadOnly' => ! Gate::allows('update', $batch) || (bool) $batch->packingCheck?->completed_at,
-            'checklistGroups' => PackingCheck::formGroups(),
+            'checklistGroups' => PackingCheck::checklistGroups(),
             'decisions' => PackingCheck::DECISIONS,
             'weighingDataOptions' => PackingCheck::WEIGHING_DATA_OPTIONS,
             'photoUrls' => $photoUrls,
