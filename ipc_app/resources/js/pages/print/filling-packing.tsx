@@ -77,6 +77,7 @@ interface StartupCheckSlice {
     line_leader_name: string | null;
     density: string | null;
     density_not_applicable?: boolean;
+    [key: string]: unknown;
 }
 
 export default function PrintFillingPacking({
@@ -174,6 +175,46 @@ export default function PrintFillingPacking({
                             )}
                             renderRemarks={(rev) => rev.remarks}
                         />
+                    )}
+
+                    {side === 'packing' && startupCheck && (
+                        <AccordionCard title="Pemeriksaan Format Coding" defaultOpen={false}>
+                            {(['primary', 'secondary', 'tersier'] as const).map((tier) => {
+                                const title = { primary: 'Primer', secondary: 'Sekunder', tersier: 'Tersier' }[tier];
+                                const format = startupCheck[`coding_format_${tier}`] as string | null | undefined;
+                                const notApplicable = Boolean(startupCheck[`coding_operator_na_${tier}`]);
+
+                                return (
+                                    <div key={tier} className="border-border col-span-full grid gap-3 rounded-xl border p-3 md:grid-cols-2">
+                                        <p className="text-sm font-bold md:col-span-2">{title}</p>
+                                        <div>
+                                            <p className="text-muted-foreground/70 text-[10.5px] font-semibold tracking-wide uppercase">
+                                                Format Penulisan Coding dan Penjelasan
+                                            </p>
+                                            <p className="mt-0.5 text-[13.5px] font-bold whitespace-pre-line">{format || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground/70 mb-1 text-[10.5px] font-semibold tracking-wide uppercase">
+                                                Operator (Actual Coding)
+                                            </p>
+                                            {notApplicable ? (
+                                                <p className="text-[13.5px] font-bold">N/A</p>
+                                            ) : (
+                                                <PhotoRow
+                                                    photos={[
+                                                        {
+                                                            key: `coding_${tier}`,
+                                                            label: `Coding ${title}`,
+                                                            url: photoUrls.startup?.[`coding_${tier}`] ?? null,
+                                                        },
+                                                    ]}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </AccordionCard>
                     )}
 
                     {side === 'packing' &&

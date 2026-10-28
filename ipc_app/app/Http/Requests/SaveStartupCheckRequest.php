@@ -30,6 +30,12 @@ class SaveStartupCheckRequest extends FormRequest
             // screen's own single input box for AVERAGE_OF_EMPTY_BOTTLE_WEIGHT.
             'average_of_empty_bottle_weight' => ['required', 'numeric', 'decimal:0,2', 'min:0'],
             'heating' => ['nullable', 'string', 'max:255'],
+            'coding_format_primary' => ['nullable', 'string', 'max:1000'],
+            'coding_format_secondary' => ['nullable', 'string', 'max:1000'],
+            'coding_format_tersier' => ['nullable', 'string', 'max:1000'],
+            'coding_operator_na_primary' => ['nullable', 'boolean'],
+            'coding_operator_na_secondary' => ['nullable', 'boolean'],
+            'coding_operator_na_tersier' => ['nullable', 'boolean'],
             'line_leader_name' => ['nullable', 'string', 'max:255'],
             'operator_name' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],

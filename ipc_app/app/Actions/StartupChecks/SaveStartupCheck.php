@@ -25,6 +25,10 @@ class SaveStartupCheck
             $data['density'] = null;
         }
 
+        foreach (['primary', 'secondary', 'tersier'] as $tier) {
+            $data["coding_operator_na_{$tier}"] = (bool) ($data["coding_operator_na_{$tier}"] ?? false);
+        }
+
         return DB::transaction(function () use ($batch, $user, $data, $mixingDate, $expDate, $masterLineId) {
             $startupCheck = StartupCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],

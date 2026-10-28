@@ -167,6 +167,26 @@ class StartupCheckTest extends TestCase
         $this->assertSame('N/A', $batch->startupCheck()->first()->heating);
     }
 
+    public function test_coding_format_is_free_text_per_tier_and_can_be_na(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [
+            ...$this->validPayload(),
+            'coding_format_primary' => 'BN: 123 / EXP: 08-2028',
+            'coding_format_secondary' => 'N/A',
+            'coding_operator_na_primary' => true,
+        ])->assertRedirect("/batches/{$batch->id}");
+
+        $check = $batch->startupCheck()->first();
+        $this->assertSame('BN: 123 / EXP: 08-2028', $check->coding_format_primary);
+        $this->assertSame('N/A', $check->coding_format_secondary);
+        $this->assertNull($check->coding_format_tersier);
+        $this->assertTrue($check->coding_operator_na_primary);
+        $this->assertFalse($check->coding_operator_na_secondary);
+    }
+
     public function test_density_can_be_marked_not_applicable(): void
     {
         $this->actingAs(User::factory()->create());

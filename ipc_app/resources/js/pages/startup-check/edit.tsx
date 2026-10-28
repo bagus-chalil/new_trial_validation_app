@@ -48,9 +48,22 @@ interface StartupCheckData {
 const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
     { key: 'im_number', label: 'IM Number' },
     { key: 'color', label: 'Color' },
-    { key: 'coding', label: 'Coding (Primer, Sekunder, Tersier)' },
     { key: 'temperature_setting', label: 'Temperature Setting', multi: true },
 ];
+
+// "Pemeriksaan Format Coding" block, one stacked row per tier: free-text format + actual-coding photo.
+const CODING_TIERS: { tier: 'primary' | 'secondary' | 'tersier'; title: string }[] = [
+    { tier: 'primary', title: 'Primer' },
+    { tier: 'secondary', title: 'Sekunder' },
+    { tier: 'tersier', title: 'Tersier' },
+];
+
+function cameraTitle(field: string | null): string {
+    const base = PHOTO_FIELDS.find((f) => f.key === field)?.label;
+    if (base) return base;
+    const tier = CODING_TIERS.find((c) => `coding_${c.tier}` === field);
+    return tier ? `Operator (Actual Coding) ${tier.title}` : '';
+}
 
 function formatDateTime(value: string): string {
     return new Date(value).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -130,6 +143,12 @@ export default function StartupCheckEdit({
         density_not_applicable: startupCheck?.density_not_applicable ? '1' : '0',
         average_of_empty_bottle_weight: (startupCheck?.average_of_empty_bottle_weight as string) ?? '',
         heating: (startupCheck?.heating as string) ?? '',
+        coding_format_primary: (startupCheck?.coding_format_primary as string) ?? '',
+        coding_format_secondary: (startupCheck?.coding_format_secondary as string) ?? '',
+        coding_format_tersier: (startupCheck?.coding_format_tersier as string) ?? '',
+        coding_operator_na_primary: startupCheck?.coding_operator_na_primary ? '1' : '0',
+        coding_operator_na_secondary: startupCheck?.coding_operator_na_secondary ? '1' : '0',
+        coding_operator_na_tersier: startupCheck?.coding_operator_na_tersier ? '1' : '0',
         line_leader_name: (startupCheck?.line_leader_name as string) ?? '',
         operator_name: (startupCheck?.operator_name as string) ?? '',
         remarks: (startupCheck?.remarks as string) ?? '',
@@ -138,6 +157,10 @@ export default function StartupCheckEdit({
     const densityNotApplicable = data.density_not_applicable === '1';
     // Heating is free text; "N/A" is stored as that literal value.
     const heatingNotApplicable = data.heating === 'N/A';
+    const naButtonClass = (active: boolean) =>
+        `h-[46px] shrink-0 rounded-xl border-[1.5px] px-4 text-[13.5px] font-bold transition-colors disabled:opacity-60 ${
+            active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground'
+        }`;
 
     const allChecklistKeys = useMemo(() => checklistGroups.flatMap((group) => Object.keys(group.fields)), [checklistGroups]);
     const answeredCount = allChecklistKeys.filter((key) => data[key]).length;
@@ -505,6 +528,79 @@ export default function StartupCheckEdit({
                                 </div>
                                 <InputError message={errors.validation_report_status} />
                             </div>
+                            <div className="col-span-full flex flex-col gap-3">
+                                <Label className="text-foreground text-[13px] font-semibold">Pemeriksaan Format Coding</Label>
+                                {CODING_TIERS.map(({ tier, title }) => {
+                                    const formatKey = `coding_format_${tier}`;
+                                    const naKey = `coding_operator_na_${tier}`;
+                                    const photoKey = `coding_${tier}`;
+                                    const photoUrl = photoUrls[photoKey] as string | null;
+                                    const formatNa = data[formatKey] === 'N/A';
+                                    const photoNa = data[naKey] === '1';
+
+                                    return (
+                                        <div key={tier} className="border-border grid gap-4 rounded-xl border p-4 md:grid-cols-2">
+                                            <p className="text-sm font-bold md:col-span-2">{title}</p>
+                                            <div className="flex flex-col gap-2">
+                                                <Label htmlFor={formatKey} className="text-muted-foreground text-xs font-semibold">
+                                                    Format Penulisan Coding dan Penjelasan
+                                                </Label>
+                                                <div className="flex items-start gap-2">
+                                                    <Textarea
+                                                        id={formatKey}
+                                                        rows={4}
+                                                        className="border-border bg-background flex-1 resize-y rounded-xl border-[1.5px] text-[14.5px] font-semibold"
+                                                        value={data[formatKey] ?? ''}
+                                                        onChange={(e) => setData(formatKey, e.target.value)}
+                                                        disabled={isReadOnly || formatNa}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        aria-pressed={formatNa}
+                                                        onClick={() => setData(formatKey, formatNa ? '' : 'N/A')}
+                                                        disabled={isReadOnly}
+                                                        className={naButtonClass(formatNa)}
+                                                    >
+                                                        N/A
+                                                    </button>
+                                                </div>
+                                                <InputError message={errors[formatKey]} />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <Label className="text-muted-foreground text-xs font-semibold">Operator (Actual Coding)</Label>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        disabled={isReadOnly || photoNa}
+                                                        onClick={() => setCameraField(photoKey)}
+                                                        className="border-border bg-background flex h-[46px] flex-1 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        <Camera className="size-4" strokeWidth={2.2} />
+                                                        {photoUrl ? 'Ganti Foto' : 'Ambil Foto'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-pressed={photoNa}
+                                                        onClick={() => setData(naKey, photoNa ? '0' : '1')}
+                                                        disabled={isReadOnly}
+                                                        className={naButtonClass(photoNa)}
+                                                    >
+                                                        N/A
+                                                    </button>
+                                                </div>
+                                                {photoUrl && !photoNa && (
+                                                    <PhotoLightbox
+                                                        src={photoUrl}
+                                                        alt={`Foto Operator (Actual Coding) ${title}`}
+                                                        triggerClassName="h-24 w-24"
+                                                        imageClassName="border-border h-full w-full rounded-xl border object-cover"
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                             <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                 {PHOTO_FIELDS.map(({ key, label, multi }) => {
                                     const raw = photoUrls[key];
@@ -514,15 +610,17 @@ export default function StartupCheckEdit({
                                     return (
                                         <div key={key} className="flex flex-col gap-2">
                                             <Label className="text-muted-foreground text-xs font-semibold">{label}</Label>
-                                            <button
-                                                type="button"
-                                                disabled={isReadOnly}
-                                                onClick={() => setCameraField(key)}
-                                                className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                <Camera className="size-4" strokeWidth={2.2} />
-                                                {multi ? 'Tambah Foto' : singleUrl ? 'Ganti Foto' : 'Ambil Foto'}
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    disabled={isReadOnly}
+                                                    onClick={() => setCameraField(key)}
+                                                    className="border-border bg-background flex h-[46px] flex-1 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    <Camera className="size-4" strokeWidth={2.2} />
+                                                    {multi ? 'Tambah Foto' : singleUrl ? 'Ganti Foto' : 'Ambil Foto'}
+                                                </button>
+                                            </div>
                                             {multi
                                                 ? multiPhotos!.length > 0 && (
                                                       <div className="flex flex-wrap gap-2">
@@ -595,7 +693,7 @@ export default function StartupCheckEdit({
                 onCapture={(file) => {
                     if (cameraField) uploadPhoto(cameraField, file);
                 }}
-                title={`Ambil Foto ${PHOTO_FIELDS.find((f) => f.key === cameraField)?.label ?? ''}`}
+                title={`Ambil Foto ${cameraTitle(cameraField)}`}
             />
         </IpcShell>
     );

@@ -18,7 +18,7 @@ use Inertia\Response;
 class StartupCheckController extends Controller
 {
     /** Field labels for the four camera-only fields on this stage — see StartupCheck migration note. */
-    public const PHOTO_FIELDS = ['im_number', 'color', 'temperature_setting', 'coding'];
+    public const PHOTO_FIELDS = ['im_number', 'color', 'temperature_setting', 'coding_primary', 'coding_secondary', 'coding_tersier'];
 
     /** Fields that support multiple photos (accumulate instead of replace). */
     private const MULTI_PHOTO_FIELDS = ['temperature_setting'];

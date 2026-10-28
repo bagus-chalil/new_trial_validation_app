@@ -17,7 +17,7 @@
          FG/Kode Bulk/No Batch block — all 3 are real ipc_attachments photo fields on
          startup_checks (im_number/color/coding), same source data approval-startup.blade.php's
          own copy of this header already uses, just not previously rendered on this document. --}}
-    <div class="photo-groups">
+    <div class="photo-groups" style="grid-template-columns: repeat(3, 1fr);">
         <div class="photo-group">
             <div class="photo-group-title">IM Number</div>
             <div class="attachment-grid attachment-grid--cols-1">
@@ -33,8 +33,8 @@
 
         <div class="photo-group">
             <div class="photo-group-title">Lampirkan Label / Warna Dibawah Ini</div>
-            <div class="attachment-grid attachment-grid--cols-2">
-                @foreach ([['color', 'Warna'], ['coding', 'Hasil Coding (Primer, Sekunder, Tersier)']] as [$field, $label])
+            <div class="attachment-grid attachment-grid--cols-1">
+                @foreach ([['color', 'Warna']] as [$field, $label])
                     <figure class="attachment-tile attachment-tile--sm">
                         @if ($photoUrls['startup'][$field] ?? null)
                             <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
@@ -44,6 +44,29 @@
                         <figcaption><strong>{{ $label }}</strong></figcaption>
                     </figure>
                 @endforeach
+            </div>
+        </div>
+
+    @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
+        <div class="photo-group">
+            <div class="photo-group-title">Temperature Setting</div>
+            <div class="attachment-grid attachment-grid--cols-2">
+                @forelse ($tempPhotos as $i => $tempUrl)
+                    <figure class="attachment-tile attachment-tile--sm">
+                        @if ($tempUrl)
+                            <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
+                        @else
+                            <div class="placeholder">Belum ada foto</div>
+                        @endif
+                        @if (count($tempPhotos) > 1)
+                            <figcaption><strong>Foto {{ $i + 1 }}</strong></figcaption>
+                        @endif
+                    </figure>
+                @empty
+                    <figure class="attachment-tile attachment-tile--sm">
+                        <div class="placeholder">Belum ada foto</div>
+                    </figure>
+                @endforelse
             </div>
         </div>
     </div>

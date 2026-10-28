@@ -15,7 +15,7 @@
              "Attach Label and Color check actual in this area" heading, and Temperature Setting
              is its own separate section — mirrored here as 3 headed groups (still full-width, not
              squeezed into a narrow column, so every tile stays legible per the prior feedback). --}}
-        <div class="photo-groups">
+        <div class="photo-groups" style="grid-template-columns: repeat(3, 1fr);">
             <div class="photo-group">
                 <div class="photo-group-title">IM Number</div>
                 <div class="attachment-grid attachment-grid--cols-1">
@@ -31,8 +31,8 @@
 
             <div class="photo-group">
                 <div class="photo-group-title">Attach Label and Color Check Actual in This Area</div>
-                <div class="attachment-grid attachment-grid--cols-2">
-                    @foreach ([['color', 'Color'], ['coding', 'Coding Actual (Primer, Sekunder, Tersier)']] as [$field, $label])
+                <div class="attachment-grid attachment-grid--cols-1">
+                    @foreach ([['color', 'Color']] as [$field, $label])
                         <figure class="attachment-tile">
                             @if ($photoUrls['startup'][$field] ?? null)
                                 <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">
@@ -44,31 +44,31 @@
                     @endforeach
                 </div>
             </div>
-        </div>
 
-        <div class="photo-group">
-            <div class="photo-group-title">Temperature Setting</div>
-            {{-- temperature_setting: multi-photo, render one tile per photo --}}
-            @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
-            <div class="attachment-grid">
-                @if (count($tempPhotos) === 0)
-                    <figure class="attachment-tile">
-                        <div class="placeholder">Belum ada foto</div>
-                    </figure>
-                @else
-                    @foreach ($tempPhotos as $i => $tempUrl)
+            <div class="photo-group">
+                <div class="photo-group-title">Temperature Setting</div>
+                {{-- temperature_setting: multi-photo, render one tile per photo --}}
+                @php $tempPhotos = $photoUrls['startup']['temperature_setting'] ?? []; @endphp
+                <div class="attachment-grid attachment-grid--cols-2">
+                    @if (count($tempPhotos) === 0)
                         <figure class="attachment-tile">
-                            @if ($tempUrl)
-                                <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
-                            @else
-                                <div class="placeholder">Belum ada foto</div>
-                            @endif
-                            @if (count($tempPhotos) > 1)
-                                <figcaption><strong>Foto {{ $i + 1 }}</strong></figcaption>
-                            @endif
+                            <div class="placeholder">Belum ada foto</div>
                         </figure>
-                    @endforeach
-                @endif
+                    @else
+                        @foreach ($tempPhotos as $i => $tempUrl)
+                            <figure class="attachment-tile">
+                                @if ($tempUrl)
+                                    <img src="{{ $tempUrl }}" alt="Temperature Setting {{ $i + 1 }}">
+                                @else
+                                    <div class="placeholder">Belum ada foto</div>
+                                @endif
+                                @if (count($tempPhotos) > 1)
+                                    <figcaption><strong>Foto {{ $i + 1 }}</strong></figcaption>
+                                @endif
+                            </figure>
+                        @endforeach
+                    @endif
+                </div>
             </div>
         </div>
 

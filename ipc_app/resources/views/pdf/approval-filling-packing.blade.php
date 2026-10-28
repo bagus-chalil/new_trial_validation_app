@@ -183,23 +183,39 @@
         </div>
 
         <div class="section-title" style="margin-top: 4px;">Pemeriksaan Format Coding</div>
-        {{-- No field on packing_checks captures coding-format text (Format Penulisan Coding,
-             Operator/Line Leader/QC IPC per tier, Paraf) — only coding_machine (shown above) and
-             the per-tier coding-batch-exp photos (rendered in the checklist table below) exist.
-             Rendered with the paper form's real row/column shape so a reviewer sees the expected
-             structure rather than a missing section, with an explicit note on what's uncaptured. --}}
+        {{-- Format Penulisan Coding per tier = free text typed on Startup Check
+             (startup_checks.coding_format_*). Operator (Actual Coding) = the per-tier Startup
+             Check coding_primary/secondary/tersier photos (or N/A). --}}
         <table>
             <thead>
                 <tr><th style="width: 18%;">Keterangan</th><th>Primer</th><th>Sekunder</th><th>Tersier</th></tr>
             </thead>
             <tbody>
-                <tr><td>Format Penulisan Coding dan Penjelasan</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td></tr>
-                <tr><td>Operator (Actual Coding)</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td></tr>
+                <tr>
+                    <td>Format Penulisan Coding dan Penjelasan</td>
+                    <td style="white-space: pre-line;">{{ $startupCheck?->coding_format_primary ?: '—' }}</td>
+                    <td style="white-space: pre-line;">{{ $startupCheck?->coding_format_secondary ?: '—' }}</td>
+                    <td style="white-space: pre-line;">{{ $startupCheck?->coding_format_tersier ?: '—' }}</td>
+                </tr>
+                <tr>
+                    <td>Operator (Actual Coding)</td>
+                    @foreach (['primary', 'secondary', 'tersier'] as $tier)
+                        @php $actualCodingPhoto = $photoUrls['startup']['coding_'.$tier] ?? null; @endphp
+                        <td style="text-align: center;">
+                            @if ($startupCheck?->{'coding_operator_na_'.$tier})
+                                N/A
+                            @elseif ($actualCodingPhoto)
+                                <img src="{{ $actualCodingPhoto }}" alt="Operator (Actual Coding) {{ $tier }}" style="max-height: 14mm; max-width: 100%;">
+                            @else
+                                <span class="muted">—</span>
+                            @endif
+                        </td>
+                    @endforeach
+                </tr>
                 <tr><td>Line Leader</td><td colspan="3">{{ $packingCheck->line_leader_name ?? '—' }}</td></tr>
                 <tr><td>QC IPC</td><td colspan="3">{{ $packingCheck->user->name ?? '—' }}</td></tr>
             </tbody>
         </table>
-        <p class="muted" style="font-size: 8px;">Format penulisan coding per tier dan paraf operator belum ditangkap sebagai data terstruktur di aplikasi ini — lihat foto Coding Batch & EXP pada tabel checklist di bawah.</p>
 
         <div class="section-title">Pemeriksaan Berat Produk</div>
         {{-- Standar Filling / Berat Filling and Standar Berat Masterbox / Berat Masterbox,

@@ -24,7 +24,13 @@
                 @endif
                 @for ($col = 0; $col < 10; $col++)
                     @php $sampleNo = $col * 3 + $row + 1; @endphp
-                    <td class="center">{{ $samplesByNo[$sampleNo]->{$field} ?? '—' }}</td>
+                    {{-- Sample number sits top-left like the paper form's own cell numbering, the value to its right. --}}
+                    <td>
+                        <div style="display: flex; justify-content: space-between; gap: 2px;">
+                            <span class="muted" style="font-size: 6px;">{{ $sampleNo }}</span>
+                            <span>{{ $samplesByNo[$sampleNo]->{$field} ?? '—' }}</span>
+                        </div>
+                    </td>
                 @endfor
             </tr>
         @endfor

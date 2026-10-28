@@ -94,7 +94,7 @@ class ApprovalController extends Controller
             'batch' => $batch,
             'stage' => $this->stageInfo($batch, $side),
             'decisions' => IpcApproval::DECISIONS,
-            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, [$side]), $side),
+            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, ['startup', $side]), $side),
         ]);
     }
 

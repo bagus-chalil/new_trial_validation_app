@@ -111,7 +111,9 @@ export default function PrintStartup({
                         photos={[
                             { key: 'im_number', label: 'IM Number', url: photoUrls.startup?.im_number ?? null },
                             { key: 'color', label: 'Color', url: photoUrls.startup?.color ?? null },
-                            { key: 'coding', label: 'Coding (Primer, Sekunder, Tersier)', url: photoUrls.startup?.coding ?? null },
+                            { key: 'coding_primary', label: 'Coding Actual — Primer', url: photoUrls.startup?.coding_primary ?? null },
+                            { key: 'coding_secondary', label: 'Coding Actual — Sekunder', url: photoUrls.startup?.coding_secondary ?? null },
+                            { key: 'coding_tersier', label: 'Coding Actual — Tersier', url: photoUrls.startup?.coding_tersier ?? null },
                             { key: 'temperature_setting', label: 'Temperature Setting', url: photoUrls.startup?.temperature_setting ?? null },
                         ]}
                     />

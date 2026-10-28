@@ -89,7 +89,7 @@ class PrintController extends Controller
         return Inertia::render('print/filling-packing', [
             'batch' => $batch,
             'printInfo' => $this->printInfo($batch, $side),
-            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, [$side]), $side),
+            ...$this->fillingPackingPayload($batch, $this->photoUrls($batch, ['startup', $side]), $side),
         ]);
     }
 
