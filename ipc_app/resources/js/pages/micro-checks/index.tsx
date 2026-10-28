@@ -22,7 +22,7 @@ interface PaginatedBatches {
 
 export default function MicroCheckIndex({ batches }: { batches: PaginatedBatches }) {
     return (
-        <IpcShell title="Micro Check" subtitle={`${batches.total} batch menunggu / bisa dikoreksi`} backHref="/dashboard">
+        <IpcShell title="Micro Check" subtitle={`${batches.total} batch menunggu Micro Check`} backHref="/dashboard">
             <Head title="Micro Check" />
             <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-5 md:p-6">
                 {batches.data.map((batch) => (
@@ -44,7 +44,7 @@ export default function MicroCheckIndex({ batches }: { batches: PaginatedBatches
                         <span
                             className={`w-fit rounded-full px-3 py-1 text-[12px] font-bold ${batch.filled ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
                         >
-                            {batch.filled ? 'Sudah diisi — masih bisa dikoreksi' : 'Belum diisi'}
+                            {batch.filled ? 'Progress tersimpan — belum diselesaikan' : 'Belum diisi'}
                         </span>
                     </Link>
                 ))}
@@ -52,7 +52,7 @@ export default function MicroCheckIndex({ batches }: { batches: PaginatedBatches
                 {batches.data.length === 0 && (
                     <div className="border-border flex flex-col items-center gap-2 rounded-2xl border border-dashed py-12 text-center">
                         <FlaskConical className="text-muted-foreground/60 size-8" />
-                        <p className="text-muted-foreground text-sm">Belum ada batch dengan Finished Good yang menunggu Micro Check.</p>
+                        <p className="text-muted-foreground text-sm">Belum ada batch dengan Finished Good selesai yang menunggu Micro Check.</p>
                     </div>
                 )}
 

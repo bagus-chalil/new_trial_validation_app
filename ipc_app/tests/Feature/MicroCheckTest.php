@@ -2,10 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\FinishedCheckController;
 use App\Models\FinishedCheck;
-use App\Models\FinishedCheckSample;
-use App\Models\IpcAttachment;
+use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
@@ -19,8 +17,12 @@ class MicroCheckTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeBatch(string $stage = IpcBatch::STAGE_FINISHED, bool $withFinishedSaved = true, string $flow = IpcBatch::FLOW_FULL): IpcBatch
-    {
+    private function makeBatch(
+        string $stage = IpcBatch::STAGE_FINISHED,
+        bool $withFinishedSaved = true,
+        string $flow = IpcBatch::FLOW_FULL,
+        bool $finishedCompleted = false,
+    ): IpcBatch {
         $product = MasterProduct::firstOrCreate(['fg_code' => 'FG-1'], ['product_name' => 'Product 1', 'is_active' => true]);
         $line = MasterLine::firstOrCreate(['code' => 'MU 01'], ['category' => 'Packing', 'area' => 'Make Up', 'name' => 'Make Up 01', 'is_active' => true]);
         $creator = User::factory()->create();
@@ -37,7 +39,12 @@ class MicroCheckTest extends TestCase
         PackingCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $creator->id, 'decision' => PackingCheck::DECISION_PASSED, 'save_count' => 1, 'completed_at' => now()]);
 
         if ($withFinishedSaved) {
-            FinishedCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $creator->id, 'save_count' => 1]);
+            FinishedCheck::create([
+                'ipc_batch_id' => $batch->id,
+                'user_id' => $creator->id,
+                'save_count' => 1,
+                'completed_at' => $finishedCompleted ? now() : null,
+            ]);
         }
 
         return $batch->fresh();
@@ -56,40 +63,6 @@ class MicroCheckTest extends TestCase
         ];
     }
 
-    private function finalizePayload(): array
-    {
-        return [
-            'finalize' => true,
-            'quantity_wi' => 500,
-            'masterbox' => '4,17',
-            'no_pallet_qty' => '1/2016',
-            'quantity_sampling_aql' => 50,
-            'quantity_sample_aql_cd' => 0,
-            'quantity_sample_aql_md' => 1,
-            'quantity_sample_aql_mnd' => 2,
-            'quantity_special_inspection' => 5,
-            'quantity_special_inspection_cd' => 0,
-            'quantity_special_inspection_md' => 0,
-            'quantity_special_inspection_mnd' => 0,
-            'disposition' => FinishedCheck::DISPOSITION_ACCEPTED,
-            'remarks' => 'ok',
-            'samples' => collect(FinishedCheckSample::PARAMETER_KEYS)->mapWithKeys(fn ($key) => [$key => ['ac' => 1]])->all(),
-        ];
-    }
-
-    private function seedPhotos(IpcBatch $batch): void
-    {
-        foreach (FinishedCheckController::PHOTO_FIELDS as $field) {
-            IpcAttachment::create([
-                'ipc_batch_id' => $batch->id,
-                'stage' => 'finished',
-                'field_label' => $field,
-                'file_path' => "ipc-attachments/{$batch->id}/finished/{$field}.jpg",
-                'uploaded_by' => $batch->created_by,
-            ]);
-        }
-    }
-
     // --- Role + Micro Check input ---
 
     public function test_microbiologist_role_exists_and_defaults_are_not_privileged(): void
@@ -105,7 +78,7 @@ class MicroCheckTest extends TestCase
     public function test_microbiologist_can_save_micro_check_and_every_save_is_logged(): void
     {
         $user = User::factory()->microbiologist()->create();
-        $batch = $this->makeBatch();
+        $batch = $this->makeBatch(finishedCompleted: true);
 
         $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload())
             ->assertRedirect("/batches/{$batch->id}/micro-check");
@@ -121,27 +94,66 @@ class MicroCheckTest extends TestCase
         $this->assertSame('(-)', $micro->revisions()->where('revision_no', 1)->value('pathogen_result'));
     }
 
-    public function test_every_micro_field_is_required(): void
+    public function test_selesaikan_requires_every_micro_field_and_saves_nothing_when_one_is_missing(): void
     {
         $user = User::factory()->microbiologist()->create();
-        $batch = $this->makeBatch();
+        $batch = $this->makeBatch(finishedCompleted: true);
 
-        $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload(['yeast_mold_std' => '']))
+        $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload(['yeast_mold_std' => '', 'finalize' => true]))
             ->assertSessionHasErrors('yeast_mold_std');
 
         $this->assertNull($batch->fresh()->microCheck);
+        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->fresh()->current_stage);
     }
 
-    public function test_micro_check_is_closed_before_finished_good_is_saved_and_after_it_is_completed(): void
+    public function test_simpan_progress_accepts_partial_values_but_not_a_blank_form(): void
+    {
+        $user = User::factory()->microbiologist()->create();
+        $batch = $this->makeBatch(finishedCompleted: true);
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload([
+            'yeast_mold_result' => '', 'pathogen_result' => '', 'finalize' => false,
+        ]))->assertSessionDoesntHaveErrors();
+
+        $micro = $batch->fresh()->microCheck;
+        $this->assertNull($micro->completed_at);
+        $this->assertFalse($micro->isComplete());
+        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->fresh()->current_stage);
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload([
+            'total_plate_count_result' => '', 'yeast_mold_result' => '', 'pathogen_result' => '', 'finalize' => false,
+        ]))->assertSessionHasErrors('progress');
+    }
+
+    public function test_selesaikan_locks_micro_check_and_sends_the_batch_to_approval(): void
+    {
+        $user = User::factory()->microbiologist()->create();
+        $batch = $this->makeBatch(finishedCompleted: true);
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload(['finalize' => false]))->assertRedirect();
+        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->fresh()->current_stage);
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload(['finalize' => true]))
+            ->assertRedirect('/micro-checks');
+
+        $micro = $batch->fresh()->microCheck;
+        $this->assertNotNull($micro->completed_at);
+        $this->assertTrue($micro->revisions()->where('revision_no', 2)->first()->finalize);
+        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+
+        $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload(['pathogen_result' => 'x']))->assertForbidden();
+    }
+
+    public function test_micro_check_is_closed_until_finished_good_is_finalized(): void
     {
         $user = User::factory()->microbiologist()->create();
 
         $unsaved = $this->makeBatch(withFinishedSaved: false);
         $this->actingAs($user)->put("/batches/{$unsaved->id}/micro-check", $this->microPayload())->assertForbidden();
 
-        $done = $this->makeBatch();
-        $done->finishedCheck->update(['completed_at' => now()]);
-        $this->actingAs($user)->put("/batches/{$done->id}/micro-check", $this->microPayload())->assertForbidden();
+        $draft = $this->makeBatch();
+        $this->actingAs($user)->put("/batches/{$draft->id}/micro-check", $this->microPayload())->assertForbidden();
+        $this->assertNull($draft->fresh()->microCheck);
     }
 
     public function test_batch_without_finished_stage_has_no_micro_check(): void
@@ -154,7 +166,7 @@ class MicroCheckTest extends TestCase
 
     public function test_staff_and_approver_cannot_save_micro_check_but_admin_can(): void
     {
-        $batch = $this->makeBatch();
+        $batch = $this->makeBatch(finishedCompleted: true);
 
         foreach ([User::factory()->create(), User::factory()->approver()->create()] as $user) {
             $this->actingAs($user)->put("/batches/{$batch->id}/micro-check", $this->microPayload())->assertForbidden();
@@ -164,74 +176,45 @@ class MicroCheckTest extends TestCase
         $this->assertNotNull($batch->fresh()->microCheck);
     }
 
-    public function test_micro_check_queue_lists_open_finished_good_batches_for_microbiologist_only(): void
+    public function test_micro_check_queue_lists_finalized_finished_good_without_finalized_micro_check(): void
     {
-        $open = $this->makeBatch();
-        $done = $this->makeBatch();
-        $done->finishedCheck->update(['completed_at' => now()]);
+        $waiting = $this->makeBatch(finishedCompleted: true);
+        $this->makeBatch(); // Finished Good still a draft — not in the queue yet.
+        $sent = $this->makeBatch(finishedCompleted: true);
+        MicroCheck::create([...$this->microPayload(), 'ipc_batch_id' => $sent->id, 'user_id' => User::factory()->microbiologist()->create()->id, 'completed_at' => now()]);
 
         $this->actingAs(User::factory()->microbiologist()->create())
             ->get('/micro-checks')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('batches.data', 1)->where('batches.data.0.id', $open->id));
+            ->assertInertia(fn ($page) => $page->has('batches.data', 1)->where('batches.data.0.id', $waiting->id));
 
         $this->actingAs(User::factory()->create())->get('/micro-checks')->assertForbidden();
         $this->actingAs(User::factory()->approver()->create())->get('/micro-checks')->assertForbidden();
     }
 
-    // --- Finished Good is blocked until Micro Check is complete ---
+    // --- Finished Good is Staff's responsibility and is not blocked by Micro Check ---
 
-    public function test_finalize_is_blocked_without_micro_check_and_nothing_is_completed(): void
-    {
-        $staff = User::factory()->create();
-        $batch = $this->makeBatch();
-        $this->seedPhotos($batch);
-
-        $this->actingAs($staff)->put("/batches/{$batch->id}/finished-check", $this->finalizePayload())
-            ->assertSessionHasErrors(['micro_check' => FinishedCheck::MICRO_CHECK_REQUIRED_MESSAGE]);
-
-        $this->assertNull($batch->fresh()->finishedCheck->completed_at);
-        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->fresh()->current_stage);
-    }
-
-    public function test_finalize_from_history_is_blocked_without_micro_check(): void
+    public function test_finished_good_can_be_finalized_without_micro_check_and_stays_at_the_finished_stage(): void
     {
         $staff = User::factory()->create();
         $batch = $this->makeBatch();
         $batch->finishedCheck->revisions()->create(['revision_no' => 1, 'user_id' => $staff->id, 'finalize' => false]);
 
-        $this->actingAs($staff)->post("/batches/{$batch->id}/finished-check/complete")
-            ->assertSessionHasErrors(['micro_check' => FinishedCheck::MICRO_CHECK_REQUIRED_MESSAGE]);
-
-        $this->assertNull($batch->fresh()->finishedCheck->completed_at);
-    }
-
-    public function test_draft_save_still_works_without_micro_check(): void
-    {
-        $staff = User::factory()->create();
-        $batch = $this->makeBatch();
-
-        $payload = ['finalize' => false, ...$this->finalizePayload()];
-        $payload['finalize'] = false;
-
-        $this->actingAs($staff)->put("/batches/{$batch->id}/finished-check", $payload)->assertSessionDoesntHaveErrors();
-    }
-
-    public function test_finalize_succeeds_once_micro_check_is_complete_and_then_micro_is_locked(): void
-    {
-        $staff = User::factory()->create();
-        $micro = User::factory()->microbiologist()->create();
-        $batch = $this->makeBatch();
-        $this->seedPhotos($batch);
-
-        $this->actingAs($micro)->put("/batches/{$batch->id}/micro-check", $this->microPayload())->assertRedirect();
-
-        $this->actingAs($staff)->put("/batches/{$batch->id}/finished-check", $this->finalizePayload())->assertSessionDoesntHaveErrors();
+        $this->actingAs($staff)->post("/batches/{$batch->id}/finished-check/complete")->assertSessionDoesntHaveErrors();
 
         $this->assertNotNull($batch->fresh()->finishedCheck->completed_at);
-        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->fresh()->current_stage);
+        $this->assertFalse(IpcApproval::stageReady($batch->fresh(), IpcApproval::STAGE_FINISHED));
+    }
 
-        $this->actingAs($micro)->put("/batches/{$batch->id}/micro-check", $this->microPayload(['pathogen_result' => 'x']))->assertForbidden();
+    public function test_finished_stage_is_approvable_once_micro_check_is_finalized(): void
+    {
+        $micro = User::factory()->microbiologist()->create();
+        $batch = $this->makeBatch(finishedCompleted: true);
+
+        $this->actingAs($micro)->put("/batches/{$batch->id}/micro-check", $this->microPayload(['finalize' => true]))->assertRedirect();
+
+        $this->assertTrue(IpcApproval::stageReady($batch->fresh(), IpcApproval::STAGE_FINISHED));
     }
 
     // --- RBAC strengthening ---
@@ -316,5 +299,20 @@ class MicroCheckTest extends TestCase
             ->assertOk()
             ->assertSee('&lt;77', false)
             ->assertSee('Indah Mikro');
+    }
+
+    public function test_batch_detail_shows_that_it_is_waiting_for_micro_check_once_finished_good_is_done(): void
+    {
+        $staff = User::factory()->create();
+        $waiting = $this->makeBatch(finishedCompleted: true);
+        $draft = $this->makeBatch();
+
+        $this->actingAs($staff)->get("/batches/{$waiting->id}")
+            ->assertInertia(fn ($page) => $page->where('microCheckWaiting.hasProgress', false)->where('microCheckWaiting.href', null));
+        $this->actingAs($staff)->get("/batches/{$draft->id}")
+            ->assertInertia(fn ($page) => $page->where('microCheckWaiting', null));
+
+        $this->actingAs(User::factory()->microbiologist()->create())->get("/batches/{$waiting->id}")
+            ->assertInertia(fn ($page) => $page->where('microCheckWaiting.href', route('micro-checks.edit', $waiting)));
     }
 }

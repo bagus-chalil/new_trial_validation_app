@@ -125,7 +125,9 @@ function MicroCheckBanner({
     if (complete) {
         return (
             <div className="flex items-center justify-between gap-3 rounded-[20px] border border-green-200 bg-green-50 px-[18px] py-3.5 text-[13px] font-semibold text-green-800">
-                <span>Micro Check sudah terisi{microCheck?.user ? ` oleh ${microCheck.user.name}` : ''} — Selesaikan sudah bisa dilakukan.</span>
+                <span>
+                    Micro Check sudah diselesaikan{microCheck?.user ? ` oleh ${microCheck.user.name}` : ''} — batch sudah dikirim ke Approval.
+                </span>
                 {canRecord && (
                     <Link href={`/batches/${batchId}/micro-check`} className="font-bold underline">
                         Lihat / koreksi
@@ -140,10 +142,10 @@ function MicroCheckBanner({
             id="micro-check-banner"
             className="flex flex-col gap-1.5 rounded-[20px] border border-amber-300 bg-amber-50 px-[18px] py-3.5 text-[13px] text-amber-900"
         >
-            <p className="font-bold">Micro Check belum lengkap — Finished Good belum bisa diselesaikan</p>
+            <p className="font-bold">Micro Check belum diselesaikan Microbiologist</p>
             <p className="font-medium">
-                Bagian Micro Check (Total Plate Count, Yeast &amp; Mold, Pathogen) diisi oleh Microbiologist. Selama belum terisi, tombol Selesaikan
-                diblokir dan batch tidak bisa lanjut ke Approval. Simpan Progress tetap bisa dilakukan.
+                Bagian Micro Check (Total Plate Count, Yeast &amp; Mold, Pathogen) diisi Microbiologist setelah Finished Good diselesaikan. Batch baru
+                dikirim untuk Approval saat Micro Check diselesaikan.
             </p>
             {serverError && <p className="font-semibold text-red-700">{serverError}</p>}
             {canRecord && (
@@ -369,13 +371,6 @@ export default function FinishedCheckEdit({
     // Selesaikan always asks for confirmation first — it sits next to Simpan Progress and locks the stage.
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        // Selesaikan is blocked until the Microbiologist has filled the Micro Check block (the server
-        // refuses it too — see SaveFinishedCheckRequest::validateMicroCheckFilled()).
-        if (!microCheckComplete) {
-            toast('Micro Check belum terisi — Finished Good belum bisa diselesaikan.');
-            document.getElementById('micro-check-banner')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
-        }
         setFinalizeConfirmOpen(true);
     };
 
@@ -786,7 +781,6 @@ export default function FinishedCheckEdit({
                                 `${filledSampleCount} dari ${allParameterKeys.length} sample terisi`,
                                 isLastRound && `TH Progress ke-${maxThProgress} (terakhir) — wajib Selesaikan`,
                                 !previousStageCompleted && 'Selesaikan butuh Packing Check selesai dulu',
-                                !microCheckComplete && 'Selesaikan butuh Micro Check terisi oleh Microbiologist',
                             ]
                                 .filter(Boolean)
                                 .join(' · ')}

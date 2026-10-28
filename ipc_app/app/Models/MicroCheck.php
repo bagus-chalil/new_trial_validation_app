@@ -32,7 +32,13 @@ class MicroCheck extends Model
         'pathogen_result',
         'pathogen_std',
         'save_count',
+        'completed_at',
     ];
+
+    protected function casts(): array
+    {
+        return ['completed_at' => 'datetime'];
+    }
 
     /** @return list<string> */
     public static function valueColumns(): array
@@ -42,10 +48,16 @@ class MicroCheck extends Model
             ->all();
     }
 
-    /** Every result and std filled in — the gate Finished Good's "Selesaikan" waits on. */
+    /** Every result and std filled in — what "Selesaikan" requires. */
     public function isComplete(): bool
     {
         return collect(self::valueColumns())->every(fn (string $column) => filled($this->{$column}));
+    }
+
+    /** "Selesaikan" was pressed: the record is locked and the batch went on to Approval. */
+    public function isFinalized(): bool
+    {
+        return $this->completed_at !== null;
     }
 
     public function batch(): BelongsTo

@@ -18,7 +18,7 @@ class CompleteFinishedCheckFromHistory
 {
     public function handle(IpcBatch $batch, FinishedCheck $finishedCheck): FinishedCheck
     {
-        return DB::transaction(function () use ($batch, $finishedCheck) {
+        return DB::transaction(function () use ($finishedCheck) {
             $revision = $finishedCheck->revisions()->with('samples')->latest('revision_no')->firstOrFail();
 
             $restored = collect($revision->getAttributes())
@@ -49,10 +49,6 @@ class CompleteFinishedCheckFromHistory
             }
 
             $revision->update(['finalize' => true]);
-
-            if ($batch->current_stage === IpcBatch::STAGE_FINISHED) {
-                $batch->update(['current_stage' => IpcBatch::STAGE_APPROVAL]);
-            }
 
             return $finishedCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);
         });

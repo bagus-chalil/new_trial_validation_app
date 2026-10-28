@@ -401,7 +401,8 @@ class FinishedCheckTest extends TestCase
             ->assertRedirect("/batches/{$batch->id}");
 
         $batch->refresh();
-        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->current_stage);
+        // Finished Good no longer moves the batch on — Micro Check's Selesaikan sends it to Approval.
+        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->current_stage);
 
         $finishedCheck = $batch->finishedCheck()->first();
         $this->assertNotNull($finishedCheck->completed_at);

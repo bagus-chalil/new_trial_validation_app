@@ -10,11 +10,14 @@ export function FinalizeConfirmDialog({
     open,
     onOpenChange,
     stageLabel,
+    description,
     onConfirm,
 }: {
     readonly open: boolean;
     readonly onOpenChange: (open: boolean) => void;
     readonly stageLabel: string;
+    /** Replaces the default locked-for-good text, for stages with a different hand-off. */
+    readonly description?: string;
     readonly onConfirm: () => void;
 }) {
     return (
@@ -23,8 +26,12 @@ export function FinalizeConfirmDialog({
                 <DialogHeader>
                     <DialogTitle>Selesaikan {stageLabel}?</DialogTitle>
                     <DialogDescription>
-                        Apakah Anda yakin ingin menyelesaikan {stageLabel}? Setelah selesai, data tidak bisa diubah lagi. Pilih &quot;Simpan
-                        Progress&quot; jika masih ada pengecekan berikutnya.
+                        {description ?? (
+                            <>
+                                Apakah Anda yakin ingin menyelesaikan {stageLabel}? Setelah selesai, data tidak bisa diubah lagi. Pilih &quot;Simpan
+                                Progress&quot; jika masih ada pengecekan berikutnya.
+                            </>
+                        )}
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="gap-2 sm:gap-2">

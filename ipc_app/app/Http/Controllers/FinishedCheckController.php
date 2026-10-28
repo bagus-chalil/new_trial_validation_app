@@ -89,7 +89,7 @@ class FinishedCheckController extends Controller
             'maxThProgress' => IpcBatch::MAX_TH_PROGRESS,
             'previousStageCompleted' => (bool) $batch->packingCheck->completed_at,
             'microCheck' => $batch->microCheck,
-            'microCheckComplete' => (bool) $batch->microCheck?->isComplete(),
+            'microCheckComplete' => (bool) $batch->microCheck?->isFinalized(),
             'canRecordMicroCheck' => Gate::allows('recordMicroCheck', $batch),
         ]);
     }
@@ -125,10 +125,6 @@ class FinishedCheckController extends Controller
 
         if (! $batch->packingCheck?->completed_at) {
             return back()->withErrors(['progress' => 'Selesaikan Packing Check terlebih dahulu.']);
-        }
-
-        if (! $batch->microCheck?->isComplete()) {
-            return back()->withErrors(['micro_check' => FinishedCheck::MICRO_CHECK_REQUIRED_MESSAGE]);
         }
 
         $action->handle($batch, $batch->finishedCheck);

@@ -15,13 +15,14 @@ use Inertia\Response;
 class MicroCheckController extends Controller
 {
     /**
-     * The Microbiologist's inbox: batches whose Finished Good has been saved at least once but
-     * isn't finalized yet — split into "belum diisi" and "sudah diisi" (still correctable).
+     * The Microbiologist's inbox: batches whose Finished Good is finalized and whose Micro Check
+     * isn't finalized yet — "belum diisi" or progress saved (still editable).
      */
     public function index(Request $request): Response
     {
         $batches = IpcBatch::query()
-            ->whereHas('finishedCheck', fn ($query) => $query->whereNull('completed_at'))
+            ->whereHas('finishedCheck', fn ($query) => $query->whereNotNull('completed_at'))
+            ->whereDoesntHave('microCheck', fn ($query) => $query->whereNotNull('completed_at'))
             ->with(['masterProduct:id,fg_code,product_name', 'masterLine:id,name', 'microCheck'])
             ->latest('id')
             ->paginate(20)
@@ -31,7 +32,7 @@ class MicroCheckController extends Controller
                 'product_name' => $batch->masterProduct?->product_name,
                 'fg_code' => $batch->masterProduct?->fg_code,
                 'line' => $batch->masterLine?->name,
-                'filled' => (bool) $batch->microCheck?->isComplete(),
+                'filled' => $batch->microCheck !== null,
                 'filled_at' => $batch->microCheck?->updated_at,
             ]);
 
@@ -59,13 +60,19 @@ class MicroCheckController extends Controller
             'defaultStd' => MicroCheck::DEFAULT_STD,
             'isReadOnly' => ! Gate::allows('recordMicroCheck', $batch),
             'finishedCompleted' => (bool) $batch->finishedCheck?->completed_at,
+            'microCompleted' => (bool) $batch->microCheck?->completed_at,
         ]);
     }
 
     public function update(SaveMicroCheckRequest $request, IpcBatch $batch, SaveMicroCheck $action): RedirectResponse
     {
-        $action->handle($batch, $request->user(), $request->validated());
+        $finalize = $request->boolean('finalize');
+        $action->handle($batch, $request->user(), $request->validated(), $finalize);
 
-        return redirect()->route('micro-checks.edit', $batch)->with('success', 'Micro Check tersimpan.');
+        if ($finalize) {
+            return redirect()->route('micro-checks.index')->with('success', 'Micro Check selesai — batch dikirim ke Approval.');
+        }
+
+        return redirect()->route('micro-checks.edit', $batch)->with('success', 'Progress Micro Check tersimpan.');
     }
 }

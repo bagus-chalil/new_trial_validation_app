@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -60,7 +61,7 @@ class IpcBatchController extends Controller
 
     public function show(IpcBatch $batch): Response
     {
-        $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck']);
+        $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck', 'microCheck']);
 
         $stageIndex = array_search($batch->current_stage, IpcBatch::STAGES, true);
 
@@ -120,9 +121,20 @@ class IpcBatchController extends Controller
             ];
         })->values();
 
+        // Finished Good is done but the batch is still at the Finished stage: it is waiting for
+        // the Microbiologist to press Selesaikan on Micro Check, which is what sends it to Approval.
+        $microCheckWaiting = $batch->hasFinishedStage()
+            && $batch->current_stage === IpcBatch::STAGE_FINISHED
+            && $batch->finishedCheck?->completed_at !== null
+            && $batch->microCheck?->completed_at === null;
+
         return Inertia::render('batches/show', [
             'batch' => $batch,
             'stages' => $stages,
+            'microCheckWaiting' => $microCheckWaiting ? [
+                'hasProgress' => $batch->microCheck !== null,
+                'href' => Gate::allows('recordMicroCheck', $batch) ? route('micro-checks.edit', $batch) : null,
+            ] : null,
         ]);
     }
 

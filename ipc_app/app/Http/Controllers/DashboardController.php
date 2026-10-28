@@ -55,8 +55,8 @@ class DashboardController extends Controller
         $microCount = 0;
         if ($user->can('record-micro-check') && ! $user->isStaff()) {
             $microQuery = IpcBatch::query()
-                ->whereHas('finishedCheck', fn ($query) => $query->whereNull('completed_at'))
-                ->whereDoesntHave('microCheck');
+                ->whereHas('finishedCheck', fn ($query) => $query->whereNotNull('completed_at'))
+                ->whereDoesntHave('microCheck', fn ($query) => $query->whereNotNull('completed_at'));
             $microCount = (clone $microQuery)->count();
             $needsAction = $microQuery->with('masterProduct:id,product_name,fg_code')->latest('id')->limit(self::NEEDS_ACTION_LIMIT)->get()
                 ->map(fn (IpcBatch $batch) => [
@@ -64,7 +64,7 @@ class DashboardController extends Controller
                     'no_batch' => $batch->no_batch,
                     'product_name' => $batch->masterProduct?->product_name,
                     'stage' => IpcBatch::STAGE_FINISHED,
-                    'reason' => 'Micro Check belum diisi',
+                    'reason' => 'Micro Check belum diselesaikan',
                     'href' => route('micro-checks.edit', $batch),
                 ]);
         }

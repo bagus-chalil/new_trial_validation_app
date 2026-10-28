@@ -4,11 +4,12 @@ namespace App\Http\Requests;
 
 use App\Models\MicroCheck;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
- * Every result and Std (cfu/gr) is required on every save — the paper form's Micro Check block
- * is all-or-nothing, and Finished Good's "Selesaikan" waits on a complete block. Values are
- * free text because the paper holds entries like "<10", "<100" and "(-)".
+ * "Simpan Progress" accepts a partially filled block (at least one Result); "Selesaikan"
+ * (`finalize`) needs every result and Std (cfu/gr), locks the record and sends the batch to
+ * Approval. Values are free text because the paper holds entries like "<10", "<100" and "(-)".
  */
 class SaveMicroCheckRequest extends FormRequest
 {
@@ -28,9 +29,30 @@ class SaveMicroCheckRequest extends FormRequest
 
     public function rules(): array
     {
-        return collect(MicroCheck::valueColumns())
-            ->mapWithKeys(fn (string $column) => [$column => ['required', 'string', 'max:50']])
-            ->all();
+        $presence = $this->boolean('finalize') ? 'required' : 'nullable';
+
+        return [
+            'finalize' => ['sometimes', 'boolean'],
+            ...collect(MicroCheck::valueColumns())
+                ->mapWithKeys(fn (string $column) => [$column => [$presence, 'string', 'max:50']])
+                ->all(),
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        if ($this->boolean('finalize')) {
+            return;
+        }
+
+        // Std comes pre-filled, so only the Results count as "something to save".
+        $validator->after(function (Validator $validator) {
+            $hasResult = collect(array_keys(MicroCheck::PARAMETERS))->contains(fn (string $key) => filled($this->input("{$key}_result")));
+
+            if (! $hasResult) {
+                $validator->errors()->add('progress', 'Isi minimal satu Result sebelum menyimpan progress.');
+            }
+        });
     }
 
     public function attributes(): array

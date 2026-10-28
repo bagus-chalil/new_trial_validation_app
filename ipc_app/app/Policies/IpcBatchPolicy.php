@@ -51,8 +51,9 @@ class IpcBatchPolicy
     }
 
     /**
-     * Fill/correct the Micro Check block. Needs a Finished Good that has been saved at least once
-     * and isn't finalized yet — after "Selesaikan" the record is locked, Micro Check included.
+     * Fill/correct the Micro Check block. Opens once Finished Good is finalized (Finished Good is
+     * the Staff's responsibility, Micro Check comes after it) and locks when the Microbiologist
+     * presses "Selesaikan" on Micro Check itself.
      */
     public function recordMicroCheck(User $user, IpcBatch $batch): bool
     {
@@ -61,8 +62,9 @@ class IpcBatchPolicy
         }
 
         $finishedCheck = $batch->finishedCheck;
+        $microCheck = $batch->microCheck;
 
-        return $finishedCheck !== null && $finishedCheck->completed_at === null;
+        return $finishedCheck?->completed_at !== null && $microCheck?->completed_at === null;
     }
 
     /** Printed reports: Staff/Admin always, Approver once the batch reached Approval. */

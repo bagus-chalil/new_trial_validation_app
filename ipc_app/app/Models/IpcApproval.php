@@ -130,7 +130,10 @@ class IpcApproval extends Model
             self::STAGE_STARTUP => (bool) $batch->startupCheck?->completed_at,
             self::STAGE_FILLING => $batch->hasFillingStage() && (bool) $batch->fillingCheck?->completed_at,
             self::STAGE_PACKING => $batch->hasPackingStage() && (bool) $batch->packingCheck?->completed_at,
-            self::STAGE_FINISHED => $batch->hasFinishedStage() && (bool) $batch->finishedCheck?->completed_at,
+            // A finalized Finished Good only goes to approval once Micro Check is finalized too
+            // (the batch leaves the Finished stage at that point).
+            self::STAGE_FINISHED => $batch->hasFinishedStage() && (bool) $batch->finishedCheck?->completed_at
+                && $batch->current_stage !== IpcBatch::STAGE_FINISHED,
             default => false,
         };
     }

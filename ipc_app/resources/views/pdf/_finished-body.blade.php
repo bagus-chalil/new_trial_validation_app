@@ -127,17 +127,22 @@
         <div class="two-col">
         <table>
             <thead>
-                <tr><th colspan="3">Micro Check</th></tr>
+                {{-- Same header row as the paper form: block title on the left, Result (cfu/gr) column on the right. --}}
+                <tr>
+                    <th style="width: 40%; text-align: left;">Micro Check</th>
+                    <th style="width: 30%;">Result<br>(cfu/gr)</th>
+                    <th style="width: 30%;">Std<br>(cfu/gr)</th>
+                </tr>
             </thead>
             <tbody>
                 @foreach (\App\Models\MicroCheck::PARAMETERS as $key => $label)
                     <tr>
-                        <td style="width: 40%;">{{ $label }}</td>
-                        <td class="center" style="width: 20%;">{{ $micro?->{$key.'_result'} ?? '—' }}</td>
-                        <td>Std (cfu/gr): {{ $micro?->{$key.'_std'} ?? '—' }}</td>
+                        <td>{{ $label }} &nbsp;:</td>
+                        <td class="center">{{ $micro?->{$key.'_result'} ?? '—' }}</td>
+                        <td class="center">{{ $micro?->{$key.'_std'} ?? '—' }}</td>
                     </tr>
                 @endforeach
-                <tr><td colspan="3" style="font-size: 8px;">Microbiologist: {{ $micro?->user?->name ?? '—' }}{{ $micro ? ' · '.$micro->updated_at?->format('d M Y H:i') : '' }}</td></tr>
+                <tr><td colspan="3" style="font-size: 8px;">Microbiologist: {{ $micro?->user?->name ?? '—' }}{{ $micro ? ' · '.($micro->completed_at ?? $micro->updated_at)?->format('d M Y H:i') : '' }}</td></tr>
             </tbody>
         </table>
 

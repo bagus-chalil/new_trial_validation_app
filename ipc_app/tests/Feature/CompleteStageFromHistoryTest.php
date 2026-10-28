@@ -188,6 +188,6 @@ class CompleteStageFromHistoryTest extends TestCase
         $this->assertSame(FinishedCheck::DISPOSITION_ACCEPTED, $finished->disposition);
         $this->assertSame(500, (int) $finished->quantity_wi);
         $this->assertTrue((bool) $finished->revisions()->latest('revision_no')->value('finalize'));
-        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+        $this->assertSame(IpcBatch::STAGE_FINISHED, $batch->fresh()->current_stage);
     }
 }

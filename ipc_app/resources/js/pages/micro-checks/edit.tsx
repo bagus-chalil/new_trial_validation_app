@@ -1,10 +1,11 @@
 import InputError from '@/components/input-error';
+import { FinalizeConfirmDialog } from '@/components/ipc/finalize-confirm-dialog';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useState } from 'react';
 
 interface MicroCheckData {
     save_count: number;
@@ -30,6 +31,7 @@ export default function MicroCheckEdit({
     defaultStd,
     isReadOnly,
     finishedCompleted,
+    microCompleted,
 }: {
     batch: Batch;
     microCheck: MicroCheckData | null;
@@ -37,6 +39,7 @@ export default function MicroCheckEdit({
     defaultStd: Record<string, string>;
     isReadOnly: boolean;
     finishedCompleted: boolean;
+    microCompleted: boolean;
 }) {
     const keys = Object.keys(parameters);
 
@@ -47,11 +50,39 @@ export default function MicroCheckEdit({
         initial[`${key}_std`] = (microCheck?.[`${key}_std`] as string | undefined) ?? defaultStd[key] ?? '';
     });
 
-    const { data, setData, put, processing, errors } = useForm<Record<string, string>>(initial);
+    const { data, setData, put, processing, errors, transform, setError, clearErrors } = useForm<Record<string, string>>(initial);
+    const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
 
+    const send = (finalize: boolean) => {
+        transform((payload) => ({ ...payload, finalize: finalize ? '1' : '0' }));
+        put(`/batches/${batch.id}/micro-check`, { preserveScroll: true });
+    };
+
+    // Simpan Progress: partial is fine, but at least one Result must be filled (server checks too).
+    const saveDraft = () => {
+        clearErrors();
+        if (!keys.some((key) => data[`${key}_result`].trim() !== '')) {
+            setError('progress', 'Isi minimal satu Result sebelum menyimpan progress.');
+            return;
+        }
+        send(false);
+    };
+
+    // Selesaikan: every Result and Std is required, then a confirmation before it locks and goes to Approval.
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        put(`/batches/${batch.id}/micro-check`, { preserveScroll: true });
+        clearErrors();
+        const missing = keys.flatMap((key) => [`${key}_result`, `${key}_std`]).filter((field) => data[field].trim() === '');
+        if (missing.length > 0) {
+            missing.forEach((field) => setError(field, 'Wajib diisi untuk menyelesaikan Micro Check.'));
+            return;
+        }
+        setFinalizeConfirmOpen(true);
+    };
+
+    const proceedFinalize = () => {
+        setFinalizeConfirmOpen(false);
+        send(true);
     };
 
     const revisions = microCheck?.revisions ?? [];
@@ -64,7 +95,7 @@ export default function MicroCheckEdit({
             headerActions={
                 isReadOnly ? (
                     <span className="rounded-full bg-green-100 px-3.5 py-1.5 text-[12.5px] font-bold whitespace-nowrap text-green-800">
-                        {finishedCompleted ? 'Finished Good selesai — terkunci' : 'Read only'}
+                        {microCompleted ? 'Micro Check selesai — terkunci' : finishedCompleted ? 'Read only' : 'Menunggu Finished Good selesai'}
                     </span>
                 ) : undefined
             }
@@ -74,8 +105,8 @@ export default function MicroCheckEdit({
                 <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-4 md:px-8">
                     <div className="border-border-soft bg-card flex flex-col gap-4 rounded-[20px] border p-[18px]">
                         <p className="text-muted-foreground text-[12.5px] font-medium">
-                            Isi sesuai form FR.QAC.193.00, misalnya <b>&lt;10</b>, <b>&lt;100</b>, atau <b>(-)</b>. Semua kolom wajib diisi sebelum
-                            Finished Good bisa diselesaikan.
+                            Isi sesuai form FR.QAC.193.00, misalnya <b>&lt;10</b>, <b>&lt;100</b>, atau <b>(-)</b>. <b>Simpan Progress</b> boleh
+                            sebagian; <b>Selesaikan</b> butuh semua kolom terisi dan mengirim batch ke Approval.
                         </p>
                         {keys.map((key) => (
                             <div key={key} className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -107,6 +138,7 @@ export default function MicroCheckEdit({
                                 </div>
                             </div>
                         ))}
+                        <InputError message={errors.progress} />
                         <div className="text-muted-foreground text-[12.5px] font-medium">
                             Microbiologist: {microCheck?.user?.name ?? 'otomatis dari akun yang menyimpan'}
                         </div>
@@ -135,12 +167,21 @@ export default function MicroCheckEdit({
 
                 {!isReadOnly && (
                     <StickySaveBar
-                        label="Simpan Micro Check"
+                        label="Selesaikan"
                         processing={processing}
-                        note="Bisa dikoreksi selama Finished Good belum diselesaikan — setiap simpan tercatat di riwayat."
+                        secondaryLabel="Simpan Progress"
+                        onSecondaryClick={saveDraft}
+                        note="Selesaikan mengunci Micro Check dan mengirim batch untuk Approval — setiap simpan tercatat di riwayat."
                     />
                 )}
             </form>
+            <FinalizeConfirmDialog
+                open={finalizeConfirmOpen}
+                onOpenChange={setFinalizeConfirmOpen}
+                stageLabel="Micro Check"
+                description="Selesaikan Micro Check? Data akan terkunci dan batch langsung dikirim untuk Approval. Pilih Simpan Progress jika hasil belum lengkap."
+                onConfirm={proceedFinalize}
+            />
         </IpcShell>
     );
 }
