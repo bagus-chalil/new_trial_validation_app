@@ -7,13 +7,10 @@ export interface SelectOption {
     label: string;
 }
 
-/** Below this many options a search box is just a keyboard popping up for nothing. */
-const SEARCH_FROM = 7;
-
 /**
  * Tablet-friendly select with search, for the filter bar. The native <select> is a scroll-only
  * list on a tablet; this one filters as you type. Details that matter on a tablet:
- *  - the search box (and so the on-screen keyboard) only appears for long lists;
+ *  - every list has a search box, including lists with only a few options;
  *  - the list height follows the *dynamic* viewport (dvh), so it shrinks above the keyboard
  *    instead of being hidden behind it;
  *  - on open the field is scrolled into view, so the list isn't below the fold.
@@ -40,7 +37,6 @@ export function SearchableSelect({
     const [highlight, setHighlight] = useState(0);
     const rootRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const searchable = options.length >= SEARCH_FROM;
 
     const shown = useMemo(() => {
         const term = q.trim().toLowerCase();
@@ -52,7 +48,7 @@ export function SearchableSelect({
         if (!open) return;
         setQ('');
         setHighlight(0);
-        if (searchable) inputRef.current?.focus();
+        inputRef.current?.focus();
         // After the list has rendered (and the keyboard, if any, has resized the viewport).
         const timer = setTimeout(() => rootRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 120);
         const onPointerDown = (e: PointerEvent) => {
@@ -63,7 +59,7 @@ export function SearchableSelect({
             clearTimeout(timer);
             document.removeEventListener('pointerdown', onPointerDown);
         };
-    }, [open, searchable]);
+    }, [open]);
 
     const choose = (next: string) => {
         onChange(next);
@@ -105,28 +101,26 @@ export function SearchableSelect({
 
             {open && (
                 <div className="bg-popover text-popover-foreground absolute top-full right-0 left-0 z-50 mt-1 overflow-hidden rounded-xl border shadow-md">
-                    {searchable && (
-                        <div className="relative border-b p-2">
-                            <Search className="text-muted-foreground/60 absolute top-1/2 left-4 size-4 -translate-y-1/2" />
-                            <input
-                                ref={inputRef}
-                                value={q}
-                                onChange={(e) => {
-                                    setQ(e.target.value);
-                                    setHighlight(0);
-                                }}
-                                onKeyDown={onKeyDown}
-                                placeholder={placeholder}
-                                inputMode="search"
-                                enterKeyHint="done"
-                                autoComplete="off"
-                                autoCapitalize="none"
-                                autoCorrect="off"
-                                spellCheck={false}
-                                className="border-border-soft focus-visible:ring-primary/30 h-10 w-full rounded-lg border pr-3 pl-8 text-sm outline-none focus-visible:ring-2"
-                            />
-                        </div>
-                    )}
+                    <div className="relative border-b p-2">
+                        <Search className="text-muted-foreground/60 absolute top-1/2 left-4 size-4 -translate-y-1/2" />
+                        <input
+                            ref={inputRef}
+                            value={q}
+                            onChange={(e) => {
+                                setQ(e.target.value);
+                                setHighlight(0);
+                            }}
+                            onKeyDown={onKeyDown}
+                            placeholder={placeholder}
+                            inputMode="search"
+                            enterKeyHint="done"
+                            autoComplete="off"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            className="border-border-soft focus-visible:ring-primary/30 h-10 w-full rounded-lg border pr-3 pl-8 text-sm outline-none focus-visible:ring-2"
+                        />
+                    </div>
                     <div className="max-h-[min(18rem,38dvh)] overflow-y-auto overscroll-contain p-1" role="listbox">
                         {shown.map((option, i) => (
                             <button

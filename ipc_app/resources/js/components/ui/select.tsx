@@ -1,5 +1,5 @@
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
@@ -50,6 +50,89 @@ const SelectScrollDownButton = React.forwardRef<
 ));
 SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName;
 
+function optionText(node: React.ReactNode): string {
+    return React.Children.toArray(node)
+        .map((child) => {
+            if (typeof child === 'string' || typeof child === 'number') return String(child);
+            return React.isValidElement<{ children?: React.ReactNode }>(child) ? optionText(child.props.children) : '';
+        })
+        .join('');
+}
+
+/** Keep filtered items mounted so Radix can still display the selected label. */
+function SearchableOptions({ children, position }: { children: React.ReactNode; position: 'popper' | 'item-aligned' }) {
+    const [query, setQuery] = React.useState('');
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const viewportRef = React.useRef<HTMLDivElement>(null);
+    const searchId = React.useId();
+    const term = query.trim().toLocaleLowerCase();
+    let matchCount = 0;
+    const filter = (nodes: React.ReactNode): React.ReactNode =>
+        React.Children.map(nodes, (child) => {
+            if (!React.isValidElement<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>>(child)) return child;
+            if (child.type === SelectItem) {
+                const matches = (child.props.textValue ?? optionText(child.props.children)).toLocaleLowerCase().includes(term);
+                if (matches) matchCount++;
+                return React.cloneElement(child, {
+                    hidden: !matches,
+                    disabled: child.props.disabled || !matches,
+                    style: { ...child.props.style, ...(!matches ? { display: 'none' } : {}) },
+                });
+            }
+            return child.props.children ? React.cloneElement(child, {}, filter(child.props.children)) : child;
+        });
+    const filtered = filter(children);
+
+    React.useEffect(() => {
+        // Radix focuses the selected option on open; move focus to search afterwards.
+        const frame = requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    return (
+        <>
+            <div className="relative shrink-0 border-b p-2">
+                <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2" />
+                <input
+                    ref={inputRef}
+                    type="search"
+                    aria-label="Cari pilihan"
+                    aria-controls={searchId}
+                    placeholder="Cari pilihan..."
+                    autoComplete="off"
+                    value={query}
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                        viewportRef.current?.scrollTo({ top: 0 });
+                    }}
+                    onKeyDown={(event) => {
+                        // Prevent Radix typeahead and option selection while editing the query.
+                        if (event.key !== 'Escape' && event.key !== 'Tab') event.stopPropagation();
+                        if (event.key === 'Enter') event.preventDefault();
+                        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            const options = viewportRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([data-disabled])');
+                            const target = event.key === 'ArrowDown' ? options?.[0] : options?.[options.length - 1];
+                            target?.focus();
+                        }
+                    }}
+                    className="border-input bg-background focus:ring-ring h-10 w-full rounded-md border pr-3 pl-8 text-sm outline-none focus:ring-2"
+                />
+            </div>
+            <SelectScrollUpButton />
+            <SelectPrimitive.Viewport
+                ref={viewportRef}
+                id={searchId}
+                className={cn('p-1', position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]')}
+            >
+                {filtered}
+                {matchCount === 0 && <p role="status" className="text-muted-foreground p-3 text-center text-sm">Tidak ditemukan.</p>}
+            </SelectPrimitive.Viewport>
+            <SelectScrollDownButton />
+        </>
+    );
+}
+
 const SelectContent = React.forwardRef<
     React.ElementRef<typeof SelectPrimitive.Content>,
     React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -58,7 +141,7 @@ const SelectContent = React.forwardRef<
         <SelectPrimitive.Content
             ref={ref}
             className={cn(
-                'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+                'relative z-50 flex max-h-[min(24rem,var(--radix-select-content-available-height))] min-w-[8rem] flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
                 position === 'popper' &&
                     'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
                 className,
@@ -66,16 +149,7 @@ const SelectContent = React.forwardRef<
             position={position}
             {...props}
         >
-            <SelectScrollUpButton />
-            <SelectPrimitive.Viewport
-                className={cn(
-                    'p-1',
-                    position === 'popper' && 'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
-                )}
-            >
-                {children}
-            </SelectPrimitive.Viewport>
-            <SelectScrollDownButton />
+            <SearchableOptions position={position}>{children}</SearchableOptions>
         </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
 ));

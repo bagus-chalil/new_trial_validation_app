@@ -2,6 +2,7 @@ import { BatchActionsMenu } from '@/components/ipc/batch-actions-menu';
 import { BatchCreatedAt } from '@/components/ipc/batch-created-at';
 import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
 import { FlowBadge, flowTheme } from '@/components/ipc/flow-identity';
+import { SearchableSelect } from '@/components/ipc/searchable-select';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useInitials } from '@/hooks/use-initials';
@@ -175,19 +176,17 @@ function BatchListPane({
                 filters={filters}
                 options={filterOptions}
                 leadingControl={
-                    <select
-                        aria-label="Kategori tahapan batch"
-                        value={filters.stage ?? ''}
-                        onChange={(e) => onSetStage(e.target.value || undefined)}
-                        className="border-border-soft bg-card text-foreground focus-visible:ring-primary/30 h-12 min-w-0 flex-1 rounded-2xl border px-3 text-[13px] font-semibold outline-none focus-visible:ring-2"
-                    >
-                        <option value="">Semua tahapan</option>
-                        {stages.map((stage) => (
-                            <option key={stage} value={stage}>
-                                {stageLabel(stage)}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="min-w-0 flex-1">
+                        <SearchableSelect
+                            aria-label="Kategori tahapan batch"
+                            value={filters.stage ?? ''}
+                            onChange={(value) => onSetStage(value || undefined)}
+                            allLabel="Semua tahapan"
+                            placeholder="Cari tahapan..."
+                            options={stages.map((stage) => ({ value: stage, label: stageLabel(stage) }))}
+                            className="border-border-soft bg-card text-foreground focus-visible:ring-primary/30 h-12 min-w-0 flex-1 rounded-2xl border px-3 text-[13px] font-semibold outline-none focus-visible:ring-2"
+                        />
+                    </div>
                 }
             />
 
