@@ -162,6 +162,8 @@ export default function StartupCheckEdit({
         remarks: (startupCheck?.remarks as string) ?? '',
     });
 
+    // Packing + FG has no filling: the 4 filling parameters aren't asked and the card is "Parameter Packing".
+    const isPackingFg = batch.flow_type === 'packing_fg';
     const densityNotApplicable = data.density_not_applicable === '1';
     // Heating is free text; "N/A" is stored as that literal value.
     const heatingNotApplicable = data.heating === 'N/A';
@@ -180,7 +182,7 @@ export default function StartupCheckEdit({
         Boolean(data.mixing_date?.trim()) &&
         Boolean(data.exp_date?.trim()) &&
         Boolean(data.master_line_id?.trim()) &&
-        Boolean(data.average_of_empty_bottle_weight?.toString().trim()) &&
+        (isPackingFg || Boolean(data.average_of_empty_bottle_weight?.toString().trim())) &&
         Boolean(data.validation_report_status?.trim()) &&
         Object.keys(productCheckFields).every((key) => Boolean(data[key]));
 
@@ -191,7 +193,7 @@ export default function StartupCheckEdit({
         if (!data.exp_date?.trim()) empty.add('exp_date');
         if (!data.master_line_id?.trim()) empty.add('master_line_id');
         if (!data.validation_report_status?.trim()) empty.add('validation_report_status');
-        if (!data.average_of_empty_bottle_weight?.toString().trim()) empty.add('average_of_empty_bottle_weight');
+        if (!isPackingFg && !data.average_of_empty_bottle_weight?.toString().trim()) empty.add('average_of_empty_bottle_weight');
         Object.keys(productCheckFields).forEach((key) => {
             if (!data[key]) empty.add(key);
         });
@@ -317,106 +319,116 @@ export default function StartupCheckEdit({
                             );
                         })}
 
-                        <AccordionCard title="Parameter Filling" complete={parameterFillingComplete} defaultOpen={!parameterFillingComplete}>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="filling_range_min" className="text-muted-foreground text-xs font-semibold">
-                                    Filling Range Min
-                                </Label>
-                                <Input
-                                    id="filling_range_min"
-                                    type="number"
-                                    step="0.01"
-                                    className={inputClass}
-                                    value={data.filling_range_min ?? ''}
-                                    onChange={(e) => setData('filling_range_min', limitDecimals(e.target.value))}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError
-                                    message={
-                                        errors.filling_range_min ||
-                                        (errorFields.has('filling_range_min') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="filling_range_max" className="text-muted-foreground text-xs font-semibold">
-                                    Filling Range Max
-                                </Label>
-                                <Input
-                                    id="filling_range_max"
-                                    type="number"
-                                    step="0.01"
-                                    className={inputClass}
-                                    value={data.filling_range_max ?? ''}
-                                    onChange={(e) => setData('filling_range_max', limitDecimals(e.target.value))}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError
-                                    message={
-                                        errors.filling_range_max ||
-                                        (errorFields.has('filling_range_max') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="density" className="text-muted-foreground text-xs font-semibold">
-                                    Density
-                                </Label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        id="density"
-                                        type={densityNotApplicable ? 'text' : 'number'}
-                                        step="0.0001"
-                                        className={`${inputClass} flex-1`}
-                                        value={densityNotApplicable ? 'N/A' : (data.density ?? '')}
-                                        onChange={(e) => setData('density', limitDecimals(e.target.value, 4))}
-                                        disabled={isReadOnly || densityNotApplicable}
-                                    />
-                                    <button
-                                        type="button"
-                                        aria-pressed={densityNotApplicable}
-                                        onClick={() => setData({ ...data, density_not_applicable: densityNotApplicable ? '0' : '1', density: '' })}
-                                        disabled={isReadOnly}
-                                        className={`h-[46px] shrink-0 rounded-xl border-[1.5px] px-4 text-[13.5px] font-bold transition-colors disabled:opacity-60 ${
-                                            densityNotApplicable
-                                                ? 'border-primary bg-primary text-primary-foreground'
-                                                : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                                        }`}
-                                    >
-                                        N/A
-                                    </button>
-                                </div>
-                                <InputError
-                                    message={errors.density || (errorFields.has('density') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="average_of_empty_bottle_weight" className="text-muted-foreground text-xs font-semibold">
-                                    Average of Empty Bottle Weight
-                                </Label>
-                                <Input
-                                    id="average_of_empty_bottle_weight"
-                                    type="number"
-                                    step="0.01"
-                                    className={`${inputClass} ${errorFields.has('average_of_empty_bottle_weight') ? errorBorder : ''}`}
-                                    value={data.average_of_empty_bottle_weight ?? ''}
-                                    onChange={(e) => {
-                                        setData('average_of_empty_bottle_weight', limitDecimals(e.target.value));
-                                        setErrorFields((prev) => {
-                                            const n = new Set(prev);
-                                            n.delete('average_of_empty_bottle_weight');
-                                            return n;
-                                        });
-                                    }}
-                                    disabled={isReadOnly}
-                                />
-                                <InputError
-                                    message={
-                                        errors.average_of_empty_bottle_weight ||
-                                        (errorFields.has('average_of_empty_bottle_weight') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
-                                    }
-                                />
-                            </div>
+                        <AccordionCard
+                            title={isPackingFg ? 'Parameter Packing' : 'Parameter Filling'}
+                            complete={parameterFillingComplete}
+                            defaultOpen={!parameterFillingComplete}
+                        >
+                            {!isPackingFg && (
+                                <>
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="filling_range_min" className="text-muted-foreground text-xs font-semibold">
+                                            Filling Range Min
+                                        </Label>
+                                        <Input
+                                            id="filling_range_min"
+                                            type="number"
+                                            step="0.01"
+                                            className={inputClass}
+                                            value={data.filling_range_min ?? ''}
+                                            onChange={(e) => setData('filling_range_min', limitDecimals(e.target.value))}
+                                            disabled={isReadOnly}
+                                        />
+                                        <InputError
+                                            message={
+                                                errors.filling_range_min ||
+                                                (errorFields.has('filling_range_min') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="filling_range_max" className="text-muted-foreground text-xs font-semibold">
+                                            Filling Range Max
+                                        </Label>
+                                        <Input
+                                            id="filling_range_max"
+                                            type="number"
+                                            step="0.01"
+                                            className={inputClass}
+                                            value={data.filling_range_max ?? ''}
+                                            onChange={(e) => setData('filling_range_max', limitDecimals(e.target.value))}
+                                            disabled={isReadOnly}
+                                        />
+                                        <InputError
+                                            message={
+                                                errors.filling_range_max ||
+                                                (errorFields.has('filling_range_max') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="density" className="text-muted-foreground text-xs font-semibold">
+                                            Density
+                                        </Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id="density"
+                                                type={densityNotApplicable ? 'text' : 'number'}
+                                                step="0.0001"
+                                                className={`${inputClass} flex-1`}
+                                                value={densityNotApplicable ? 'N/A' : (data.density ?? '')}
+                                                onChange={(e) => setData('density', limitDecimals(e.target.value, 4))}
+                                                disabled={isReadOnly || densityNotApplicable}
+                                            />
+                                            <button
+                                                type="button"
+                                                aria-pressed={densityNotApplicable}
+                                                onClick={() =>
+                                                    setData({ ...data, density_not_applicable: densityNotApplicable ? '0' : '1', density: '' })
+                                                }
+                                                disabled={isReadOnly}
+                                                className={`h-[46px] shrink-0 rounded-xl border-[1.5px] px-4 text-[13.5px] font-bold transition-colors disabled:opacity-60 ${
+                                                    densityNotApplicable
+                                                        ? 'border-primary bg-primary text-primary-foreground'
+                                                        : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                                                }`}
+                                            >
+                                                N/A
+                                            </button>
+                                        </div>
+                                        <InputError
+                                            message={errors.density || (errorFields.has('density') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="average_of_empty_bottle_weight" className="text-muted-foreground text-xs font-semibold">
+                                            Average of Empty Bottle Weight
+                                        </Label>
+                                        <Input
+                                            id="average_of_empty_bottle_weight"
+                                            type="number"
+                                            step="0.01"
+                                            className={`${inputClass} ${errorFields.has('average_of_empty_bottle_weight') ? errorBorder : ''}`}
+                                            value={data.average_of_empty_bottle_weight ?? ''}
+                                            onChange={(e) => {
+                                                setData('average_of_empty_bottle_weight', limitDecimals(e.target.value));
+                                                setErrorFields((prev) => {
+                                                    const n = new Set(prev);
+                                                    n.delete('average_of_empty_bottle_weight');
+                                                    return n;
+                                                });
+                                            }}
+                                            disabled={isReadOnly}
+                                        />
+                                        <InputError
+                                            message={
+                                                errors.average_of_empty_bottle_weight ||
+                                                (errorFields.has('average_of_empty_bottle_weight') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                            }
+                                        />
+                                    </div>
+                                </>
+                            )}
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="heating" className="text-muted-foreground text-xs font-semibold">
                                     Heating
