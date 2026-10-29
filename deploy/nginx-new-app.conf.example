@@ -80,3 +80,33 @@ server {
         deny all;
     }
 }
+
+# Server-to-server API untuk ipc_app (halaman "Status Trial Produk"): HTTP polos, HANYA loopback, dan
+# HANYA /api/internal/*. Tidak dipakai user (link user tetap https di port di atas) dan tidak bisa
+# dijangkau dari LAN. Port 9010/9012 hanya me-redirect ke HTTPS, dan sertifikatnya untuk IP server
+# (bukan 127.0.0.1), jadi ipc_app tidak bisa memakainya. Pasang di ipc_app/.env:
+#   TRIAL_API_URL=http://127.0.0.1:9019
+# Pagar berlapis: bind loopback ini + IP allow-list + X-Internal-Token di aplikasi (INTERNAL_API_TOKEN).
+server {
+    listen 127.0.0.1:9019;
+    server_name _;
+
+    root /var/www/trial_validation_app/new_trial_validation_app/public;
+    index index.php;
+
+    access_log /var/log/nginx/trial-validation-new-app-internal.access.log;
+    error_log  /var/log/nginx/trial-validation-new-app-internal.error.log;
+
+    location /api/internal/ {
+        try_files $uri /index.php?$query_string;
+    }
+
+    location ~ ^/index\.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock; # sesuaikan versi PHP
+    }
+
+    location / {
+        return 404;
+    }
+}

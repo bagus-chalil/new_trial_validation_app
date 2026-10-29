@@ -854,6 +854,35 @@ Sesuaikan path dengan `DEPLOY_PATH` server tersebut. Verifikasi: `sudo -u www-da
 Pipeline juga punya stage `test` (`test_new_trial_validation_app`): Pest di sqlite in-memory (tidak menyentuh DB asli),
 berjalan di runner yang sama dan memblok deploy bila gagal.
 
+## 13. Status Trial Produk (ipc_app membaca new_trial_validation_app lewat API internal)
+
+Halaman **Status Trial Produk** di ipc_app (`/masters/trial-status`) mengambil status trial dari
+`GET /api/internal/trial-status` milik new_trial_validation_app (server yang sama, hanya baca, tanpa tabel/migration baru).
+CI **tidak** menyentuh `.env` maupun nginx, jadi setup sekali per server (production dan development):
+
+1. **Token** (rahasia bersama, buat baru per environment, jangan pakai token lokal):
+   ```bash
+   php -r 'echo bin2hex(random_bytes(24)), PHP_EOL;'
+   ```
+2. **`.env` kedua app** (di-exclude dari rsync, edit manual):
+   - `new_trial_validation_app/.env`: `INTERNAL_API_TOKEN=<token>` (`INTERNAL_API_ALLOWED_IPS` default sudah loopback saja).
+   - `ipc_app/.env`: `TRIAL_API_TOKEN=<token yang sama>` dan `TRIAL_API_URL=http://127.0.0.1:9019`
+     (production) / `http://127.0.0.1:9018` (development). Opsional: `TRIAL_STALE_DAYS` (default 90).
+3. **Vhost loopback nginx**: salin blok `127.0.0.1:9019` (production) / `127.0.0.1:9018` (development) dari
+   `nginx-new-app.conf.example` / `nginx-new-app-development.conf.example`, lalu `sudo nginx -t && sudo systemctl reload nginx`.
+   Jangan arahkan `TRIAL_API_URL` ke port 9010/9012: itu cuma redirect ke HTTPS dan sertifikatnya bukan untuk `127.0.0.1`.
+
+Cek setelah deploy (200 = benar; tanpa/salah token = 401):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}
+" -H "X-Internal-Token: <token>" http://127.0.0.1:9019/api/internal/trial-status
+```
+
+Lalu buka `/masters/trial-status` di ipc_app sebagai admin: indikator harus hijau "Live". Link user tetap
+`https://<IP>:9011` (trial) dan `https://<IP>:9021` (ipc_app); 9019/9018 hanya jalur internal server-ke-server.
+Tanpa token di `.env`, halaman tetap terbuka tapi menampilkan peringatan "belum bisa diperbarui".
+
 ## Catatan keamanan
 
 `config/database.php` dan `config/sso.php` **sudah ter-commit di git** dengan

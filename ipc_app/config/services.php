@@ -49,6 +49,8 @@ return [
         'token' => env('TRIAL_API_TOKEN'),
         'timeout' => (int) env('TRIAL_API_TIMEOUT', 3),
         'cache_seconds' => (int) env('TRIAL_API_CACHE_SECONDS', 15),
+        // An unfinished trial idle this many days is flagged "perlu perhatian" on the Status Trial report.
+        'stale_days' => (int) env('TRIAL_STALE_DAYS', 90),
     ],
 
 ];

@@ -18,7 +18,7 @@ class TrialStatusReportTest extends TestCase
     {
         parent::setUp();
 
-        config(['services.trial_app.token' => 'secret-token', 'services.trial_app.url' => 'http://trial.test']);
+        config(['services.trial_app.token' => 'secret-token', 'services.trial_app.url' => 'http://trial.test', 'services.trial_app.stale_days' => 14]);
         Cache::forget(TrialStatusClient::CACHE_KEY);
         Cache::forget(TrialStatusClient::STALE_KEY);
     }

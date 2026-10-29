@@ -21,9 +21,6 @@ class TrialStatusReportController extends Controller
 {
     private const STATUSES = ['approved', 'in_progress', 'rejected'];
 
-    /** An unfinished trial untouched for this many days is flagged "perlu perhatian". */
-    private const STALE_DAYS = 14;
-
     public function index(Request $request, TrialStatusClient $client): Response
     {
         if ($request->boolean('refresh')) {
@@ -104,14 +101,20 @@ class TrialStatusReportController extends Controller
                 ->map(fn (Collection $group, string $name) => ['name' => $name, 'count' => $group->count()])
                 ->sortByDesc('count')
                 ->values(),
-            'staleDays' => self::STALE_DAYS,
+            'staleDays' => $this->staleDays(),
             'trialAppAvailable' => $ok,
         ]);
+    }
+
+    /** An unfinished trial untouched for this many days is flagged "perlu perhatian" (TRIAL_STALE_DAYS). */
+    private function staleDays(): int
+    {
+        return max(1, (int) config('services.trial_app.stale_days'));
     }
 
     /** @param  array<string, mixed>  $row */
     private function isStale(array $row): bool
     {
-        return $row['status'] === 'in_progress' && ($row['idle_days'] ?? 0) >= self::STALE_DAYS;
+        return $row['status'] === 'in_progress' && ($row['idle_days'] ?? 0) >= $this->staleDays();
     }
 }
