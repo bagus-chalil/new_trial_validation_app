@@ -1,3 +1,4 @@
+import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
 import { PaginationFooter } from '@/components/ipc/pagination-footer';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { Head, Link } from '@inertiajs/react';
@@ -21,38 +22,35 @@ interface PaginatedBatches {
     total: number;
 }
 
-const FLOW_FILTERS = [
-    { value: null, label: 'Semua' },
-    { value: 'packing_fg', label: 'Packing + FG' },
-    { value: 'full', label: 'Fillpack' },
-];
-
 const FLOW_BADGE: Record<string, string> = {
     packing_fg: 'Packing + FG',
     full: 'Fillpack',
     filling: 'Filling Saja',
 };
 
-export default function MicroCheckIndex({ batches, flow }: { batches: PaginatedBatches; flow: string | null }) {
+const STATUS_FIELD = {
+    key: 'status' as const,
+    label: 'Status',
+    options: [
+        { value: 'belum', label: 'Belum diisi' },
+        { value: 'tersimpan', label: 'Progress tersimpan' },
+    ],
+};
+
+export default function MicroCheckIndex({
+    batches,
+    filters,
+    filterOptions,
+}: {
+    batches: PaginatedBatches;
+    filters: BatchFilterValues;
+    filterOptions: BatchFilterOptions;
+}) {
     return (
         <IpcShell title="Micro Check" subtitle={`${batches.total} batch menunggu Micro Check`} backHref="/dashboard">
             <Head title="Micro Check" />
             <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-5 md:p-6">
-                <div className="flex flex-wrap gap-2">
-                    {FLOW_FILTERS.map((f) => (
-                        <Link
-                            key={f.label}
-                            href="/micro-checks"
-                            data={f.value ? { flow: f.value } : {}}
-                            preserveScroll
-                            className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
-                                (flow ?? null) === f.value ? 'bg-primary text-primary-foreground' : 'border-border-soft bg-card border'
-                            }`}
-                        >
-                            {f.label}
-                        </Link>
-                    ))}
-                </div>
+                <BatchFilterBar path="/micro-checks" filters={filters} options={filterOptions} withSearch extraFields={[STATUS_FIELD]} />
                 {batches.data.map((batch) => (
                     <Link
                         key={batch.id}

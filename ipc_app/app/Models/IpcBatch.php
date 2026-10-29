@@ -59,6 +59,13 @@ class IpcBatch extends Model
         self::FLOW_PACKING_FG => 'Packing + Finished Good',
     ];
 
+    /** Short names the floor uses, for badges and filter chips. */
+    public const FLOW_SHORT_LABELS = [
+        self::FLOW_FULL => 'Fillpack',
+        self::FLOW_FILLING => 'Filling Saja',
+        self::FLOW_PACKING_FG => 'Packing + FG',
+    ];
+
     public const FLOW_DESCRIPTIONS = [
         self::FLOW_FULL => 'Startup Check → Filling Check → Packing Check → Finished Good → Approval → Print',
         self::FLOW_FILLING => 'Startup Check → Filling Check → Approval → Print (tanpa Packing Check & Finished Good)',
@@ -313,6 +320,20 @@ class IpcBatch extends Model
             $base()->where('no_batch', 'like', static::escapeLike($q).'%'),
             $base()->whereIn('master_product_id', static::productIdsMatching($q)),
         ];
+    }
+
+    /**
+     * Free-text search for the small queue lists (Micro Check, Approval Queue): batch number or
+     * product name *contains* the term. The big Batch list uses searchIds() instead, since a
+     * leading-wildcard LIKE can't use an index at ~1M rows.
+     */
+    public function scopeMatchingSearch(Builder $query, string $q): Builder
+    {
+        $like = '%'.static::escapeLike($q).'%';
+
+        return $query->where(fn (Builder $w) => $w
+            ->where('no_batch', 'like', $like)
+            ->orWhereIn('master_product_id', MasterProduct::withTrashed()->select('id')->where('product_name', 'like', $like)));
     }
 
     private static function productIdsMatching(string $q): Builder

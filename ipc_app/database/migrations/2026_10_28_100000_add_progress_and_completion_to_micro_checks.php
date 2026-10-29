@@ -22,14 +22,20 @@ return new class extends Migration
             foreach (self::VALUE_COLUMNS as $column) {
                 $table->string($column, 50)->nullable()->change();
             }
-            $table->timestamp('completed_at')->nullable()->after('save_count');
+            // MySQL DDL isn't transactional: a run that died after this step left the column
+            // behind, so guard it to make the migration safe to re-run.
+            if (! Schema::hasColumn('micro_checks', 'completed_at')) {
+                $table->timestamp('completed_at')->nullable()->after('save_count');
+            }
         });
 
         Schema::table('micro_check_revisions', function (Blueprint $table) {
             foreach (self::VALUE_COLUMNS as $column) {
                 $table->string($column, 50)->nullable()->change();
             }
-            $table->boolean('finalize')->default(false)->after('revision_no');
+            if (! Schema::hasColumn('micro_check_revisions', 'finalize')) {
+                $table->boolean('finalize')->default(false)->after('revision_no');
+            }
         });
 
         // Under the old rule a batch could only finalize Finished Good once Micro Check was
@@ -37,6 +43,7 @@ return new class extends Migration
         // they stay locked and nothing already sent to Approval changes.
         DB::table('micro_checks')
             ->whereIn('ipc_batch_id', DB::table('finished_checks')->whereNotNull('completed_at')->select('ipc_batch_id'))
+            ->whereNull('completed_at')
             ->whereNotNull('total_plate_count_result')->whereNotNull('total_plate_count_std')
             ->whereNotNull('yeast_mold_result')->whereNotNull('yeast_mold_std')
             ->whereNotNull('pathogen_result')->whereNotNull('pathogen_std')

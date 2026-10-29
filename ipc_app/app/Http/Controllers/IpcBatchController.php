@@ -6,6 +6,7 @@ use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
+use App\Support\BatchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -22,7 +23,10 @@ class IpcBatchController extends Controller
         $stage = $request->string('stage')->toString() ?: null;
         $perPage = 20;
         $user = $request->user();
-        $scope = $user->isStaff() ? null : fn ($query) => $query->visibleTo($user);
+        $filter = BatchFilter::fromRequest($request);
+        // Role visibility + the filter bar, as one closure so the indexed search helpers
+        // (searchIds/searchCount) apply both to each of their branches.
+        $scope = fn ($query) => $filter->apply($user->isStaff() ? $query : $query->visibleTo($user));
 
         $query = IpcBatch::query()->with([
             'masterProduct:id,fg_code,product_name',
@@ -54,7 +58,8 @@ class IpcBatchController extends Controller
 
         return Inertia::render('batches/index', [
             'batches' => $batches,
-            'filters' => $request->only(['q', 'stage']),
+            'filters' => [...$request->only(['q', 'stage']), ...$filter->toArray()],
+            'filterOptions' => BatchFilter::options(),
             'stages' => IpcBatch::STAGES,
         ]);
     }

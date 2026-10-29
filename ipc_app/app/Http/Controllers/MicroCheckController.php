@@ -6,6 +6,7 @@ use App\Actions\MicroChecks\SaveMicroCheck;
 use App\Http\Requests\SaveMicroCheckRequest;
 use App\Models\IpcBatch;
 use App\Models\MicroCheck;
+use App\Support\BatchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,14 +21,18 @@ class MicroCheckController extends Controller
      */
     public function index(Request $request): Response
     {
-        $flow = in_array($request->query('flow'), [IpcBatch::FLOW_PACKING_FG, IpcBatch::FLOW_FULL], true)
-            ? $request->query('flow')
-            : null;
+        // Filling-only batches have no Finished Good, so they can never be in this queue.
+        $flows = [IpcBatch::FLOW_PACKING_FG, IpcBatch::FLOW_FULL];
+        $q = trim($request->string('q')->toString());
+        $status = in_array($request->query('status'), ['belum', 'tersimpan'], true) ? $request->query('status') : null;
+        $filter = BatchFilter::fromRequest($request, $flows);
 
-        $batches = IpcBatch::query()
+        $batches = $filter->apply(IpcBatch::query())
             ->whereHas('finishedCheck', fn ($query) => $query->whereNotNull('completed_at'))
             ->whereDoesntHave('microCheck', fn ($query) => $query->whereNotNull('completed_at'))
-            ->when($flow, fn ($query) => $query->where('flow_type', $flow))
+            ->when($q !== '', fn ($query) => $query->matchingSearch($q))
+            ->when($status === 'belum', fn ($query) => $query->whereDoesntHave('microCheck'))
+            ->when($status === 'tersimpan', fn ($query) => $query->whereHas('microCheck'))
             ->with(['masterProduct:id,fg_code,product_name', 'masterLine:id,name', 'microCheck'])
             ->latest('id')
             ->paginate(20)
@@ -43,7 +48,11 @@ class MicroCheckController extends Controller
                 'filled_at' => $batch->microCheck?->updated_at,
             ]);
 
-        return Inertia::render('micro-checks/index', ['batches' => $batches, 'flow' => $flow]);
+        return Inertia::render('micro-checks/index', [
+            'batches' => $batches,
+            'filters' => ['q' => $q, 'status' => $status, ...$filter->toArray()],
+            'filterOptions' => BatchFilter::options($flows),
+        ]);
     }
 
     public function edit(IpcBatch $batch): Response

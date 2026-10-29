@@ -4,14 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
+use App\Support\BatchFilter;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ApprovalQueueController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $queue = IpcBatch::query()
+        $q = trim($request->string('q')->toString());
+        $filter = BatchFilter::fromRequest($request);
+
+        $queue = $filter->apply(IpcBatch::query())
+            ->when($q !== '', fn ($query) => $query->matchingSearch($q))
             // Finished Check done + at least one stage ready-but-not-Approved, evaluated in SQL
             // (see IpcBatch::scopePendingApproval) so this stays a paginated, indexed query as
             // batches grow, instead of loading every finished batch into PHP. Mirrors
@@ -29,6 +35,7 @@ class ApprovalQueueController extends Controller
             ])
             ->latest('id')
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (IpcBatch $batch) => [
                 'batch' => $batch,
                 'pendingStages' => IpcApproval::pendingStagesFor($batch)
@@ -36,6 +43,10 @@ class ApprovalQueueController extends Controller
                     ->values(),
             ]);
 
-        return Inertia::render('approvals/index', ['queue' => $queue]);
+        return Inertia::render('approvals/index', [
+            'queue' => $queue,
+            'filters' => ['q' => $q, ...$filter->toArray()],
+            'filterOptions' => BatchFilter::options(),
+        ]);
     }
 }

@@ -1,4 +1,5 @@
 import { BatchActionsMenu } from '@/components/ipc/batch-actions-menu';
+import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useInitials } from '@/hooks/use-initials';
@@ -117,6 +118,7 @@ function BatchCard({ batch, canManage }: { batch: Batch; canManage: boolean }) {
 function BatchListPane({
     batches,
     filters,
+    filterOptions,
     stages,
     q,
     setQ,
@@ -125,7 +127,8 @@ function BatchListPane({
     onSetStage,
 }: {
     batches: Paginated<Batch>;
-    filters: { q?: string; stage?: string };
+    filters: BatchFilterValues;
+    filterOptions: BatchFilterOptions;
     stages: string[];
     q: string;
     setQ: (value: string) => void;
@@ -181,6 +184,8 @@ function BatchListPane({
                 ))}
             </div>
 
+            <BatchFilterBar path="/batches" filters={filters} options={filterOptions} />
+
             <div className="flex flex-col gap-3">
                 {batches.data.map((batch) => (
                     <BatchCard key={batch.id} batch={batch} canManage={!!canManageMaster} />
@@ -215,34 +220,43 @@ function BatchListPane({
 export default function BatchesIndex({
     batches,
     filters,
+    filterOptions,
     stages,
 }: {
     batches: Paginated<Batch>;
-    filters: { q?: string; stage?: string };
+    filters: BatchFilterValues;
+    filterOptions: BatchFilterOptions;
     stages: string[];
 }) {
     const [q, setQ] = useState(filters.q ?? '');
     const { props } = usePage<SharedData>();
     const getInitials = useInitials();
 
+    // Search / stage chips keep whatever the filter bar has applied (date, creator, line, flow).
+    const visit = (patch: BatchFilterValues) => {
+        const params = Object.fromEntries(Object.entries({ ...filters, ...patch }).filter(([, value]) => value !== undefined && value !== ''));
+        router.get('/batches', params, { preserveState: true, replace: true });
+    };
+
     const submitSearch: FormEventHandler = (e) => {
         e.preventDefault();
-        router.get('/batches', { q, stage: filters.stage }, { preserveState: true, replace: true });
+        visit({ q });
     };
 
     const clearSearch = () => {
         setQ('');
-        router.get('/batches', { stage: filters.stage }, { preserveState: true, replace: true });
+        visit({ q: undefined });
     };
 
     const setStage = (stage?: string) => {
-        router.get('/batches', { q, stage }, { preserveState: true, replace: true });
+        visit({ q, stage });
     };
 
     const listPane = (
         <BatchListPane
             batches={batches}
             filters={filters}
+            filterOptions={filterOptions}
             stages={stages}
             q={q}
             setQ={setQ}
