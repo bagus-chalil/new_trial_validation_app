@@ -4,9 +4,10 @@ import { ChipToggleGroup, StatusChip } from '@/components/ipc/chip-toggle-group'
 
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Toast, useToast } from '@/components/ipc/toast';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/react';
-import { Eye, Printer } from 'lucide-react';
+import { Eye, LoaderCircle, Printer } from 'lucide-react';
 import { FormEventHandler, type ReactNode, Suspense, lazy, useState } from 'react';
 
 // pdf.js is large: load it only when someone actually opens a document (weak tablets, slow Wi-Fi).
@@ -268,7 +269,7 @@ export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: num
     const { toast, message } = useToast();
     const existing = stage.approval;
 
-    const { data, setData, put, processing, errors } = useForm<{ decision: string; remarks: string }>({
+    const { data, setData, put, processing, errors, setError, clearErrors } = useForm<{ decision: string; remarks: string }>({
         decision: existing?.decision ?? '',
         remarks: existing?.remarks ?? '',
     });
@@ -276,14 +277,20 @@ export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: num
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!data.decision) {
+            setError('decision', 'Pilih Approved untuk menyetujui atau Rejected untuk menolak hasil pemeriksaan.');
             toast('Pilih keputusan (Approved/Rejected) dulu.');
+            return;
+        }
+        if (data.decision === 'Rejected' && !data.remarks.trim()) {
+            setError('remarks', 'Jelaskan alasan penolakan agar petugas mengetahui hal yang perlu diperbaiki.');
+            document.getElementById(`approval-remarks-${stage.stage}`)?.focus();
             return;
         }
         put(`/batches/${batchId}/approval/${stage.stage}`, { preserveScroll: true });
     };
 
     return (
-        <div className="border-border-soft bg-card flex flex-col gap-3.5 rounded-[20px] border p-[18px]">
+        <div className="border-primary/20 bg-card flex flex-col gap-4 rounded-3xl border p-5 shadow-sm md:p-6">
             <Toast message={message} />
             <div className="flex items-center justify-between gap-3">
                 <p className="text-[14.5px] font-bold">Approval — {stage.label}</p>
@@ -310,22 +317,44 @@ export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: num
                 </p>
             ) : (
                 <form onSubmit={submit} className="flex flex-col gap-3">
-                    <ChipToggleGroup name="decision" options={decisions} value={data.decision} onChange={(value) => setData('decision', value)} />
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                        Tinjau data pemeriksaan sebelum memilih keputusan. Jika ditolak, tuliskan alasan agar tindak lanjutnya jelas.
+                    </p>
+                    <ChipToggleGroup
+                        name="Keputusan approval"
+                        options={decisions}
+                        value={data.decision}
+                        disabled={processing}
+                        onChange={(value) => {
+                            setData('decision', value);
+                            clearErrors('decision');
+                            if (value !== 'Rejected') clearErrors('remarks');
+                        }}
+                    />
                     <InputError message={errors.decision} />
+                    <Label htmlFor={`approval-remarks-${stage.stage}`}>Catatan {data.decision === 'Rejected' ? '(wajib diisi)' : '(opsional)'}</Label>
                     <Textarea
+                        id={`approval-remarks-${stage.stage}`}
+                        aria-invalid={Boolean(errors.remarks)}
+                        aria-describedby={errors.remarks ? `approval-remarks-error-${stage.stage}` : undefined}
                         placeholder="Catatan (wajib jika Rejected)"
                         rows={2}
                         className="border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px]"
                         value={data.remarks}
-                        onChange={(e) => setData('remarks', e.target.value)}
+                        onChange={(e) => {
+                            setData('remarks', e.target.value);
+                            clearErrors('remarks');
+                        }}
+                        disabled={processing}
                     />
-                    <InputError message={errors.remarks} />
+                    <InputError id={`approval-remarks-error-${stage.stage}`} message={errors.remarks} />
                     <button
                         type="submit"
                         disabled={processing}
                         className="bg-primary flex h-11 w-full items-center justify-center rounded-xl text-[14px] font-bold text-white disabled:opacity-60 sm:w-auto sm:self-end sm:px-6"
                     >
-                        Simpan Keputusan
+                        {processing && <LoaderCircle className="mr-2 size-4 animate-spin" />}
+                        {processing ? 'Menyimpan...' : 'Simpan Keputusan'}
                     </button>
                 </form>
             )}

@@ -5,12 +5,13 @@ import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { FinalizeChoiceDialog } from '@/components/ipc/finalize-choice-dialog';
 import { FinalizeConfirmDialog } from '@/components/ipc/finalize-confirm-dialog';
+import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
+import { WorkflowForm } from '@/components/ipc/workflow-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -337,7 +338,13 @@ export default function PackingCheckEdit({
             <Head title={`Packing Check — ${batch.no_batch}`} />
             <Toast message={message} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
-                <form onSubmit={submit} className="flex flex-1 flex-col">
+                <WorkflowForm
+                    title="Pemeriksaan proses packing"
+                    description="Periksa kesesuaian kemasan dan coding secara berurutan. Lengkapi parameter packing dan catatan sebelum menyimpan hasil pemeriksaan."
+                    readOnly={isReadOnly}
+                    onSubmit={submit}
+                    className="flex flex-1 flex-col"
+                >
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
                         {/* Info header — mirrors the legacy screen's top info block and Filling Check's
                             own info header, so QC has full context without navigating away. */}
@@ -395,7 +402,11 @@ export default function PackingCheckEdit({
                                                     disabled={isReadOnly}
                                                 />
                                             </div>
-                                            <InputError message={errors[key]} />
+                                            <InputError
+                                                message={
+                                                    errors[key] || (errorFields.has(key) ? 'Pilih hasil pemeriksaan untuk item ini.' : undefined)
+                                                }
+                                            />
                                         </div>
                                     ))}
                                 </AccordionCard>
@@ -433,7 +444,11 @@ export default function PackingCheckEdit({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <InputError message={errors.master_line_id} />
+                                <InputError
+                                    message={
+                                        errors.master_line_id || (errorFields.has('master_line_id') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="standard_weight_mb" className="text-muted-foreground text-xs font-semibold">
@@ -456,7 +471,12 @@ export default function PackingCheckEdit({
                                     }}
                                     disabled={isReadOnly || standardWeightMbLocked}
                                 />
-                                <InputError message={errors.standard_weight_mb} />
+                                <InputError
+                                    message={
+                                        errors.standard_weight_mb ||
+                                        (errorFields.has('standard_weight_mb') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="sum_weight_mb" className="text-muted-foreground text-xs font-semibold">
@@ -480,7 +500,11 @@ export default function PackingCheckEdit({
                                     }}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.sum_weight_mb} />
+                                <InputError
+                                    message={
+                                        errors.sum_weight_mb || (errorFields.has('sum_weight_mb') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
@@ -500,7 +524,12 @@ export default function PackingCheckEdit({
                                     }}
                                     disabled={isReadOnly || lineLeaderLocked}
                                 />
-                                <InputError message={errors.line_leader_name} />
+                                <InputError
+                                    message={
+                                        errors.line_leader_name ||
+                                        (errorFields.has('line_leader_name') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="coding_machine" className="text-muted-foreground text-xs font-semibold">
@@ -520,7 +549,11 @@ export default function PackingCheckEdit({
                                     }}
                                     disabled={isReadOnly || codingMachineLocked}
                                 />
-                                <InputError message={errors.coding_machine} />
+                                <InputError
+                                    message={
+                                        errors.coding_machine || (errorFields.has('coding_machine') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div id="weighing_data" className="flex flex-col gap-2">
                                 <Label className="text-muted-foreground text-xs font-semibold">
@@ -542,7 +575,11 @@ export default function PackingCheckEdit({
                                         disabled={isReadOnly || weighingDataLocked}
                                     />
                                 </div>
-                                <InputError message={errors.weighing_data} />
+                                <InputError
+                                    message={
+                                        errors.weighing_data || (errorFields.has('weighing_data') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
                                 {PHOTO_FIELDS.map(({ key, label }) => (
@@ -589,7 +626,9 @@ export default function PackingCheckEdit({
                                         disabled={isReadOnly}
                                     />
                                 </div>
-                                <InputError message={errors.decision} />
+                                <InputError
+                                    message={errors.decision || (errorFields.has('decision') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">
@@ -610,7 +649,9 @@ export default function PackingCheckEdit({
                                     }}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.remarks} />
+                                <InputError
+                                    message={errors.remarks || (errorFields.has('remarks') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                         </AccordionCard>
 
@@ -654,7 +695,7 @@ export default function PackingCheckEdit({
                                 .join(' · ')}
                         />
                     )}
-                </form>
+                </WorkflowForm>
             </TwoPane>
 
             <FinalizeConfirmDialog

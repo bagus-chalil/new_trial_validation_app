@@ -1,6 +1,7 @@
 import { formatDateTime, InfoField, type ApprovalData, type StageInfo } from '@/components/ipc/approval-report';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { TwoPane } from '@/components/ipc/two-pane';
+import { WorkflowIntro } from '@/components/ipc/workflow-form';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { lineLabel } from '@/lib/batch-line';
 import { type RecentBatch, type SharedData } from '@/types';
@@ -113,7 +114,11 @@ export default function ApprovalOverview({ batch, stages }: { batch: Batch; stag
         <IpcShell title="Approval" subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`} backHref={`/batches/${batch.id}`}>
             <Head title={`Approval — ${batch.no_batch}`} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
-                <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-6 md:px-8">
+                <div className="workflow-review flex flex-1 flex-col gap-5 px-5 pt-5 pb-6 md:px-8 md:pt-7">
+                    <WorkflowIntro
+                        title="Review & approval"
+                        description="Tinjau hasil pemeriksaan setiap tahap, periksa temuan, lalu tentukan persetujuan berdasarkan laporan lengkap."
+                    />
                     <div className="border-border-soft bg-card grid grid-cols-2 gap-3 rounded-[20px] border p-[18px] md:grid-cols-4 md:gap-4">
                         <InfoField label="No. Batch" value={batch.no_batch} />
                         <InfoField label="FG Code" value={batch.master_product.fg_code} />

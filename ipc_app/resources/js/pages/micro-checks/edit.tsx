@@ -1,8 +1,9 @@
 import InputError from '@/components/input-error';
 import { FinalizeConfirmDialog } from '@/components/ipc/finalize-confirm-dialog';
+import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
+import { WorkflowForm } from '@/components/ipc/workflow-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
@@ -101,7 +102,13 @@ export default function MicroCheckEdit({
             }
         >
             <Head title={`Micro Check — ${batch.no_batch}`} />
-            <form onSubmit={submit} className="flex flex-1 flex-col overflow-y-auto">
+            <WorkflowForm
+                title="Hasil pemeriksaan mikrobiologi"
+                description="Isi hasil uji pada Result dan standar pembanding pada Std. Simpan Progress untuk melanjutkan nanti; pilih Selesaikan setelah seluruh hasil lengkap."
+                readOnly={isReadOnly}
+                onSubmit={submit}
+                className="flex flex-1 flex-col overflow-y-auto"
+            >
                 <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-4 md:px-8">
                     <div className="border-border-soft bg-card flex flex-col gap-4 rounded-[20px] border p-[18px]">
                         <p className="text-muted-foreground text-[12.5px] font-medium">
@@ -174,7 +181,7 @@ export default function MicroCheckEdit({
                         note="Selesaikan mengunci Micro Check dan mengirim batch untuk Approval — setiap simpan tercatat di riwayat."
                     />
                 )}
-            </form>
+            </WorkflowForm>
             <FinalizeConfirmDialog
                 open={finalizeConfirmOpen}
                 onOpenChange={setFinalizeConfirmOpen}

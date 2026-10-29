@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { FlowBadge, flowTheme } from '@/components/ipc/flow-identity';
 import { ProductSearchSelect, type ProductOption } from '@/components/ipc/product-search-select';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
@@ -221,7 +222,8 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                             <label
                                                 key={flow.value}
                                                 htmlFor={`flow-type-${flow.value}`}
-                                                className="hover:bg-muted/40 flex cursor-pointer items-start gap-3 px-3 py-2.5 text-sm"
+                                                style={flowTheme(flow.value)}
+                                                className={`ipc-flow flex cursor-pointer items-start gap-3 border-l-[3px] px-4 py-4 text-sm transition-colors ${data.flow_type === flow.value ? 'border-l-primary bg-primary/[0.06]' : 'hover:bg-muted/40 border-l-transparent'}`}
                                             >
                                                 <input
                                                     type="radio"
@@ -232,7 +234,7 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                                     onChange={() => setData('flow_type', flow.value)}
                                                 />
                                                 <span className="flex flex-col gap-0.5">
-                                                    <span className="font-semibold">{flow.label}</span>
+                                                    <FlowBadge type={flow.value} />
                                                     <span className="text-muted-foreground text-[12.5px]">{flow.description}</span>
                                                 </span>
                                             </label>

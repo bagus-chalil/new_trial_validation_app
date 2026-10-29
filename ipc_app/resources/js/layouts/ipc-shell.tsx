@@ -1,4 +1,5 @@
 import { BottomNav } from '@/components/ipc/bottom-nav';
+import { FlowBanner, flowTheme } from '@/components/ipc/flow-identity';
 import { NavRail } from '@/components/ipc/nav-rail';
 import { returnToFromUrl } from '@/lib/return-to';
 import { type SharedData } from '@/types';
@@ -23,7 +24,8 @@ export function IpcShell({
     progressPct?: number;
     children: ReactNode;
 }) {
-    const { props, url } = usePage<SharedData>();
+    const { props, url } = usePage<SharedData & { batch?: { flow_type?: string | null } }>();
+    const batchFlow = props.batch;
     // A `?return_to=` from the page that sent the user here beats the fixed parent.
     const backTarget = returnToFromUrl(url) ?? backHref;
 
@@ -31,7 +33,10 @@ export function IpcShell({
         <div className="bg-background flex h-screen flex-col supports-[height:100dvh]:h-dvh md:flex-row">
             <NavRail />
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div
+                className={batchFlow ? 'ipc-flow flex min-h-0 min-w-0 flex-1 flex-col' : 'flex min-h-0 min-w-0 flex-1 flex-col'}
+                style={batchFlow ? flowTheme(batchFlow.flow_type) : undefined}
+            >
                 {header ?? (
                     <header className="border-border-soft bg-card flex shrink-0 items-center gap-3 border-b px-5 py-4 md:px-6">
                         {backTarget && (
@@ -51,6 +56,7 @@ export function IpcShell({
                     </header>
                 )}
 
+                {batchFlow && <FlowBanner type={batchFlow.flow_type} />}
                 {progressPct !== undefined && (
                     <div className="bg-border-soft mx-5 mb-4 h-1.5 shrink-0 overflow-hidden rounded-full md:mx-6">
                         <div className="bg-primary h-full rounded-full transition-[width] duration-200" style={{ width: `${progressPct}%` }} />

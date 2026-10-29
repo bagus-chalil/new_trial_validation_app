@@ -5,12 +5,13 @@ import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { FinalizeChoiceDialog } from '@/components/ipc/finalize-choice-dialog';
 import { FinalizeConfirmDialog } from '@/components/ipc/finalize-confirm-dialog';
+import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
+import { WorkflowForm } from '@/components/ipc/workflow-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { AQL_DERIVED_FIELDS, aqlPlanForLotSize } from '@/lib/aql-sampling-plan';
@@ -440,7 +441,13 @@ export default function FinishedCheckEdit({
             <Head title={`Finished Check — ${batch.no_batch}`} />
             <Toast message={message} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
-                <form onSubmit={submit} className="flex flex-1 flex-col">
+                <WorkflowForm
+                    title="Pemeriksaan produk jadi"
+                    description="Verifikasi identitas produk, jumlah sampling, dan hasil pemeriksaan. Tinjau semua temuan sebelum menentukan keputusan akhir."
+                    readOnly={isReadOnly}
+                    onSubmit={submit}
+                    className="flex flex-1 flex-col"
+                >
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
                         <MicroCheckBanner
                             batchId={batch.id}
@@ -556,7 +563,9 @@ export default function FinishedCheckEdit({
                                     onChange={(e) => setQuantityWi(e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.quantity_wi} />
+                                <InputError
+                                    message={errors.quantity_wi || (errorFields.has('quantity_wi') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="masterbox" className="text-muted-foreground text-xs font-semibold">
@@ -572,7 +581,9 @@ export default function FinishedCheckEdit({
                                     onChange={(e) => setField('masterbox', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.masterbox} />
+                                <InputError
+                                    message={errors.masterbox || (errorFields.has('masterbox') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="no_pallet_qty" className="text-muted-foreground text-xs font-semibold">
@@ -588,7 +599,11 @@ export default function FinishedCheckEdit({
                                     onChange={(e) => setField('no_pallet_qty', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.no_pallet_qty} />
+                                <InputError
+                                    message={
+                                        errors.no_pallet_qty || (errorFields.has('no_pallet_qty') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
 
                             <p className="text-muted-foreground/70 col-span-full -mb-1 text-[11.5px] font-medium">
@@ -721,7 +736,9 @@ export default function FinishedCheckEdit({
                                         disabled={isReadOnly}
                                     />
                                 </div>
-                                <InputError message={errors.disposition} />
+                                <InputError
+                                    message={errors.disposition || (errorFields.has('disposition') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">
@@ -735,7 +752,9 @@ export default function FinishedCheckEdit({
                                     onChange={(e) => setField('remarks', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.remarks} />
+                                <InputError
+                                    message={errors.remarks || (errorFields.has('remarks') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                         </AccordionCard>
 
@@ -786,7 +805,7 @@ export default function FinishedCheckEdit({
                                 .join(' · ')}
                         />
                     )}
-                </form>
+                </WorkflowForm>
             </TwoPane>
 
             <FinalizeConfirmDialog

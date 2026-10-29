@@ -1,3 +1,4 @@
+import { FlowBadge } from '@/components/ipc/flow-identity';
 import { Input } from '@/components/ui/input';
 import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
 import { cn } from '@/lib/utils';
@@ -89,6 +90,7 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                                 <p className="text-muted-foreground mt-1 truncate text-[11.5px] font-medium">
                                     {batch.master_product?.product_name ?? '—'}
                                 </p>
+                                <FlowBadge type={batch.flow_type} className="mt-2 text-[10px]" />
                             </Link>
                         );
                     })}

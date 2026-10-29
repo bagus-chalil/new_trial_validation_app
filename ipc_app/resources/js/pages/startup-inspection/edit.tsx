@@ -2,11 +2,12 @@ import InputError from '@/components/input-error';
 import { AccordionCard } from '@/components/ipc/accordion-card';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
+import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
+import { WorkflowForm } from '@/components/ipc/workflow-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { limitDecimals } from '@/lib/decimal';
 import { cn } from '@/lib/utils';
@@ -310,7 +311,13 @@ export default function StartupInspectionEdit({
             <Head title={`Start Inspection — ${batch.no_batch}`} />
             <Toast message={message} />
             <TwoPane list={listPane}>
-                <form onSubmit={masterBoxOnly ? submitMasterBox : submit} className="flex flex-1 flex-col">
+                <WorkflowForm
+                    title="Inspeksi awal produksi"
+                    description="Periksa kondisi aktual, masukkan hasil pengukuran sampel, dan tambahkan catatan temuan. Pastikan satuan pengukuran sesuai dengan standar."
+                    readOnly={isReadOnly}
+                    onSubmit={masterBoxOnly ? submitMasterBox : submit}
+                    className="flex flex-1 flex-col"
+                >
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
                         {masterBoxOnly && (
                             <div className="border-primary/30 bg-primary/[0.06] text-foreground rounded-[20px] border px-[18px] py-3.5 text-[13px] font-medium">
@@ -368,6 +375,7 @@ export default function StartupInspectionEdit({
                                                         inputClass,
                                                         errorFields.has(`volume_weight.${n}`) && 'border-destructive ring-destructive ring-1',
                                                     )}
+                                                    aria-label={`Volume / Weight sampel ${n}`}
                                                     value={sample.volume_weight}
                                                     onChange={(e) => setSampleField(n, 'volume_weight', e.target.value)}
                                                     disabled={isReadOnly}
@@ -403,6 +411,7 @@ export default function StartupInspectionEdit({
                                                     step="1"
                                                     inputMode="numeric"
                                                     className={inputClass}
+                                                    aria-label={`Berat master box sampel ${n}`}
                                                     value={sample.weight_master_box}
                                                     onChange={(e) => setSampleField(n, 'weight_master_box', e.target.value)}
                                                     disabled={!masterBoxEditable}
@@ -461,7 +470,7 @@ export default function StartupInspectionEdit({
                             note={`${answeredCount} dari ${parameterKeys.length} item checklist terisi`}
                         />
                     )}
-                </form>
+                </WorkflowForm>
             </TwoPane>
         </IpcShell>
     );

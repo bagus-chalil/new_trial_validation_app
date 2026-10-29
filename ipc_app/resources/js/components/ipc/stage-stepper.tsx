@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
-import { Check, Lock } from 'lucide-react';
+import { ArrowRight, Check, Lock } from 'lucide-react';
 
 export interface StepperStage {
     key: string;
@@ -49,105 +49,59 @@ function StageMeta({ stage }: { stage: StepperStage }) {
 
 export function StageStepper({ stages }: { stages: StepperStage[] }) {
     return (
-        <>
-            {/* Mobile: vertical */}
-            <div className="flex flex-col md:hidden">
-                {stages.map((stage, i) => {
-                    const row = (
-                        <>
-                            <div className="flex flex-col items-center">
-                                <StageCircle stage={stage} />
-                                {i < stages.length - 1 && (
-                                    <div className={cn('min-h-7 w-0.5 flex-1', stage.status === 'done' ? 'bg-green-600' : 'bg-border')} />
-                                )}
-                            </div>
-                            <div className={cn('flex-1', i < stages.length - 1 && 'pb-[22px]')}>
-                                <p
-                                    className={cn(
-                                        'text-[14.5px] font-bold',
-                                        stage.status === 'active' && 'text-primary',
-                                        stage.status === 'locked' && 'text-muted-foreground/70',
-                                    )}
-                                >
-                                    {stage.label}
-                                </p>
-                                <StageMeta stage={stage} />
-                            </div>
-                        </>
-                    );
-
-                    if (stage.href) {
-                        return (
-                            <Link
-                                key={stage.key}
-                                href={stage.href}
-                                className={cn('flex gap-3.5', stage.status === 'active' && 'bg-primary/[0.05] -mx-3 rounded-2xl px-3 py-2.5')}
-                            >
-                                {row}
-                            </Link>
-                        );
-                    }
-
-                    return (
-                        <div key={stage.key} className="flex gap-3.5">
-                            {row}
+        <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Tahapan proses batch">
+            {stages.map((stage, index) => {
+                const content = (
+                    <>
+                        <div className="flex items-center justify-between gap-3">
+                            <StageCircle stage={stage} size={34} />
+                            <span className="text-muted-foreground/60 text-[10px] font-bold tracking-widest uppercase">
+                                Tahap {String(index + 1).padStart(2, '0')}
+                            </span>
                         </div>
-                    );
-                })}
-            </div>
-
-            {/* Tablet+: horizontal */}
-            <div className="hidden items-start md:flex">
-                {stages.map((stage, i) => {
-                    const content = (
-                        <>
-                            <div className="flex w-full items-center">
-                                <div
-                                    className={cn(
-                                        'mt-[18px] h-0.5 flex-1',
-                                        i === 0 ? 'bg-transparent' : stage.status === 'done' ? 'bg-green-600' : 'bg-border',
-                                    )}
-                                />
-                                <StageCircle stage={stage} size={36} />
-                                <div
-                                    className={cn(
-                                        'mt-[18px] h-0.5 flex-1',
-                                        i === stages.length - 1 ? 'bg-transparent' : stage.status === 'done' ? 'bg-green-600' : 'bg-border',
-                                    )}
-                                />
-                            </div>
-                            <span
+                        <div className="mt-4">
+                            <p
                                 className={cn(
-                                    'text-xs font-bold',
-                                    stage.status === 'done' && 'text-green-600',
+                                    'text-sm font-bold',
                                     stage.status === 'active' && 'text-primary',
-                                    stage.status === 'locked' && 'text-muted-foreground/70',
+                                    stage.status === 'done' && 'text-green-700 dark:text-green-400',
                                 )}
                             >
                                 {stage.label}
+                            </p>
+                            <div className="mt-1 leading-relaxed">
+                                <StageMeta stage={stage} />
+                            </div>
+                        </div>
+                        {stage.href && (
+                            <span className="text-primary mt-4 inline-flex items-center gap-2 text-xs font-bold">
+                                {stage.status === 'done' ? 'Lihat hasil' : 'Buka pemeriksaan'}
+                                <ArrowRight aria-hidden="true" className="size-3.5" />
                             </span>
-                        </>
-                    );
-
-                    if (stage.href) {
-                        return (
-                            <Link
-                                key={stage.key}
-                                href={stage.href}
-                                className="flex flex-1 flex-col items-center gap-2 rounded-xl py-1 transition-colors hover:bg-black/[0.03]"
-                            >
+                        )}
+                    </>
+                );
+                const style = cn(
+                    'block h-full rounded-2xl border p-4 transition-colors',
+                    stage.status === 'active'
+                        ? 'border-primary/30 bg-primary/[0.04] shadow-sm'
+                        : stage.status === 'done'
+                          ? 'border-green-200 bg-green-50/40 dark:border-green-900 dark:bg-green-950/10'
+                          : 'border-border-soft bg-muted/30 text-muted-foreground',
+                    stage.href && 'hover:border-primary/50 hover:bg-primary/[0.06] focus-visible:outline-primary focus-visible:outline-2',
+                );
+                return (
+                    <li key={stage.key} aria-current={stage.status === 'active' ? 'step' : undefined}>
+                        {stage.href ? (
+                            <Link href={stage.href} className={style}>
                                 {content}
                             </Link>
-                        );
-                    }
-
-                    return (
-                        <div key={stage.key} className="flex flex-1 flex-col items-center gap-2">
-                            {content}
-                        </div>
-                    );
-                })}
-            </div>
-        </>
+                        ) : (
+                            <div className={style}>{content}</div>
+                        )}
+                    </li>
+                );
+            })}
+        </ol>
     );
 }

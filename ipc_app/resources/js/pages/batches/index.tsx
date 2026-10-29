@@ -1,6 +1,7 @@
 import { BatchActionsMenu } from '@/components/ipc/batch-actions-menu';
 import { BatchCreatedAt } from '@/components/ipc/batch-created-at';
 import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
+import { FlowBadge, flowTheme } from '@/components/ipc/flow-identity';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useInitials } from '@/hooks/use-initials';
@@ -32,6 +33,7 @@ interface Batch {
     id: number;
     no_batch: string;
     current_stage: string;
+    flow_type?: string | null;
     created_at: string;
     master_product: MasterProduct;
     master_line: MasterLine | null;
@@ -68,7 +70,10 @@ function BatchCard({ batch, canManage }: { batch: Batch; canManage: boolean }) {
     // Stretched link (the Link's ::after covers the card) instead of wrapping the card in the
     // Link, so the admin ⋮ menu can sit on top without nesting a button inside an <a>.
     return (
-        <div className="border-border-soft bg-card hover:border-primary/40 relative flex flex-col gap-3 rounded-[20px] border p-4 shadow-sm transition-[border-color,box-shadow] hover:shadow-md">
+        <div
+            style={flowTheme(batch.flow_type)}
+            className="ipc-flow border-border-soft bg-card hover:border-primary/40 border-t-primary/50 relative flex flex-col gap-3 rounded-[20px] border border-t-[3px] p-4 shadow-sm transition-[border-color,box-shadow] hover:shadow-md"
+        >
             <div className="flex items-start justify-between gap-2.5">
                 <div className="min-w-0">
                     <Link
@@ -92,6 +97,7 @@ function BatchCard({ batch, canManage }: { batch: Batch; canManage: boolean }) {
                 </div>
             </div>
 
+            <FlowBadge type={batch.flow_type} />
             <div className="text-muted-foreground/70 flex items-center gap-1.5 text-[12.5px] font-medium">
                 <ClipboardList className="size-3.5" strokeWidth={2} />
                 {batch.master_line?.name ?? '—'} &middot; dibuat oleh {batch.creator.name}

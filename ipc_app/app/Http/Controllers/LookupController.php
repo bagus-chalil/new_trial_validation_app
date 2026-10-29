@@ -52,7 +52,7 @@ class LookupController extends Controller
             ->with(['masterProduct:id,product_name,fg_code', 'masterLine:id,name'])
             ->latest('id')
             ->limit(self::LIMIT)
-            ->get(['id', 'no_batch', 'current_stage', 'master_product_id', 'master_line_id']);
+            ->get(['id', 'no_batch', 'current_stage', 'flow_type', 'master_product_id', 'master_line_id']);
 
         return response()->json($batches);
     }

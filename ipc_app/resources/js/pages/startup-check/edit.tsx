@@ -3,12 +3,13 @@ import { AccordionCard } from '@/components/ipc/accordion-card';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
+import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
+import { WorkflowForm } from '@/components/ipc/workflow-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -21,6 +22,7 @@ import { FormEventHandler, useMemo, useState } from 'react';
 interface Batch {
     id: number;
     no_batch: string;
+    flow_type?: string | null;
     bulk_code: string;
     mixing_date: string | null;
     exp_date: string | null;
@@ -216,10 +218,10 @@ export default function StartupCheckEdit({
             headerActions={
                 isReadOnly ? (
                     <Link
-                        href={`/batches/${batch.id}/filling-check`}
+                        href={`/batches/${batch.id}/${batch.flow_type === 'packing_fg' ? 'packing-check' : 'filling-check'}`}
                         className="flex h-10 items-center gap-1.5 rounded-full bg-green-100 px-3.5 text-[12.5px] font-bold text-green-800"
                     >
-                        Selesai · Lanjut ke Filling
+                        Selesai · Lanjut ke {batch.flow_type === 'packing_fg' ? 'Packing' : 'Filling'}
                     </Link>
                 ) : (
                     <span className="bg-primary/[0.08] text-primary rounded-full px-3 py-1.5 text-[12.5px] font-bold whitespace-nowrap">
@@ -231,7 +233,13 @@ export default function StartupCheckEdit({
             <Head title={`Startup Check — ${batch.no_batch}`} />
             <Toast message={message} />
             <TwoPane list={listPane}>
-                <form onSubmit={submit} className="flex flex-1 flex-col">
+                <WorkflowForm
+                    title="Persiapan sebelum produksi"
+                    description="Periksa kesiapan material dan mesin, lalu lengkapi parameter produksi. Gunakan navigasi bagian untuk berpindah tanpa mencari di seluruh form."
+                    readOnly={isReadOnly}
+                    onSubmit={submit}
+                    className="flex flex-1 flex-col"
+                >
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
                         {/* Info header — mirrors the legacy screen's top info block so QC has full
                             context (product/batch/line) without navigating away. */}
@@ -298,7 +306,11 @@ export default function StartupCheckEdit({
                                                     disabled={isReadOnly}
                                                 />
                                             </div>
-                                            <InputError message={errors[key]} />
+                                            <InputError
+                                                message={
+                                                    errors[key] || (errorFields.has(key) ? 'Pilih hasil pemeriksaan untuk item ini.' : undefined)
+                                                }
+                                            />
                                         </div>
                                     ))}
                                 </AccordionCard>
@@ -319,7 +331,12 @@ export default function StartupCheckEdit({
                                     onChange={(e) => setData('filling_range_min', limitDecimals(e.target.value))}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.filling_range_min} />
+                                <InputError
+                                    message={
+                                        errors.filling_range_min ||
+                                        (errorFields.has('filling_range_min') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="filling_range_max" className="text-muted-foreground text-xs font-semibold">
@@ -334,7 +351,12 @@ export default function StartupCheckEdit({
                                     onChange={(e) => setData('filling_range_max', limitDecimals(e.target.value))}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.filling_range_max} />
+                                <InputError
+                                    message={
+                                        errors.filling_range_max ||
+                                        (errorFields.has('filling_range_max') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="density" className="text-muted-foreground text-xs font-semibold">
@@ -364,7 +386,9 @@ export default function StartupCheckEdit({
                                         N/A
                                     </button>
                                 </div>
-                                <InputError message={errors.density} />
+                                <InputError
+                                    message={errors.density || (errorFields.has('density') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="average_of_empty_bottle_weight" className="text-muted-foreground text-xs font-semibold">
@@ -386,7 +410,12 @@ export default function StartupCheckEdit({
                                     }}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.average_of_empty_bottle_weight} />
+                                <InputError
+                                    message={
+                                        errors.average_of_empty_bottle_weight ||
+                                        (errorFields.has('average_of_empty_bottle_weight') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="heating" className="text-muted-foreground text-xs font-semibold">
@@ -414,7 +443,9 @@ export default function StartupCheckEdit({
                                         N/A
                                     </button>
                                 </div>
-                                <InputError message={errors.heating} />
+                                <InputError
+                                    message={errors.heating || (errorFields.has('heating') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="master_line_id" className="text-muted-foreground text-xs font-semibold">
@@ -446,7 +477,11 @@ export default function StartupCheckEdit({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <InputError message={errors.master_line_id} />
+                                <InputError
+                                    message={
+                                        errors.master_line_id || (errorFields.has('master_line_id') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="line_leader_name" className="text-muted-foreground text-xs font-semibold">
@@ -459,7 +494,12 @@ export default function StartupCheckEdit({
                                     onChange={(e) => setData('line_leader_name', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.line_leader_name} />
+                                <InputError
+                                    message={
+                                        errors.line_leader_name ||
+                                        (errorFields.has('line_leader_name') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="operator_name" className="text-muted-foreground text-xs font-semibold">
@@ -472,7 +512,11 @@ export default function StartupCheckEdit({
                                     onChange={(e) => setData('operator_name', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.operator_name} />
+                                <InputError
+                                    message={
+                                        errors.operator_name || (errorFields.has('operator_name') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="mixing_date" className="text-muted-foreground text-xs font-semibold">
@@ -493,7 +537,9 @@ export default function StartupCheckEdit({
                                     }}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.mixing_date} />
+                                <InputError
+                                    message={errors.mixing_date || (errorFields.has('mixing_date') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="exp_date" className="text-muted-foreground text-xs font-semibold">
@@ -514,7 +560,9 @@ export default function StartupCheckEdit({
                                     }}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.exp_date} />
+                                <InputError
+                                    message={errors.exp_date || (errorFields.has('exp_date') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Validation Report</Label>
@@ -536,7 +584,12 @@ export default function StartupCheckEdit({
                                         disabled={isReadOnly}
                                     />
                                 </div>
-                                <InputError message={errors.validation_report_status} />
+                                <InputError
+                                    message={
+                                        errors.validation_report_status ||
+                                        (errorFields.has('validation_report_status') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="col-span-full flex flex-col gap-3">
                                 <Label className="text-foreground text-[13px] font-semibold">Pemeriksaan Produk</Label>
@@ -559,7 +612,9 @@ export default function StartupCheckEdit({
                                                 disabled={isReadOnly}
                                             />
                                         </div>
-                                        <InputError message={errors[key]} />
+                                        <InputError
+                                            message={errors[key] || (errorFields.has(key) ? 'Pilih hasil pemeriksaan untuk item ini.' : undefined)}
+                                        />
                                     </div>
                                 ))}
                             </div>
@@ -705,7 +760,9 @@ export default function StartupCheckEdit({
                                     onChange={(e) => setData('remarks', e.target.value)}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.remarks} />
+                                <InputError
+                                    message={errors.remarks || (errorFields.has('remarks') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                         </AccordionCard>
                     </div>
@@ -717,7 +774,7 @@ export default function StartupCheckEdit({
                             note={`${answeredCount} dari ${allChecklistKeys.length} item checklist terisi`}
                         />
                     )}
-                </form>
+                </WorkflowForm>
             </TwoPane>
 
             <CameraCaptureDialog

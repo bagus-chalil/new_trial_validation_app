@@ -25,6 +25,7 @@ export interface RecentBatch {
     id: number;
     no_batch: string;
     current_stage: string;
+    flow_type?: 'filling' | 'packing_fg' | 'full' | null;
     master_product: { id: number; product_name: string; fg_code: string } | null;
     master_line: { id: number; name: string } | null;
 }

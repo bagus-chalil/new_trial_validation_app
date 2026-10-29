@@ -5,12 +5,13 @@ import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { FinalizeChoiceDialog } from '@/components/ipc/finalize-choice-dialog';
 import { FinalizeConfirmDialog } from '@/components/ipc/finalize-confirm-dialog';
+import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
+import { WorkflowForm } from '@/components/ipc/workflow-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { lineLabel } from '@/lib/batch-line';
@@ -316,7 +317,13 @@ export default function FillingCheckEdit({
             <Head title={`Filling Check — ${batch.no_batch}`} />
             <Toast message={message} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
-                <form onSubmit={submit} className="flex flex-1 flex-col">
+                <WorkflowForm
+                    title="Pemeriksaan proses filling"
+                    description="Mulai dari kondisi sampel, lanjutkan berat sampel dan parameter filling. Cocokkan hasil aktual dengan standar sebelum menyimpan putaran pemeriksaan."
+                    readOnly={isReadOnly}
+                    onSubmit={submit}
+                    className="flex flex-1 flex-col"
+                >
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
                         {/* Info header — mirrors the legacy screen's top info block so QC has full
                             context (product/batch/line/progress) without navigating away. */}
@@ -350,7 +357,12 @@ export default function FillingCheckEdit({
                                         disabled={isReadOnly}
                                     />
                                 </div>
-                                <InputError message={errors.sample_bulk_odor_status} />
+                                <InputError
+                                    message={
+                                        errors.sample_bulk_odor_status ||
+                                        (errorFields.has('sample_bulk_odor_status') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                             <div id="sample_leakage_test_status" className="flex flex-col gap-2">
                                 <Label className="text-foreground text-[13px] font-semibold">Sample Leakage Test (5 Sample)</Label>
@@ -374,7 +386,12 @@ export default function FillingCheckEdit({
                                         disabled={isReadOnly}
                                     />
                                 </div>
-                                <InputError message={errors.sample_leakage_test_status} />
+                                <InputError
+                                    message={
+                                        errors.sample_leakage_test_status ||
+                                        (errorFields.has('sample_leakage_test_status') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
                             </div>
                         </AccordionCard>
 
@@ -390,6 +407,7 @@ export default function FillingCheckEdit({
                                                 </span>
                                                 <Input
                                                     id={`weight-${row.sample_no}`}
+                                                    aria-label={`Berat sampel ${row.sample_no}`}
                                                     type="number"
                                                     step="0.01"
                                                     className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-destructive ring-1' : 'border-border'}`}
@@ -464,7 +482,9 @@ export default function FillingCheckEdit({
                                         disabled={isReadOnly}
                                     />
                                 </div>
-                                <InputError message={errors.decision} />
+                                <InputError
+                                    message={errors.decision || (errorFields.has('decision') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">
@@ -484,7 +504,9 @@ export default function FillingCheckEdit({
                                     }}
                                     disabled={isReadOnly}
                                 />
-                                <InputError message={errors.remarks} />
+                                <InputError
+                                    message={errors.remarks || (errorFields.has('remarks') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
+                                />
                             </div>
                         </AccordionCard>
 
@@ -528,7 +550,7 @@ export default function FillingCheckEdit({
                             }
                         />
                     )}
-                </form>
+                </WorkflowForm>
             </TwoPane>
 
             <FinalizeConfirmDialog

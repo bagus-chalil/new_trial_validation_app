@@ -179,3 +179,71 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* The batch workspace shares one visual language from data entry to review. */
+.ipc-flow {
+    --primary: var(--flow-accent);
+    --ring: var(--flow-accent);
+    --color-primary: var(--flow-accent);
+    --color-ring: var(--flow-accent);
+}
+
+.dark .ipc-flow {
+    --primary: var(--flow-accent-dark);
+    --ring: var(--flow-accent-dark);
+    --color-primary: var(--flow-accent-dark);
+    --color-ring: var(--flow-accent-dark);
+}
+
+.dark .ipc-flow .bg-primary {
+    color: #0f172a;
+}
+
+.workflow-form,
+.workflow-review {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 3%, var(--background)), var(--background) 440px);
+}
+
+.workflow-intro {
+    background-image: radial-gradient(ellipse at top right, color-mix(in srgb, var(--primary) 9%, transparent), transparent 65%);
+}
+
+.workflow-fields > .flex.flex-col {
+    padding: 16px;
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--background) 60%, var(--card));
+}
+
+.workflow-form :is(input:not([type='checkbox']):not([type='radio']), textarea, [role='combobox']) {
+    border-radius: 12px;
+    min-height: 46px;
+    background-color: var(--card);
+    transition:
+        border-color 150ms,
+        box-shadow 150ms;
+}
+
+.workflow-form :is(input, textarea, [role='combobox']):focus-visible {
+    border-color: var(--primary);
+    outline: 2px solid color-mix(in srgb, var(--primary) 25%, transparent);
+    outline-offset: 2px;
+}
+
+.workflow-form :is(input, textarea):disabled {
+    background-color: var(--muted);
+}
+
+.workflow-section-nav {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .workflow-form *,
+    .workflow-section * {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}

@@ -6,7 +6,7 @@ import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
 import { cn } from '@/lib/utils';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ChevronRight, ClipboardList, Printer } from 'lucide-react';
+import { CheckCircle2, ChevronRight, ClipboardList, Printer } from 'lucide-react';
 
 interface Batch {
     id: number;
@@ -61,9 +61,10 @@ export default function BatchesShow({
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
                 <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6 p-5 md:p-6 lg:p-8">
                     {/* Info card */}
-                    <div className="border-border-soft bg-card flex flex-col gap-5 rounded-3xl border p-5 shadow-sm xl:flex-row xl:items-start xl:justify-between xl:gap-8 xl:p-6">
+                    <div className="workflow-intro border-primary/15 bg-card flex flex-col gap-5 rounded-3xl border p-5 shadow-sm xl:flex-row xl:items-start xl:justify-between xl:gap-8 xl:p-7">
                         <div className="flex items-start justify-between gap-3 md:block">
                             <div>
+                                <p className="text-primary mb-2 text-[10px] font-bold tracking-[0.18em] uppercase">Batch workspace</p>
                                 <p className="text-[20px] font-bold tracking-tight md:text-[26px]">{batch.no_batch}</p>
                                 <p className="text-muted-foreground mt-0.5 text-[13.5px] font-medium md:text-sm">
                                     {batch.master_product.product_name} &middot; {batch.master_product.fg_code} &middot;{' '}
@@ -71,7 +72,7 @@ export default function BatchesShow({
                                 </p>
                             </div>
                             <span
-                                className="shrink-0 rounded-full px-[11px] py-[5px] text-[11.5px] font-bold whitespace-nowrap md:hidden"
+                                className="shrink-0 rounded-full px-[11px] py-[5px] text-[11.5px] font-bold whitespace-nowrap"
                                 style={stageBadgeStyle(batch.current_stage)}
                             >
                                 {stageLabel(batch.current_stage)}
@@ -100,6 +101,17 @@ export default function BatchesShow({
                         </div>
                     </div>
 
+                    {batch.current_stage === 'completed' && (
+                        <div className="flex items-start gap-4 rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                            <CheckCircle2 className="size-8 shrink-0" />
+                            <div>
+                                <h2 className="text-lg font-bold">Seluruh proses batch selesai</h2>
+                                <p className="mt-1 text-sm leading-relaxed">
+                                    Hasil pemeriksaan dan dokumen batch dapat ditinjau kembali melalui tahapan di bawah.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                     {/* Stepper */}
                     <div className="border-border-soft bg-card flex flex-col gap-4 rounded-3xl border p-5 shadow-sm lg:p-6">
                         <div className="flex items-center justify-between gap-3">
@@ -122,7 +134,7 @@ export default function BatchesShow({
                             aria-valuenow={doneStages.length}
                         >
                             <div
-                                className="bg-primary h-full rounded-full"
+                                className="bg-primary h-full rounded-full transition-[width] duration-300"
                                 style={{ width: `${stages.length ? (doneStages.length / stages.length) * 100 : 0}%` }}
                             />
                         </div>
@@ -152,7 +164,7 @@ export default function BatchesShow({
 
                     {/* Active stage CTA — tablet only; mobile's stepper row is itself the tappable affordance */}
                     {activeStage?.href && (
-                        <div className="border-primary/20 bg-primary/[0.05] hidden flex-wrap items-center justify-between gap-4 rounded-3xl border p-6 md:flex">
+                        <div className="border-primary/20 bg-primary/[0.05] flex flex-wrap items-center justify-between gap-4 rounded-3xl border p-6">
                             <div>
                                 <p className="text-primary text-xs font-bold tracking-wide uppercase">Sedang berjalan</p>
                                 <p className="mt-1 text-[19px] font-bold">{activeStage.label}</p>
