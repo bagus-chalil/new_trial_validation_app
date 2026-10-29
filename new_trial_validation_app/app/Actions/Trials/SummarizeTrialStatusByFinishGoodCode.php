@@ -31,7 +31,7 @@ class SummarizeTrialStatusByFinishGoodCode
             ->whereNotIn('finish_good_code', ['', 'N/A'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->get(['id', 'trial_code', 'finish_good_code', 'product_name', 'progress_status', 'current_step', 'pending_with', 'approved_at', 'created_at']);
+            ->get(['id', 'trial_code', 'finish_good_code', 'product_name', 'progress_status', 'current_step', 'pending_with', 'approved_at', 'created_at', 'updated_at']);
 
         $summary = [];
 
@@ -50,6 +50,7 @@ class SummarizeTrialStatusByFinishGoodCode
                 'latest_progress_status' => $latest->progress_status,
                 'latest_step' => $latest->current_step,
                 'pending_with' => $latest->pending_with,
+                'latest_updated_at' => ($latest->updated_at ?? $latest->created_at)?->toIso8601String(),
                 'last_approved_at' => $lastApproved instanceof CarbonInterface ? $lastApproved->toIso8601String() : null,
             ];
         }

@@ -49,6 +49,7 @@ test('approved wins over in progress, and the latest trial is reported', functio
 
     expect($row['status'])->toBe('approved')
         ->and($row['product_name'])->toBe('Sample Product')
+        ->and($row['latest_updated_at'])->not->toBeNull()
         ->and($row['trial_count'])->toBe(2)
         ->and($row['approved_count'])->toBe(1)
         ->and($row['latest_trial_code'])->toBe('T-DONE')

@@ -37,6 +37,7 @@ class TrialStatusReportTest extends TestCase
             'latest_step' => 'Approval',
             'pending_with' => null,
             'last_approved_at' => '2026-10-01T09:00:00+07:00',
+            'latest_updated_at' => now()->toIso8601String(),
         ], $overrides);
     }
 
@@ -146,5 +147,33 @@ class TrialStatusReportTest extends TestCase
         $this->actingAs($admin)->get('/masters/trial-status?refresh=1');
         Http::assertSentCount(2);
         Http::assertSent(fn ($request) => $request->hasHeader('X-Internal-Token', 'secret-token'));
+    }
+
+    public function test_stage_and_stale_filters_and_the_stage_breakdown(): void
+    {
+        $this->fakeTrialApi([
+            '111' => $this->trialRow(['status' => 'in_progress', 'latest_progress_status' => 'In Review', 'latest_updated_at' => now()->subDays(20)->toIso8601String()]),
+            '222' => $this->trialRow(['status' => 'in_progress', 'latest_progress_status' => 'In Review']),
+            '333' => $this->trialRow(['status' => 'in_progress', 'latest_progress_status' => 'Ready for Approval', 'latest_updated_at' => now()->subDays(30)->toIso8601String()]),
+            '444' => $this->trialRow(['status' => 'approved', 'latest_updated_at' => now()->subDays(90)->toIso8601String()]),
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get('/masters/trial-status')
+            ->assertInertia(fn ($page) => $page
+                ->where('stages', [['name' => 'In Review', 'count' => 2], ['name' => 'Ready for Approval', 'count' => 1]])
+                ->where('counts.stale', 2)
+                ->where('staleDays', 14));
+
+        $this->actingAs($admin)->get('/masters/trial-status?stage=In+Review')
+            ->assertInertia(fn ($page) => $page->where('rows.total', 2));
+
+        // Oldest-idle first, and an approved trial is never "stale" however old.
+        $this->actingAs($admin)->get('/masters/trial-status?stale=1')
+            ->assertInertia(fn ($page) => $page
+                ->where('rows.total', 2)
+                ->where('rows.data.0.fg_code', '333')
+                ->where('rows.data.0.idle_days', 30)
+                ->where('rows.data.1.fg_code', '111'));
     }
 }
