@@ -90,7 +90,7 @@ export default function MicroCheckEdit({
     return (
         <IpcShell
             title="Micro Check"
-            subtitle={`${batch.no_batch} · ${batch.master_product.product_name}`}
+            subtitle={`${batch.no_batch} · ${batch.master_product.product_name} · ${batch.master_product.fg_code}`}
             backHref="/micro-checks"
             headerActions={
                 isReadOnly ? (

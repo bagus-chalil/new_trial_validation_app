@@ -8,6 +8,7 @@ interface QueueBatch {
     no_batch: string;
     product_name: string | null;
     fg_code: string | null;
+    flow_type: string;
     line: string | null;
     filled: boolean;
     filled_at: string | null;
@@ -20,11 +21,38 @@ interface PaginatedBatches {
     total: number;
 }
 
-export default function MicroCheckIndex({ batches }: { batches: PaginatedBatches }) {
+const FLOW_FILTERS = [
+    { value: null, label: 'Semua' },
+    { value: 'packing_fg', label: 'Packing + FG' },
+    { value: 'full', label: 'Fillpack' },
+];
+
+const FLOW_BADGE: Record<string, string> = {
+    packing_fg: 'Packing + FG',
+    full: 'Fillpack',
+    filling: 'Filling Saja',
+};
+
+export default function MicroCheckIndex({ batches, flow }: { batches: PaginatedBatches; flow: string | null }) {
     return (
         <IpcShell title="Micro Check" subtitle={`${batches.total} batch menunggu Micro Check`} backHref="/dashboard">
             <Head title="Micro Check" />
             <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-5 md:p-6">
+                <div className="flex flex-wrap gap-2">
+                    {FLOW_FILTERS.map((f) => (
+                        <Link
+                            key={f.label}
+                            href="/micro-checks"
+                            data={f.value ? { flow: f.value } : {}}
+                            preserveScroll
+                            className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
+                                (flow ?? null) === f.value ? 'bg-primary text-primary-foreground' : 'border-border-soft bg-card border'
+                            }`}
+                        >
+                            {f.label}
+                        </Link>
+                    ))}
+                </div>
                 {batches.data.map((batch) => (
                     <Link
                         key={batch.id}
@@ -40,7 +68,12 @@ export default function MicroCheckIndex({ batches }: { batches: PaginatedBatches
                             </div>
                             <ChevronRight className="text-muted-foreground/60 mt-1 size-[18px] shrink-0" strokeWidth={2} />
                         </div>
-                        <p className="text-muted-foreground/70 text-[12.5px] font-medium">{batch.line ?? '—'}</p>
+                        <p className="text-muted-foreground/70 text-[12.5px] font-medium">
+                            {batch.line ?? '—'} &middot; FG {batch.fg_code ?? '—'}
+                        </p>
+                        <span className="w-fit rounded-full bg-blue-100 px-3 py-1 text-[12px] font-bold text-blue-800">
+                            {FLOW_BADGE[batch.flow_type] ?? batch.flow_type}
+                        </span>
                         <span
                             className={`w-fit rounded-full px-3 py-1 text-[12px] font-bold ${batch.filled ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
                         >

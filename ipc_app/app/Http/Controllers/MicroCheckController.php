@@ -20,15 +20,22 @@ class MicroCheckController extends Controller
      */
     public function index(Request $request): Response
     {
+        $flow = in_array($request->query('flow'), [IpcBatch::FLOW_PACKING_FG, IpcBatch::FLOW_FULL], true)
+            ? $request->query('flow')
+            : null;
+
         $batches = IpcBatch::query()
             ->whereHas('finishedCheck', fn ($query) => $query->whereNotNull('completed_at'))
             ->whereDoesntHave('microCheck', fn ($query) => $query->whereNotNull('completed_at'))
+            ->when($flow, fn ($query) => $query->where('flow_type', $flow))
             ->with(['masterProduct:id,fg_code,product_name', 'masterLine:id,name', 'microCheck'])
             ->latest('id')
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (IpcBatch $batch) => [
                 'id' => $batch->id,
                 'no_batch' => $batch->no_batch,
+                'flow_type' => $batch->flow_type,
                 'product_name' => $batch->masterProduct?->product_name,
                 'fg_code' => $batch->masterProduct?->fg_code,
                 'line' => $batch->masterLine?->name,
@@ -36,7 +43,7 @@ class MicroCheckController extends Controller
                 'filled_at' => $batch->microCheck?->updated_at,
             ]);
 
-        return Inertia::render('micro-checks/index', ['batches' => $batches]);
+        return Inertia::render('micro-checks/index', ['batches' => $batches, 'flow' => $flow]);
     }
 
     public function edit(IpcBatch $batch): Response
