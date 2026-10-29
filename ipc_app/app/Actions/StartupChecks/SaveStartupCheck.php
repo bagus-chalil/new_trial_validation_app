@@ -25,6 +25,15 @@ class SaveStartupCheck
             $data['density'] = null;
         }
 
+        // Packing + FG has no filling, so these four are never captured there.
+        if ($batch->flow_type === IpcBatch::FLOW_PACKING_FG) {
+            $data['filling_range_min'] = null;
+            $data['filling_range_max'] = null;
+            $data['density'] = null;
+            $data['density_not_applicable'] = false;
+            $data['average_of_empty_bottle_weight'] = null;
+        }
+
         foreach (['primary', 'secondary', 'tersier'] as $tier) {
             $data["coding_operator_na_{$tier}"] = (bool) ($data["coding_operator_na_{$tier}"] ?? false);
         }

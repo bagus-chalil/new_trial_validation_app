@@ -179,6 +179,28 @@ class StartupCheckTest extends TestCase
         $this->put("/batches/{$batch->id}/startup-check", $payload)->assertSessionHasErrors('standard_weight_masterbox_status');
     }
 
+    public function test_filling_parameters_are_not_asked_or_stored_for_the_packing_fg_flow(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(flowType: IpcBatch::FLOW_PACKING_FG);
+
+        $payload = $this->validPayload();
+        unset($payload['average_of_empty_bottle_weight']);
+
+        $this->put("/batches/{$batch->id}/startup-check", [
+            ...$payload,
+            'filling_range_min' => '1.00',
+            'filling_range_max' => '2.00',
+            'density' => '0.9',
+        ])->assertSessionHasNoErrors();
+
+        $check = $batch->startupCheck()->first();
+        $this->assertNull($check->filling_range_min);
+        $this->assertNull($check->filling_range_max);
+        $this->assertNull($check->density);
+        $this->assertNull($check->average_of_empty_bottle_weight);
+    }
+
     public function test_heating_can_be_marked_not_applicable(): void
     {
         $this->actingAs(User::factory()->create());

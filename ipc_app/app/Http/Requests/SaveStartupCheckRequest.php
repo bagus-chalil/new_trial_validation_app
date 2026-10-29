@@ -14,6 +14,13 @@ class SaveStartupCheckRequest extends FormRequest
         return true;
     }
 
+    private function isPackingFgFlow(): bool
+    {
+        $batch = $this->route('batch');
+
+        return $batch instanceof IpcBatch && $batch->flow_type === IpcBatch::FLOW_PACKING_FG;
+    }
+
     public function rules(): array
     {
         $rules = [
@@ -28,7 +35,8 @@ class SaveStartupCheckRequest extends FormRequest
             // Confirmed with real IPC users 2026-09-03: SOP no longer does the 30-sample
             // BottleData weighing — this is entered once, directly, matching the legacy
             // screen's own single input box for AVERAGE_OF_EMPTY_BOTTLE_WEIGHT.
-            'average_of_empty_bottle_weight' => ['required', 'numeric', 'decimal:0,2', 'min:0'],
+            // Not asked on the Packing + FG flow (no filling there), so it can't be required.
+            'average_of_empty_bottle_weight' => [$this->isPackingFgFlow() ? 'nullable' : 'required', 'numeric', 'decimal:0,2', 'min:0'],
             'heating' => ['nullable', 'string', 'max:255'],
             'coding_format_primary' => ['nullable', 'string', 'max:1000'],
             'coding_format_secondary' => ['nullable', 'string', 'max:1000'],

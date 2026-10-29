@@ -123,7 +123,11 @@
                     </tbody>
                 </table>
 
-                <div class="two-col">
+                {{-- Packing + FG has no filling, so Filling Range / Density / Avg. Empty Bottle Weight
+                     are never captured and not printed (user request 2026-10-29). --}}
+                @php($hasFillingParams = $batch->flow_type !== \App\Models\IpcBatch::FLOW_PACKING_FG)
+                <div class="{{ $hasFillingParams ? 'two-col' : '' }}">
+                    @if ($hasFillingParams)
                     <table>
                         <tbody>
                             <tr><td><strong>Filling Range Min</strong></td><td>{{ $startupCheck->filling_range_min ?? '—' }}</td></tr>
@@ -132,6 +136,7 @@
                             <tr><td><strong>Avg. Empty Bottle Weight</strong></td><td>{{ $startupCheck->average_of_empty_bottle_weight ?? '—' }}</td></tr>
                         </tbody>
                     </table>
+                    @endif
                     <table>
                         <tbody>
                             <tr><td><strong>Heating</strong></td><td>{{ $startupCheck->heating ?? '—' }}</td></tr>

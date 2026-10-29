@@ -24,6 +24,7 @@ import { CheckCircle2, XCircle } from 'lucide-react';
 
 interface Batch {
     id: number;
+    flow_type?: string | null;
     no_batch: string;
     bulk_code: string;
     created_at: string;
@@ -135,12 +136,22 @@ export default function ApprovalStartup({
                                 </AccordionCard>
                             ))}
 
-                            <AccordionCard title="Parameter Filling" defaultOpen={false}>
+                            <AccordionCard title={batch.flow_type === 'packing_fg' ? 'Parameter Packing' : 'Parameter Filling'} defaultOpen={false}>
                                 <ChecklistRow label="Validation Report" value={startupCheck.validation_report_status} />
-                                <InfoField label="Filling Range Min" value={startupCheck.filling_range_min ?? '—'} />
-                                <InfoField label="Filling Range Max" value={startupCheck.filling_range_max ?? '—'} />
-                                <InfoField label="Density" value={startupCheck.density_not_applicable ? 'N/A' : (startupCheck.density ?? '—')} />
-                                <InfoField label="Average of Empty Bottle Weight" value={startupCheck.average_of_empty_bottle_weight ?? '—'} />
+                                {batch.flow_type !== 'packing_fg' && (
+                                    <>
+                                        <InfoField label="Filling Range Min" value={startupCheck.filling_range_min ?? '—'} />
+                                        <InfoField label="Filling Range Max" value={startupCheck.filling_range_max ?? '—'} />
+                                        <InfoField
+                                            label="Density"
+                                            value={startupCheck.density_not_applicable ? 'N/A' : (startupCheck.density ?? '—')}
+                                        />
+                                        <InfoField
+                                            label="Average of Empty Bottle Weight"
+                                            value={startupCheck.average_of_empty_bottle_weight ?? '—'}
+                                        />
+                                    </>
+                                )}
                                 <InfoField label="Heating" value={startupCheck.heating ?? '—'} />
                                 <InfoField label="Line Leader" value={startupCheck.line_leader_name ?? '—'} />
                                 <InfoField label="Operator" value={startupCheck.operator_name ?? '—'} />
