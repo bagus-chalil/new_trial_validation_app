@@ -42,4 +42,13 @@ return [
         'url' => env('PORTAL_URL'),
     ],
 
+    // new_trial_validation_app's server-to-server API (same host) for the Status Trial per Produk report.
+    // Token must match INTERNAL_API_TOKEN there; an empty token makes the report say the status is unavailable.
+    'trial_app' => [
+        'url' => env('TRIAL_API_URL', 'http://127.0.0.1:9001'),
+        'token' => env('TRIAL_API_TOKEN'),
+        'timeout' => (int) env('TRIAL_API_TIMEOUT', 3),
+        'cache_seconds' => (int) env('TRIAL_API_CACHE_SECONDS', 15),
+    ],
+
 ];

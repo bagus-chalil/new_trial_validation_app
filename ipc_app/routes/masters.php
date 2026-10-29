@@ -7,6 +7,7 @@ use App\Http\Controllers\MasterProductBulkCodeController;
 use App\Http\Controllers\MasterProductController;
 use App\Http\Controllers\MasterTestTypeController;
 use App\Http\Controllers\RecycleBinController;
+use App\Http\Controllers\TrialStatusReportController;
 use App\Models\MasterImport;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,8 @@ Route::middleware(['auth', 'can:manage-master'])->prefix('masters')->group(funct
 
     Route::post('products/{masterProduct}/bulk-codes', [MasterProductBulkCodeController::class, 'store'])->name('master-product-bulk-codes.store');
     Route::delete('products/{masterProduct}/bulk-codes/{bulkCode}', [MasterProductBulkCodeController::class, 'destroy'])->name('master-product-bulk-codes.destroy');
+
+    Route::get('trial-status', [TrialStatusReportController::class, 'index'])->name('trial-status.index');
 
     Route::get('test-types', [MasterTestTypeController::class, 'index'])->name('master-test-types.index');
     Route::post('test-types', [MasterTestTypeController::class, 'store'])->name('master-test-types.store');

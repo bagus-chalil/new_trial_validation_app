@@ -35,6 +35,12 @@ return [
         ],
     ],
 
+    // Server-to-server API for sibling apps (ipc_app). Empty token = endpoint disabled (503).
+    'internal_api' => [
+        'token' => env('INTERNAL_API_TOKEN'),
+        'allowed_ips' => env('INTERNAL_API_ALLOWED_IPS', '127.0.0.1,::1'),
+    ],
+
     'old_app' => [
         'url' => env('OLD_APP_URL', 'http://localhost:8000'),
     ],
