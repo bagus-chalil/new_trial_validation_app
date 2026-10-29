@@ -33,6 +33,7 @@ interface Props {
     options: BatchFilterOptions;
     /** Show a search box inside the bar (pages that don't already have their own). */
     withSearch?: boolean;
+    leadingControl?: ReactNode;
     searchPlaceholder?: string;
     /** Page-specific selects (e.g. Micro Check's "Belum diisi / Progress tersimpan"). */
     extraFields?: ExtraFilterField[];
@@ -77,6 +78,7 @@ export function BatchFilterBar({
     filters,
     options,
     withSearch = false,
+    leadingControl,
     searchPlaceholder = 'Cari no batch / produk...',
     extraFields = [],
     keep = {},
@@ -128,6 +130,7 @@ export function BatchFilterBar({
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
+                {leadingControl}
                 {withSearch && (
                     <form onSubmit={submitSearch} className="relative min-w-0 flex-1">
                         <Search

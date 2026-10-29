@@ -126,6 +126,24 @@ class IpcBatchController extends Controller
             ];
         })->values();
 
+        // Micro Check is a visible checkpoint, not a new persisted current_stage value.
+        // Its completion comes from the Micro Check itself; a saved draft does not unlock Approval.
+        if ($batch->hasFinishedStage()) {
+            $microDone = $batch->microCheck?->completed_at !== null;
+            $microReady = $batch->finishedCheck?->completed_at !== null;
+            $canRecordMicro = Gate::allows('recordMicroCheck', $batch);
+            $finishedPosition = $stages->search(fn ($stage) => $stage['key'] === IpcBatch::STAGE_FINISHED);
+            $stages->splice($finishedPosition + 1, 0, [[
+                'key' => 'micro',
+                'label' => 'Micro Check',
+                'status' => $microDone ? 'done' : ($microReady ? 'active' : 'locked'),
+                'href' => $microReady && $canRecordMicro ? route('micro-checks.edit', $batch) : null,
+                'available' => $canRecordMicro,
+                'description' => $canRecordMicro ? 'Selesaikan sebelum Approval' : 'Menunggu Microbiologist',
+                'progress' => null,
+            ]]);
+        }
+
         // Finished Good is done but the batch is still at the Finished stage: it is waiting for
         // the Microbiologist to press Selesaikan on Micro Check, which is what sends it to Approval.
         $microCheckWaiting = $batch->hasFinishedStage()

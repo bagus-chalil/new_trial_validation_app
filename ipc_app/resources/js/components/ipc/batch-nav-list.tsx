@@ -46,12 +46,14 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
 
     return (
         <>
-            <div className="p-3.5 pb-3">
+            <div className="border-border-soft border-b p-3.5">
+                <p className="text-muted-foreground mb-3 text-xs font-bold tracking-wide uppercase">Navigasi batch</p>
                 <div className="relative">
                     <Search className="text-muted-foreground/60 absolute top-1/2 left-3 size-4 -translate-y-1/2" strokeWidth={2} />
                     <Input
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
+                        aria-label="Cari batch"
                         placeholder="Cari batch..."
                         className="border-border-soft bg-background h-10 rounded-xl pl-9 text-[13px]"
                     />
@@ -59,7 +61,7 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                 </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3.5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3.5">
                 <div className="flex flex-col gap-2">
                     {filtered.map((batch) => {
                         const active = activeId === batch.id;
@@ -67,9 +69,12 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                             <Link
                                 key={batch.id}
                                 href={`/batches/${batch.id}`}
+                                aria-current={active ? 'page' : undefined}
                                 className={cn(
                                     'rounded-2xl border p-[13px] transition-colors',
-                                    active ? 'border-primary bg-primary/[0.05]' : 'border-border-soft bg-card hover:border-border',
+                                    active
+                                        ? 'border-primary/50 bg-primary/[0.07] shadow-sm'
+                                        : 'border-border-soft bg-card hover:border-primary/30 hover:bg-primary/[0.025]',
                                 )}
                             >
                                 <div className="flex items-center justify-between gap-2">

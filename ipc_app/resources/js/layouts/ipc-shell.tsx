@@ -28,12 +28,12 @@ export function IpcShell({
     const backTarget = returnToFromUrl(url) ?? backHref;
 
     return (
-        <div className="bg-background flex h-screen flex-col md:flex-row">
+        <div className="bg-background flex h-screen flex-col supports-[height:100dvh]:h-dvh md:flex-row">
             <NavRail />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 {header ?? (
-                    <header className="flex shrink-0 items-center gap-3 px-5 py-5 md:px-6">
+                    <header className="border-border-soft bg-card flex shrink-0 items-center gap-3 border-b px-5 py-4 md:px-6">
                         {backTarget && (
                             <Link
                                 href={backTarget}
@@ -71,7 +71,11 @@ export function IpcShell({
 
                 {/* `relative` keeps absolutely-positioned descendants (e.g. Radix's hidden native
                     <select>) inside this clip instead of stretching the document below the shell. */}
-                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden pb-16 md:pb-0">{children}</div>
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+                <footer className="border-border-soft bg-card text-muted-foreground mb-[calc(82px+env(safe-area-inset-bottom,0px))] flex shrink-0 flex-wrap items-center justify-center gap-x-2 border-t px-4 py-2 text-center text-[10px] md:mb-0 md:justify-between md:px-6 md:text-[11px]">
+                    <span className="font-semibold">IPC App versi 1.5.0</span>
+                    <span>created by IT Cosmax IDN</span>
+                </footer>
             </div>
 
             <BottomNav />

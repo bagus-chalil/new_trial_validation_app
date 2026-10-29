@@ -21,6 +21,7 @@ interface Batch {
     filling_check: { completed_at: string | null } | null;
     packing_check: { completed_at: string | null } | null;
     finished_check: { completed_at: string | null } | null;
+    micro_check: { completed_at: string | null } | null;
 }
 
 function formatDate(value: string): string {
@@ -51,15 +52,16 @@ export default function BatchesShow({
         filling: batch.filling_check?.completed_at ?? null,
         packing: batch.packing_check?.completed_at ?? null,
         finished: batch.finished_check?.completed_at ?? null,
+        micro: batch.micro_check?.completed_at ?? null,
     };
 
     return (
         <IpcShell title="Detail Batch" backHref="/batches">
             <Head title={`Batch ${batch.no_batch}`} />
             <TwoPane list={<BatchNavList batches={recentBatches} activeId={batch.id} />}>
-                <div className="flex flex-1 flex-col gap-[22px] p-5 md:p-8">
+                <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6 p-5 md:p-6 lg:p-8">
                     {/* Info card */}
-                    <div className="border-border-soft bg-card flex flex-col gap-3.5 rounded-[22px] border p-[18px] md:flex-row md:items-start md:justify-between md:gap-8 md:border-none md:bg-transparent md:p-0">
+                    <div className="border-border-soft bg-card flex flex-col gap-5 rounded-3xl border p-5 shadow-sm xl:flex-row xl:items-start xl:justify-between xl:gap-8 xl:p-6">
                         <div className="flex items-start justify-between gap-3 md:block">
                             <div>
                                 <p className="text-[20px] font-bold tracking-tight md:text-[26px]">{batch.no_batch}</p>
@@ -78,7 +80,7 @@ export default function BatchesShow({
 
                         <div className="bg-border-soft h-px md:hidden" />
 
-                        <div className="grid grid-cols-2 gap-3.5 md:flex md:gap-6">
+                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:flex xl:gap-6">
                             <div>
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Line</p>
                                 <p className="mt-0.5 text-[13.5px] font-semibold">{batch.master_line?.name ?? '—'}</p>
@@ -99,8 +101,31 @@ export default function BatchesShow({
                     </div>
 
                     {/* Stepper */}
-                    <div className="flex flex-col gap-0.5">
-                        <p className="mb-2.5 text-[15.5px] font-bold md:hidden">Tahapan proses</p>
+                    <div className="border-border-soft bg-card flex flex-col gap-4 rounded-3xl border p-5 shadow-sm lg:p-6">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-[15.5px] font-bold">Tahapan proses</p>
+                                <p className="text-muted-foreground mt-1 text-xs">
+                                    {doneStages.length} dari {stages.length} tahapan selesai
+                                </p>
+                            </div>
+                            <span className="bg-primary/10 text-primary rounded-full px-3 py-1 text-xs font-bold">
+                                {stages.length ? Math.round((doneStages.length / stages.length) * 100) : 0}%
+                            </span>
+                        </div>
+                        <div
+                            className="bg-muted h-1.5 overflow-hidden rounded-full"
+                            role="progressbar"
+                            aria-label="Progres tahapan batch"
+                            aria-valuemin={0}
+                            aria-valuemax={stages.length}
+                            aria-valuenow={doneStages.length}
+                        >
+                            <div
+                                className="bg-primary h-full rounded-full"
+                                style={{ width: `${stages.length ? (doneStages.length / stages.length) * 100 : 0}%` }}
+                            />
+                        </div>
                         <StageStepper stages={stages} />
                     </div>
 
@@ -109,7 +134,7 @@ export default function BatchesShow({
                             <div>
                                 <p className="text-xs font-bold tracking-wide uppercase">Menunggu Micro Check</p>
                                 <p className="mt-1 text-[14px] font-semibold">
-                                    Finished Good sudah selesai. Batch dikirim ke Approval setelah Microbiologist menyelesaikan Micro Check
+                                    Finished Good sudah selesai. Approval terkunci sampai Microbiologist menekan Selesaikan pada Micro Check
                                     {microCheckWaiting.hasProgress ? ' (progress sudah tersimpan, belum diselesaikan).' : ' (belum diisi).'}
                                 </p>
                             </div>
@@ -127,11 +152,13 @@ export default function BatchesShow({
 
                     {/* Active stage CTA — tablet only; mobile's stepper row is itself the tappable affordance */}
                     {activeStage?.href && (
-                        <div className="border-primary/20 bg-primary/[0.05] hidden items-center justify-between rounded-[22px] border p-6 md:flex">
+                        <div className="border-primary/20 bg-primary/[0.05] hidden flex-wrap items-center justify-between gap-4 rounded-3xl border p-6 md:flex">
                             <div>
                                 <p className="text-primary text-xs font-bold tracking-wide uppercase">Sedang berjalan</p>
                                 <p className="mt-1 text-[19px] font-bold">{activeStage.label}</p>
-                                <p className="text-muted-foreground mt-0.5 text-[13px] font-medium">Ketuk untuk mengisi tahap ini</p>
+                                <p className="text-muted-foreground mt-0.5 text-[13px] font-medium">
+                                    Lanjutkan pemeriksaan pada tahapan yang sedang aktif.
+                                </p>
                             </div>
                             <Link
                                 href={activeStage.href}

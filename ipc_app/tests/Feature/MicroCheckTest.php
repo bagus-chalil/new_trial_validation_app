@@ -315,4 +315,44 @@ class MicroCheckTest extends TestCase
         $this->actingAs(User::factory()->microbiologist()->create())->get("/batches/{$waiting->id}")
             ->assertInertia(fn ($page) => $page->where('microCheckWaiting.href', route('micro-checks.edit', $waiting)));
     }
+
+    public function test_detail_places_micro_check_between_finished_good_and_locked_approval(): void
+    {
+        $staff = User::factory()->create();
+        $batch = $this->makeBatch(finishedCompleted: true);
+        $this->actingAs($staff)->get("/batches/{$batch->id}")
+            ->assertInertia(fn ($page) => $page
+                ->where('stages.3.key', 'finished')
+                ->where('stages.3.status', 'done')
+                ->where('stages.4.key', 'micro')
+                ->where('stages.4.status', 'active')
+                ->where('stages.4.href', null)
+                ->where('stages.5.key', 'approval')
+                ->where('stages.5.status', 'locked')
+                ->where('stages.5.href', null));
+
+        $microbiologist = User::factory()->microbiologist()->create();
+        $this->actingAs($microbiologist)->get("/batches/{$batch->id}")
+            ->assertInertia(fn ($page) => $page->where('stages.4.href', route('micro-checks.edit', $batch)));
+
+        $this->put("/batches/{$batch->id}/micro-check", $this->microPayload())->assertRedirect();
+        $this->get("/batches/{$batch->id}")
+            ->assertInertia(fn ($page) => $page
+                ->where('stages.4.status', 'active')
+                ->where('stages.5.status', 'locked'));
+    }
+
+    public function test_detail_marks_micro_done_only_after_it_is_completed(): void
+    {
+        $batch = $this->makeBatch(finishedCompleted: true);
+        $micro = User::factory()->microbiologist()->create();
+        MicroCheck::create([...$this->microPayload(), 'ipc_batch_id' => $batch->id, 'user_id' => $micro->id, 'completed_at' => now()]);
+        $batch->update(['current_stage' => IpcBatch::STAGE_APPROVAL]);
+        $this->actingAs(User::factory()->create())->get("/batches/{$batch->id}")
+            ->assertInertia(fn ($page) => $page
+                ->where('stages.4.key', 'micro')
+                ->where('stages.4.status', 'done')
+                ->where('stages.5.key', 'approval')
+                ->where('stages.5.status', 'active'));
+    }
 }
