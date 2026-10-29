@@ -1,3 +1,4 @@
+import { BatchCreatedAt } from '@/components/ipc/batch-created-at';
 import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
 import { PaginationFooter } from '@/components/ipc/pagination-footer';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -6,6 +7,7 @@ import { ChevronRight, FlaskConical } from 'lucide-react';
 
 interface QueueBatch {
     id: number;
+    created_at: string | null;
     no_batch: string;
     product_name: string | null;
     fg_code: string | null;
@@ -77,6 +79,7 @@ export default function MicroCheckIndex({
                         >
                             {batch.filled ? 'Progress tersimpan — belum diselesaikan' : 'Belum diisi'}
                         </span>
+                        <BatchCreatedAt value={batch.created_at} />
                     </Link>
                 ))}
 

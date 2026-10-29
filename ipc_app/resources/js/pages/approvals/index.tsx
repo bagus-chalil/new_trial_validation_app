@@ -1,3 +1,4 @@
+import { BatchCreatedAt } from '@/components/ipc/batch-created-at';
 import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
 import { PaginationFooter } from '@/components/ipc/pagination-footer';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -6,6 +7,7 @@ import { ChevronRight, ClipboardCheck } from 'lucide-react';
 
 interface QueueBatch {
     id: number;
+    created_at: string | null;
     no_batch: string;
     bulk_code: string | null;
     master_product: { product_name: string; fg_code: string } | null;
@@ -70,6 +72,7 @@ export default function ApprovalQueueIndex({
                         </div>
 
                         <span className="text-primary mt-1 flex items-center gap-1 text-[13px] font-bold">Tinjau</span>
+                        <BatchCreatedAt value={entry.batch.created_at} />
                     </Link>
                 ))}
 

@@ -39,6 +39,7 @@ class MicroCheckController extends Controller
             ->withQueryString()
             ->through(fn (IpcBatch $batch) => [
                 'id' => $batch->id,
+                'created_at' => $batch->created_at,
                 'no_batch' => $batch->no_batch,
                 'flow_type' => $batch->flow_type,
                 'product_name' => $batch->masterProduct?->product_name,

@@ -1,4 +1,5 @@
 import { BatchActionsMenu } from '@/components/ipc/batch-actions-menu';
+import { BatchCreatedAt } from '@/components/ipc/batch-created-at';
 import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
@@ -111,6 +112,7 @@ function BatchCard({ batch, canManage }: { batch: Batch; canManage: boolean }) {
                     {cta.primary && <ChevronRight className="size-3.5" strokeWidth={2.4} />}
                 </span>
             </div>
+            <BatchCreatedAt value={batch.created_at} />
         </div>
     );
 }
@@ -319,6 +321,15 @@ export default function BatchesIndex({
                                 <ClipboardList className="text-primary size-5 shrink-0" />
                             </div>
                             <div className="grid gap-2 lg:grid-cols-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setStage()}
+                                    aria-pressed={!filters.stage}
+                                    className={`focus-visible:outline-primary flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-2 ${!filters.stage ? 'border-primary/40 bg-primary/5' : 'border-border-soft hover:bg-muted'}`}
+                                >
+                                    <span className="min-w-0 flex-1 text-xs font-semibold">Semua</span>
+                                    <ArrowUpRight className="text-muted-foreground size-3.5 shrink-0" />
+                                </button>
                                 {stages.map((stage) => {
                                     const count = batches.data.filter((batch) => batch.current_stage === stage).length;
                                     return (
