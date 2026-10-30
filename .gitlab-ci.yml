@@ -137,11 +137,19 @@ deploy_legacy_development:
     # each other's session -> random logouts / 419s. Added only when missing so
     # a value set by hand on the server is never overridden. Takes effect via
     # the optimize:clear below; users are logged out once on the first deploy.
+    # The runner may not own .env (it is deliberately managed by hand), so this
+    # never fails the deploy: if .env is not writable it only prints the line
+    # to add manually.
     - |
       if ! grep -q '^SESSION_COOKIE=' .env; then
-        [ -n "$(tail -c1 .env)" ] && echo >> .env
-        echo "SESSION_COOKIE=qac_${APP_DIR}_${CI_ENVIRONMENT_NAME}_session" >> .env
-        echo "Added SESSION_COOKIE=qac_${APP_DIR}_${CI_ENVIRONMENT_NAME}_session to $APP_DIR/.env"
+        SESSION_LINE="SESSION_COOKIE=qac_${APP_DIR}_${CI_ENVIRONMENT_NAME}_session"
+        if [ -w .env ]; then
+          [ -n "$(tail -c1 .env)" ] && echo >> .env
+          echo "$SESSION_LINE" >> .env
+          echo "Added $SESSION_LINE to $APP_DIR/.env"
+        else
+          echo "WARNING: $DEPLOY_PATH/$APP_DIR/.env is not writable by the runner. Add this line to it by hand: $SESSION_LINE"
+        fi
       fi
     - composer install --no-interaction --prefer-dist
     - chgrp -R www-data storage bootstrap/cache 2>/dev/null || true
