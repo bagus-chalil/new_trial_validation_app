@@ -70,7 +70,7 @@ export function ProductSearchSelect({
 
     useEffect(() => {
         if (!open) return;
-        inputRef.current?.focus();
+        inputRef.current?.focus({ preventScroll: true });
         const onPointerDown = (e: PointerEvent) => {
             if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
         };

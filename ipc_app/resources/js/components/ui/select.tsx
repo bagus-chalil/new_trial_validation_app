@@ -84,6 +84,9 @@ function SearchableOptions({ children, position }: { children: React.ReactNode; 
     const filtered = filter(children);
 
     React.useEffect(() => {
+        // Touch devices: focusing the search input pops up the virtual keyboard, which shrinks the
+        // viewport and makes the page + dropdown jump. Only auto-focus with a precise pointer.
+        if (typeof window.matchMedia === 'function' && !window.matchMedia('(pointer: fine)').matches) return;
         // Radix focuses the selected option on open; move focus to search afterwards.
         const frame = requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
         return () => cancelAnimationFrame(frame);
@@ -116,7 +119,7 @@ function SearchableOptions({ children, position }: { children: React.ReactNode; 
                             target?.focus();
                         }
                     }}
-                    className="border-input bg-background focus:ring-ring h-10 w-full rounded-md border pr-3 pl-8 text-sm outline-none focus:ring-2"
+                    className="border-input bg-background focus:ring-ring h-10 w-full rounded-md border pr-3 pl-8 text-sm outline-none focus:ring-2 [@media(pointer:coarse)]:text-base"
                 />
             </div>
             <SelectScrollUpButton />

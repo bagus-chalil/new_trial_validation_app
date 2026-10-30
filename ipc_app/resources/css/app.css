@@ -180,6 +180,16 @@
     }
 }
 
+/* Touch devices: iOS/iPadOS Safari auto-zooms the page when a text field under 16px gets focus,
+   which reads as the whole screen glitching. Keep every text field at 16px on touch screens. */
+@media (pointer: coarse) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    textarea,
+    select {
+        font-size: max(16px, 1em);
+    }
+}
+
 /* The batch workspace shares one visual language from data entry to review. */
 .ipc-flow {
     --primary: var(--flow-accent);

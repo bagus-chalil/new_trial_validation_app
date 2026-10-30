@@ -48,9 +48,11 @@ export function SearchableSelect({
         if (!open) return;
         setQ('');
         setHighlight(0);
-        inputRef.current?.focus();
-        // After the list has rendered (and the keyboard, if any, has resized the viewport).
-        const timer = setTimeout(() => rootRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 120);
+        // Touch devices: don't auto-focus the search (the virtual keyboard resizes the viewport and
+        // makes the page jump); the user taps the search box when they actually want to type.
+        const preciseSearch = typeof window.matchMedia !== 'function' || window.matchMedia('(pointer: fine)').matches;
+        if (preciseSearch) inputRef.current?.focus({ preventScroll: true });
+        const timer = setTimeout(() => rootRef.current?.scrollIntoView({ block: 'nearest', behavior: preciseSearch ? 'smooth' : 'auto' }), 120);
         const onPointerDown = (e: PointerEvent) => {
             if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
         };
@@ -118,7 +120,7 @@ export function SearchableSelect({
                             autoCapitalize="none"
                             autoCorrect="off"
                             spellCheck={false}
-                            className="border-border-soft focus-visible:ring-primary/30 h-10 w-full rounded-lg border pr-3 pl-8 text-sm outline-none focus-visible:ring-2"
+                            className="border-border-soft focus-visible:ring-primary/30 h-10 w-full rounded-lg border pr-3 pl-8 text-sm outline-none focus-visible:ring-2 [@media(pointer:coarse)]:text-base"
                         />
                     </div>
                     <div className="max-h-[min(18rem,38dvh)] overflow-y-auto overscroll-contain p-1" role="listbox">
