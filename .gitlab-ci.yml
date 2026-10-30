@@ -130,6 +130,19 @@ deploy_legacy_development:
     - test -n "$APP_DIR" || (echo "APP_DIR is not set for this job/environment" && exit 1)
     - test -f "$DEPLOY_PATH/$APP_DIR/.env" || (echo "$DEPLOY_PATH/$APP_DIR/.env is missing - create it manually first (see deploy/README.md), this job will not create one" && exit 1)
     - cd "$DEPLOY_PATH/$APP_DIR"
+    # Prod/dev of every app share one host and differ only by port, and browsers
+    # share cookies across ports. Without a unique session cookie name per
+    # app+environment (default is derived from APP_NAME, identical across
+    # environments), opening two of them in one browser makes them overwrite
+    # each other's session -> random logouts / 419s. Added only when missing so
+    # a value set by hand on the server is never overridden. Takes effect via
+    # the optimize:clear below; users are logged out once on the first deploy.
+    - |
+      if ! grep -q '^SESSION_COOKIE=' .env; then
+        [ -n "$(tail -c1 .env)" ] && echo >> .env
+        echo "SESSION_COOKIE=qac_${APP_DIR}_${CI_ENVIRONMENT_NAME}_session" >> .env
+        echo "Added SESSION_COOKIE=qac_${APP_DIR}_${CI_ENVIRONMENT_NAME}_session to $APP_DIR/.env"
+      fi
     - composer install --no-interaction --prefer-dist
     - chgrp -R www-data storage bootstrap/cache 2>/dev/null || true
     - chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
