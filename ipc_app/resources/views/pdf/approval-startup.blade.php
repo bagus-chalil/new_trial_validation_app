@@ -125,7 +125,7 @@
 
                 {{-- Packing + FG has no filling, so Filling Range / Density / Avg. Empty Bottle Weight
                      are never captured and not printed (user request 2026-10-29). --}}
-                @php($hasFillingParams = $batch->flow_type !== \App\Models\IpcBatch::FLOW_PACKING_FG)
+                @php $hasFillingParams = $batch->flow_type !== \App\Models\IpcBatch::FLOW_PACKING_FG; @endphp
                 <div class="{{ $hasFillingParams ? 'two-col' : '' }}">
                     @if ($hasFillingParams)
                     <table>

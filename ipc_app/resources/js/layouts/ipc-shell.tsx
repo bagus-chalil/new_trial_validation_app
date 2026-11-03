@@ -1,11 +1,12 @@
 import { BottomNav } from '@/components/ipc/bottom-nav';
 import { FlowBanner, flowTheme } from '@/components/ipc/flow-identity';
 import { NavRail } from '@/components/ipc/nav-rail';
+import { markBackClicked, previousUrl, recordVisit } from '@/lib/nav-history';
 import { returnToFromUrl } from '@/lib/return-to';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 export function IpcShell({
     title,
@@ -27,7 +28,13 @@ export function IpcShell({
     const { props, url } = usePage<SharedData & { batch?: { flow_type?: string | null } }>();
     const batchFlow = props.batch;
     // A `?return_to=` from the page that sent the user here beats the fixed parent.
-    const backTarget = returnToFromUrl(url) ?? backHref;
+    // Otherwise Back goes to the page the user actually came from, falling back to the fixed parent.
+    const historyTarget = previousUrl(url);
+    const backTarget = returnToFromUrl(url) ?? historyTarget ?? backHref;
+
+    useEffect(() => {
+        recordVisit(url);
+    }, [url]);
 
     return (
         <div className="bg-background flex h-screen flex-col supports-[height:100dvh]:h-dvh md:flex-row">
@@ -42,6 +49,7 @@ export function IpcShell({
                         {backTarget && (
                             <Link
                                 href={backTarget}
+                                onClick={markBackClicked}
                                 aria-label="Kembali"
                                 className="border-border-soft bg-card text-foreground flex size-11 shrink-0 items-center justify-center rounded-2xl border"
                             >
