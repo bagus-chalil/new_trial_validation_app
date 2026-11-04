@@ -85,6 +85,12 @@ class LookupTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonPath('0.no_batch', 'OLD-001');
+
+        // FG code is searchable too (contains match, e.g. the middle of the code).
+        $this->actingAs($user)->getJson('/lookup/batches?q=FG-2')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.no_batch', 'NEW-001');
     }
 
     public function test_batch_index_search_counts_and_pages_without_double_counting(): void

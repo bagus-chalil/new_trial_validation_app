@@ -55,7 +55,7 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
                         aria-label="Cari batch"
-                        placeholder="Cari batch..."
+                        placeholder="Cari batch / FG code..."
                         className="border-border-soft bg-background h-10 rounded-xl pl-9 text-[13px]"
                     />
                     {loading && <Loader2 className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />}
@@ -87,7 +87,8 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                                         {stageLabel(batch.current_stage)}
                                     </span>
                                 </div>
-                                <p className="text-muted-foreground mt-1 truncate text-[11.5px] font-medium">
+                                <p className="text-foreground/80 mt-1 text-[11.5px] font-semibold tabular-nums">{batch.master_product?.fg_code ?? '—'}</p>
+                                <p className="text-muted-foreground truncate text-[11.5px] font-medium">
                                     {batch.master_product?.product_name ?? '—'}
                                 </p>
                                 <FlowBadge type={batch.flow_type} className="mt-2 text-[10px]" />

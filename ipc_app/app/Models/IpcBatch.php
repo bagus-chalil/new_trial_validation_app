@@ -306,8 +306,8 @@ class IpcBatch extends Model
     }
 
     /**
-     * Free-text search for the small queue lists (Approval Queue): batch number or
-     * product name *contains* the term. The big Batch list uses searchIds() instead, since a
+     * Free-text search for the small queue lists (Approval Queue): batch number,
+     * product name or FG code *contains* the term. The big Batch list uses searchIds() instead, since a
      * leading-wildcard LIKE can't use an index at ~1M rows.
      */
     public function scopeMatchingSearch(Builder $query, string $q): Builder
@@ -316,12 +316,14 @@ class IpcBatch extends Model
 
         return $query->where(fn (Builder $w) => $w
             ->where('no_batch', 'like', $like)
-            ->orWhereIn('master_product_id', MasterProduct::withTrashed()->select('id')->where('product_name', 'like', $like)));
+            ->orWhereIn('master_product_id', MasterProduct::withTrashed()->select('id')->where(fn (Builder $p) => $p->where('product_name', 'like', $like)->orWhere('fg_code', 'like', $like))));
     }
 
     private static function productIdsMatching(string $q): Builder
     {
-        return MasterProduct::withTrashed()->select('id')->where('product_name', 'like', '%'.static::escapeLike($q).'%');
+        $like = '%'.static::escapeLike($q).'%';
+
+        return MasterProduct::withTrashed()->select('id')->where(fn (Builder $p) => $p->where('product_name', 'like', $like)->orWhere('fg_code', 'like', $like));
     }
 
     private static function escapeLike(string $value): string

@@ -83,9 +83,8 @@ function BatchCard({ batch, canManage }: { batch: Batch; canManage: boolean }) {
                     >
                         {batch.no_batch}
                     </Link>
-                    <p className="text-muted-foreground mt-0.5 truncate text-[13px] font-medium">
-                        {batch.master_product.product_name} &middot; {batch.master_product.fg_code}
-                    </p>
+                    <p className="text-foreground/80 mt-0.5 text-[12.5px] font-semibold tabular-nums">{batch.master_product.fg_code}</p>
+                    <p className="text-muted-foreground truncate text-[13px] font-medium">{batch.master_product.product_name}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                     <span
@@ -158,7 +157,7 @@ function BatchListPane({
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
                         aria-label="Cari nomor batch atau produk"
-                        placeholder="Cari no batch / produk..."
+                        placeholder="Cari no batch / FG code / produk..."
                         className="text-sm"
                     />
                     {q && (
