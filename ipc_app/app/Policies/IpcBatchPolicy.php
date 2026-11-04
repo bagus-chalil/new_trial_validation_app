@@ -10,16 +10,15 @@ class IpcBatchPolicy
     /**
      * Any Staff (or Admin) can continue any batch's stage data — batches are shift-worked, not
      * owned by whoever started them, so a batch a Staff started in one shift must be editable by
-     * a different Staff finishing it in the next shift. Approver and Microbiologist are
-     * deliberately excluded: Approver only approves (see the separate `approve-ipc` gate), and
-     * Microbiologist only fills the Micro Check block (see recordMicroCheck()).
+     * a different Staff finishing it in the next shift. Approver is deliberately
+     * excluded: Approver only approves (see the separate `approve-ipc` gate).
      */
     public function update(User $user, IpcBatch $batch): bool
     {
         return $user->isStaff();
     }
 
-    /** Only Staff (or Admin) open new batches — Approver and Microbiologist never do. */
+    /** Only Staff (or Admin) open new batches — Approver never does. */
     public function create(User $user): bool
     {
         return $user->isStaff();
@@ -27,8 +26,7 @@ class IpcBatchPolicy
 
     /**
      * Opening a batch's overview page. Staff/Admin: any. Approver: only from Approval onwards
-     * (approve, then look at it once printed/completed). Microbiologist: only once Finished Good
-     * has been saved. Mirrors IpcBatch::scopeVisibleTo().
+     * (approve, then look at it once printed/completed). Mirrors IpcBatch::scopeVisibleTo().
      */
     public function view(User $user, IpcBatch $batch): bool
     {
@@ -36,35 +34,13 @@ class IpcBatchPolicy
             return true;
         }
 
-        if ($user->isApprover() && in_array($batch->current_stage, IpcBatch::APPROVER_VISIBLE_STAGES, true)) {
-            return true;
-        }
-
-        return $user->isMicrobiologist() && $batch->hasFinishedStage() && $batch->finishedCheck()->exists();
+        return $user->isApprover() && in_array($batch->current_stage, IpcBatch::APPROVER_VISIBLE_STAGES, true);
     }
 
-    /** The Finished Good page: Staff edit it, a Microbiologist opens it read-only to see the context. */
+    /** The Finished Good page: Staff only. */
     public function viewFinished(User $user, IpcBatch $batch): bool
     {
-        return $user->isStaff()
-            || ($user->isMicrobiologist() && $batch->hasFinishedStage() && $batch->finishedCheck()->exists());
-    }
-
-    /**
-     * Fill/correct the Micro Check block. Opens once Finished Good is finalized (Finished Good is
-     * the Staff's responsibility, Micro Check comes after it) and locks when the Microbiologist
-     * presses "Selesaikan" on Micro Check itself.
-     */
-    public function recordMicroCheck(User $user, IpcBatch $batch): bool
-    {
-        if (! $user->isMicrobiologist() || ! $batch->hasFinishedStage()) {
-            return false;
-        }
-
-        $finishedCheck = $batch->finishedCheck;
-        $microCheck = $batch->microCheck;
-
-        return $finishedCheck?->completed_at !== null && $microCheck?->completed_at === null;
+        return $user->isStaff();
     }
 
     /** Printed reports: Staff/Admin always, Approver once the batch reached Approval. */

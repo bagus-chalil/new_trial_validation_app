@@ -11,7 +11,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,7 +65,7 @@ class IpcBatchController extends Controller
 
     public function show(IpcBatch $batch): Response
     {
-        $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck', 'microCheck']);
+        $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck']);
 
         $stageIndex = array_search($batch->current_stage, IpcBatch::STAGES, true);
 
@@ -126,38 +125,9 @@ class IpcBatchController extends Controller
             ];
         })->values();
 
-        // Micro Check is a visible checkpoint, not a new persisted current_stage value.
-        // Its completion comes from the Micro Check itself; a saved draft does not unlock Approval.
-        if ($batch->hasFinishedStage()) {
-            $microDone = $batch->microCheck?->completed_at !== null;
-            $microReady = $batch->finishedCheck?->completed_at !== null;
-            $canRecordMicro = Gate::allows('recordMicroCheck', $batch);
-            $finishedPosition = $stages->search(fn ($stage) => $stage['key'] === IpcBatch::STAGE_FINISHED);
-            $stages->splice($finishedPosition + 1, 0, [[
-                'key' => 'micro',
-                'label' => 'Micro Check',
-                'status' => $microDone ? 'done' : ($microReady ? 'active' : 'locked'),
-                'href' => $microReady && $canRecordMicro ? route('micro-checks.edit', $batch) : null,
-                'available' => $canRecordMicro,
-                'description' => $canRecordMicro ? 'Selesaikan sebelum Approval' : 'Menunggu Microbiologist',
-                'progress' => null,
-            ]]);
-        }
-
-        // Finished Good is done but the batch is still at the Finished stage: it is waiting for
-        // the Microbiologist to press Selesaikan on Micro Check, which is what sends it to Approval.
-        $microCheckWaiting = $batch->hasFinishedStage()
-            && $batch->current_stage === IpcBatch::STAGE_FINISHED
-            && $batch->finishedCheck?->completed_at !== null
-            && $batch->microCheck?->completed_at === null;
-
         return Inertia::render('batches/show', [
             'batch' => $batch,
             'stages' => $stages,
-            'microCheckWaiting' => $microCheckWaiting ? [
-                'hasProgress' => $batch->microCheck !== null,
-                'href' => Gate::allows('recordMicroCheck', $batch) ? route('micro-checks.edit', $batch) : null,
-            ] : null,
         ]);
     }
 

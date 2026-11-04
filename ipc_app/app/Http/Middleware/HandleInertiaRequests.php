@@ -63,7 +63,6 @@ class HandleInertiaRequests extends Middleware
             'canManageMaster' => fn () => (bool) $request->user()?->isAdmin(),
             'canUseVisionTest' => fn () => (bool) $request->user()?->can('use-vision-test'),
             'canCreateBatch' => fn () => (bool) $request->user()?->can('create', IpcBatch::class),
-            'canRecordMicroCheck' => fn () => (bool) $request->user()?->can('record-micro-check'),
         ]);
     }
 }

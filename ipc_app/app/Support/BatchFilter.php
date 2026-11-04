@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 /**
- * The shared "filter" bar of the batch-shaped lists (Batch, Micro Check, Approval Queue):
+ * The shared "filter" bar of the batch-shaped lists (Batch, Approval Queue):
  * created-date range, creator, line and flow. Every value is optional and sanitized, so a
  * hand-edited query string can never reach the query as anything but a plain scalar.
  */

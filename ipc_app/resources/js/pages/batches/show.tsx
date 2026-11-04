@@ -21,26 +21,18 @@ interface Batch {
     filling_check: { completed_at: string | null } | null;
     packing_check: { completed_at: string | null } | null;
     finished_check: { completed_at: string | null } | null;
-    micro_check: { completed_at: string | null } | null;
 }
 
 function formatDate(value: string): string {
     return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-interface MicroCheckWaiting {
-    hasProgress: boolean;
-    href: string | null;
-}
-
 export default function BatchesShow({
     batch,
     stages,
-    microCheckWaiting,
 }: {
     batch: Batch;
     stages: StepperStage[];
-    microCheckWaiting: MicroCheckWaiting | null;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -52,7 +44,6 @@ export default function BatchesShow({
         filling: batch.filling_check?.completed_at ?? null,
         packing: batch.packing_check?.completed_at ?? null,
         finished: batch.finished_check?.completed_at ?? null,
-        micro: batch.micro_check?.completed_at ?? null,
     };
 
     return (
@@ -140,27 +131,6 @@ export default function BatchesShow({
                         </div>
                         <StageStepper stages={stages} />
                     </div>
-
-                    {microCheckWaiting && (
-                        <div className="flex flex-col gap-2 rounded-[22px] border border-amber-300 bg-amber-50 p-5 text-amber-900 md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <p className="text-xs font-bold tracking-wide uppercase">Menunggu Micro Check</p>
-                                <p className="mt-1 text-[14px] font-semibold">
-                                    Finished Good sudah selesai. Approval terkunci sampai Microbiologist menekan Selesaikan pada Micro Check
-                                    {microCheckWaiting.hasProgress ? ' (progress sudah tersimpan, belum diselesaikan).' : ' (belum diisi).'}
-                                </p>
-                            </div>
-                            {microCheckWaiting.href && (
-                                <Link
-                                    href={microCheckWaiting.href}
-                                    className="bg-primary flex h-[46px] items-center gap-2 rounded-2xl px-5 text-sm font-bold whitespace-nowrap text-white"
-                                >
-                                    Isi Micro Check
-                                    <ChevronRight className="size-4" strokeWidth={2.4} />
-                                </Link>
-                            )}
-                        </div>
-                    )}
 
                     {/* Active stage CTA — tablet only; mobile's stepper row is itself the tappable affordance */}
                     {activeStage?.href && (

@@ -245,11 +245,6 @@ class IpcBatch extends Model
         return $this->hasOne(FinishedCheck::class);
     }
 
-    public function microCheck()
-    {
-        return $this->hasOne(MicroCheck::class);
-    }
-
     /** Stages from which an Approver may open a batch: Approval onwards (see IpcBatchPolicy::view). */
     public const APPROVER_VISIBLE_STAGES = [
         self::STAGE_APPROVAL,
@@ -259,8 +254,7 @@ class IpcBatch extends Model
 
     /**
      * Row-level visibility per role: Admin/Staff see every batch; an Approver only batches that
-     * reached Approval/Print/Completed; a Microbiologist only batches whose Finished Good has
-     * been saved at least once (nothing to micro-check before that). Mirrors IpcBatchPolicy::view.
+     * reached Approval/Print/Completed. Mirrors IpcBatchPolicy::view.
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
@@ -268,22 +262,11 @@ class IpcBatch extends Model
             return $query;
         }
 
-        $isApprover = $user->isApprover();
-        $isMicro = $user->isMicrobiologist();
+        if (! $user->isApprover()) {
+            return $query->whereRaw('1 = 0');
+        }
 
-        return $query->where(function (Builder $query) use ($isApprover, $isMicro) {
-            if (! $isApprover && ! $isMicro) {
-                $query->whereRaw('1 = 0');
-
-                return;
-            }
-            if ($isApprover) {
-                $query->orWhereIn('current_stage', self::APPROVER_VISIBLE_STAGES);
-            }
-            if ($isMicro) {
-                $query->orWhereHas('finishedCheck');
-            }
-        });
+        return $query->whereIn('current_stage', self::APPROVER_VISIBLE_STAGES);
     }
 
     public function approvals()
@@ -323,7 +306,7 @@ class IpcBatch extends Model
     }
 
     /**
-     * Free-text search for the small queue lists (Micro Check, Approval Queue): batch number or
+     * Free-text search for the small queue lists (Approval Queue): batch number or
      * product name *contains* the term. The big Batch list uses searchIds() instead, since a
      * leading-wildcard LIKE can't use an index at ~1M rows.
      */

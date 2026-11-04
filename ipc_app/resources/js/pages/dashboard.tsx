@@ -118,12 +118,8 @@ export default function Dashboard({ stats, stageBreakdown }: DashboardProps) {
     const selected = stageBreakdown.find((item) => item.stage === selectedStage);
     const guide = stageGuides[selectedStage];
     const printCount = stageBreakdown.find((item) => item.stage === 'print')?.count ?? 0;
-    const actionHref = props.canApproveIpc ? '/approvals' : props.canRecordMicroCheck && !props.canCreateBatch ? '/micro-checks' : '/batches';
-    const actionLabel = props.canApproveIpc
-        ? 'Buka antrian approval'
-        : props.canRecordMicroCheck && !props.canCreateBatch
-          ? 'Buka Micro Check'
-          : 'Buka daftar batch';
+    const actionHref = props.canApproveIpc ? '/approvals' : '/batches';
+    const actionLabel = props.canApproveIpc ? 'Buka antrian approval' : 'Buka daftar batch';
     return (
         <IpcShell
             title="Dashboard"
@@ -364,11 +360,7 @@ export default function Dashboard({ stats, stageBreakdown }: DashboardProps) {
                                 <ClipboardList className="text-primary size-5 shrink-0" />
                                 <div className="flex-1">
                                     <p className="text-sm font-semibold">
-                                        {props.canApproveIpc
-                                            ? 'Tinjau persetujuan'
-                                            : props.canRecordMicroCheck && !props.canCreateBatch
-                                              ? 'Pemeriksaan mikro'
-                                              : 'Lanjutkan pemeriksaan'}
+                                        {props.canApproveIpc ? 'Tinjau persetujuan' : 'Lanjutkan pemeriksaan'}
                                     </p>
                                     <p className="text-muted-foreground mt-1 text-xs leading-relaxed">Buka pekerjaan sesuai akses dan peran Anda.</p>
                                 </div>

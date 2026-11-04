@@ -96,8 +96,9 @@ class SaveFinishedCheck
             }
             FinishedCheckRevisionSample::insert($revisionRows);
 
-            // Finalizing Finished Good does not advance the batch: it stays at the Finished stage
-            // until the Microbiologist finalizes Micro Check (see SaveMicroCheck).
+            if ($finalize && $batch->current_stage === IpcBatch::STAGE_FINISHED) {
+                $batch->update(['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_FINISHED)]);
+            }
 
             return $finishedCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);
         });

@@ -43,30 +43,13 @@ class DashboardController extends Controller
             ->count();
 
         // Counted and limited in SQL — only the 8 shown rows are ever loaded. Only Staff/Admin work
-        // the check stages; Approver and Microbiologist have their own action lists below.
+        // the check stages; Approver has their own action list below.
         $checkCount = 0;
         $needsAction = collect();
         if ($user->isStaff()) {
             $checkQuery = $this->checkItemsQuery();
             $checkCount = (clone $checkQuery)->count();
             $needsAction = $this->checkItemsNeedingAction($checkQuery->limit(self::NEEDS_ACTION_LIMIT));
-        }
-
-        $microCount = 0;
-        if ($user->can('record-micro-check') && ! $user->isStaff()) {
-            $microQuery = IpcBatch::query()
-                ->whereHas('finishedCheck', fn ($query) => $query->whereNotNull('completed_at'))
-                ->whereDoesntHave('microCheck', fn ($query) => $query->whereNotNull('completed_at'));
-            $microCount = (clone $microQuery)->count();
-            $needsAction = $microQuery->with('masterProduct:id,product_name,fg_code')->latest('id')->limit(self::NEEDS_ACTION_LIMIT)->get()
-                ->map(fn (IpcBatch $batch) => [
-                    'id' => $batch->id,
-                    'no_batch' => $batch->no_batch,
-                    'product_name' => $batch->masterProduct?->product_name,
-                    'stage' => IpcBatch::STAGE_FINISHED,
-                    'reason' => 'Micro Check belum diselesaikan',
-                    'href' => route('micro-checks.edit', $batch),
-                ]);
         }
 
         $approvalCount = 0;
@@ -82,7 +65,7 @@ class DashboardController extends Controller
         return Inertia::render('dashboard', [
             'stats' => [
                 'activeBatches' => $activeBatches,
-                'needsActionCount' => $checkCount + $approvalCount + $microCount,
+                'needsActionCount' => $checkCount + $approvalCount,
                 'pendingApprovalBatches' => (int) ($stageCounts[IpcBatch::STAGE_APPROVAL] ?? 0),
                 'completedToday' => $completedToday,
             ],

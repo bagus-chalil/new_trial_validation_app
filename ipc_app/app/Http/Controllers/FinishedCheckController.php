@@ -50,7 +50,6 @@ class FinishedCheckController extends Controller
             'finishedCheck.samples',
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'finishedCheck.revisions.user',
-            'microCheck.user',
         ]);
 
         $samples = $batch->finishedCheck
@@ -88,9 +87,6 @@ class FinishedCheckController extends Controller
             'lineleaderName' => $batch->packingCheck?->line_leader_name,
             'maxThProgress' => IpcBatch::MAX_TH_PROGRESS,
             'previousStageCompleted' => (bool) $batch->packingCheck->completed_at,
-            'microCheck' => $batch->microCheck,
-            'microCheckComplete' => (bool) $batch->microCheck?->isFinalized(),
-            'canRecordMicroCheck' => Gate::allows('recordMicroCheck', $batch),
         ]);
     }
 

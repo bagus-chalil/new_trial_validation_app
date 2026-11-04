@@ -41,7 +41,6 @@ export interface SharedData {
     canManageMaster: boolean;
     canUseVisionTest: boolean;
     canCreateBatch: boolean;
-    canRecordMicroCheck: boolean;
     [key: string]: unknown;
 }
 

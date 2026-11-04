@@ -35,7 +35,7 @@ interface Props {
     withSearch?: boolean;
     leadingControl?: ReactNode;
     searchPlaceholder?: string;
-    /** Page-specific selects (e.g. Micro Check's "Belum diisi / Progress tersimpan"). */
+    /** Page-specific selects. */
     extraFields?: ExtraFilterField[];
     /** Params that belong to the page, not the bar, and must survive a filter change (q, stage). */
     keep?: Partial<BatchFilterValues>;

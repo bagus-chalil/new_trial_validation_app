@@ -6,7 +6,6 @@ use App\Http\Controllers\BatchArchiveController;
 use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
-use App\Http\Controllers\MicroCheckController;
 use App\Http\Controllers\PackingCheckController;
 use App\Http\Controllers\PrintController;
 use App\Http\Controllers\StartupCheckController;
@@ -26,15 +25,10 @@ Route::get('verify/{batch}/{stage}', [VerificationController::class, 'show'])
 
 Route::middleware(['auth'])->group(function () {
     Route::get('batches', [IpcBatchController::class, 'index'])->name('batches.index');
-    // Only Staff/Admin open batches (IpcBatchPolicy::create) — not Approver or Microbiologist.
+    // Only Staff/Admin open batches (IpcBatchPolicy::create) — not Approver.
     Route::get('batches/create', [IpcBatchController::class, 'create'])->middleware('can:create,'.IpcBatch::class)->name('batches.create');
     Route::post('batches', [IpcBatchController::class, 'store'])->middleware('can:create,'.IpcBatch::class)->name('batches.store');
     Route::get('batches/{batch}', [IpcBatchController::class, 'show'])->middleware('can:view,batch')->name('batches.show');
-
-    // Micro Check: the Microbiologist's own queue + the one block of Finished Good they fill.
-    Route::get('micro-checks', [MicroCheckController::class, 'index'])->middleware('can:record-micro-check')->name('micro-checks.index');
-    Route::get('batches/{batch}/micro-check', [MicroCheckController::class, 'edit'])->name('micro-checks.edit');
-    Route::put('batches/{batch}/micro-check', [MicroCheckController::class, 'update'])->name('micro-checks.update');
 
     // Archive + delete (soft, restorable from the Recycle Bin) — Admin only, same as the
     // Recycle Bin itself, so whoever can delete a batch can also bring it back.

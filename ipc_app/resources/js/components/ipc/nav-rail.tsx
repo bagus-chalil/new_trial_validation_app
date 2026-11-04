@@ -4,7 +4,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, ClipboardCheck, ClipboardList, FlaskConical, Grid2X2, LayoutGrid } from 'lucide-react';
+import { Archive, ClipboardCheck, ClipboardList, Grid2X2, LayoutGrid } from 'lucide-react';
 import { useState } from 'react';
 
 function RailLink({ href, icon: Icon, active, label }: { href: string; icon: typeof LayoutGrid; active: boolean; label: string }) {
@@ -33,7 +33,6 @@ export function NavRail() {
     const isBatches = url.startsWith('/batches');
     const isApprovals = url.startsWith('/approvals');
     const isArchive = url.startsWith('/archive');
-    const isMicroChecks = url.startsWith('/micro-checks');
 
     return (
         <>
@@ -50,7 +49,6 @@ export function NavRail() {
                     <RailLink href="/dashboard" icon={LayoutGrid} active={isDashboard} label="Home" />
                     <RailLink href="/batches" icon={ClipboardList} active={isBatches} label="Batch" />
                     {props.canApproveIpc && <RailLink href="/approvals" icon={ClipboardCheck} active={isApprovals} label="Approval" />}
-                    {props.canRecordMicroCheck && <RailLink href="/micro-checks" icon={FlaskConical} active={isMicroChecks} label="Micro" />}
                     {props.canManageMaster && <RailLink href="/archive" icon={Archive} active={isArchive} label="Arsip" />}
                     <button
                         type="button"

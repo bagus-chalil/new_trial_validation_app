@@ -17,7 +17,7 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { AQL_DERIVED_FIELDS, aqlPlanForLotSize } from '@/lib/aql-sampling-plan';
 import { lineLabel } from '@/lib/batch-line';
 import { type RecentBatch, type SharedData } from '@/types';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Camera, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -110,54 +110,6 @@ const REQUIRED_FIELDS = [
     'remarks',
 ];
 
-function MicroCheckBanner({
-    batchId,
-    complete,
-    microCheck,
-    canRecord,
-    serverError,
-}: {
-    batchId: number;
-    complete: boolean;
-    microCheck: { user?: { name: string } | null; updated_at: string } | null;
-    canRecord: boolean;
-    serverError?: string;
-}) {
-    if (complete) {
-        return (
-            <div className="flex items-center justify-between gap-3 rounded-[20px] border border-green-200 bg-green-50 px-[18px] py-3.5 text-[13px] font-semibold text-green-800">
-                <span>
-                    Micro Check sudah diselesaikan{microCheck?.user ? ` oleh ${microCheck.user.name}` : ''} — batch sudah dikirim ke Approval.
-                </span>
-                {canRecord && (
-                    <Link href={`/batches/${batchId}/micro-check`} className="font-bold underline">
-                        Lihat / koreksi
-                    </Link>
-                )}
-            </div>
-        );
-    }
-
-    return (
-        <div
-            id="micro-check-banner"
-            className="flex flex-col gap-1.5 rounded-[20px] border border-amber-300 bg-amber-50 px-[18px] py-3.5 text-[13px] text-amber-900"
-        >
-            <p className="font-bold">Micro Check belum diselesaikan Microbiologist</p>
-            <p className="font-medium">
-                Bagian Micro Check (Total Plate Count, Yeast &amp; Mold, Pathogen) diisi Microbiologist setelah Finished Good diselesaikan. Batch baru
-                dikirim untuk Approval saat Micro Check diselesaikan.
-            </p>
-            {serverError && <p className="font-semibold text-red-700">{serverError}</p>}
-            {canRecord && (
-                <Link href={`/batches/${batchId}/micro-check`} className="font-bold underline">
-                    Isi Micro Check
-                </Link>
-            )}
-        </div>
-    );
-}
-
 export default function FinishedCheckEdit({
     batch,
     finishedCheck,
@@ -169,9 +121,6 @@ export default function FinishedCheckEdit({
     lineleaderName,
     maxThProgress,
     previousStageCompleted,
-    microCheck,
-    microCheckComplete,
-    canRecordMicroCheck,
 }: {
     batch: Batch;
     finishedCheck: FinishedCheckData | null;
@@ -183,9 +132,6 @@ export default function FinishedCheckEdit({
     lineleaderName: string | null;
     maxThProgress: number;
     previousStageCompleted: boolean;
-    microCheck: { user?: { name: string } | null; updated_at: string } | null;
-    microCheckComplete: boolean;
-    canRecordMicroCheck: boolean;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -449,14 +395,6 @@ export default function FinishedCheckEdit({
                     className="flex flex-1 flex-col"
                 >
                     <div className="flex flex-1 flex-col gap-3.5 px-5 pt-1 pb-2 md:px-8">
-                        <MicroCheckBanner
-                            batchId={batch.id}
-                            complete={microCheckComplete}
-                            microCheck={microCheck}
-                            canRecord={canRecordMicroCheck}
-                            serverError={errors.micro_check}
-                        />
-
                         {/* Info header — mirrors the legacy screen's top info block. */}
                         <div className="border-border-soft bg-card grid grid-cols-2 gap-3 rounded-[20px] border p-[18px] md:grid-cols-4 md:gap-4">
                             <InfoField label="Tanggal" value={formatDateTime(finishedCheck?.created_at ?? batch.created_at)} />

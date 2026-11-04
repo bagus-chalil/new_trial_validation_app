@@ -27,8 +27,6 @@ class User extends Authenticatable
 
     public const ROLE_ADMIN = 'admin';
 
-    public const ROLE_MICROBIOLOGIST = 'microbiologist';
-
     protected $fillable = [
         'name',
         'email',
@@ -85,12 +83,6 @@ class User extends Authenticatable
     public function isStaff(): bool
     {
         return $this->role === self::ROLE_STAFF || $this->isAdmin();
-    }
-
-    /** Fills the Micro Check block of Finished Good. Admin bypasses, like every other workflow role. */
-    public function isMicrobiologist(): bool
-    {
-        return $this->role === self::ROLE_MICROBIOLOGIST || $this->isAdmin();
     }
 
     public function roleRecord(): BelongsTo

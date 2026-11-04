@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\FinishedCheck;
 use App\Models\IpcBatch;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
@@ -123,28 +122,6 @@ class BatchFilterTest extends TestCase
                 $this->assertNotContains($approver->id, collect($options['creators'])->pluck('id')->all());
                 $this->assertSame(['Filling Saja', 'Fillpack', 'Packing + FG'], collect($options['flows'])->pluck('label')->sort()->values()->all());
             });
-    }
-
-    public function test_micro_check_queue_filters_by_flow_date_search_and_status(): void
-    {
-        $micro = User::factory()->microbiologist()->create();
-        $saved = fn (IpcBatch $b) => FinishedCheck::create(['ipc_batch_id' => $b->id, 'user_id' => $b->created_by, 'save_count' => 1, 'completed_at' => now()]);
-
-        $a = $this->makeBatch('MC-FULL', ['created_at' => '2026-10-10 09:00:00']);
-        $b = $this->makeBatch('MC-PACK', ['flow_type' => IpcBatch::FLOW_PACKING_FG, 'created_at' => '2026-09-01 09:00:00']);
-        $saved($a);
-        $saved($b);
-
-        $get = fn (string $query) => $this->actingAs($micro)->get('/micro-checks'.$query);
-
-        $get('?flow=packing_fg')->assertInertia(fn ($p) => $this->assertSame(['MC-PACK'], $this->noBatches($p)));
-        $get('?date_from=2026-10-01')->assertInertia(fn ($p) => $this->assertSame(['MC-FULL'], $this->noBatches($p)));
-        $get('?q=PACK')->assertInertia(fn ($p) => $this->assertSame(['MC-PACK'], $this->noBatches($p)));
-        $get('?q=Cleansing')->assertInertia(fn ($p) => $this->assertSame(['MC-FULL', 'MC-PACK'], $this->noBatches($p)));
-        $get('?status=tersimpan')->assertInertia(fn ($p) => $this->assertSame([], $this->noBatches($p)));
-        $get('?status=belum')->assertInertia(fn ($p) => $this->assertSame(['MC-FULL', 'MC-PACK'], $this->noBatches($p)));
-        // Filling-only can never be in this queue, so it is not an accepted flow here.
-        $get('?flow=filling')->assertInertia(fn ($p) => $this->assertSame(['MC-FULL', 'MC-PACK'], $this->noBatches($p)));
     }
 
     public function test_approval_queue_accepts_filters_and_search(): void
