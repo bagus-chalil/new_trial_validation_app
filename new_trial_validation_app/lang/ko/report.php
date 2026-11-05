@@ -100,6 +100,7 @@ return [
             'reviewed' => '검토 완료',
         ],
         'my_review_title' => '소속 부서 검토',
+        'one_time_notice' => '부서 검토는 한 번만 제출할 수 있으며 최종입니다. 제출하면 검토 대기 목록에서 사라지고 수정할 수 없으므로, 의견을 먼저 확인하십시오.',
         'submit_for_department' => ':department 부서 검토 제출',
         'comment_placeholder' => '검토 의견을 입력하십시오...',
         'submit' => '검토 제출',

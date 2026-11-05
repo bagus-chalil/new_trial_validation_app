@@ -100,6 +100,7 @@ return [
             'reviewed' => 'Reviewed',
         ],
         'my_review_title' => 'Your Department Review',
+        'one_time_notice' => 'A department review can be submitted only once and is final. After you submit, it leaves your Pending Review list and cannot be edited, so check your comment first.',
         'submit_for_department' => 'Submit review for department :department',
         'comment_placeholder' => 'Review comment...',
         'submit' => 'Submit Review',

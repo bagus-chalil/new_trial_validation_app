@@ -900,6 +900,9 @@ export default function TrialReport({
                                 <h3 className="mb-2 text-base font-semibold">
                                     {t('report.review.my_review_title')}
                                 </h3>
+                                <p className="mb-3 text-sm text-muted-foreground">
+                                    {t('report.review.one_time_notice')}
+                                </p>
                                 <div className="space-y-4">
                                     {pendingReviews.map((pending) => (
                                         <Form

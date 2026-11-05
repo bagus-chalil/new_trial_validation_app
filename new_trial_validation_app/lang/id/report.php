@@ -100,6 +100,7 @@ return [
             'reviewed' => 'Reviewed',
         ],
         'my_review_title' => 'Review Departemen Anda',
+        'one_time_notice' => 'Review department hanya bisa dikirim 1 kali dan bersifat final. Setelah dikirim, review hilang dari daftar Pending Review dan tidak bisa diedit lagi, jadi periksa komentar Anda terlebih dahulu.',
         'submit_for_department' => 'Kirim review untuk departemen :department',
         'comment_placeholder' => 'Komentar review...',
         'submit' => 'Kirim Review',
