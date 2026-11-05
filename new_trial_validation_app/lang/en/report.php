@@ -111,6 +111,7 @@ return [
 
     'approval' => [
         'title' => 'Approval Decision',
+        'description' => 'This is the FINAL approval that completes the trial report. It is separate from the department review above, so approving here is required even if you already reviewed your department.',
         'approve' => 'Approve',
         'need_revision' => 'Request Revision',
         'reject' => 'Reject',

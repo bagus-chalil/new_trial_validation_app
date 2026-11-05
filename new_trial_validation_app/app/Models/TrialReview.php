@@ -33,7 +33,13 @@ class TrialReview extends Model
      * A reviewer may revise their already-submitted comment this many times
      * before the review locks (see TrialReviewPolicy::update()).
      */
-    public const MAX_EDITS = 3;
+    /**
+     * Post-submit edits allowed per department review. 0 = a review is made
+     * once and is final (business decision 2026-11-05). The edit plumbing
+     * (policy, report page section, edit_count) is kept and simply gated by
+     * this value, so raising it re-enables editing without further changes.
+     */
+    public const MAX_EDITS = 0;
 
     protected $table = 'trials_review';
 

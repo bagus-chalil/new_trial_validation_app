@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 function makeUser(array $attributes = []): User
 {
@@ -173,4 +174,52 @@ test('non-super-admin cannot delete a super admin account', function () {
         ->assertForbidden();
 
     expect($superAdmin->fresh()->is_active)->toBeTrue();
+});
+
+test('admin can deactivate and reactivate a user without hiding or deleting the row', function () {
+    $admin = makeUser(['role' => 'Admin']);
+    $target = makeUser(['role' => 'Staff']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.users.toggle-active', $target))
+        ->assertRedirect();
+
+    $target->refresh();
+    expect($target->is_active)->toBeFalse();
+    expect($target->deleted_at)->toBeNull();
+
+    $this->actingAs($admin)->post(route('admin.users.toggle-active', $target));
+
+    expect($target->fresh()->is_active)->toBeTrue();
+});
+
+test('admin cannot deactivate their own account', function () {
+    $admin = makeUser(['role' => 'Admin']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.users.toggle-active', $admin))
+        ->assertForbidden();
+});
+
+test('non-super-admin cannot deactivate a super admin account', function () {
+    $admin = makeUser(['role' => 'Admin']);
+    $superAdmin = makeUser(['role' => 'Super Admin']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.users.toggle-active', $superAdmin))
+        ->assertForbidden();
+
+    expect($superAdmin->fresh()->is_active)->toBeTrue();
+});
+
+test('a deactivated user cannot log in but an active one can', function () {
+    $active = makeUser(['password_hash' => Hash::make('secret-pass-1'), 'is_active' => true]);
+    $inactive = makeUser(['password_hash' => Hash::make('secret-pass-1'), 'is_active' => false]);
+
+    $this->post(route('login.store'), ['email' => $inactive->email, 'password' => 'secret-pass-1'])
+        ->assertSessionHasErrors();
+    $this->assertGuest();
+
+    $this->post(route('login.store'), ['email' => $active->email, 'password' => 'secret-pass-1']);
+    $this->assertAuthenticatedAs($active);
 });

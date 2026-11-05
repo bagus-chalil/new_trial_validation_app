@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::get('users', [UserController::class, 'index'])->name('users.index');
     Route::post('users', [UserController::class, 'store'])->name('users.store');
+    Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active');
     Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
     Route::post('users/{user}/impersonate', [ImpersonationController::class, 'store'])->name('users.impersonate');
     // Reached while logged in as the impersonated (usually non-admin) user —

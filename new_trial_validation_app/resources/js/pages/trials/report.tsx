@@ -1040,6 +1040,9 @@ export default function TrialReport({
                                 <h3 className="mb-2 text-base font-semibold">
                                     {t('report.approval.title')}
                                 </h3>
+                                <p className="mb-3 text-sm text-muted-foreground">
+                                    {t('report.approval.description')}
+                                </p>
                                 <Card>
                                     <CardContent className="flex flex-wrap gap-2 pt-6">
                                         {APPROVAL_DECISIONS.map((decision) => (

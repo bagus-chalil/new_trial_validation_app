@@ -114,6 +114,7 @@ return [
         'approve' => '승인',
         'need_revision' => '수정 요청',
         'reject' => '반려',
+        'description' => '트라이얼 보고서를 완료하는 최종 승인입니다. 위의 부서 검토와는 별개이므로, 부서 검토를 이미 마쳤더라도 여기에서 승인해야 합니다.',
         'dialog_title' => ':decision — :code',
         'dialog_description' => '이 결정을 확정하려면 의견과 계정 비밀번호(전자 서명)를 입력하십시오.',
         'comment' => '의견',

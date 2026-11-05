@@ -271,12 +271,10 @@ test('a reviewer who already reviewed their department sees a note once no pendi
         ->has('pendingReviews', 0)
         ->where('reviewCompletedNote', fn ($note) => $note !== null)
         ->where('approvalBlockedNote', null)
-        ->has('editableReviews', 1)
-        ->where('editableReviews.0.department', 'PROD')
-        ->where('editableReviews.0.editsRemaining', 3));
+        ->has('editableReviews', 0));
 });
 
-test('the editable-reviews list excludes a reviewed department once its edits are used up or the trial is decided', function () {
+test('the editable-reviews list stays empty because submitted reviews are final', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeReportTrial(['trial_code' => 'TRIAL-EDITS-USED-UP', 'progress_status' => 'In Review', 'revision_no' => 0]);
     TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed', 'reviewed_at' => Carbon::now(), 'edit_count' => 3]);

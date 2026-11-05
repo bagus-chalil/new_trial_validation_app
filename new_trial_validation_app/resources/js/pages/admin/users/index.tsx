@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
@@ -272,6 +273,9 @@ export default function AdminUsersIndex({
                                         {t('admin.fields.dept_legacy')}
                                     </TableHead>
                                     <TableHead>
+                                        {t('admin.users.status')}
+                                    </TableHead>
+                                    <TableHead>
                                         {t('admin.fields.action')}
                                     </TableHead>
                                 </TableRow>
@@ -284,6 +288,23 @@ export default function AdminUsersIndex({
                                         <TableCell>{usr.role}</TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {usr.department ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant={
+                                                    usr.is_active
+                                                        ? 'secondary'
+                                                        : 'destructive'
+                                                }
+                                            >
+                                                {usr.is_active
+                                                    ? t(
+                                                          'admin.users.status_active',
+                                                      )
+                                                    : t(
+                                                          'admin.users.status_inactive',
+                                                      )}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
@@ -300,6 +321,59 @@ export default function AdminUsersIndex({
                                                         )}
                                                     </Button>
                                                 )}
+                                                {usr.id !== auth.user.id &&
+                                                    (usr.role !==
+                                                        'Super Admin' ||
+                                                        auth.user.role ===
+                                                            'Super Admin') && (
+                                                        <ConfirmDialog
+                                                            trigger={
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                >
+                                                                    {usr.is_active
+                                                                        ? t(
+                                                                              'admin.users.deactivate',
+                                                                          )
+                                                                        : t(
+                                                                              'admin.users.reactivate',
+                                                                          )}
+                                                                </Button>
+                                                            }
+                                                            title={
+                                                                usr.is_active
+                                                                    ? t(
+                                                                          'admin.users.deactivate_title',
+                                                                      )
+                                                                    : t(
+                                                                          'admin.users.reactivate_title',
+                                                                      )
+                                                            }
+                                                            description={t(
+                                                                usr.is_active
+                                                                    ? 'admin.users.deactivate_description'
+                                                                    : 'admin.users.reactivate_description',
+                                                                {
+                                                                    name: usr.name,
+                                                                    email: usr.email,
+                                                                },
+                                                            )}
+                                                            confirmLabel={
+                                                                usr.is_active
+                                                                    ? t(
+                                                                          'admin.users.deactivate',
+                                                                      )
+                                                                    : t(
+                                                                          'admin.users.reactivate',
+                                                                      )
+                                                            }
+                                                            confirmVariant="default"
+                                                            formProps={UserController.toggleActive.form(
+                                                                usr.id,
+                                                            )}
+                                                        />
+                                                    )}
                                                 {usr.id !== auth.user.id &&
                                                     (usr.role !==
                                                         'Super Admin' ||
@@ -376,7 +450,7 @@ export default function AdminUsersIndex({
                                 {users.data.length === 0 && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             {t('admin.users.empty')}

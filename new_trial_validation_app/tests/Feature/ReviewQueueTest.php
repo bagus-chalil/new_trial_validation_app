@@ -174,7 +174,7 @@ test('submitting a review without a comment is rejected', function () {
     expect($review->fresh()->status)->toBe('Pending');
 });
 
-test('a reviewer can edit their already-reviewed comment while the trial is still In Review', function () {
+test('a submitted department review is final and cannot be edited', function () {
     $reviewer = User::factory()->reviewUnit('PROD')->create();
     $trial = makeInReviewTrial();
     $review = TrialReview::create([
@@ -186,59 +186,12 @@ test('a reviewer can edit their already-reviewed comment while the trial is stil
         'comment' => 'Already done',
     ]);
 
-    $response = $this->actingAs($reviewer)->put(route('reviews.update', $review), [
+    $this->actingAs($reviewer)->put(route('reviews.update', $review), [
         'comment' => 'Revised comment',
-    ]);
-
-    $response->assertRedirect(route('reviews.index'));
-
-    $review->refresh();
-    expect($review->status)->toBe('Reviewed');
-    expect($review->comment)->toBe('Revised comment');
-    expect($review->edit_count)->toBe(1);
-    expect($review->reviewer_email)->toBe($reviewer->email);
-
-    $log = ActivityLog::where('module', 'REVIEW')->where('action', 'EDIT_REVIEW')->where('record_id', (string) $review->id)->first();
-    expect($log)->not->toBeNull();
-});
-
-test('a reviewer can edit their already-reviewed comment while the trial is waiting for approval', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $trial = makeInReviewTrial(['pending_with' => 'Manager QAC']);
-    $trial->progress_status = 'Ready for Approval';
-    $trial->save();
-    $review = TrialReview::create([
-        'trial_id' => $trial->id,
-        'department' => 'PROD',
-        'review_round' => 1,
-        'status' => 'Reviewed',
-        'comment' => 'Already done',
-    ]);
-
-    $this->actingAs($reviewer)->put(route('reviews.update', $review), [
-        'comment' => 'Revised while waiting for approval',
-    ])->assertRedirect(route('reviews.index'));
-
-    expect($review->fresh()->comment)->toBe('Revised while waiting for approval');
-});
-
-test('editing an already-reviewed comment is capped at 3 edits', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $trial = makeInReviewTrial();
-    $review = TrialReview::create([
-        'trial_id' => $trial->id,
-        'department' => 'PROD',
-        'review_round' => 1,
-        'status' => 'Reviewed',
-        'comment' => 'Original',
-        'edit_count' => 3,
-    ]);
-
-    $this->actingAs($reviewer)->put(route('reviews.update', $review), [
-        'comment' => 'One edit too many',
     ])->assertForbidden();
 
-    expect($review->fresh()->comment)->toBe('Original');
+    expect($review->fresh()->comment)->toBe('Already done');
+    expect($review->fresh()->edit_count)->toBe(0);
 });
 
 test('an already-reviewed comment cannot be edited once the trial has a final approval decision', function () {
@@ -286,22 +239,6 @@ test('reviewing a department also closes its Pending alias row so it leaves the 
 
     expect($legacyRow->fresh()->status)->toBe('Reviewed');
     expect($legacyRow->fresh()->comment)->toBe('OK dari produksi');
-    expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
-});
-
-test('editing an already-submitted review also closes a stuck Pending alias row', function () {
-    $reviewer = User::factory()->reviewUnit('PROD')->create();
-    $trial = makeInReviewTrial(['pending_with' => 'PRD']);
-    $stuck = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
-    $review = TrialReview::create(['trial_id' => $trial->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Reviewed', 'comment' => 'Lama', 'reviewer_name' => 'Dian']);
-
-    $this->actingAs($reviewer)
-        ->put(route('reviews.update', $review->id), ['comment' => 'Revisi komentar'])
-        ->assertRedirect(route('reviews.index'));
-
-    expect($review->fresh()->edit_count)->toBe(1);
-    expect($stuck->fresh()->status)->toBe('Reviewed');
-    expect($stuck->fresh()->comment)->toBe('Revisi komentar');
     expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
 });
 

@@ -114,6 +114,7 @@ return [
         'approve' => 'Approve',
         'need_revision' => 'Need Revision',
         'reject' => 'Reject',
+        'description' => 'Ini adalah approval FINAL yang menyelesaikan report trial. Terpisah dari review department di atas, jadi tetap harus approve di sini walaupun Anda sudah mereview department Anda.',
         'dialog_title' => ':decision — :code',
         'dialog_description' => 'Masukkan komentar dan kata sandi akun Anda sebagai tanda tangan elektronik untuk mengonfirmasi keputusan ini.',
         'comment' => 'Komentar',

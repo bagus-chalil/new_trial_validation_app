@@ -105,6 +105,28 @@ class UserController extends Controller
         return to_route('admin.users.index');
     }
 
+    /**
+     * Reversible deactivate/reactivate (e.g. a resigned employee). Unlike
+     * destroy(), the row stays in the list and deleted_at is untouched, so
+     * history stays attributable and the account can be switched back on.
+     */
+    public function toggleActive(Request $request, User $user): RedirectResponse
+    {
+        Gate::authorize('delete', $user);
+
+        $user->is_active = ! $user->is_active;
+        $user->save();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $user->is_active
+                ? __('admin.toast.user_reactivated')
+                : __('admin.toast.user_deactivated'),
+        ]);
+
+        return back();
+    }
+
     public function destroy(Request $request, User $user): RedirectResponse
     {
         Gate::authorize('delete', $user);
