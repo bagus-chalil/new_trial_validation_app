@@ -200,6 +200,10 @@ export default function StartupCheckEdit({
         allChecklistKeys.forEach((key) => {
             if (!data[key]) empty.add(key);
         });
+        CODING_TIERS.forEach(({ tier }) => {
+            if (!String(data[`coding_format_${tier}`] ?? '').trim()) empty.add(`coding_format_${tier}`);
+            if (data[`coding_operator_na_${tier}`] !== '1' && !photoUrls[`coding_${tier}`]) empty.add(`coding_${tier}`);
+        });
         if (empty.size) {
             setErrorFields(empty);
             toast(`${empty.size} field wajib belum diisi`);
@@ -651,7 +655,7 @@ export default function StartupCheckEdit({
                                                     <Textarea
                                                         id={formatKey}
                                                         rows={4}
-                                                        className="border-border bg-background flex-1 resize-y rounded-xl border-[1.5px] text-[14.5px] font-semibold"
+                                                        className={`border-border bg-background flex-1 resize-y rounded-xl border-[1.5px] text-[14.5px] font-semibold ${errorFields.has(formatKey) ? errorBorder : ''}`}
                                                         value={data[formatKey] ?? ''}
                                                         onChange={(e) => setData(formatKey, e.target.value)}
                                                         disabled={isReadOnly || formatNa}
@@ -666,7 +670,12 @@ export default function StartupCheckEdit({
                                                         N/A
                                                     </button>
                                                 </div>
-                                                <InputError message={errors[formatKey]} />
+                                                <InputError
+                                                    message={
+                                                        errors[formatKey] ||
+                                                        (errorFields.has(formatKey) ? 'Wajib diisi, atau klik N/A jika kosong.' : undefined)
+                                                    }
+                                                />
                                             </div>
                                             <div className="flex flex-col gap-2">
                                                 <Label className="text-muted-foreground text-xs font-semibold">Operator (Actual Coding)</Label>
@@ -675,7 +684,7 @@ export default function StartupCheckEdit({
                                                         type="button"
                                                         disabled={isReadOnly || photoNa}
                                                         onClick={() => setCameraField(photoKey)}
-                                                        className="border-border bg-background flex h-[46px] flex-1 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                                        className={`border-border bg-background flex h-[46px] flex-1 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60 ${errorFields.has(photoKey) ? errorBorder : ''}`}
                                                     >
                                                         <Camera className="size-4" strokeWidth={2.2} />
                                                         {photoUrl ? 'Ganti Foto' : 'Ambil Foto'}
@@ -690,6 +699,12 @@ export default function StartupCheckEdit({
                                                         N/A
                                                     </button>
                                                 </div>
+                                                <InputError
+                                                    message={
+                                                        errors[`photo_${photoKey}`] ||
+                                                        (errorFields.has(photoKey) ? 'Ambil foto, atau klik N/A jika tidak ada.' : undefined)
+                                                    }
+                                                />
                                                 {photoUrl && !photoNa && (
                                                     <PhotoLightbox
                                                         src={photoUrl}

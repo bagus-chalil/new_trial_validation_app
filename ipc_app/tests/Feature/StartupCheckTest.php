@@ -60,7 +60,45 @@ class StartupCheckTest extends TestCase
             'line_leader_name' => 'Budi',
             'operator_name' => 'Sari',
             'remarks' => 'OK',
+            'coding_format_primary' => 'N/A',
+            'coding_format_secondary' => 'N/A',
+            'coding_format_tersier' => 'N/A',
+            'coding_operator_na_primary' => '1',
+            'coding_operator_na_secondary' => '1',
+            'coding_operator_na_tersier' => '1',
         ];
+    }
+
+    public function test_coding_format_and_photo_are_required_unless_marked_na(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = [
+            ...$this->validPayload(),
+            'coding_format_primary' => '',
+            'coding_operator_na_primary' => '0',
+            'coding_format_secondary' => '',
+        ];
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)
+            ->assertSessionHasErrors(['coding_format_primary', 'coding_format_secondary', 'photo_coding_primary']);
+
+        $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
+    }
+
+    public function test_coding_photo_satisfies_requirement_without_na(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->post("/batches/{$batch->id}/startup-check/photo/coding_primary", ['photo' => UploadedFile::fake()->image('c.jpg')]);
+
+        $this->put("/batches/{$batch->id}/startup-check", [
+            ...$this->validPayload(),
+            'coding_format_primary' => 'DKB EXP 231028',
+            'coding_operator_na_primary' => '0',
+        ])->assertSessionHasNoErrors();
     }
 
     public function test_product_appearance_and_leakage_are_required_and_saved(): void
@@ -227,9 +265,9 @@ class StartupCheckTest extends TestCase
         $check = $batch->startupCheck()->first();
         $this->assertSame('BN: 123 / EXP: 08-2028', $check->coding_format_primary);
         $this->assertSame('N/A', $check->coding_format_secondary);
-        $this->assertNull($check->coding_format_tersier);
+        $this->assertSame('N/A', $check->coding_format_tersier);
         $this->assertTrue($check->coding_operator_na_primary);
-        $this->assertFalse($check->coding_operator_na_secondary);
+        $this->assertTrue($check->coding_operator_na_secondary);
     }
 
     public function test_density_can_be_marked_not_applicable(): void

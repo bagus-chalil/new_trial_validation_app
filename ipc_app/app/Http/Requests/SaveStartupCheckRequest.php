@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\StartupCheck;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -38,9 +40,10 @@ class SaveStartupCheckRequest extends FormRequest
             // Not asked on the Packing + FG flow (no filling there), so it can't be required.
             'average_of_empty_bottle_weight' => [$this->isPackingFgFlow() ? 'nullable' : 'required', 'numeric', 'decimal:0,2', 'min:0'],
             'heating' => ['nullable', 'string', 'max:255'],
-            'coding_format_primary' => ['nullable', 'string', 'max:1000'],
-            'coding_format_secondary' => ['nullable', 'string', 'max:1000'],
-            'coding_format_tersier' => ['nullable', 'string', 'max:1000'],
+            // Required: an empty tier must be marked with the N/A button (stored as the literal 'N/A').
+            'coding_format_primary' => ['required', 'string', 'max:1000'],
+            'coding_format_secondary' => ['required', 'string', 'max:1000'],
+            'coding_format_tersier' => ['required', 'string', 'max:1000'],
             'coding_operator_na_primary' => ['nullable', 'boolean'],
             'coding_operator_na_secondary' => ['nullable', 'boolean'],
             'coding_operator_na_tersier' => ['nullable', 'boolean'],
@@ -61,5 +64,27 @@ class SaveStartupCheckRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $batch = $this->route('batch');
+            if (! $batch instanceof IpcBatch) {
+                return;
+            }
+
+            $uploaded = IpcAttachment::query()
+                ->where('ipc_batch_id', $batch->id)
+                ->where('stage', 'startup')
+                ->whereIn('field_label', ['coding_primary', 'coding_secondary', 'coding_tersier'])
+                ->pluck('field_label');
+
+            foreach (['primary', 'secondary', 'tersier'] as $tier) {
+                if (! $this->boolean("coding_operator_na_{$tier}") && ! $uploaded->contains("coding_{$tier}")) {
+                    $validator->errors()->add("photo_coding_{$tier}", 'Foto wajib diunggah, atau pilih N/A.');
+                }
+            }
+        });
     }
 }
