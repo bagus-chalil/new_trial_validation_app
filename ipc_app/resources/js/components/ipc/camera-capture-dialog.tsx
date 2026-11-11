@@ -1,16 +1,32 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useEffect, useRef, useState } from 'react';
 
 // Deliberately does NOT fall back to a plain <input type="file"> picker: the whole point is to
 // guarantee the photo comes straight from a live camera frame at capture time, not a
 // pre-existing/edited image chosen from the gallery — a direct user request (2026-09-03,
 // concerned about QC evidence photos being manipulable if a file picker were allowed).
+//
+// Resolution: without width/height constraints browsers fall back to their default stream
+// size (640x480 on most phones/tablets), which made small printed codes (EXP/batch coding,
+// Label Bulk) too blurry for the Vision Service to read reliably — 139 of 144 sampled
+// production photos were 480x640 (2026-11-11). We ask for ~1080p as an `ideal` (never
+// `exact`/`min`, so devices that can't do it still open the camera at their best size), then
+// cap the saved JPEG's long side at CAPTURE_MAX_LONG_SIDE to keep storage modest
+// (~200-350 KB/photo instead of ~45 KB).
+const CAPTURE_MAX_LONG_SIDE = 1600;
+const CAPTURE_JPEG_QUALITY = 0.85;
+const RESOLUTION_CONSTRAINTS = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+
 async function openCameraStream(): Promise<MediaStream> {
     try {
-        return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', ...RESOLUTION_CONSTRAINTS }, audio: false });
     } catch {
-        return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        try {
+            return await navigator.mediaDevices.getUserMedia({ video: RESOLUTION_CONSTRAINTS, audio: false });
+        } catch {
+            return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
     }
 }
 
@@ -78,10 +94,11 @@ export function CameraCaptureDialog({
         const video = videoRef.current;
         if (!video || video.videoWidth === 0) return;
 
+        const scale = Math.min(1, CAPTURE_MAX_LONG_SIDE / Math.max(video.videoWidth, video.videoHeight));
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d')?.drawImage(video, 0, 0);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob(
             (blob) => {
@@ -91,7 +108,7 @@ export function CameraCaptureDialog({
                 stopStream();
             },
             'image/jpeg',
-            0.9,
+            CAPTURE_JPEG_QUALITY,
         );
     };
 
