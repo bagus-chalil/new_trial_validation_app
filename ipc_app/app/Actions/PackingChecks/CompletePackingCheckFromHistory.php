@@ -34,7 +34,7 @@ class CompletePackingCheckFromHistory
             $revision->update(['finalize' => true]);
 
             if ($batch->current_stage === IpcBatch::STAGE_PACKING) {
-                $batch->update(['current_stage' => IpcBatch::STAGE_FINISHED]);
+                $batch->update(['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_PACKING)]);
             }
 
             return $packingCheck->fresh(['revisions.user']);

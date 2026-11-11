@@ -53,7 +53,7 @@ class CompleteFillingCheckFromHistory
             $revision->update(['finalize' => true]);
 
             if ($batch->current_stage === IpcBatch::STAGE_FILLING) {
-                $batch->update(['current_stage' => IpcBatch::STAGE_PACKING]);
+                $batch->update(['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_FILLING)]);
             }
 
             return $fillingCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);

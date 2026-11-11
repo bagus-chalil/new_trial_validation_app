@@ -110,6 +110,18 @@ class CompleteStageFromHistoryTest extends TestCase
         $this->assertNull($batch->fresh()->fillingCheck->completed_at);
     }
 
+    public function test_filling_only_flow_goes_to_approval_not_packing_when_completed_from_history(): void
+    {
+        $batch = $this->makeBatch();
+        $batch->update(['flow_type' => IpcBatch::FLOW_FILLING]);
+        $this->saveFillingDraft($batch, 'round 1', [15.30, 15.10]);
+
+        $this->post(route('filling-check.complete', $batch));
+
+        $this->assertNotNull($batch->fresh()->fillingCheck->completed_at);
+        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+    }
+
     public function test_an_already_completed_stage_cannot_be_completed_again(): void
     {
         $batch = $this->makeBatch();
