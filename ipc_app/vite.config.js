@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
+import colorMixFallback from './build-plugins/color-mix-fallback.js';
 
 export default defineConfig({
     plugins: [
@@ -12,6 +13,7 @@ export default defineConfig({
         }),
         react(),
         tailwindcss(),
+        colorMixFallback(),
     ],
     build: {
         // Older tablet browsers (Chrome 106, UC, Huawei Browser).

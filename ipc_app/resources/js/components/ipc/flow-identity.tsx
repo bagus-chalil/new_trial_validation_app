@@ -35,7 +35,18 @@ export function flowIdentity(type?: string | null) {
 
 export function flowTheme(type?: string | null): CSSProperties {
     const flow = flowIdentity(type);
-    return { '--flow-accent': flow.color, '--flow-accent-dark': flow.darkColor } as CSSProperties;
+    return {
+        '--flow-accent': flow.color,
+        '--flow-accent-dark': flow.darkColor,
+        // RGB channels for the old-browser alpha fallback (build-plugins/color-mix-fallback.js).
+        '--rgb-flow-accent': hexChannels(flow.color),
+        '--rgb-flow-accent-dark': hexChannels(flow.darkColor),
+    } as CSSProperties;
+}
+
+function hexChannels(hex: string): string {
+    const n = parseInt(hex.slice(1), 16);
+    return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
 }
 
 export function FlowBadge({ type, className }: { type?: string | null; className?: string }) {

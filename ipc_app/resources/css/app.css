@@ -209,20 +209,30 @@
     color: #0f172a;
 }
 
+/*
+  No color-mix() in hand-written rules: Chrome < 111 (our Android tablets run 106)
+  doesn't support it, and Tailwind's automatic fallback drops the percentage, so a
+  3% tint became the solid accent. A translucent layer over an opaque base is
+  visually the same and works everywhere. `--rgb-*` channels are generated at build
+  time by build-plugins/color-mix-fallback.js; the literal fallbacks only matter in
+  `vite dev`, where that plugin doesn't run.
+*/
 .workflow-form,
 .workflow-review {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 3%, var(--background)), var(--background) 440px);
+    background-color: var(--background);
+    background-image: linear-gradient(180deg, rgb(var(--rgb-primary, 47 111 237) / 0.03), transparent 440px);
 }
 
 .workflow-intro {
-    background-image: radial-gradient(ellipse at top right, color-mix(in srgb, var(--primary) 9%, transparent), transparent 65%);
+    background-image: radial-gradient(ellipse at top right, rgb(var(--rgb-primary, 47 111 237) / 0.09), transparent 65%);
 }
 
 .workflow-fields > .flex.flex-col {
     padding: 16px;
     border: 1px solid var(--border-soft);
     border-radius: 16px;
-    background: color-mix(in srgb, var(--background) 60%, var(--card));
+    background-color: var(--card);
+    background-image: linear-gradient(rgb(var(--rgb-background, 250 250 250) / 0.6), rgb(var(--rgb-background, 250 250 250) / 0.6));
 }
 
 .workflow-form :is(input:not([type='checkbox']):not([type='radio']), textarea, [role='combobox']) {
@@ -236,7 +246,7 @@
 
 .workflow-form :is(input, textarea, [role='combobox']):focus-visible {
     border-color: var(--primary);
-    outline: 2px solid color-mix(in srgb, var(--primary) 25%, transparent);
+    outline: 2px solid rgb(var(--rgb-primary, 47 111 237) / 0.25);
     outline-offset: 2px;
 }
 
