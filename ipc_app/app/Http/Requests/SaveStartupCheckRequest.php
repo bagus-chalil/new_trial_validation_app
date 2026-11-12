@@ -80,6 +80,11 @@ class SaveStartupCheckRequest extends FormRequest
                 ->whereIn('field_label', ['coding_primary', 'coding_secondary', 'coding_tersier'])
                 ->pluck('field_label');
 
+            // Label Bulk photo moved here from Filling Check (2026-11-12): always required.
+            if (! IpcAttachment::query()->where('ipc_batch_id', $batch->id)->where('stage', 'startup')->where('field_label', 'date_bulk')->exists()) {
+                $validator->errors()->add('photo_date_bulk', 'Foto Label Bulk wajib diunggah.');
+            }
+
             foreach (['primary', 'secondary', 'tersier'] as $tier) {
                 if (! $this->boolean("coding_operator_na_{$tier}") && ! $uploaded->contains("coding_{$tier}")) {
                     $validator->errors()->add("photo_coding_{$tier}", 'Foto wajib diunggah, atau pilih N/A.');

@@ -21,20 +21,33 @@ class StartupCheckTest extends TestCase
 
     // Defaults to the currently-acted-as user so every pre-existing test keeps meaning "owner
     // edits their own batch"; pass an explicit id to build a not-the-owner (403) case instead.
-    private function makeBatch(?int $createdBy = null, string $flowType = IpcBatch::FLOW_FULL): IpcBatch
+    private function makeBatch(?int $createdBy = null, string $flowType = IpcBatch::FLOW_FULL, bool $withLabelBulk = true): IpcBatch
     {
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
         $this->line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
 
         // Line and Mixing Date are no longer set at batch creation — they're chosen on this
         // very form, so a freshly-created batch starts with both null (see IpcBatchController).
-        return IpcBatch::create([
+        $batch = IpcBatch::create([
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-001',
             'created_by' => $createdBy ?? auth()->id() ?? User::factory()->create()->id,
             'current_stage' => IpcBatch::STAGE_STARTUP,
             'flow_type' => $flowType,
         ]);
+
+        // Label Bulk photo is required on Startup Check (moved from Filling Check): present by default.
+        if ($withLabelBulk) {
+            IpcAttachment::create([
+                'ipc_batch_id' => $batch->id,
+                'stage' => 'startup',
+                'field_label' => 'date_bulk',
+                'file_path' => "ipc-attachments/{$batch->id}/startup/date_bulk.jpg",
+                'uploaded_by' => $batch->created_by,
+            ]);
+        }
+
+        return $batch;
     }
 
     private function validPayload(): array
@@ -85,6 +98,29 @@ class StartupCheckTest extends TestCase
             ->assertSessionHasErrors(['coding_format_primary', 'coding_format_secondary', 'photo_coding_primary']);
 
         $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
+    }
+
+    public function test_label_bulk_photo_is_required(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(withLabelBulk: false);
+
+        $this->put("/batches/{$batch->id}/startup-check", $this->validPayload())
+            ->assertSessionHasErrors(['photo_date_bulk']);
+
+        $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
+    }
+
+    public function test_label_bulk_photo_can_be_uploaded_on_startup_check(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch(withLabelBulk: false);
+
+        $this->post("/batches/{$batch->id}/startup-check/photo/date_bulk", ['photo' => UploadedFile::fake()->image('d.jpg')])
+            ->assertRedirect("/batches/{$batch->id}/startup-check");
+
+        $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('stage', 'startup')->where('field_label', 'date_bulk')->count());
     }
 
     public function test_coding_photo_satisfies_requirement_without_na(): void

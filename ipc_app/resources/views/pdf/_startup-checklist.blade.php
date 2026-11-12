@@ -34,7 +34,7 @@
         <div class="photo-group">
             <div class="photo-group-title">Lampirkan Label / Warna Dibawah Ini</div>
             <div class="attachment-grid attachment-grid--cols-1">
-                @foreach ([['color', 'Warna']] as [$field, $label])
+                @foreach ([['date_bulk', 'Label Bulk'], ['color', 'Warna']] as [$field, $label])
                     <figure class="attachment-tile attachment-tile--sm">
                         @if ($photoUrls['startup'][$field] ?? null)
                             <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">

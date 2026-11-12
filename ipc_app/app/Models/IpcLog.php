@@ -26,6 +26,7 @@ class IpcLog extends Model
         'decision_reason',
         'expected_value',
         'computed_value',
+        'comparison',
         'created_by',
     ];
 
@@ -35,6 +36,7 @@ class IpcLog extends Model
             'confidence' => 'float',
             'format_valid' => 'boolean',
             'vision_response' => 'array',
+            'comparison' => 'array',
         ];
     }
 

@@ -22,7 +22,9 @@ class FillingCheck extends Model
      * Display labels for FillingCheckController::PHOTO_FIELDS, in on-screen order — the PDF
      * report reads these instead of hardcoding its own copy, which had drifted ("Identity Bulk
      * Bulk" / "Image" instead of the form's "Identity Bulk" / "Appearance"). Must stay in sync
-     * with PHOTO_FIELDS in resources/js/pages/filling-check/edit.tsx.
+     * with PHOTO_FIELDS in resources/js/pages/filling-check/edit.tsx, EXCEPT `date_bulk`: it is no
+     * longer uploaded on Filling Check (moved to Startup Check, 2026-11-12) but stays here so
+     * the report keeps its Identity Bulk slot (older batches' Filling photo, else the Startup one).
      */
     public const PHOTO_LABELS = [
         'color' => 'Color',

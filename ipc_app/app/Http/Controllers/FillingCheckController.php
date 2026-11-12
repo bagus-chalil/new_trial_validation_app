@@ -22,9 +22,10 @@ class FillingCheckController extends Controller
      * original field (see the "Filling Check" section in CLAUDE.md); `wo_image`/`date_bulk`/
      * `image_tube` were added 2026-09-16 per direct user request against a real legacy
      * FILLING CHECK screenshot showing WO_Image, Date_Bulk, and Image_Tube camera fields
-     * alongside Color, none of which existed on this stage yet.
+     * alongside Color. `date_bulk` (Label Bulk) moved to Startup Check on 2026-11-12 so the
+     * Startup AI cross-check can read it; old Filling uploads stay as they are.
      */
-    public const PHOTO_FIELDS = ['color', 'wo_image', 'date_bulk', 'image_tube'];
+    public const PHOTO_FIELDS = ['color', 'wo_image', 'image_tube'];
 
     public function edit(IpcBatch $batch): Response
     {

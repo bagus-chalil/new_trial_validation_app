@@ -23,6 +23,33 @@ return [
         'tube_exp_date',
         'tube_mfd_date',
         'tube_emboss_default',
+        'tube_batch_code',
+    ],
+
+    // LLM-backed field_types (Ollama GPU server behind the Vision Service). They return a
+    // different payload than the tube OCR ones (no extracted_date_code / format_valid), so
+    // they are NOT in 'field_types' above and never go through VisionEvaluator /
+    // the generic vision.analyze endpoint — only through StartupVisionEvaluator.
+    'llm_field_types' => [
+        'label_bulk',
+        'im_document',
+        'coding_print',
+    ],
+
+    // Startup AI cross-check (advisory only — never blocks the operator, never fills a
+    // Conform / Not Conform toggle). Maps a Startup Check photo field to the Vision Service
+    // field_type. Laravel always chooses the field_type; it is never guessed from the photo.
+    // Off by default so a deploy without a reachable Vision Service stays unaffected.
+    'startup_ai' => [
+        'enabled' => (bool) env('VISION_STARTUP_AI_ENABLED', false),
+        'fields' => [
+            'date_bulk' => 'label_bulk',
+            'im_number' => 'im_document',
+            'coding_primary' => 'coding_print',
+        ],
+        // Tube photos (packaging_type = tube) are also read through these tube field_types,
+        // for display only: a tube result is always REVIEW, never PASS.
+        'tube_field_types' => ['tube_exp_date'],
     ],
 
     // How each field_type's OCR value is checked against IPC data. A field_type with no rule

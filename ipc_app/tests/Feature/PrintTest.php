@@ -412,7 +412,8 @@ class PrintTest extends TestCase
             $response->assertSee('<strong>'.$label.'</strong>', false);
         }
         $response->assertDontSee('Identity Bulk Bulk');
-        $this->assertSame(FillingCheckController::PHOTO_FIELDS, array_keys(FillingCheck::PHOTO_LABELS));
+        // date_bulk (Label Bulk) moved to Startup Check but keeps its slot on the Filling report.
+        $this->assertSame(FillingCheckController::PHOTO_FIELDS, array_values(array_diff(array_keys(FillingCheck::PHOTO_LABELS), ['date_bulk'])));
     }
 
     public function test_preview_route_is_forbidden_before_batch_reaches_print_stage(): void

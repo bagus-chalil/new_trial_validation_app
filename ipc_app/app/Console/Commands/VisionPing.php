@@ -40,12 +40,14 @@ class VisionPing extends Command
         $this->info('Health: ok');
 
         $available = collect($types->json() ?? [])->pluck('key');
-        foreach (config('vision.field_types') as $fieldType) {
+        $expected = [...config('vision.field_types'), ...config('vision.llm_field_types', [])];
+
+        foreach ($expected as $fieldType) {
             $available->contains($fieldType)
                 ? $this->info("  [ada]   {$fieldType}")
                 : $this->error("  [TIDAK ADA di Vision Service] {$fieldType}");
         }
 
-        return collect(config('vision.field_types'))->diff($available)->isEmpty() ? self::SUCCESS : self::FAILURE;
+        return collect($expected)->diff($available)->isEmpty() ? self::SUCCESS : self::FAILURE;
     }
 }

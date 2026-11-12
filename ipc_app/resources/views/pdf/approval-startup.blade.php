@@ -32,7 +32,7 @@
             <div class="photo-group">
                 <div class="photo-group-title">Attach Label and Color Check Actual in This Area</div>
                 <div class="attachment-grid attachment-grid--cols-1">
-                    @foreach ([['color', 'Color']] as [$field, $label])
+                    @foreach ([['date_bulk', 'Label Bulk'], ['color', 'Color']] as [$field, $label])
                         <figure class="attachment-tile">
                             @if ($photoUrls['startup'][$field] ?? null)
                                 <img src="{{ $photoUrls['startup'][$field] }}" alt="{{ $label }}">

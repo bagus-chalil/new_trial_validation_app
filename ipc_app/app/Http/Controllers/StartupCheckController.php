@@ -18,7 +18,7 @@ use Inertia\Response;
 class StartupCheckController extends Controller
 {
     /** Field labels for the four camera-only fields on this stage — see StartupCheck migration note. */
-    public const PHOTO_FIELDS = ['im_number', 'color', 'temperature_setting', 'coding_primary', 'coding_secondary', 'coding_tersier'];
+    public const PHOTO_FIELDS = ['im_number', 'date_bulk', 'color', 'temperature_setting', 'coding_primary', 'coding_secondary', 'coding_tersier'];
 
     /** Fields that support multiple photos (accumulate instead of replace). */
     private const MULTI_PHOTO_FIELDS = ['temperature_setting'];
@@ -58,6 +58,7 @@ class StartupCheckController extends Controller
             'validationReportOptions' => StartupCheck::VALIDATION_REPORT_OPTIONS,
             'lines' => MasterLine::query()->where('is_active', true)->orderBy('name')->get(['id', 'category', 'area', 'code', 'name']),
             'photoUrls' => $photoUrls,
+            'visionAiEnabled' => (bool) config('vision.startup_ai.enabled'),
         ]);
     }
 

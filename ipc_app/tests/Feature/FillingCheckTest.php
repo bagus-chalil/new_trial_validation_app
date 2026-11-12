@@ -378,19 +378,29 @@ class FillingCheckTest extends TestCase
         Storage::disk('public')->assertMissing($firstPath);
     }
 
-    public function test_wo_image_date_bulk_and_image_tube_photos_can_each_be_uploaded(): void
+    public function test_wo_image_and_image_tube_photos_can_each_be_uploaded(): void
     {
         Storage::fake('public');
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatchWithCompletedStartupCheck();
 
-        foreach (['wo_image', 'date_bulk', 'image_tube'] as $field) {
+        foreach (['wo_image', 'image_tube'] as $field) {
             $photo = UploadedFile::fake()->image("{$field}.jpg");
             $this->post("/batches/{$batch->id}/filling-check/photo/{$field}", ['photo' => $photo])
                 ->assertRedirect("/batches/{$batch->id}/filling-check");
 
             $this->assertSame(1, IpcAttachment::where('ipc_batch_id', $batch->id)->where('field_label', $field)->count());
         }
+    }
+
+    public function test_label_bulk_is_no_longer_uploaded_on_filling_check(): void
+    {
+        Storage::fake('public');
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $this->post("/batches/{$batch->id}/filling-check/photo/date_bulk", ['photo' => UploadedFile::fake()->image('date_bulk.jpg')])
+            ->assertNotFound();
     }
 
     public function test_photo_upload_rejects_unknown_field(): void

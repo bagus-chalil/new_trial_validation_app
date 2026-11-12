@@ -5,6 +5,7 @@ import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
+import { StartupAiRead } from '@/components/ipc/startup-ai-read';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
@@ -49,9 +50,13 @@ interface StartupCheckData {
 
 const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
     { key: 'im_number', label: 'IM Number' },
+    { key: 'date_bulk', label: 'Label Bulk' },
     { key: 'color', label: 'Color' },
     { key: 'temperature_setting', label: 'Temperature Setting', multi: true },
 ];
+
+// Photo fields that have an advisory "Baca AI" button (coding_primary is rendered in the coding block below).
+const AI_PHOTO_FIELDS = ['im_number', 'date_bulk'];
 
 // "Pemeriksaan Format Coding" block, one stacked row per tier: free-text format + actual-coding photo.
 const CODING_TIERS: { tier: 'primary' | 'secondary' | 'tersier'; title: string }[] = [
@@ -102,6 +107,7 @@ export default function StartupCheckEdit({
     lines,
     photoUrls,
     startupInspectionComplete,
+    visionAiEnabled,
 }: {
     batch: Batch;
     startupCheck: StartupCheckData | null;
@@ -113,6 +119,7 @@ export default function StartupCheckEdit({
     lines: MasterLine[];
     photoUrls: Record<string, string | null | { id: number; url: string }[]>;
     startupInspectionComplete: boolean;
+    visionAiEnabled: boolean;
 }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -162,6 +169,9 @@ export default function StartupCheckEdit({
         remarks: (startupCheck?.remarks as string) ?? '',
     });
 
+    // Values typed on the form so far (not saved yet) — the advisory "Baca AI" compares against these.
+    const getEntered = () => ({ mixing_date: data.mixing_date || undefined, exp_date: data.exp_date || undefined });
+
     // Packing + FG has no filling: the 4 filling parameters aren't asked and the card is "Parameter Packing".
     const isPackingFg = batch.flow_type === 'packing_fg';
     const densityNotApplicable = data.density_not_applicable === '1';
@@ -200,6 +210,7 @@ export default function StartupCheckEdit({
         allChecklistKeys.forEach((key) => {
             if (!data[key]) empty.add(key);
         });
+        if (!photoUrls.date_bulk) empty.add('date_bulk');
         CODING_TIERS.forEach(({ tier }) => {
             if (!String(data[`coding_format_${tier}`] ?? '').trim()) empty.add(`coding_format_${tier}`);
             if (data[`coding_operator_na_${tier}`] !== '1' && !photoUrls[`coding_${tier}`]) empty.add(`coding_${tier}`);
@@ -713,6 +724,14 @@ export default function StartupCheckEdit({
                                                         imageClassName="border-border h-full w-full rounded-xl border object-cover"
                                                     />
                                                 )}
+                                                {visionAiEnabled && tier === 'primary' && !photoNa && (
+                                                    <StartupAiRead
+                                                        batchId={batch.id}
+                                                        field="coding_primary"
+                                                        hasPhoto={Boolean(photoUrl)}
+                                                        getEntered={getEntered}
+                                                    />
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -732,12 +751,20 @@ export default function StartupCheckEdit({
                                                     type="button"
                                                     disabled={isReadOnly}
                                                     onClick={() => setCameraField(key)}
-                                                    className="border-border bg-background flex h-[46px] flex-1 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                                    className={`border-border bg-background flex h-[46px] flex-1 items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60 ${errorFields.has(key) ? errorBorder : ''}`}
                                                 >
                                                     <Camera className="size-4" strokeWidth={2.2} />
                                                     {multi ? 'Tambah Foto' : singleUrl ? 'Ganti Foto' : 'Ambil Foto'}
                                                 </button>
                                             </div>
+                                            {key === 'date_bulk' && (
+                                                <InputError
+                                                    message={
+                                                        errors.photo_date_bulk ||
+                                                        (errorFields.has(key) ? 'Foto Label Bulk wajib diambil.' : undefined)
+                                                    }
+                                                />
+                                            )}
                                             {multi
                                                 ? multiPhotos!.length > 0 && (
                                                       <div className="flex flex-wrap gap-2">
@@ -771,6 +798,9 @@ export default function StartupCheckEdit({
                                                           imageClassName="border-border h-full w-full rounded-xl border object-cover"
                                                       />
                                                   )}
+                                            {visionAiEnabled && AI_PHOTO_FIELDS.includes(key) && (
+                                                <StartupAiRead batchId={batch.id} field={key} hasPhoto={Boolean(singleUrl)} getEntered={getEntered} />
+                                            )}
                                         </div>
                                     );
                                 })}

@@ -116,6 +116,7 @@ export default function PrintStartup({
                     <PhotoRow
                         photos={[
                             { key: 'im_number', label: 'IM Number', url: photoUrls.startup?.im_number ?? null },
+                            { key: 'date_bulk', label: 'Label Bulk', url: photoUrls.startup?.date_bulk ?? null },
                             { key: 'color', label: 'Color', url: photoUrls.startup?.color ?? null },
                             { key: 'coding_primary', label: 'Coding Actual — Primer', url: photoUrls.startup?.coding_primary ?? null },
                             { key: 'coding_secondary', label: 'Coding Actual — Sekunder', url: photoUrls.startup?.coding_secondary ?? null },

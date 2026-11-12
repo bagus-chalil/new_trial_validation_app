@@ -28,7 +28,7 @@ trait BuildsIpcReportPayloads
      * here (not imported) since this report spans all four check controllers.
      */
     private const PHOTOS_BY_STAGE = [
-        'startup' => ['im_number', 'color', 'temperature_setting', 'coding_primary', 'coding_secondary', 'coding_tersier'],
+        'startup' => ['im_number', 'date_bulk', 'color', 'temperature_setting', 'coding_primary', 'coding_secondary', 'coding_tersier'],
         'filling' => ['color', 'wo_image', 'date_bulk', 'image_tube'],
         'packing' => ['palletisasi', 'color', 'primary_coding_batch_exp', 'tersier_coding_batch', 'secondary_coding_batch_exp'],
         'finished' => ['wi_number', 'exp_date', 'color'],
@@ -56,7 +56,7 @@ trait BuildsIpcReportPayloads
 
         $disk = Storage::disk('public');
 
-        return collect($fields)->mapWithKeys(function (array $fieldList, string $stage) use ($photos, $disk) {
+        $result = collect($fields)->mapWithKeys(function (array $fieldList, string $stage) use ($photos, $disk) {
             $stagePhotos = $photos->get($stage, collect());
 
             return [$stage => collect($fieldList)->mapWithKeys(function (string $field) use ($stagePhotos, $disk) {
@@ -68,6 +68,8 @@ trait BuildsIpcReportPayloads
                 return [$field => $rows->isNotEmpty() ? $disk->url($rows->last()->file_path) : null];
             })->all()];
         })->all();
+
+        return $this->withLabelBulkFallback($batch, $result, fn ($row) => $disk->url($row->file_path));
     }
 
     /**
@@ -92,7 +94,7 @@ trait BuildsIpcReportPayloads
 
         $disk = Storage::disk('public');
 
-        return collect($fields)->mapWithKeys(function (array $fieldList, string $stage) use ($photos, $disk) {
+        $result = collect($fields)->mapWithKeys(function (array $fieldList, string $stage) use ($photos, $disk) {
             $stagePhotos = $photos->get($stage, collect());
 
             return [$stage => collect($fieldList)->mapWithKeys(function (string $field) use ($stagePhotos, $disk) {
@@ -117,6 +119,43 @@ trait BuildsIpcReportPayloads
                 return [$field => 'data:'.$mime.';base64,'.base64_encode($disk->get($row->file_path))];
             })->all()];
         })->all();
+
+        return $this->withLabelBulkFallback($batch, $result, function ($row) use ($disk) {
+            if (! $disk->exists($row->file_path)) {
+                return null;
+            }
+
+            return 'data:'.($disk->mimeType($row->file_path) ?: 'image/jpeg').';base64,'.base64_encode($disk->get($row->file_path));
+        });
+    }
+
+    /**
+     * Label Bulk ("Identity Bulk") used to be uploaded on Filling Check and now lives on Startup
+     * Check. The Filling report still has its Identity Bulk slot, so when a batch has no photo
+     * on Filling (every batch created after the move), show the Startup one there. Batches
+     * from before the move keep their own Filling photo untouched.
+     *
+     * @param  array<string, array<string, string|null|array>>  $photos
+     * @return array<string, array<string, string|null|array>>
+     */
+    private function withLabelBulkFallback(IpcBatch $batch, array $photos, \Closure $present): array
+    {
+        if (! array_key_exists('filling', $photos) || ($photos['filling']['date_bulk'] ?? null)) {
+            return $photos;
+        }
+
+        $row = IpcAttachment::query()
+            ->where('ipc_batch_id', $batch->id)
+            ->where('stage', 'startup')
+            ->where('field_label', 'date_bulk')
+            ->latest('id')
+            ->first();
+
+        if ($row) {
+            $photos['filling']['date_bulk'] = $present($row);
+        }
+
+        return $photos;
     }
 
     /**
