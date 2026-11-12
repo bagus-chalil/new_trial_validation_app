@@ -32,6 +32,33 @@ class ExpDateCalculator
         return $targetMonth->setDay($mfd->day)->format('dmy');
     }
 
+    /**
+     * EXP date for a batch = mixing date + the product's shelf-life in months (same day of
+     * month). Returns Y-m-d, or null when it cannot be derived safely: bad date, no shelf-life,
+     * or the day does not exist in the target month (31 Jan + 1 month) — never rolled over or
+     * clamped, the operator then types the EXP date by hand (business rule QC must confirm).
+     */
+    public function expDateFromMixing(?string $mixingDate, ?int $shelfLifeMonths): ?string
+    {
+        if (! $mixingDate || ! $shelfLifeMonths || $shelfLifeMonths < 1) {
+            return null;
+        }
+
+        try {
+            $mixing = CarbonImmutable::createFromFormat('Y-m-d', substr($mixingDate, 0, 10));
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (! $mixing || $mixing->format('Y-m-d') !== substr($mixingDate, 0, 10)) {
+            return null;
+        }
+
+        $target = $mixing->startOfMonth()->addMonths($shelfLifeMonths);
+
+        return $mixing->day > $target->daysInMonth ? null : $target->setDay($mixing->day)->format('Y-m-d');
+    }
+
     public function parseDdmmyy(string $ddmmyy): CarbonImmutable
     {
         if (! preg_match('/^(\d{2})(\d{2})(\d{2})$/', $ddmmyy, $m)) {

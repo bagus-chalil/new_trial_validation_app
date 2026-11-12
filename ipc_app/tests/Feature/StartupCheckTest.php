@@ -100,6 +100,54 @@ class StartupCheckTest extends TestCase
         $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
     }
 
+    public function test_exp_date_is_calculated_from_mixing_date_and_product_shelf_life(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+        $batch->masterProduct->update(['shelf_life_months' => 36]);
+
+        // The submitted exp_date is ignored when the system can derive it.
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-10-23', 'exp_date' => '2020-01-01'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('2029-10-23', $batch->fresh()->exp_date->format('Y-m-d'));
+    }
+
+    public function test_exp_date_stays_manual_when_shelf_life_is_missing(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'exp_date' => '2028-09-21'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('2028-09-21', $batch->fresh()->exp_date->format('Y-m-d'));
+
+    }
+
+    public function test_exp_date_is_required_when_it_cannot_be_calculated(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'exp_date' => ''])
+            ->assertSessionHasErrors(['exp_date']);
+    }
+
+    public function test_exp_date_is_manual_when_the_day_does_not_exist_in_the_target_month(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+        $batch->masterProduct->update(['shelf_life_months' => 1]);
+
+        // 31 Jan + 1 month has no 31st in Feb: not rolled over, the operator must type it.
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'exp_date' => ''])
+            ->assertSessionHasErrors(['exp_date']);
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'exp_date' => '2026-02-28'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('2026-02-28', $batch->fresh()->exp_date->format('Y-m-d'));
+    }
+
     public function test_label_bulk_photo_is_required(): void
     {
         $this->actingAs(User::factory()->create());

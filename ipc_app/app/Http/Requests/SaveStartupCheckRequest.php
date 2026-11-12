@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\StartupCheck;
+use App\Services\Vision\ExpDateCalculator;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,6 +22,30 @@ class SaveStartupCheckRequest extends FormRequest
         $batch = $this->route('batch');
 
         return $batch instanceof IpcBatch && $batch->flow_type === IpcBatch::FLOW_PACKING_FG;
+    }
+
+    /**
+     * EXP date is calculated by the system (mixing date + the product's shelf-life from Master
+     * Produk), so the form keeps working when the IM photo / AI is unavailable and OCR is only a
+     * cross-check, never the source. The submitted value is overridden when it can be derived;
+     * otherwise (no shelf-life on the product, or the day does not exist in the target month)
+     * the operator's own exp_date is required and kept.
+     */
+    protected function prepareForValidation(): void
+    {
+        $batch = $this->route('batch');
+        if (! $batch instanceof IpcBatch) {
+            return;
+        }
+
+        $computed = app(ExpDateCalculator::class)->expDateFromMixing(
+            (string) $this->input('mixing_date'),
+            $batch->masterProduct?->shelf_life_months,
+        );
+
+        if ($computed !== null) {
+            $this->merge(['exp_date' => $computed]);
+        }
     }
 
     public function rules(): array

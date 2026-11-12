@@ -18,7 +18,7 @@ import { limitDecimals } from '@/lib/decimal';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Camera, CheckCircle2, ClipboardList, Trash2 } from 'lucide-react';
-import { FormEventHandler, useMemo, useState } from 'react';
+import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 interface Batch {
     id: number;
@@ -29,7 +29,7 @@ interface Batch {
     exp_date: string | null;
     master_line_id: number | null;
     created_at: string;
-    master_product: { product_name: string; fg_code: string };
+    master_product: { product_name: string; fg_code: string; shelf_life_months?: number | null };
     master_line: { name: string; code: string } | null;
 }
 
@@ -64,6 +64,22 @@ const CODING_TIERS: { tier: 'primary' | 'secondary' | 'tersier'; title: string }
     { tier: 'secondary', title: 'Sekunder' },
     { tier: 'tersier', title: 'Tersier' },
 ];
+
+// EXP date = mixing date + the product's shelf-life (months), same day of month. Mirrors
+// ExpDateCalculator::expDateFromMixing() on the server (which is authoritative). Returns null when
+// it can't be derived safely (no shelf-life, bad date, day missing in the target month): the
+// operator then types the EXP date by hand — never rolled over.
+function expFromMixing(mixing: string | null | undefined, months: number | null | undefined): string | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(mixing ?? '');
+    if (!match || !months || months < 1) return null;
+    const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+    if (new Date(year, month - 1, day).getDate() !== day) return null;
+    const total = year * 12 + (month - 1) + months;
+    const targetYear = Math.floor(total / 12);
+    const targetMonth = (total % 12) + 1;
+    if (day > new Date(targetYear, targetMonth, 0).getDate()) return null;
+    return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
 
 function cameraTitle(field: string | null): string {
     const base = PHOTO_FIELDS.find((f) => f.key === field)?.label;
@@ -170,7 +186,24 @@ export default function StartupCheckEdit({
     });
 
     // Values typed on the form so far (not saved yet) — the advisory "Baca AI" compares against these.
-    const getEntered = () => ({ mixing_date: data.mixing_date || undefined, exp_date: data.exp_date || undefined });
+    // EXP date is calculated by the system (mixing + shelf-life from Master Produk) so the form still
+    // works when the IM photo / AI is unavailable; OCR is only a cross-check. Manual only when it can't be derived.
+    const shelfLifeMonths = batch.master_product.shelf_life_months ?? null;
+    const computedExp = expFromMixing(data.mixing_date, shelfLifeMonths);
+    const expAuto = computedExp !== null;
+    useEffect(() => {
+        if (computedExp !== null && data.exp_date !== computedExp) setData('exp_date', computedExp);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [computedExp]);
+    const expHint = expAuto
+        ? `Dihitung sistem: Mixing Date + ${shelfLifeMonths} bulan (shelf-life Master Produk).`
+        : !shelfLifeMonths
+          ? 'Shelf-life produk belum diisi di Master Produk, isi Exp Date manual.'
+          : !data.mixing_date
+            ? 'Isi Mixing Date dulu, Exp Date dihitung otomatis.'
+            : 'Tanggal tidak ada di bulan tujuan, isi Exp Date manual.';
+
+    const getEntered = () => ({ mixing_date: data.mixing_date || undefined, exp_date: computedExp ?? (data.exp_date || undefined) });
 
     // Packing + FG has no filling: the 4 filling parameters aren't asked and the card is "Parameter Packing".
     const isPackingFg = batch.flow_type === 'packing_fg';
@@ -190,7 +223,7 @@ export default function StartupCheckEdit({
     // this card can safely default to collapsed without hiding an unfilled required field.
     const parameterFillingComplete =
         Boolean(data.mixing_date?.trim()) &&
-        Boolean(data.exp_date?.trim()) &&
+        (expAuto || Boolean(data.exp_date?.trim())) &&
         Boolean(data.master_line_id?.trim()) &&
         (isPackingFg || Boolean(data.average_of_empty_bottle_weight?.toString().trim())) &&
         Boolean(data.validation_report_status?.trim()) &&
@@ -200,7 +233,7 @@ export default function StartupCheckEdit({
         e.preventDefault();
         const empty = new Set<string>();
         if (!data.mixing_date?.trim()) empty.add('mixing_date');
-        if (!data.exp_date?.trim()) empty.add('exp_date');
+        if (!expAuto && !data.exp_date?.trim()) empty.add('exp_date');
         if (!data.master_line_id?.trim()) empty.add('master_line_id');
         if (!data.validation_report_status?.trim()) empty.add('validation_report_status');
         if (!isPackingFg && !data.average_of_empty_bottle_weight?.toString().trim()) empty.add('average_of_empty_bottle_weight');
@@ -576,7 +609,7 @@ export default function StartupCheckEdit({
                                     id="exp_date"
                                     type="date"
                                     className={`${inputClass} ${errorFields.has('exp_date') ? errorBorder : ''}`}
-                                    value={data.exp_date ?? ''}
+                                    value={(expAuto ? computedExp : data.exp_date) ?? ''}
                                     onChange={(e) => {
                                         setData('exp_date', e.target.value);
                                         setErrorFields((prev) => {
@@ -585,8 +618,9 @@ export default function StartupCheckEdit({
                                             return n;
                                         });
                                     }}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || expAuto}
                                 />
+                                <p className="text-muted-foreground text-[11.5px]">{expHint}</p>
                                 <InputError
                                     message={errors.exp_date || (errorFields.has('exp_date') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}
                                 />
