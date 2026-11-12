@@ -142,6 +142,8 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         <Sheet open={open} onOpenChange={(value) => !value && handleClose()}>
             <SheetContent
                 side="bottom"
+                // Don't auto-focus the search box: on tablets that pops the keyboard open every time the menu opens.
+                onOpenAutoFocus={(event) => event.preventDefault()}
                 overlayClassName="bg-black/30 backdrop-blur-[2px] motion-reduce:animate-none"
                 className="bg-background border-border-soft flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-t-3xl border p-0 pb-[env(safe-area-inset-bottom,0px)] supports-[height:100dvh]:max-h-[90dvh] md:inset-y-4 md:right-4 md:left-auto md:max-h-none md:w-[620px] md:max-w-[calc(100vw-108px)] md:rounded-3xl"
             >
