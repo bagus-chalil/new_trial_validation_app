@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { FlowBadge, flowTheme } from '@/components/ipc/flow-identity';
 import { ProductSearchSelect, type ProductOption } from '@/components/ipc/product-search-select';
+import { ShelfLifeInput } from '@/components/ipc/shelf-life-input';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { Button } from '@/components/ui/button';
@@ -71,7 +72,7 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
         if (!data.master_product_id) empty.push('FG Code / Produk');
         if (selectedProduct && !selectedCount) empty.push('Bulk Code (minimal 1)');
         if (!data.no_batch.trim()) empty.push('No Batch FG');
-        if (!data.shelf_life_months.trim()) empty.push('Shelf Life (bulan)');
+        if (!data.shelf_life_months.trim()) empty.push('Shelf Life');
         if (empty.length) {
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
             return;
@@ -220,17 +221,12 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="shelf_life_months">Shelf Life (bulan)</Label>
-                                    <Input
+                                    <Label htmlFor="shelf_life_months">Shelf Life</Label>
+                                    <ShelfLifeInput
                                         id="shelf_life_months"
-                                        type="number"
-                                        inputMode="numeric"
-                                        min={1}
-                                        max={120}
+                                        months={data.shelf_life_months}
                                         className={`min-h-11 ${!data.shelf_life_months.trim() && message ? errorBorder : ''}`}
-                                        value={data.shelf_life_months}
-                                        onChange={(e) => setData('shelf_life_months', e.target.value)}
-                                        placeholder="Contoh: 36 (3 tahun), lihat IM / WI"
+                                        onChange={(months) => setData('shelf_life_months', months)}
                                     />
                                     <p className="text-muted-foreground text-[12px]">
                                         Dipakai menghitung Exp Date otomatis (Mixing Date + shelf life).

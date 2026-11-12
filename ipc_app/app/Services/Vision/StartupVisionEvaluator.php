@@ -4,7 +4,6 @@ namespace App\Services\Vision;
 
 use App\Models\IpcBatch;
 use Closure;
-use InvalidArgumentException;
 
 /**
  * PASS / FAIL / REVIEW for the Startup AI cross-check (Label Bulk, IM, Primary Coding).
@@ -152,17 +151,13 @@ class StartupVisionEvaluator
         $mixing = $entered['mixing_date'] ?? null;
         $exp = $entered['exp_date'] ?? null;
         if ($trusted && $readMonths > 0 && $mixing && $exp) {
-            $expDmy = date('dmy', strtotime($exp));
-            try {
-                $computed = $this->calculator->fromMfd(date('dmy', strtotime($mixing)), $readMonths);
-                $items[] = $this->compare(
-                    'exp_formula', 'EXP = Mixing + Umur Simpan', $expDmy, $computed,
-                    true,
-                    fn () => $computed === $expDmy,
-                );
-            } catch (InvalidArgumentException $e) {
-                $items[] = $this->item('exp_formula', 'EXP = Mixing + Umur Simpan', $expDmy, null, self::REVIEW, $e->getMessage());
-            }
+            $expYmd = date('Y-m-d', strtotime($exp));
+            $computed = $this->calculator->expDateFromMixing(date('Y-m-d', strtotime($mixing)), $readMonths);
+            $items[] = $this->compare(
+                'exp_formula', 'EXP = Mixing + Umur Simpan', date('dmy', strtotime($exp)), $computed ? date('dmy', strtotime($computed)) : null,
+                true,
+                fn () => $computed === $expYmd,
+            );
         } elseif ($trusted) {
             $items[] = $this->item('exp_formula', 'EXP = Mixing + Umur Simpan', null, null, self::REVIEW, 'Isi Mixing Date dan EXP Date di form dulu.');
         }

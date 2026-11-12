@@ -5,6 +5,7 @@ import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
+import { ShelfLifeInput } from '@/components/ipc/shelf-life-input';
 import { StartupAiRead } from '@/components/ipc/startup-ai-read';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
@@ -67,10 +68,10 @@ const CODING_TIERS: { tier: 'primary' | 'secondary' | 'tersier'; title: string }
     { tier: 'tersier', title: 'Tersier' },
 ];
 
-// EXP date = mixing date + the product's shelf-life (months), same day of month. Mirrors
-// ExpDateCalculator::expDateFromMixing() on the server (which is authoritative). Returns null when
-// it can't be derived safely (no shelf-life, bad date, day missing in the target month): the
-// operator then types the EXP date by hand — never rolled over.
+// EXP date = mixing date + shelf-life (months), same day of month. Mirrors
+// ExpDateCalculator::expDateFromMixing() on the server (which is authoritative). The system fills EXP
+// completely: when the day doesn't exist in the target month (31 Jan + 1 month, 29 Feb + 3 years) it is
+// clamped to the last day of that month, never rolled into the next one.
 function expFromMixing(mixing: string | null | undefined, months: number | null | undefined): string | null {
     const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(mixing ?? '');
     if (!match || !months || months < 1) return null;
@@ -79,8 +80,8 @@ function expFromMixing(mixing: string | null | undefined, months: number | null 
     const total = year * 12 + (month - 1) + months;
     const targetYear = Math.floor(total / 12);
     const targetMonth = (total % 12) + 1;
-    if (day > new Date(targetYear, targetMonth, 0).getDate()) return null;
-    return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const targetDay = Math.min(day, new Date(targetYear, targetMonth, 0).getDate());
+    return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
 }
 
 function cameraTitle(field: string | null): string {
@@ -200,17 +201,16 @@ export default function StartupCheckEdit({
         if (computedExp !== null && data.exp_date !== computedExp) setData('exp_date', computedExp);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [computedExp]);
+    const expClamped = expAuto && data.mixing_date ? data.mixing_date.slice(8, 10) !== computedExp!.slice(8, 10) : false;
     const expHint = expAuto
-        ? `Dihitung sistem: Mixing Date + ${shelfLifeMonths} bulan.`
+        ? `Dihitung sistem: Mixing Date + ${shelfLifeMonths} bulan.${expClamped ? ' Tanggal yang sama tidak ada di bulan tujuan, dipakai akhir bulan.' : ''}`
         : !shelfLifeMonths
-          ? 'Isi Shelf Life (bulan) dan Mixing Date, Exp Date dihitung otomatis.'
-          : !data.mixing_date
-            ? 'Isi Mixing Date dulu, Exp Date dihitung otomatis.'
-            : 'Tanggal tersebut tidak ada di bulan tujuan, isi Exp Date manual.';
+          ? 'Isi Shelf Life dan Mixing Date, Exp Date dihitung otomatis.'
+          : 'Isi Mixing Date, Exp Date dihitung otomatis.';
 
     const getEntered = () => ({
         mixing_date: data.mixing_date || undefined,
-        exp_date: computedExp ?? (data.exp_date || undefined),
+        exp_date: computedExp ?? undefined,
         shelf_life_months: shelfLifeMonths ?? undefined,
         packaging_type: data.primary_packaging_type || undefined,
     });
@@ -235,7 +235,7 @@ export default function StartupCheckEdit({
         Boolean(data.mixing_date?.trim()) &&
         Boolean(shelfLifeMonths) &&
         Boolean(data.primary_packaging_type) &&
-        (expAuto || Boolean(data.exp_date?.trim())) &&
+        expAuto &&
         Boolean(data.master_line_id?.trim()) &&
         (isPackingFg || Boolean(data.average_of_empty_bottle_weight?.toString().trim())) &&
         Boolean(data.validation_report_status?.trim()) &&
@@ -247,7 +247,6 @@ export default function StartupCheckEdit({
         if (!data.mixing_date?.trim()) empty.add('mixing_date');
         if (!shelfLifeMonths) empty.add('shelf_life_months');
         if (!data.primary_packaging_type) empty.add('primary_packaging_type');
-        if (!expAuto && !data.exp_date?.trim()) empty.add('exp_date');
         if (!data.master_line_id?.trim()) empty.add('master_line_id');
         if (!data.validation_report_status?.trim()) empty.add('validation_report_status');
         if (!isPackingFg && !data.average_of_empty_bottle_weight?.toString().trim()) empty.add('average_of_empty_bottle_weight');
@@ -617,18 +616,14 @@ export default function StartupCheckEdit({
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="shelf_life_months" className="text-muted-foreground text-xs font-semibold">
-                                    Shelf Life (bulan)
+                                    Shelf Life
                                 </Label>
-                                <Input
+                                <ShelfLifeInput
                                     id="shelf_life_months"
-                                    type="number"
-                                    inputMode="numeric"
-                                    min={1}
-                                    max={120}
+                                    months={data.shelf_life_months ?? ''}
                                     className={`${inputClass} ${errorFields.has('shelf_life_months') ? errorBorder : ''}`}
-                                    value={data.shelf_life_months ?? ''}
-                                    onChange={(e) => {
-                                        setData('shelf_life_months', e.target.value);
+                                    onChange={(months) => {
+                                        setData('shelf_life_months', months);
                                         setErrorFields((prev) => {
                                             const n = new Set(prev);
                                             n.delete('shelf_life_months');
@@ -648,21 +643,7 @@ export default function StartupCheckEdit({
                                 <Label htmlFor="exp_date" className="text-muted-foreground text-xs font-semibold">
                                     Exp Date
                                 </Label>
-                                <Input
-                                    id="exp_date"
-                                    type="date"
-                                    className={`${inputClass} ${errorFields.has('exp_date') ? errorBorder : ''}`}
-                                    value={(expAuto ? computedExp : data.exp_date) ?? ''}
-                                    onChange={(e) => {
-                                        setData('exp_date', e.target.value);
-                                        setErrorFields((prev) => {
-                                            const n = new Set(prev);
-                                            n.delete('exp_date');
-                                            return n;
-                                        });
-                                    }}
-                                    disabled={isReadOnly || expAuto}
-                                />
+                                <Input id="exp_date" type="date" className={inputClass} value={computedExp ?? ''} disabled readOnly />
                                 <p className="text-muted-foreground text-[11.5px]">{expHint}</p>
                                 <InputError
                                     message={errors.exp_date || (errorFields.has('exp_date') ? 'Wajib diisi sebelum melanjutkan.' : undefined)}

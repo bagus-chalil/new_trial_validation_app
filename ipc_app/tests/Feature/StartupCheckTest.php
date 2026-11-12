@@ -141,18 +141,25 @@ class StartupCheckTest extends TestCase
         $this->assertSame('tube', $batch->fresh()->primary_packaging_type);
     }
 
-    public function test_exp_date_is_manual_when_the_day_does_not_exist_in_the_target_month(): void
+    public function test_exp_date_is_clamped_to_the_end_of_the_month_when_the_day_does_not_exist(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        // 31 Jan + 1 month has no 31st in Feb: not rolled over, the operator must type it.
+        // 31 Jan + 1 month has no 31st in Feb: the system uses the last day of Feb, never rolls into March.
         $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'shelf_life_months' => 1, 'exp_date' => ''])
-            ->assertSessionHasErrors(['exp_date']);
-
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'shelf_life_months' => 1, 'exp_date' => '2026-02-28'])
             ->assertSessionHasNoErrors();
         $this->assertSame('2026-02-28', $batch->fresh()->exp_date->format('Y-m-d'));
+    }
+
+    public function test_leap_day_mixing_plus_whole_years_lands_on_28_feb(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2028-02-29', 'shelf_life_months' => 36])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('2031-02-28', $batch->fresh()->exp_date->format('Y-m-d'));
     }
 
     public function test_shelf_life_fills_an_empty_master_product_but_never_overwrites_it(): void
@@ -425,18 +432,28 @@ class StartupCheckTest extends TestCase
         $this->assertNull($batch->fresh()->mixing_date);
     }
 
-    public function test_missing_exp_date_is_rejected(): void
+    public function test_exp_date_is_not_needed_in_the_request_but_mixing_date_is(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        // EXP is calculated from mixing + shelf-life, so it is only required when it can't be derived
-        // (here: 31 Jan + 1 month has no 31st in February).
-        $payload = [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'shelf_life_months' => 1];
+        // exp_date is system-calculated (the input is disabled): the request doesn't carry it...
+        $payload = $this->validPayload();
         unset($payload['exp_date']);
+        $this->put("/batches/{$batch->id}/startup-check", $payload)->assertSessionHasNoErrors();
+        $this->assertSame('2028-09-20', $batch->fresh()->exp_date->format('Y-m-d'));
+    }
+
+    public function test_missing_mixing_date_is_rejected_because_exp_cannot_be_calculated(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        unset($payload['mixing_date'], $payload['exp_date']);
 
         $this->put("/batches/{$batch->id}/startup-check", $payload)
-            ->assertSessionHasErrors('exp_date');
+            ->assertSessionHasErrors(['mixing_date']);
 
         $this->assertNull($batch->fresh()->startupCheck);
         $this->assertNull($batch->fresh()->exp_date);

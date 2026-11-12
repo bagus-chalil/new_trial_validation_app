@@ -236,7 +236,7 @@ class StartupAiTest extends TestCase
         $this->read($batch, 'im_number')->assertOk()->assertJsonPath('decision', 'REVIEW');
     }
 
-    public function test_exp_formula_on_a_nonexistent_day_is_review_not_rolled_over(): void
+    public function test_exp_formula_clamps_a_nonexistent_day_to_month_end(): void
     {
         $batch = $this->makeBatch(1);
         $this->photo($batch, 'im_number');
@@ -250,7 +250,7 @@ class StartupAiTest extends TestCase
 
         $this->read($batch, 'im_number', ['mixing_date' => '2026-01-31', 'exp_date' => '2026-02-28'])
             ->assertOk()
-            ->assertJsonPath('decision', 'REVIEW');
+            ->assertJsonPath('decision', 'PASS');
     }
 
     public function test_non_tube_coding_that_matches_is_pass(): void

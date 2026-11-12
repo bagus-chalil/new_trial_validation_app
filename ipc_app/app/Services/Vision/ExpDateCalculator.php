@@ -33,10 +33,11 @@ class ExpDateCalculator
     }
 
     /**
-     * EXP date for a batch = mixing date + the product's shelf-life in months (same day of
-     * month). Returns Y-m-d, or null when it cannot be derived safely: bad date, no shelf-life,
-     * or the day does not exist in the target month (31 Jan + 1 month) — never rolled over or
-     * clamped, the operator then types the EXP date by hand (business rule QC must confirm).
+     * EXP date for a batch = mixing date + the shelf-life in months (same day of month). The
+     * system fills EXP completely (the form input is disabled), so when the day does not exist in
+     * the target month (31 Jan + 1 month, 29 Feb + 3 years) it is CLAMPED to the last day of that
+     * month (28 Feb), never rolled into the next month. Business rule to be confirmed by QC.
+     * Returns Y-m-d, or null when the inputs are invalid (bad date / no shelf-life).
      */
     public function expDateFromMixing(?string $mixingDate, ?int $shelfLifeMonths): ?string
     {
@@ -56,7 +57,7 @@ class ExpDateCalculator
 
         $target = $mixing->startOfMonth()->addMonths($shelfLifeMonths);
 
-        return $mixing->day > $target->daysInMonth ? null : $target->setDay($mixing->day)->format('Y-m-d');
+        return $target->setDay(min($mixing->day, $target->daysInMonth))->format('Y-m-d');
     }
 
     public function parseDdmmyy(string $ddmmyy): CarbonImmutable
