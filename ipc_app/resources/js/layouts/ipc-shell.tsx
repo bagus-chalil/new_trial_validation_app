@@ -1,6 +1,7 @@
 import { BottomNav } from '@/components/ipc/bottom-nav';
 import { FlowBanner, flowTheme } from '@/components/ipc/flow-identity';
 import { NavRail } from '@/components/ipc/nav-rail';
+import { VersionWatcher } from '@/components/ipc/version-watcher';
 import { markBackClicked, previousUrl, recordVisit } from '@/lib/nav-history';
 import { returnToFromUrl } from '@/lib/return-to';
 import { type SharedData } from '@/types';
@@ -70,6 +71,8 @@ export function IpcShell({
                         <div className="bg-primary h-full rounded-full transition-[width] duration-200" style={{ width: `${progressPct}%` }} />
                     </div>
                 )}
+
+                <VersionWatcher />
 
                 {props.flash?.success && (
                     <div className="mx-5 mb-1 shrink-0 rounded-2xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-800 md:mx-6">

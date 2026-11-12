@@ -116,7 +116,7 @@ export function PhotoLightbox({
             >
                 <img src={src} alt={alt} className={imageClassName} />
             </button>
-            <DialogContent className="flex h-[96dvh] w-[98vw] max-w-none flex-col gap-3 overflow-hidden border-neutral-700 bg-neutral-950 p-3 text-white sm:rounded-2xl [&>button.absolute]:hidden">
+            <DialogContent className="flex h-[96vh] w-[98vw] max-w-none flex-col gap-3 overflow-hidden border-neutral-700 bg-neutral-950 p-3 text-white supports-[height:100dvh]:h-[96dvh] sm:rounded-2xl [&>button.absolute]:hidden">
                 <div className="flex min-w-0 items-center gap-2">
                     <DialogTitle className="min-w-0 flex-1 truncate text-left text-base font-semibold text-white">{alt}</DialogTitle>
                     <DialogDescription className="sr-only">

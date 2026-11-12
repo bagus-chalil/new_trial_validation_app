@@ -123,7 +123,10 @@ export function SearchableSelect({
                             className="border-border-soft focus-visible:ring-primary/30 h-10 w-full rounded-lg border pr-3 pl-8 text-sm outline-none focus-visible:ring-2 [@media(pointer:coarse)]:text-base"
                         />
                     </div>
-                    <div className="max-h-[min(18rem,38dvh)] overflow-y-auto overscroll-contain p-1" role="listbox">
+                    <div
+                        className="max-h-[min(18rem,38vh)] overflow-y-auto overscroll-contain p-1 supports-[height:100dvh]:max-h-[min(18rem,38dvh)]"
+                        role="listbox"
+                    >
                         {shown.map((option, i) => (
                             <button
                                 key={option.value || '__all'}

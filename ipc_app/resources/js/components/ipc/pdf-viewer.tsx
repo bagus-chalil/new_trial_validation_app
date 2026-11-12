@@ -159,7 +159,7 @@ export function PdfViewer({ url, title, onClose }: { readonly url: string; reado
 
     return (
         <Dialog open onOpenChange={(next) => !next && onClose()}>
-            <DialogContent className="flex h-screen max-h-dvh w-screen max-w-none flex-col gap-0 rounded-none border-0 bg-neutral-900 p-0 text-white sm:rounded-none [&>button.absolute]:hidden">
+            <DialogContent className="flex h-screen max-h-screen w-screen max-w-none flex-col gap-0 rounded-none border-0 bg-neutral-900 p-0 text-white supports-[height:100dvh]:max-h-dvh sm:rounded-none [&>button.absolute]:hidden">
                 <div className="flex shrink-0 items-center gap-2 border-b border-white/10 bg-neutral-950 px-3 py-2">
                     <button type="button" onClick={onClose} className={`${btn} bg-white text-neutral-900 active:bg-white/80`}>
                         <ArrowLeft className="size-5" /> Kembali ke aplikasi

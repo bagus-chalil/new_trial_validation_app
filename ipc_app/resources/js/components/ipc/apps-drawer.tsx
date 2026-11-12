@@ -143,7 +143,7 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             <SheetContent
                 side="bottom"
                 overlayClassName="bg-black/30 backdrop-blur-[2px] motion-reduce:animate-none"
-                className="bg-background border-border-soft flex max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-t-3xl border p-0 pb-[env(safe-area-inset-bottom,0px)] md:inset-y-4 md:right-4 md:left-auto md:max-h-none md:w-[620px] md:max-w-[calc(100vw-108px)] md:rounded-3xl"
+                className="bg-background border-border-soft flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-t-3xl border p-0 pb-[env(safe-area-inset-bottom,0px)] supports-[height:100dvh]:max-h-[90dvh] md:inset-y-4 md:right-4 md:left-auto md:max-h-none md:w-[620px] md:max-w-[calc(100vw-108px)] md:rounded-3xl"
             >
                 <div className="border-border-soft bg-card shrink-0 border-b px-5 pt-6 pb-4 md:px-6">
                     <div className="mb-4 flex items-center gap-3 pr-8">
