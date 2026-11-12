@@ -26,7 +26,7 @@ class AnalyzeStartupPhoto
     ) {}
 
     /**
-     * @param  array{mixing_date?: ?string, exp_date?: ?string}  $entered  values typed on the form (not saved yet)
+     * @param  array{mixing_date?: ?string, exp_date?: ?string, shelf_life_months?: ?int, packaging_type?: ?string}  $entered  values typed on the form (not saved yet)
      * @return array{log: IpcLog, evaluation: StartupEvaluation}|null null when there is no photo yet
      */
     public function handle(IpcBatch $batch, User $user, string $field, array $entered): ?array
@@ -47,7 +47,10 @@ class AnalyzeStartupPhoto
 
         // Tube packaging: also read through the tube path, display only (decision is forced REVIEW).
         $tube = null;
-        if ($fieldType === 'coding_print' && ($result->raw['packaging_type'] ?? null) === 'tube') {
+        $isTube = ($entered['packaging_type'] ?? null)
+            ? $entered['packaging_type'] === IpcBatch::PACKAGING_TUBE
+            : ($result->raw['packaging_type'] ?? null) === 'tube';
+        if ($fieldType === 'coding_print' && $isTube) {
             foreach (config('vision.startup_ai.tube_field_types', []) as $tubeType) {
                 $tube = $this->client->analyze($contents, $filename, $tubeType, (string) Str::uuid());
             }

@@ -37,6 +37,8 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
         master_product_id: initialProduct ? String(initialProduct.id) : '',
         master_product_bulk_code_ids: allBulkCodeIds(initialProduct),
         no_batch: '',
+        // Months, prefilled from Master Produk when the product has one; required so the master gets filled over time.
+        shelf_life_months: initialProduct?.shelf_life_months ? String(initialProduct.shelf_life_months) : '',
         // 'full' (Filling + Packing + Finished Good) matches today's only behavior — kept as the
         // default so picking a flow is opt-in, not a surprise.
         flow_type: 'full',
@@ -69,6 +71,7 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
         if (!data.master_product_id) empty.push('FG Code / Produk');
         if (selectedProduct && !selectedCount) empty.push('Bulk Code (minimal 1)');
         if (!data.no_batch.trim()) empty.push('No Batch FG');
+        if (!data.shelf_life_months.trim()) empty.push('Shelf Life (bulan)');
         if (empty.length) {
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
             return;
@@ -105,6 +108,7 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                                 ...prev,
                                                 master_product_id: product ? String(product.id) : '',
                                                 master_product_bulk_code_ids: allBulkCodeIds(product),
+                                                shelf_life_months: product?.shelf_life_months ? String(product.shelf_life_months) : '',
                                             }));
                                         }}
                                         className={!data.master_product_id && message ? errorBorder : ''}
@@ -213,6 +217,28 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                         placeholder="Masukkan no batch FG"
                                     />
                                     <InputError message={errors.no_batch} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="shelf_life_months">Shelf Life (bulan)</Label>
+                                    <Input
+                                        id="shelf_life_months"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        max={120}
+                                        className={`min-h-11 ${!data.shelf_life_months.trim() && message ? errorBorder : ''}`}
+                                        value={data.shelf_life_months}
+                                        onChange={(e) => setData('shelf_life_months', e.target.value)}
+                                        placeholder="Contoh: 36 (3 tahun), lihat IM / WI"
+                                    />
+                                    <p className="text-muted-foreground text-[12px]">
+                                        Dipakai menghitung Exp Date otomatis (Mixing Date + shelf life).
+                                        {selectedProduct && !selectedProduct.shelf_life_months
+                                            ? ' Master Produk belum punya nilai ini, yang Anda isi akan disimpan ke Master Produk.'
+                                            : ''}
+                                    </p>
+                                    <InputError message={errors.shelf_life_months} />
                                 </div>
 
                                 <div className="grid gap-2">

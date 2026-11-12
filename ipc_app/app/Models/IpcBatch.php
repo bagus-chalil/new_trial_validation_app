@@ -41,6 +41,12 @@ class IpcBatch extends Model
      * skips Filling Check entirely (Startup → Packing → Finished → Approval). See
      * activeStages() for the authoritative per-flow stage list.
      */
+    public const PACKAGING_TUBE = 'tube';
+
+    public const PACKAGING_NON_TUBE = 'non_tube';
+
+    public const PACKAGING_TYPES = [self::PACKAGING_TUBE, self::PACKAGING_NON_TUBE];
+
     public const FLOW_FULL = 'full';
 
     public const FLOW_FILLING = 'filling';
@@ -85,6 +91,8 @@ class IpcBatch extends Model
         'no_batch',
         'mixing_date',
         'exp_date',
+        'shelf_life_months',
+        'primary_packaging_type',
         'bulk_code',
         'master_line_id',
         'created_by',
@@ -95,6 +103,7 @@ class IpcBatch extends Model
     protected $casts = [
         'mixing_date' => 'date',
         'exp_date' => 'date',
+        'shelf_life_months' => 'integer',
         'archived_at' => 'datetime',
     ];
 

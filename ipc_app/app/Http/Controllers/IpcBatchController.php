@@ -166,6 +166,7 @@ class IpcBatchController extends Controller
                 'master_product_id' => $request->validated('master_product_id'),
                 'master_product_bulk_code_id' => $bulkCodes->first()->id,
                 'no_batch' => $request->validated('no_batch'),
+                'shelf_life_months' => $request->validated('shelf_life_months'),
                 'bulk_code' => $bulkCodes->pluck('bulk_code')->implode(', '),
                 'created_by' => $request->user()->id,
                 'current_stage' => IpcBatch::STAGE_STARTUP,
@@ -176,6 +177,13 @@ class IpcBatchController extends Controller
                 'master_product_bulk_code_id' => $bulkCode->id,
                 'bulk_code' => $bulkCode->bulk_code,
             ])->all());
+
+            // First fill wins: an empty Master Produk shelf-life is filled from this batch, an
+            // existing one is never overwritten from here.
+            MasterProduct::query()
+                ->whereKey($batch->master_product_id)
+                ->whereNull('shelf_life_months')
+                ->update(['shelf_life_months' => $batch->shelf_life_months]);
 
             return $batch;
         });

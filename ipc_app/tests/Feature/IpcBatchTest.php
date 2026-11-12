@@ -65,6 +65,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'BATCH-001',
+            'shelf_life_months' => 36,
             'flow_type' => IpcBatch::FLOW_FULL,
         ]);
 
@@ -92,6 +93,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'BATCH-001',
+            'shelf_life_months' => 36,
         ])->assertSessionHasErrors('flow_type');
 
         $this->assertSame(0, IpcBatch::count());
@@ -108,6 +110,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'BATCH-001',
+            'shelf_life_months' => 36,
             'flow_type' => 'bogus',
         ])->assertSessionHasErrors('flow_type');
 
@@ -127,6 +130,7 @@ class IpcBatchTest extends TestCase
                 'master_product_id' => $product->id,
                 'master_product_bulk_code_ids' => [$bulkCode->id],
                 'no_batch' => "BATCH-{$flowType}",
+                'shelf_life_months' => 36,
                 'flow_type' => $flowType,
             ])->assertSessionHasNoErrors();
 
@@ -149,6 +153,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
             'no_batch' => 'batch-typed-lowercase',
+            'shelf_life_months' => 36,
             'flow_type' => IpcBatch::FLOW_FULL,
         ]);
 
@@ -168,6 +173,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkB->id, $bulkA->id],
             'no_batch' => 'batch-multi',
+            'shelf_life_months' => 36,
             'flow_type' => IpcBatch::FLOW_FULL,
         ])->assertSessionHasNoErrors();
 
@@ -187,6 +193,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [],
             'no_batch' => 'BATCH-001',
+            'shelf_life_months' => 36,
         ])->assertSessionHasErrors('master_product_bulk_code_ids');
 
         $this->assertSame(0, IpcBatch::count());
@@ -204,6 +211,7 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$active->id, $inactive->id],
             'no_batch' => 'BATCH-001',
+            'shelf_life_months' => 36,
         ])->assertSessionHasErrors('master_product_bulk_code_ids.1');
 
         $this->assertSame(0, IpcBatch::count());
@@ -255,6 +263,7 @@ class IpcBatchTest extends TestCase
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-001',
+            'shelf_life_months' => 36,
             'master_line_id' => $line->id,
             'created_by' => auth()->id(),
             'current_stage' => IpcBatch::STAGE_FILLING,

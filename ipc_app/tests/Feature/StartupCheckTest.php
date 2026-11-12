@@ -60,7 +60,9 @@ class StartupCheckTest extends TestCase
         return [
             ...$checklist,
             'mixing_date' => '2026-09-20',
+            'shelf_life_months' => 24,
             'exp_date' => '2028-09-20',
+            'primary_packaging_type' => 'non_tube',
             'master_line_id' => $this->line->id,
             'validation_report_status' => StartupCheck::VALIDATION_REPORT_READY,
             'filling_range_min' => 10,
@@ -100,52 +102,70 @@ class StartupCheckTest extends TestCase
         $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
     }
 
-    public function test_exp_date_is_calculated_from_mixing_date_and_product_shelf_life(): void
+    public function test_exp_date_is_calculated_from_mixing_date_and_shelf_life(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
-        $batch->masterProduct->update(['shelf_life_months' => 36]);
 
         // The submitted exp_date is ignored when the system can derive it.
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-10-23', 'exp_date' => '2020-01-01'])
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-10-23', 'shelf_life_months' => 36, 'exp_date' => '2020-01-01'])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame('2029-10-23', $batch->fresh()->exp_date->format('Y-m-d'));
+        $fresh = $batch->fresh();
+        $this->assertSame('2029-10-23', $fresh->exp_date->format('Y-m-d'));
+        $this->assertSame(36, $fresh->shelf_life_months);
+        $this->assertSame('non_tube', $fresh->primary_packaging_type);
     }
 
-    public function test_exp_date_stays_manual_when_shelf_life_is_missing(): void
+    public function test_shelf_life_is_required_on_startup_check(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'exp_date' => '2028-09-21'])
-            ->assertSessionHasNoErrors();
-        $this->assertSame('2028-09-21', $batch->fresh()->exp_date->format('Y-m-d'));
-
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'shelf_life_months' => ''])
+            ->assertSessionHasErrors(['shelf_life_months']);
     }
 
-    public function test_exp_date_is_required_when_it_cannot_be_calculated(): void
+    public function test_packaging_type_is_required_and_must_be_tube_or_non_tube(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'exp_date' => ''])
-            ->assertSessionHasErrors(['exp_date']);
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'primary_packaging_type' => ''])
+            ->assertSessionHasErrors(['primary_packaging_type']);
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'primary_packaging_type' => 'bottle'])
+            ->assertSessionHasErrors(['primary_packaging_type']);
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'primary_packaging_type' => 'tube'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('tube', $batch->fresh()->primary_packaging_type);
     }
 
     public function test_exp_date_is_manual_when_the_day_does_not_exist_in_the_target_month(): void
     {
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
-        $batch->masterProduct->update(['shelf_life_months' => 1]);
 
         // 31 Jan + 1 month has no 31st in Feb: not rolled over, the operator must type it.
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'exp_date' => ''])
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'shelf_life_months' => 1, 'exp_date' => ''])
             ->assertSessionHasErrors(['exp_date']);
 
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'exp_date' => '2026-02-28'])
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'shelf_life_months' => 1, 'exp_date' => '2026-02-28'])
             ->assertSessionHasNoErrors();
         $this->assertSame('2026-02-28', $batch->fresh()->exp_date->format('Y-m-d'));
+    }
+
+    public function test_shelf_life_fills_an_empty_master_product_but_never_overwrites_it(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'shelf_life_months' => 24])->assertSessionHasNoErrors();
+        $this->assertSame(24, $batch->masterProduct->fresh()->shelf_life_months);
+
+        $batch->startupCheck()->delete();
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'shelf_life_months' => 36])->assertSessionHasNoErrors();
+        $this->assertSame(24, $batch->masterProduct->fresh()->shelf_life_months, 'Master Produk value must not be overwritten from a batch');
     }
 
     public function test_label_bulk_photo_is_required(): void
@@ -410,7 +430,9 @@ class StartupCheckTest extends TestCase
         $this->actingAs(User::factory()->create());
         $batch = $this->makeBatch();
 
-        $payload = $this->validPayload();
+        // EXP is calculated from mixing + shelf-life, so it is only required when it can't be derived
+        // (here: 31 Jan + 1 month has no 31st in February).
+        $payload = [...$this->validPayload(), 'mixing_date' => '2026-01-31', 'shelf_life_months' => 1];
         unset($payload['exp_date']);
 
         $this->put("/batches/{$batch->id}/startup-check", $payload)

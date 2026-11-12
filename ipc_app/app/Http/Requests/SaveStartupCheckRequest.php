@@ -26,7 +26,7 @@ class SaveStartupCheckRequest extends FormRequest
 
     /**
      * EXP date is calculated by the system (mixing date + the product's shelf-life from Master
-     * Produk), so the form keeps working when the IM photo / AI is unavailable and OCR is only a
+     * Produk or typed here), so the form keeps working when the IM photo / AI is unavailable and OCR is only a
      * cross-check, never the source. The submitted value is overridden when it can be derived;
      * otherwise (no shelf-life on the product, or the day does not exist in the target month)
      * the operator's own exp_date is required and kept.
@@ -40,7 +40,7 @@ class SaveStartupCheckRequest extends FormRequest
 
         $computed = app(ExpDateCalculator::class)->expDateFromMixing(
             (string) $this->input('mixing_date'),
-            $batch->masterProduct?->shelf_life_months,
+            $this->integer('shelf_life_months') ?: null,
         );
 
         if ($computed !== null) {
@@ -52,6 +52,8 @@ class SaveStartupCheckRequest extends FormRequest
     {
         $rules = [
             'mixing_date' => ['required', 'date'],
+            'shelf_life_months' => ['required', 'integer', 'min:1', 'max:120'],
+            'primary_packaging_type' => ['required', Rule::in(IpcBatch::PACKAGING_TYPES)],
             'exp_date' => ['required', 'date'],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],

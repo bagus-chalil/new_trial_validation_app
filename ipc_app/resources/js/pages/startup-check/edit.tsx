@@ -27,6 +27,8 @@ interface Batch {
     bulk_code: string;
     mixing_date: string | null;
     exp_date: string | null;
+    shelf_life_months?: number | null;
+    primary_packaging_type?: string | null;
     master_line_id: number | null;
     created_at: string;
     master_product: { product_name: string; fg_code: string; shelf_life_months?: number | null };
@@ -164,6 +166,8 @@ export default function StartupCheckEdit({
         ...initialChecklistValues,
         mixing_date: batch.mixing_date ? batch.mixing_date.slice(0, 10) : '',
         exp_date: batch.exp_date ? batch.exp_date.slice(0, 10) : '',
+        shelf_life_months: String(batch.shelf_life_months ?? batch.master_product.shelf_life_months ?? ''),
+        primary_packaging_type: batch.primary_packaging_type ?? '',
         master_line_id: batch.master_line_id ? String(batch.master_line_id) : '',
         validation_report_status: (startupCheck?.validation_report_status as string) ?? '',
         filling_range_min: (startupCheck?.filling_range_min as string) ?? '',
@@ -186,9 +190,10 @@ export default function StartupCheckEdit({
     });
 
     // Values typed on the form so far (not saved yet) — the advisory "Baca AI" compares against these.
-    // EXP date is calculated by the system (mixing + shelf-life from Master Produk) so the form still
-    // works when the IM photo / AI is unavailable; OCR is only a cross-check. Manual only when it can't be derived.
-    const shelfLifeMonths = batch.master_product.shelf_life_months ?? null;
+    // EXP date is calculated by the system (mixing + shelf-life typed here / at batch creation) so the form
+    // still works when the IM photo / AI is unavailable; OCR is only a cross-check. It is read-only, and only
+    // falls back to a manual input in the rare case the date can't exist (e.g. 29 Feb + whole years).
+    const shelfLifeMonths = Number(data.shelf_life_months) > 0 ? Number(data.shelf_life_months) : null;
     const computedExp = expFromMixing(data.mixing_date, shelfLifeMonths);
     const expAuto = computedExp !== null;
     useEffect(() => {
@@ -196,14 +201,19 @@ export default function StartupCheckEdit({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [computedExp]);
     const expHint = expAuto
-        ? `Dihitung sistem: Mixing Date + ${shelfLifeMonths} bulan (shelf-life Master Produk).`
+        ? `Dihitung sistem: Mixing Date + ${shelfLifeMonths} bulan.`
         : !shelfLifeMonths
-          ? 'Shelf-life produk belum diisi di Master Produk, isi Exp Date manual.'
+          ? 'Isi Shelf Life (bulan) dan Mixing Date, Exp Date dihitung otomatis.'
           : !data.mixing_date
             ? 'Isi Mixing Date dulu, Exp Date dihitung otomatis.'
-            : 'Tanggal tidak ada di bulan tujuan, isi Exp Date manual.';
+            : 'Tanggal tersebut tidak ada di bulan tujuan, isi Exp Date manual.';
 
-    const getEntered = () => ({ mixing_date: data.mixing_date || undefined, exp_date: computedExp ?? (data.exp_date || undefined) });
+    const getEntered = () => ({
+        mixing_date: data.mixing_date || undefined,
+        exp_date: computedExp ?? (data.exp_date || undefined),
+        shelf_life_months: shelfLifeMonths ?? undefined,
+        packaging_type: data.primary_packaging_type || undefined,
+    });
 
     // Packing + FG has no filling: the 4 filling parameters aren't asked and the card is "Parameter Packing".
     const isPackingFg = batch.flow_type === 'packing_fg';
@@ -223,6 +233,8 @@ export default function StartupCheckEdit({
     // this card can safely default to collapsed without hiding an unfilled required field.
     const parameterFillingComplete =
         Boolean(data.mixing_date?.trim()) &&
+        Boolean(shelfLifeMonths) &&
+        Boolean(data.primary_packaging_type) &&
         (expAuto || Boolean(data.exp_date?.trim())) &&
         Boolean(data.master_line_id?.trim()) &&
         (isPackingFg || Boolean(data.average_of_empty_bottle_weight?.toString().trim())) &&
@@ -233,6 +245,8 @@ export default function StartupCheckEdit({
         e.preventDefault();
         const empty = new Set<string>();
         if (!data.mixing_date?.trim()) empty.add('mixing_date');
+        if (!shelfLifeMonths) empty.add('shelf_life_months');
+        if (!data.primary_packaging_type) empty.add('primary_packaging_type');
         if (!expAuto && !data.exp_date?.trim()) empty.add('exp_date');
         if (!data.master_line_id?.trim()) empty.add('master_line_id');
         if (!data.validation_report_status?.trim()) empty.add('validation_report_status');
@@ -602,6 +616,35 @@ export default function StartupCheckEdit({
                                 />
                             </div>
                             <div className="flex flex-col gap-2">
+                                <Label htmlFor="shelf_life_months" className="text-muted-foreground text-xs font-semibold">
+                                    Shelf Life (bulan)
+                                </Label>
+                                <Input
+                                    id="shelf_life_months"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    max={120}
+                                    className={`${inputClass} ${errorFields.has('shelf_life_months') ? errorBorder : ''}`}
+                                    value={data.shelf_life_months ?? ''}
+                                    onChange={(e) => {
+                                        setData('shelf_life_months', e.target.value);
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete('shelf_life_months');
+                                            return n;
+                                        });
+                                    }}
+                                    disabled={isReadOnly}
+                                />
+                                <InputError
+                                    message={
+                                        errors.shelf_life_months ||
+                                        (errorFields.has('shelf_life_months') ? 'Wajib diisi sebelum melanjutkan.' : undefined)
+                                    }
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
                                 <Label htmlFor="exp_date" className="text-muted-foreground text-xs font-semibold">
                                     Exp Date
                                 </Label>
@@ -678,6 +721,40 @@ export default function StartupCheckEdit({
                                         />
                                     </div>
                                 ))}
+                            </div>
+                            <div className="col-span-full flex flex-col gap-2">
+                                <Label className="text-foreground text-[13px] font-semibold">Jenis Kemasan Primer</Label>
+                                <div className={errorFields.has('primary_packaging_type') ? 'outline-destructive rounded-xl outline outline-2' : ''}>
+                                    <ChipToggleGroup
+                                        name="primary_packaging_type"
+                                        options={['Tube', 'Non-tube']}
+                                        value={
+                                            data.primary_packaging_type === 'tube'
+                                                ? 'Tube'
+                                                : data.primary_packaging_type === 'non_tube'
+                                                  ? 'Non-tube'
+                                                  : ''
+                                        }
+                                        onChange={(value) => {
+                                            setData('primary_packaging_type', value === 'Tube' ? 'tube' : 'non_tube');
+                                            setErrorFields((prev) => {
+                                                const n = new Set(prev);
+                                                n.delete('primary_packaging_type');
+                                                return n;
+                                            });
+                                        }}
+                                        disabled={isReadOnly}
+                                    />
+                                </div>
+                                <p className="text-muted-foreground text-[11.5px]">
+                                    Menentukan cara baca coding oleh AI. Tube: hasil AI hanya jadi petunjuk (selalu cek manual).
+                                </p>
+                                <InputError
+                                    message={
+                                        errors.primary_packaging_type ||
+                                        (errorFields.has('primary_packaging_type') ? 'Pilih Tube atau Non-tube.' : undefined)
+                                    }
+                                />
                             </div>
                             <div className="col-span-full flex flex-col gap-3">
                                 <Label className="text-foreground text-[13px] font-semibold">Pemeriksaan Format Coding</Label>

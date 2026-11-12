@@ -34,6 +34,9 @@ class StoreIpcBatchRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ],
             'no_batch' => ['required', 'string', 'max:100'],
+            // Months, from the IM / WI. Required so Master Produk gets filled over time; EXP date is
+            // calculated from it on Startup Check.
+            'shelf_life_months' => ['required', 'integer', 'min:1', 'max:120'],
             'flow_type' => ['required', Rule::in(IpcBatch::FLOW_TYPES)],
         ];
     }
@@ -41,6 +44,7 @@ class StoreIpcBatchRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'shelf_life_months' => 'shelf life',
             'master_product_bulk_code_ids' => 'bulk code',
             'master_product_bulk_code_ids.*' => 'bulk code',
         ];

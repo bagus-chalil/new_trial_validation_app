@@ -32,7 +32,7 @@ class StartupVisionEvaluator
     public function __construct(private readonly ExpDateCalculator $calculator) {}
 
     /**
-     * @param  array{mixing_date?: ?string, exp_date?: ?string}  $entered  Y-m-d strings from the form
+     * @param  array{mixing_date?: ?string, exp_date?: ?string, shelf_life_months?: ?int}  $entered  form values (dates as Y-m-d)
      * @param  ?VisionResult  $tube  optional extra tube read (display only)
      */
     public function evaluate(IpcBatch $batch, string $fieldType, VisionResult $result, array $entered, ?VisionResult $tube = null): StartupEvaluation
@@ -139,12 +139,13 @@ class StartupVisionEvaluator
         $readMonths = $trusted ? ((int) ($value['years'] ?? 0) * 12) + (int) ($value['months'] ?? 0) : null;
         $readText = $value !== null ? ($value['years'] ?? 0).' th '.($value['months'] ?? 0).' bln' : null;
 
-        $dbMonths = $batch->masterProduct?->shelf_life_months;
+        // What the operator filled (form > batch snapshot > Master Produk) is what EXP is based on.
+        $dbMonths = $entered['shelf_life_months'] ?? $batch->shelf_life_months ?? $batch->masterProduct?->shelf_life_months;
         $items[] = $this->compare(
-            'shelf_life', 'Umur Simpan', $dbMonths ? $dbMonths.' bln (Master Produk)' : null, $readText,
+            'shelf_life', 'Umur Simpan', $dbMonths ? $dbMonths.' bln (isian / Master Produk)' : null, $readText,
             $trusted && $readMonths > 0,
             fn () => $readMonths === (int) $dbMonths,
-            $dbMonths ? ($trusted ? null : 'Umur simpan tidak pasti di foto.') : 'Shelf-life produk belum diisi di Master Produk.',
+            $dbMonths ? ($trusted ? null : 'Umur simpan tidak pasti di foto.') : 'Shelf-life belum diisi di form.',
         );
 
         // The EXP the operator typed must be mixing + the shelf-life the IM states.
@@ -173,7 +174,14 @@ class StartupVisionEvaluator
     private function codingPrint(IpcBatch $batch, array $raw, array $entered, ?VisionResult $tube): array
     {
         $items = [];
-        $kind = $raw['packaging_type'] ?? 'unknown';
+        // The packaging type chosen on the form decides the path; the AI's own guess only cross-checks it.
+        $chosen = $entered['packaging_type'] ?? null;
+        $aiKind = $raw['packaging_type'] ?? 'unknown';
+        $kind = $chosen ?: $aiKind;
+        $kindMismatch = $chosen && $aiKind !== 'unknown' && $aiKind !== $chosen;
+        if ($chosen) {
+            $items[] = $this->item('packaging', 'Jenis kemasan', $chosen === 'tube' ? 'Tube' : 'Non-tube', $aiKind === 'unknown' ? null : ($aiKind === 'tube' ? 'Tube' : 'Non-tube'), $kindMismatch ? self::REVIEW : self::INFO, $kindMismatch ? 'AI membaca jenis kemasan yang berbeda dari pilihan - cek manual.' : null);
+        }
 
         // Batch = the 3 letters after "/" of the FG batch number (e.g. 26X005/EKB -> EKB).
         $expectedBatch = $this->batchLetters($batch->no_batch);
@@ -216,6 +224,9 @@ class StartupVisionEvaluator
 
         if ($kind === 'tube') {
             return [$items, true, 'Kemasan tube: hasil baca AI belum dipakai untuk keputusan - cek manual.'];
+        }
+        if ($kindMismatch) {
+            return [$items, true, 'Jenis kemasan yang dipilih berbeda dari bacaan AI - cek manual.'];
         }
         if ($kind !== 'non_tube') {
             return [$items, true, 'Jenis kemasan tidak pasti (tube / non-tube) - cek manual.'];

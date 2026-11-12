@@ -294,6 +294,42 @@ class StartupAiTest extends TestCase
             ->assertJsonPath('decision', 'REVIEW');
     }
 
+    public function test_chosen_tube_forces_review_even_if_ai_says_non_tube(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->fakeVision(
+            $this->coding(['packaging_type' => 'non_tube']),
+            ['pipeline' => 'tube_emboss', 'status' => 'OK', 'extracted_date_code' => '231029', 'format_valid' => true, 'confidence' => 0.97],
+        );
+
+        $this->read($batch, 'coding_primary', ['exp_date' => '2029-10-23', 'packaging_type' => 'tube'])
+            ->assertOk()
+            ->assertJsonPath('decision', 'REVIEW');
+    }
+
+    public function test_chosen_non_tube_with_a_contradicting_ai_is_review(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->fakeVision($this->coding(['packaging_type' => 'tube']));
+
+        $this->read($batch, 'coding_primary', ['exp_date' => '2029-10-23', 'packaging_type' => 'non_tube'])
+            ->assertOk()
+            ->assertJsonPath('decision', 'REVIEW');
+    }
+
+    public function test_chosen_non_tube_is_trusted_when_the_ai_is_unsure_of_the_type(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->fakeVision($this->coding(['packaging_type' => 'unknown']));
+
+        $this->read($batch, 'coding_primary', ['exp_date' => '2029-10-23', 'packaging_type' => 'non_tube'])
+            ->assertOk()
+            ->assertJsonPath('decision', 'PASS');
+    }
+
     public function test_unknown_packaging_type_is_review(): void
     {
         $batch = $this->makeBatch();

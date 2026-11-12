@@ -23,6 +23,8 @@ class StartupAiController extends Controller
         $out = $action->handle($batch, $request->user(), $request->validated('field'), [
             'mixing_date' => $request->validated('mixing_date'),
             'exp_date' => $request->validated('exp_date'),
+            'shelf_life_months' => $request->validated('shelf_life_months'),
+            'packaging_type' => $request->validated('packaging_type'),
         ]);
 
         if ($out === null) {

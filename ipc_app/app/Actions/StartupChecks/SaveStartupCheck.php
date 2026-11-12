@@ -3,6 +3,7 @@
 namespace App\Actions\StartupChecks;
 
 use App\Models\IpcBatch;
+use App\Models\MasterProduct;
 use App\Models\StartupCheck;
 use App\Models\User;
 use Illuminate\Support\Arr;
@@ -17,6 +18,8 @@ class SaveStartupCheck
         // route them onto the batch.
         $mixingDate = Arr::pull($data, 'mixing_date');
         $expDate = Arr::pull($data, 'exp_date');
+        $shelfLifeMonths = Arr::pull($data, 'shelf_life_months');
+        $packagingType = Arr::pull($data, 'primary_packaging_type');
         $masterLineId = Arr::pull($data, 'master_line_id');
 
         // N/A wins over any number still sitting in the input — never store both.
@@ -38,7 +41,7 @@ class SaveStartupCheck
             $data["coding_operator_na_{$tier}"] = (bool) ($data["coding_operator_na_{$tier}"] ?? false);
         }
 
-        return DB::transaction(function () use ($batch, $user, $data, $mixingDate, $expDate, $masterLineId) {
+        return DB::transaction(function () use ($batch, $user, $data, $mixingDate, $expDate, $shelfLifeMonths, $packagingType, $masterLineId) {
             $startupCheck = StartupCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],
                 [
@@ -51,9 +54,17 @@ class SaveStartupCheck
             $batch->update([
                 'mixing_date' => $mixingDate,
                 'exp_date' => $expDate,
+                'shelf_life_months' => $shelfLifeMonths,
+                'primary_packaging_type' => $packagingType,
                 'master_line_id' => $masterLineId,
                 ...($batch->current_stage === IpcBatch::STAGE_STARTUP ? ['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_STARTUP)] : []),
             ]);
+
+            // First fill wins: never overwrite an existing Master Produk shelf-life from a batch.
+            MasterProduct::query()
+                ->whereKey($batch->master_product_id)
+                ->whereNull('shelf_life_months')
+                ->update(['shelf_life_months' => $shelfLifeMonths]);
 
             return $startupCheck;
         });

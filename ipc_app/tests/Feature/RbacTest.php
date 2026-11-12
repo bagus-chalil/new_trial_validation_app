@@ -30,6 +30,7 @@ class RbacTest extends TestCase
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-001',
+            'shelf_life_months' => 36,
             'master_line_id' => $line->id,
             'created_by' => $createdBy,
             'current_stage' => IpcBatch::STAGE_FILLING,
@@ -141,6 +142,7 @@ class RbacTest extends TestCase
                 'master_product_id' => $product->id,
                 'master_product_bulk_code_ids' => [1],
                 'no_batch' => 'BATCH-003',
+                'shelf_life_months' => 36,
             ])
             ->assertForbidden();
     }
@@ -225,6 +227,7 @@ class RbacTest extends TestCase
         IpcBatch::create([
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-002',
+            'shelf_life_months' => 36,
             'master_line_id' => $line->id,
             'created_by' => User::factory()->create()->id,
             'current_stage' => IpcBatch::STAGE_FILLING,
@@ -306,6 +309,7 @@ class RbacTest extends TestCase
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-FILLING',
+            'shelf_life_months' => 36,
             'master_line_id' => $line->id,
             'created_by' => $createdBy,
             'current_stage' => IpcBatch::STAGE_APPROVAL,
@@ -345,6 +349,7 @@ class RbacTest extends TestCase
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
             'no_batch' => 'BATCH-PACKING-FG',
+            'shelf_life_months' => 36,
             'master_line_id' => $line->id,
             'created_by' => $createdBy,
             'current_stage' => IpcBatch::STAGE_APPROVAL,
