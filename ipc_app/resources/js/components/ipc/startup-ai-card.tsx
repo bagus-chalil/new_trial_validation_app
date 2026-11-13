@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from 'lucide-react';
+import { ChevronDown, Loader2, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Verdict = 'match' | 'mismatch' | 'review' | 'info';
@@ -67,6 +67,23 @@ export function StartupAiCard({
 }) {
     const [status, setStatus] = useState<Status | null>(null);
     const [error, setError] = useState(false);
+    // The operator can fold the card away; the choice is remembered in this browser only.
+    const [collapsed, setCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem('startup-ai-card-collapsed') === '1';
+        } catch {
+            return false;
+        }
+    });
+    const toggle = () =>
+        setCollapsed((c) => {
+            try {
+                localStorage.setItem('startup-ai-card-collapsed', c ? '0' : '1');
+            } catch {
+                // storage unavailable: the card just forgets next time
+            }
+            return !c;
+        });
     const entered = getEntered();
     const enteredKey = query(entered);
     const enteredRef = useRef(entered);
@@ -139,7 +156,7 @@ export function StartupAiCard({
 
     return (
         <div className="border-border col-span-full flex flex-col gap-3 rounded-2xl border p-4">
-            <div className="flex items-center gap-2">
+            <button type="button" onClick={toggle} aria-expanded={!collapsed} className="flex w-full items-center gap-2 text-left">
                 <Sparkles className="size-4" strokeWidth={2.2} />
                 <h3 className="text-[14px] font-bold">Rekomendasi AI</h3>
                 {status.pending && (
@@ -147,71 +164,79 @@ export function StartupAiCard({
                         <Loader2 className="size-3 animate-spin" /> sedang membaca foto, form tetap bisa diisi
                     </span>
                 )}
-            </div>
+                <span className="text-muted-foreground ml-auto flex items-center gap-1 text-[11.5px] font-semibold">
+                    {collapsed ? 'Tampilkan' : 'Tutup'}
+                    <ChevronDown className={`size-4 transition-transform ${collapsed ? '' : 'rotate-180'}`} />
+                </span>
+            </button>
 
-            {fields.map((f) => (
-                <div key={f.field} className="border-border flex flex-col gap-2 rounded-xl border p-3 text-[12.5px]">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold">{f.label}</span>
-                        {f.state === 'done' && f.decision && (
-                            <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${DECISION_STYLE[f.decision].className}`}>
-                                {DECISION_STYLE[f.decision].label}
-                            </span>
-                        )}
-                        {f.state === 'queued' && <span className="text-muted-foreground">Menunggu antrean AI...</span>}
-                        {f.state === 'running' && (
-                            <span className="text-muted-foreground flex items-center gap-1">
-                                <Loader2 className="size-3 animate-spin" /> Membaca foto...
-                            </span>
-                        )}
-                        {f.state === 'none' && (
-                            <span className="text-muted-foreground">
-                                Belum terbaca.{' '}
-                                {!readOnly && (
-                                    <button type="button" onClick={() => void call(true)} className="font-semibold underline">
-                                        Coba lagi
-                                    </button>
+            {!collapsed && (
+                <>
+                    {fields.map((f) => (
+                        <div key={f.field} className="border-border flex flex-col gap-2 rounded-xl border p-3 text-[12.5px]">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold">{f.label}</span>
+                                {f.state === 'done' && f.decision && (
+                                    <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${DECISION_STYLE[f.decision].className}`}>
+                                        {DECISION_STYLE[f.decision].label}
+                                    </span>
                                 )}
-                            </span>
-                        )}
-                        {f.state === 'done' && f.reason && <span className="text-muted-foreground">{f.reason}</span>}
-                    </div>
-                    {f.state === 'done' && f.items && f.items.length > 0 && (
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="text-muted-foreground text-[11px]">
-                                    <th className="pr-2 font-semibold">Item</th>
-                                    <th className="pr-2 font-semibold">Diharapkan</th>
-                                    <th className="pr-2 font-semibold">Terbaca</th>
-                                    <th className="font-semibold">Hasil</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {f.items.map((item) => (
-                                    <tr key={item.key} className="border-border border-t align-top">
-                                        <td className="py-1 pr-2 font-semibold">{item.label}</td>
-                                        <td className="py-1 pr-2 break-all">{item.expected ?? '-'}</td>
-                                        <td className="py-1 pr-2 break-all">{item.read ?? '-'}</td>
-                                        <td className="py-1">
-                                            {VERDICT_TEXT[item.verdict]}
-                                            {item.note && <span className="text-muted-foreground block text-[11px]">{item.note}</span>}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            ))}
+                                {f.state === 'queued' && <span className="text-muted-foreground">Menunggu antrean AI...</span>}
+                                {f.state === 'running' && (
+                                    <span className="text-muted-foreground flex items-center gap-1">
+                                        <Loader2 className="size-3 animate-spin" /> Membaca foto...
+                                    </span>
+                                )}
+                                {f.state === 'none' && (
+                                    <span className="text-muted-foreground">
+                                        Belum terbaca.{' '}
+                                        {!readOnly && (
+                                            <button type="button" onClick={() => void call(true)} className="font-semibold underline">
+                                                Coba lagi
+                                            </button>
+                                        )}
+                                    </span>
+                                )}
+                                {f.state === 'done' && f.reason && <span className="text-muted-foreground">{f.reason}</span>}
+                            </div>
+                            {f.state === 'done' && f.items && f.items.length > 0 && (
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="text-muted-foreground text-[11px]">
+                                            <th className="pr-2 font-semibold">Item</th>
+                                            <th className="pr-2 font-semibold">Diharapkan</th>
+                                            <th className="pr-2 font-semibold">Terbaca</th>
+                                            <th className="font-semibold">Hasil</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {f.items.map((item) => (
+                                            <tr key={item.key} className="border-border border-t align-top">
+                                                <td className="py-1 pr-2 font-semibold">{item.label}</td>
+                                                <td className="py-1 pr-2 break-all">{item.expected ?? '-'}</td>
+                                                <td className="py-1 pr-2 break-all">{item.read ?? '-'}</td>
+                                                <td className="py-1">
+                                                    {VERDICT_TEXT[item.verdict]}
+                                                    {item.note && <span className="text-muted-foreground block text-[11px]">{item.note}</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    ))}
 
-            {status.notes.map((note) => (
-                <p key={note} className="text-[12px] font-semibold">
-                    {note}
-                </p>
-            ))}
-            <p className="text-muted-foreground text-[11px]">
-                Hanya saran dari AI - tidak mengubah isian atau menghalangi Simpan & Lanjut. Pastikan dengan mata sendiri.
-            </p>
+                    {status.notes.map((note) => (
+                        <p key={note} className="text-[12px] font-semibold">
+                            {note}
+                        </p>
+                    ))}
+                    <p className="text-muted-foreground text-[11px]">
+                        Hanya saran dari AI - tidak mengubah isian atau menghalangi Simpan & Lanjut. Pastikan dengan mata sendiri.
+                    </p>
+                </>
+            )}
         </div>
     );
 }
