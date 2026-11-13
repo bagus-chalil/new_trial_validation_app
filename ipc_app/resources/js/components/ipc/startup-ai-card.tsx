@@ -115,7 +115,10 @@ export function StartupAiCard({
         return () => clearInterval(timer);
     }, [status?.pending, call]);
 
-    if (!status || status.fields.length === 0) {
+    // A finished (read-only) Startup has no way to queue a read, so a photo that was never read is just hidden.
+    const fields = status?.fields.filter((f) => !(readOnly && f.state === 'none')) ?? [];
+
+    if (!status || fields.length === 0) {
         return error ? (
             <p className="text-muted-foreground text-[11.5px]">Rekomendasi AI sementara tidak bisa dimuat. Isian tetap bisa disimpan.</p>
         ) : null;
@@ -133,7 +136,7 @@ export function StartupAiCard({
                 )}
             </div>
 
-            {status.fields.map((f) => (
+            {fields.map((f) => (
                 <div key={f.field} className="border-border flex flex-col gap-2 rounded-xl border p-3 text-[12.5px]">
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold">{f.label}</span>

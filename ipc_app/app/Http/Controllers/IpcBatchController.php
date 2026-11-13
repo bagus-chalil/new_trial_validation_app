@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -128,6 +129,8 @@ class IpcBatchController extends Controller
         return Inertia::render('batches/show', [
             'batch' => $batch,
             'stages' => $stages,
+            // "Rekomendasi AI" card (Startup photos); same gate as its JSON endpoints.
+            'showAiCard' => (bool) config('vision.startup_ai.enabled') && Gate::allows('update', $batch),
         ]);
     }
 

@@ -1,5 +1,6 @@
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
 import { StageStepper, type StepperStage } from '@/components/ipc/stage-stepper';
+import { StartupAiCard } from '@/components/ipc/startup-ai-card';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
@@ -14,6 +15,10 @@ interface Batch {
     bulk_code: string;
     current_stage: string;
     created_at: string;
+    mixing_date?: string | null;
+    exp_date?: string | null;
+    shelf_life_months?: number | null;
+    primary_packaging_type?: string | null;
     master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string } | null;
     creator: { name: string };
@@ -27,13 +32,7 @@ function formatDate(value: string): string {
     return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export default function BatchesShow({
-    batch,
-    stages,
-}: {
-    batch: Batch;
-    stages: StepperStage[];
-}) {
+export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batch; stages: StepperStage[]; showAiCard: boolean }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
@@ -131,6 +130,21 @@ export default function BatchesShow({
                         </div>
                         <StageStepper stages={stages} />
                     </div>
+
+                    {/* Rekomendasi AI for the Startup photos, evaluated against the values saved on the batch */}
+                    {showAiCard && (
+                        <StartupAiCard
+                            batchId={batch.id}
+                            readOnly={Boolean(batch.startup_check?.completed_at)}
+                            photoKey="detail"
+                            getEntered={() => ({
+                                mixing_date: batch.mixing_date?.slice(0, 10) || undefined,
+                                exp_date: batch.exp_date?.slice(0, 10) || undefined,
+                                shelf_life_months: batch.shelf_life_months ?? undefined,
+                                packaging_type: batch.primary_packaging_type || undefined,
+                            })}
+                        />
+                    )}
 
                     {/* Active stage CTA — tablet only; mobile's stepper row is itself the tappable affordance */}
                     {activeStage?.href && (
