@@ -148,6 +148,8 @@ class StartupAiTest extends TestCase
         $this->assertSame('231028', $log->ocr_value);
         $this->assertSame('REVIEW', $log->decision);
         $this->assertTrue($log->comparison['advisory']);
+        // AI status OK but 231028 != form EXP 231029: flagged for an eye check.
+        $this->assertTrue($log->comparison['ai_ok_but_differs']);
         $this->assertSame(3, $log->vision_response['trusted_sources']);
     }
 

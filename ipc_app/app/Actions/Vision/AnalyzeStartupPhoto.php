@@ -10,6 +10,7 @@ use App\Services\Vision\StartupEvaluation;
 use App\Services\Vision\StartupVisionEvaluator;
 use App\Services\Vision\VisionClient;
 use App\Services\Vision\VisionEvaluation;
+use App\Services\Vision\VisionResult;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -114,12 +115,39 @@ class AnalyzeStartupPhoto
                 'decision' => VisionEvaluation::REVIEW,
                 'decision_reason' => $item['note'] ?? null,
                 'expected_value' => $item['expected'] ?? null,
-                'comparison' => ['field' => $field, 'advisory' => true, 'entered' => $entered, 'items' => $item ? [$item] : []],
+                'comparison' => [
+                    'field' => $field,
+                    'advisory' => true,
+                    'entered' => $entered,
+                    // Accuracy re-measurement on real photos: what is saved in the DB vs what the AI read,
+                    // and a flag for "AI said OK but differs from the operator/DB" (needs an eye check:
+                    // a misread, or the print really differs).
+                    'db_exp' => $batch->exp_date?->format('dmy'),
+                    'ai_ok_but_differs' => $this->aiOkButDiffers($tubeLlm, $entered['exp_date'] ?? null, $batch->exp_date?->format('Y-m-d')),
+                    'items' => $item ? [$item] : [],
+                ],
                 'created_by' => $user->id,
             ]);
         }
 
         return ['log' => $log, 'evaluation' => $evaluation];
+    }
+
+    /** True when the AI read is OK (>=3 of 4 sources) yet differs from the form EXP or the saved DB EXP. */
+    private function aiOkButDiffers(VisionResult $r, ?string $formExp, ?string $dbExp): bool
+    {
+        $read = $r->raw['exp_raw'] ?? null;
+        if ($r->status !== VisionResult::STATUS_OK || $read === null) {
+            return false;
+        }
+
+        foreach ([$formExp, $dbExp] as $exp) {
+            if ($exp && $read !== date('dmy', strtotime($exp))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Label Bulk used to be uploaded on Filling Check; batches that already have it there still read it. */
