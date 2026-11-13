@@ -1,0 +1,31 @@
+# Queue worker for the Startup Check "Rekomendasi AI" (ipc_app). It reads every saved Startup photo through
+# the Vision Service. ONE process on purpose: the AI server (Ollama) is serial, so one worker = one request
+# at a time no matter how many stations take photos. Separate from ipc-app-queue (Excel import, queue
+# `default`) so a long AI read never delays an import and vice versa. See deploy/README.md section 11b.
+#
+# Production:  sudo cp ipc-app-vision-queue.service.example /etc/systemd/system/ipc-app-vision-queue.service
+# Development: copy again as ipc-app-vision-queue-development.service and change WorkingDirectory
+#              to /var/www/trial_validation_app-development/ipc_app
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ipc-app-vision-queue
+#   systemctl status ipc-app-vision-queue
+#   journalctl -u ipc-app-vision-queue -f
+
+[Unit]
+Description=ipc_app vision queue worker (production)
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/trial_validation_app/ipc_app
+# Queues are served in this order: quick OCR reads (`vision`) before the slow tube LLM read (`vision-slow`).
+# --timeout must stay above vision.llm_timeout (150s) and below DB_QUEUE_RETRY_AFTER (360s).
+# CI's `php artisan queue:restart` makes it exit after each deploy; systemd starts it again on the new code.
+ExecStart=/usr/bin/php artisan queue:work database --queue=vision,vision-slow --tries=1 --timeout=200 --sleep=3 --max-time=3600
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

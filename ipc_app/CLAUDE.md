@@ -6,6 +6,15 @@ Its predecessor is a Microsoft Power Apps/Dataverse app (a production quality-in
 
 ## Status
 
+### Startup "Rekomendasi AI": queued background reads replace the "Baca AI" button — 2026-11-13
+Seamless for the operator: saving a Startup photo (Label Bulk, IM, Primary Coding, optional 2nd tube photo) is enough; the AI reads in the background and a new **Rekomendasi AI** card (above Catatan) shows what it makes of each photo vs the form values typed so far. Still advisory only (never blocks Simpan & Lanjut, no PASS/FAIL change, tube stays REVIEW).
+- **Flow:** `startup-check/edit.tsx` mounts `StartupAiCard` (`components/ipc/startup-ai-card.tsx`; old `startup-ai-read.tsx` deleted). On photo / packaging-type change it POSTs `startup-check/ai-queue` (`StartupAiController::queue` → `QueueStartupAiReads`, idempotent: skips reads that already have an `ipc_logs` row for that photo path or a cache marker). It then polls `GET startup-check/ai-status` every 3s while anything is pending, and re-calls it (debounced) when the typed EXP/mixing date changes.
+- **Queue:** one `ReadStartupPhotoJob` per read (`tries=1`, `timeout=200`): main read + (tube Primary Coding) `tube_exp_date` on queue `vision`, `tube_exp_llm` on `vision-slow`. A dedicated worker `queue:work --queue=vision,vision-slow` (ONE process, serial like Ollama) — `deploy/ipc-app-vision-queue.service.example`, README section 11b. **Must be installed on .23 (dev) / prod by hand**; it is separate from `ipc-app-queue` (Excel import, queue `default`). State "queued/running" lives in the **file cache** (worker and FPM both `www-data`); "done" = an `ipc_logs` row exists.
+- **Job only reads** (`ReadStartupPhoto` → one `ipc_logs` row, decision REVIEW, no comparison). The comparison is computed at display time by `StartupAiStatus` (rebuilds `VisionResult` from the stored `vision_response`, runs `StartupVisionEvaluator` with the CURRENT form values), so editing the EXP after the photo re-evaluates without re-reading. No migration.
+- **Two tube photos:** both are read independently; the card adds a note whether the two `exp_raw` agree (info only; a disagreement = "cek manual"). Slot label now says to photograph the crimp/end of the tube from another angle (the 2nd photo of a whole tube is useless).
+- **Legacy sync path kept:** `POST startup-check/ai-read` + `AnalyzeStartupPhoto::handle()` still exist (used by `StartupAiTest`) but no UI calls them; remove when no longer needed.
+- Tests: `tests/Feature/StartupAiQueueTest.php` (test queue driver is `sync`, so jobs run inline against `Http::fake`).
+
 ### `tube_exp_llm` advisory on Startup (tube EXP via Vision Service LLM) — 2026-11-13
 Vision Service contract: vision-service `CLAUDE.md` gotchas #22/#23. Advisory only, never PASS/FAIL, tube stays REVIEW.
 - `config/vision.php`: `tube_exp_llm` in `llm_field_types` (not `field_types`), new `llm_timeout` (`VISION_LLM_TIMEOUT`, default 150s, used by `HttpVisionClient` for every LLM field_type; OK reads take 25-80s, LOW ~3s), `startup_ai.tube_llm_field_type` (`VISION_TUBE_LLM_FIELD_TYPE`, empty = off).

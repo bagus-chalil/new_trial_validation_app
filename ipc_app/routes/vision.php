@@ -12,6 +12,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('batches/{batch}/startup-check/ai-read', [StartupAiController::class, 'read'])
         ->middleware('can:update,batch')
         ->name('startup-check.ai-read');
+    Route::post('batches/{batch}/startup-check/ai-queue', [StartupAiController::class, 'queue'])
+        ->middleware('can:update,batch')
+        ->name('startup-check.ai-queue');
+    Route::get('batches/{batch}/startup-check/ai-status', [StartupAiController::class, 'status'])
+        ->middleware('can:update,batch')
+        ->name('startup-check.ai-status');
     Route::get('batches/{batch}/vision/logs', [VisionController::class, 'index'])->name('vision.logs');
 });
 

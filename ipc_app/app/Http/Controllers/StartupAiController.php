@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Vision\AnalyzeStartupPhoto;
+use App\Actions\Vision\QueueStartupAiReads;
+use App\Actions\Vision\StartupAiStatus;
 use App\Http\Requests\StartupAiReadRequest;
+use App\Http\Requests\StartupAiStatusRequest;
 use App\Models\IpcBatch;
 use Illuminate\Http\JsonResponse;
 
@@ -13,6 +16,28 @@ use Illuminate\Http\JsonResponse;
  */
 class StartupAiController extends Controller
 {
+    /**
+     * Called by the page whenever a Startup photo or the packaging type changes: puts the missing
+     * reads on the queue (idempotent) and returns the current status for the "Rekomendasi AI" card.
+     */
+    public function queue(StartupAiStatusRequest $request, IpcBatch $batch, QueueStartupAiReads $queue, StartupAiStatus $status): JsonResponse
+    {
+        abort_unless(config('vision.startup_ai.enabled'), 404);
+
+        $entered = $request->entered();
+        $queue->handle($batch, $request->user(), $entered['packaging_type']);
+
+        return response()->json($status->handle($batch, $entered));
+    }
+
+    /** Polled by the card while reads are pending, and re-called when the typed EXP/mixing date changes. */
+    public function status(StartupAiStatusRequest $request, IpcBatch $batch, StartupAiStatus $status): JsonResponse
+    {
+        abort_unless(config('vision.startup_ai.enabled'), 404);
+
+        return response()->json($status->handle($batch, $request->entered()));
+    }
+
     public function read(StartupAiReadRequest $request, IpcBatch $batch, AnalyzeStartupPhoto $action): JsonResponse
     {
         abort_unless(config('vision.startup_ai.enabled'), 404);

@@ -835,6 +835,37 @@ Hal-hal yang perlu diketahui:
   (`storage/framework/cache`), bukan DB. Jadi worker dan PHP-FPM harus
   berjalan sebagai user yang sama (`www-data`) di server yang sama.
 
+## 11b. Queue worker AI "Rekomendasi AI" ipc_app (wajib kalau `VISION_STARTUP_AI_ENABLED=true`)
+
+Sejak 2026-11-13, foto Startup Check (Label Bulk, IM, Primary Coding) dibaca AI **di latar belakang**
+begitu foto tersimpan, lewat queue `vision` (baca cepat) dan `vision-slow` (baca LLM tube, bisa 25-80 dtk).
+Hasilnya tampil di kartu "Rekomendasi AI"; tombol "Baca AI" sudah tidak ada. Tanpa worker ini kartu
+tertahan di "Menunggu antrean AI...".
+
+Worker ini **terpisah** dari `ipc-app-queue` di section 11 (yang hanya melayani queue `default` = Import
+Excel). **Satu proses saja, jangan di-scale**: server AI (Ollama) memproses serial, jadi satu worker
+menjamin hanya satu permintaan ke server AI pada satu waktu, berapa pun stasiun yang memotret.
+
+```bash
+# Production
+sudo cp /var/www/trial_validation_app/deploy/ipc-app-vision-queue.service.example \
+  /etc/systemd/system/ipc-app-vision-queue.service
+
+# Development: ganti Description + WorkingDirectory ke /var/www/trial_validation_app-development/ipc_app
+sudo cp /var/www/trial_validation_app-development/deploy/ipc-app-vision-queue.service.example \
+  /etc/systemd/system/ipc-app-vision-queue-development.service
+sudo nano /etc/systemd/system/ipc-app-vision-queue-development.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now ipc-app-vision-queue ipc-app-vision-queue-development
+systemctl status ipc-app-vision-queue ipc-app-vision-queue-development
+```
+
+- Status "menunggu/membaca" disimpan di **file cache** (`storage/framework/cache`), jadi worker dan
+  PHP-FPM harus jalan sebagai user yang sama (`www-data`) di server yang sama (sama seperti section 11).
+- `--timeout=200` harus di atas `VISION_LLM_TIMEOUT` (150) dan di bawah `DB_QUEUE_RETRY_AFTER` (360).
+- Job yang gagal/mati tidak mengganggu operator: kartu menampilkan "Belum terbaca" + tombol "Coba lagi".
+
 ## 12. Scheduler Laravel (wajib untuk self-learning AI)
 
 `new_trial_validation_app` punya job terjadwal (`routes/console.php`: `ai:quality-scan --apply` 01:30, `ai:learn` 02:00).

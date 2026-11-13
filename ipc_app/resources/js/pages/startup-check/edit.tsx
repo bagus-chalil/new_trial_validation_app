@@ -6,7 +6,7 @@ import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { GuidedLabel as Label } from '@/components/ipc/guided-label';
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { ShelfLifeInput } from '@/components/ipc/shelf-life-input';
-import { StartupAiRead } from '@/components/ipc/startup-ai-read';
+import { StartupAiCard } from '@/components/ipc/startup-ai-card';
 import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
@@ -59,7 +59,8 @@ const PHOTO_FIELDS: { key: string; label: string; multi?: boolean }[] = [
 ];
 
 // Photo fields that have an advisory "Baca AI" button (coding_primary is rendered in the coding block below).
-const AI_PHOTO_FIELDS = ['im_number', 'date_bulk'];
+// Photos the Vision Service reads in the background (see StartupAiCard).
+const AI_PHOTO_FIELDS = ['im_number', 'date_bulk', 'coding_primary', 'coding_primary_2'];
 
 // "Pemeriksaan Format Coding" block, one stacked row per tier: free-text format + actual-coding photo.
 const CODING_TIERS: { tier: 'primary' | 'secondary' | 'tersier'; title: string }[] = [
@@ -816,18 +817,11 @@ export default function StartupCheckEdit({
                                                         imageClassName="border-border h-full w-full rounded-xl border object-cover"
                                                     />
                                                 )}
-                                                {visionAiEnabled && tier === 'primary' && !photoNa && (
-                                                    <StartupAiRead
-                                                        batchId={batch.id}
-                                                        field="coding_primary"
-                                                        hasPhoto={Boolean(photoUrl)}
-                                                        getEntered={getEntered}
-                                                    />
-                                                )}
                                                 {tier === 'primary' && data.primary_packaging_type === 'tube' && !photoNa && (
                                                     <div className="border-border mt-2 flex flex-col gap-2 border-t pt-3">
                                                         <Label className="text-muted-foreground text-xs font-semibold">
-                                                            Foto ke-2 (opsional, sudut lain - garis hitam bisa menutupi satu digit)
+                                                            Foto ke-2 (opsional): foto crimp/ujung tube dari sudut lain, garis hitam bisa menutupi
+                                                            satu digit
                                                         </Label>
                                                         <button
                                                             type="button"
@@ -844,14 +838,6 @@ export default function StartupCheckEdit({
                                                                 alt="Foto Operator (Actual Coding) Primer ke-2"
                                                                 triggerClassName="h-24 w-24"
                                                                 imageClassName="border-border h-full w-full rounded-xl border object-cover"
-                                                            />
-                                                        )}
-                                                        {visionAiEnabled && (
-                                                            <StartupAiRead
-                                                                batchId={batch.id}
-                                                                field="coding_primary_2"
-                                                                hasPhoto={Boolean(photoUrls['coding_primary_2'])}
-                                                                getEntered={getEntered}
                                                             />
                                                         )}
                                                     </div>
@@ -922,13 +908,18 @@ export default function StartupCheckEdit({
                                                           imageClassName="border-border h-full w-full rounded-xl border object-cover"
                                                       />
                                                   )}
-                                            {visionAiEnabled && AI_PHOTO_FIELDS.includes(key) && (
-                                                <StartupAiRead batchId={batch.id} field={key} hasPhoto={Boolean(singleUrl)} getEntered={getEntered} />
-                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
+                            {visionAiEnabled && (
+                                <StartupAiCard
+                                    batchId={batch.id}
+                                    readOnly={isReadOnly}
+                                    photoKey={AI_PHOTO_FIELDS.map((k) => String(photoUrls[k] ?? '')).join('|')}
+                                    getEntered={getEntered}
+                                />
+                            )}
                             <div className="col-span-full flex flex-col gap-2">
                                 <Label htmlFor="remarks" className="text-muted-foreground text-xs font-semibold">
                                     Catatan / Remarks
