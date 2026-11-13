@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Vision\StartupEvaluation;
 use App\Services\Vision\StartupVisionEvaluator;
 use App\Services\Vision\VisionClient;
+use App\Services\Vision\VisionEvaluation;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -56,7 +57,16 @@ class AnalyzeStartupPhoto
             }
         }
 
-        $evaluation = $this->evaluator->evaluate($batch, $fieldType, $result, $entered, $tube);
+        // Tube: extra advisory LLM read of the crimp EXP, logged as its own row. A failure here
+        // (service down, timeout) comes back as an ERROR result, never an exception.
+        $tubeLlm = null;
+        $tubeLlmRequestId = (string) Str::uuid();
+        $tubeLlmType = config('vision.startup_ai.tube_llm_field_type');
+        if ($fieldType === 'coding_print' && $isTube && $tubeLlmType) {
+            $tubeLlm = $this->client->analyze($contents, $filename, $tubeLlmType, $tubeLlmRequestId);
+        }
+
+        $evaluation = $this->evaluator->evaluate($batch, $fieldType, $result, $entered, $tube, $tubeLlm);
 
         $log = IpcLog::create([
             'request_id' => $requestId,
@@ -80,6 +90,34 @@ class AnalyzeStartupPhoto
             'comparison' => ['field' => $field, 'entered' => $entered, 'items' => $evaluation->items],
             'created_by' => $user->id,
         ]);
+
+        if ($tubeLlm !== null) {
+            $item = collect($evaluation->items)->firstWhere('key', 'tube_exp_llm');
+            $elapsed = $tubeLlm->raw['elapsed_sec'] ?? null;
+            IpcLog::create([
+                'request_id' => $tubeLlmRequestId,
+                'ipc_batch_id' => $batch->id,
+                'stage' => IpcBatch::STAGE_STARTUP,
+                'field_type' => $tubeLlmType,
+                'image_path' => $attachment->file_path,
+                'vision_status' => $tubeLlm->status,
+                'engine_used' => $tubeLlm->engineUsed,
+                'confidence' => $tubeLlm->confidence,
+                'format_valid' => $tubeLlm->formatValid,
+                'ocr_value' => $tubeLlm->raw['exp_raw'] ?? null,
+                'raw_ocr_text' => null,
+                'error_reason' => $tubeLlm->errorReason,
+                'match_method' => $tubeLlm->matchMethod,
+                'processing_time_ms' => $tubeLlm->processingTimeMs ?? ($elapsed !== null ? (int) round($elapsed * 1000) : null),
+                'vision_response' => $tubeLlm->raw ?: null,
+                // Advisory: never PASS/FAIL. The gap to the operator's EXP is recorded in comparison.
+                'decision' => VisionEvaluation::REVIEW,
+                'decision_reason' => $item['note'] ?? null,
+                'expected_value' => $item['expected'] ?? null,
+                'comparison' => ['field' => $field, 'advisory' => true, 'entered' => $entered, 'items' => $item ? [$item] : []],
+                'created_by' => $user->id,
+            ]);
+        }
 
         return ['log' => $log, 'evaluation' => $evaluation];
     }

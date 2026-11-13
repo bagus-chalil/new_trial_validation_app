@@ -92,6 +92,11 @@ export function StartupAiRead({
                 {processing ? <Loader2 className="size-4 animate-spin" /> : <ScanSearch className="size-4" strokeWidth={2.2} />}
                 {processing ? 'Membaca foto...' : 'Baca AI (saran)'}
             </button>
+            {processing && (
+                <p className="text-muted-foreground text-[11.5px]">
+                    Membaca foto, untuk tube bisa sampai 1-2 menit. Form tetap bisa diisi dan disimpan seperti biasa.
+                </p>
+            )}
             {!hasPhoto && <p className="text-muted-foreground text-[11.5px]">Ambil foto dulu, lalu klik Baca AI.</p>}
             {error && <p className="text-destructive text-[12px] font-semibold">{error}</p>}
             {result && (

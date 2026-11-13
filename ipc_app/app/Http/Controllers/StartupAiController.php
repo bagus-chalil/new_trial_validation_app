@@ -17,8 +17,8 @@ class StartupAiController extends Controller
     {
         abort_unless(config('vision.startup_ai.enabled'), 404);
 
-        // Up to 3 LLM views + optional rescue / tube call, queued behind other stations.
-        set_time_limit((int) config('vision.timeout') * 2 + 30);
+        // Main LLM read + (tube) PaddleOCR read + tube_exp_llm read (25-80s on OK), queued behind other stations.
+        set_time_limit((int) config('vision.timeout') + (int) config('vision.llm_timeout') * 2 + 30);
 
         $out = $action->handle($batch, $request->user(), $request->validated('field'), [
             'mixing_date' => $request->validated('mixing_date'),

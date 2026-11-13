@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /** Startup AI cross-check: advisory read of Label Bulk / IM / Primary Coding (see AnalyzeStartupPhoto). */
@@ -30,7 +31,7 @@ class StartupAiTest extends TestCase
 
     private function makeBatch(?int $shelfLife = 36): IpcBatch
     {
-        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'shelf_life_months' => $shelfLife, 'is_active' => true]);
+        $product = MasterProduct::updateOrCreate(['fg_code' => 'FG-1'], ['product_name' => 'Product 1', 'shelf_life_months' => $shelfLife, 'is_active' => true]);
 
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
@@ -100,9 +101,111 @@ class StartupAiTest extends TestCase
         ];
     }
 
+    private function tubeLlm(array $overrides = []): array
+    {
+        return [
+            'pipeline' => 'llm',
+            'status' => 'OK',
+            'exp_raw' => '231029',
+            'exp_format' => 'DDMMYY',
+            'format_ok' => ['exp' => true],
+            'trusted_sources' => 3,
+            'sources_read' => 4,
+            'sources_total' => 4,
+            'sources' => [],
+            'confidence' => 0.9,
+            'elapsed_sec' => 31.2,
+            ...$overrides,
+        ];
+    }
+
     private function read(IpcBatch $batch, string $field, array $form = [])
     {
         return $this->postJson(route('startup-check.ai-read', $batch), ['field' => $field, ...$form]);
+    }
+
+    public function test_tube_llm_read_is_advisory_logged_and_never_passes(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->fakeVision(
+            $this->coding(['packaging_type' => 'tube']),
+            ['pipeline' => 'tube_emboss', 'status' => 'LOW_CONFIDENCE', 'confidence' => 0.2],
+            $this->tubeLlm(['exp_raw' => '231028']),
+        );
+
+        $response = $this->read($batch, 'coding_primary', ['exp_date' => '2029-10-23', 'packaging_type' => 'tube'])
+            ->assertOk()
+            ->assertJsonPath('decision', 'REVIEW');
+
+        $item = collect($response->json('items'))->firstWhere('key', 'tube_exp_llm');
+        $this->assertSame('231028', $item['read']);
+        $this->assertSame('231029', $item['expected']);
+        $this->assertSame('info', $item['verdict']);
+        $this->assertStringContainsString('BEDA', $item['note']);
+
+        $log = IpcLog::where('field_type', 'tube_exp_llm')->firstOrFail();
+        $this->assertSame('231028', $log->ocr_value);
+        $this->assertSame('REVIEW', $log->decision);
+        $this->assertTrue($log->comparison['advisory']);
+        $this->assertSame(3, $log->vision_response['trusted_sources']);
+    }
+
+    public static function tubeLlmNonOkProvider(): array
+    {
+        return [
+            'low confidence' => [['pipeline' => 'llm', 'status' => 'LOW_CONFIDENCE', 'exp_raw' => null, 'trusted_sources' => 1, 'sources_total' => 4]],
+            'error' => [['pipeline' => 'llm', 'status' => 'ERROR', 'error_reason' => 'LLM_UNAVAILABLE: down']],
+        ];
+    }
+
+    #[DataProvider('tubeLlmNonOkProvider')]
+    public function test_tube_llm_low_confidence_and_error_are_review_not_fail(array $llm): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->fakeVision(
+            $this->coding(['packaging_type' => 'tube']),
+            ['pipeline' => 'tube_emboss', 'status' => 'LOW_CONFIDENCE', 'confidence' => 0.2],
+            $llm,
+        );
+
+        $this->read($batch, 'coding_primary', ['exp_date' => '2029-10-23', 'packaging_type' => 'tube'])
+            ->assertOk()
+            ->assertJsonPath('decision', 'REVIEW');
+
+        $this->assertSame(1, IpcLog::where('field_type', 'tube_exp_llm')->where('decision', 'REVIEW')->count());
+    }
+
+    public function test_tube_llm_uses_the_longer_llm_timeout(): void
+    {
+        config(['vision.timeout' => 90, 'vision.llm_timeout' => 150]);
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->fakeVision(
+            $this->coding(['packaging_type' => 'tube']),
+            ['pipeline' => 'tube_emboss', 'status' => 'LOW_CONFIDENCE', 'confidence' => 0.2],
+            $this->tubeLlm(),
+        );
+
+        $this->read($batch, 'coding_primary', ['packaging_type' => 'tube'])->assertOk();
+
+        Http::assertSent(fn (Request $r) => str_contains($r->body(), 'tube_exp_llm'));
+    }
+
+    public function test_tube_llm_can_be_turned_off(): void
+    {
+        config(['vision.startup_ai.tube_llm_field_type' => null]);
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->fakeVision(
+            $this->coding(['packaging_type' => 'tube']),
+            ['pipeline' => 'tube_emboss', 'status' => 'LOW_CONFIDENCE', 'confidence' => 0.2],
+        );
+
+        $this->read($batch, 'coding_primary', ['packaging_type' => 'tube'])->assertOk();
+
+        $this->assertSame(0, IpcLog::where('field_type', 'tube_exp_llm')->count());
     }
 
     public function test_it_is_off_by_default(): void
@@ -287,6 +390,7 @@ class StartupAiTest extends TestCase
         $this->fakeVision(
             $this->coding(['packaging_type' => 'tube']),
             ['pipeline' => 'tube_emboss', 'status' => 'OK', 'extracted_date_code' => '231029', 'format_valid' => true, 'confidence' => 0.97],
+            $this->tubeLlm(),
         );
 
         $this->read($batch, 'coding_primary', ['exp_date' => '2029-10-23'])
@@ -301,6 +405,7 @@ class StartupAiTest extends TestCase
         $this->fakeVision(
             $this->coding(['packaging_type' => 'non_tube']),
             ['pipeline' => 'tube_emboss', 'status' => 'OK', 'extracted_date_code' => '231029', 'format_valid' => true, 'confidence' => 0.97],
+            $this->tubeLlm(),
         );
 
         $this->read($batch, 'coding_primary', ['exp_date' => '2029-10-23', 'packaging_type' => 'tube'])

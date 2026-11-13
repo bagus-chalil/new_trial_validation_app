@@ -33,8 +33,9 @@ class StartupVisionEvaluator
     /**
      * @param  array{mixing_date?: ?string, exp_date?: ?string, shelf_life_months?: ?int}  $entered  form values (dates as Y-m-d)
      * @param  ?VisionResult  $tube  optional extra tube read (display only)
+     * @param  ?VisionResult  $tubeLlm  optional tube_exp_llm read (display only, never decides)
      */
-    public function evaluate(IpcBatch $batch, string $fieldType, VisionResult $result, array $entered, ?VisionResult $tube = null): StartupEvaluation
+    public function evaluate(IpcBatch $batch, string $fieldType, VisionResult $result, array $entered, ?VisionResult $tube = null, ?VisionResult $tubeLlm = null): StartupEvaluation
     {
         if ($result->status === VisionResult::STATUS_ERROR) {
             return new StartupEvaluation(
@@ -50,7 +51,7 @@ class StartupVisionEvaluator
         [$items, $forceReview, $note] = match ($fieldType) {
             'label_bulk' => $this->labelBulk($batch, $raw, $entered),
             'im_document' => $this->imDocument($batch, $raw, $entered),
-            'coding_print' => $this->codingPrint($batch, $raw, $entered, $tube),
+            'coding_print' => $this->codingPrint($batch, $raw, $entered, $tube, $tubeLlm),
             default => [[], true, "Belum ada aturan pembanding untuk field_type '{$fieldType}'."],
         };
 
@@ -166,7 +167,7 @@ class StartupVisionEvaluator
     }
 
     /** @return array{0: list<array<string, mixed>>, 1: bool, 2: ?string} */
-    private function codingPrint(IpcBatch $batch, array $raw, array $entered, ?VisionResult $tube): array
+    private function codingPrint(IpcBatch $batch, array $raw, array $entered, ?VisionResult $tube, ?VisionResult $tubeLlm = null): array
     {
         $items = [];
         // The packaging type chosen on the form decides the path; the AI's own guess only cross-checks it.
@@ -217,6 +218,10 @@ class StartupVisionEvaluator
             $items[] = $this->item('tube_exp', 'EXP (jalur tube, info)', $exp ? date('dmy', strtotime($exp)) : null, $tube->value, self::INFO, 'Jalur tube belum matang - tidak dipakai untuk keputusan.');
         }
 
+        if ($tubeLlm !== null) {
+            $items[] = $this->tubeLlmItem($tubeLlm, $exp);
+        }
+
         if ($kind === 'tube') {
             return [$items, true, 'Kemasan tube: hasil baca AI belum dipakai untuk keputusan - cek manual.'];
         }
@@ -244,6 +249,37 @@ class StartupVisionEvaluator
         }
 
         return $this->item($key, $label, $expected, $read, $check() ? self::MATCH : self::MISMATCH, null);
+    }
+
+    /**
+     * tube_exp_llm, ADVISORY. exp_raw is shown exactly as read (never stripped or corrected).
+     * Always INFO: the gap to the operator's EXP is only noted, never a mismatch/FAIL, and an
+     * OK is not strong evidence (the sensor mark prints over one crimp digit).
+     * LOW_CONFIDENCE / ERROR mean review, not fail.
+     *
+     * @return array<string, mixed>
+     */
+    private function tubeLlmItem(VisionResult $r, ?string $exp): array
+    {
+        $expected = $exp ? date('dmy', strtotime($exp)) : null;
+        $raw = $r->raw;
+        $read = $raw['exp_raw'] ?? null;
+        $n = (int) ($raw['trusted_sources'] ?? 0);
+        $total = (int) ($raw['sources_total'] ?? 0);
+
+        if ($r->status === VisionResult::STATUS_ERROR) {
+            return $this->item('tube_exp_llm', 'EXP (tube, AI LLM)', $expected, null, self::INFO, 'AI LLM tidak tersedia ('.($r->errorReason ?? 'error').') - isi manual.');
+        }
+
+        $note = $r->status === VisionResult::STATUS_OK
+            ? "AI membaca konsisten dari {$n}/{$total} sumber foto."
+            : 'AI belum yakin (LOW_CONFIDENCE) - cek manual.';
+        if ($read !== null && $expected !== null) {
+            $note .= $read === $expected ? ' Sama dengan EXP di form.' : ' BEDA dari EXP di form - cek manual.';
+        }
+        $note .= ' Garis hitam bisa menutupi satu digit; bukan bukti kuat.';
+
+        return $this->item('tube_exp_llm', 'EXP (tube, AI LLM)', $expected, $read, self::INFO, $note);
     }
 
     private function item(string $key, string $label, ?string $expected, ?string $read, string $verdict, ?string $note): array

@@ -34,7 +34,14 @@ return [
         'label_bulk',
         'im_document',
         'coding_print',
+        // EXP emboss of a tube crimp: YOLO crop + LLM, OK only when >=3 of 4 sources agree.
+        // Advisory only; never a PASS (see StartupVisionEvaluator::tubeLlmItem).
+        'tube_exp_llm',
     ],
+
+    // LLM field_types can take 25-80s for an OK read (up to 4 sources x 4 views on the GPU
+    // server) plus queueing, so they get a longer HTTP timeout than the OCR ones.
+    'llm_timeout' => (int) env('VISION_LLM_TIMEOUT', 150),
 
     // Startup AI cross-check (advisory only — never blocks the operator, never fills a
     // Conform / Not Conform toggle). Maps a Startup Check photo field to the Vision Service
@@ -50,6 +57,9 @@ return [
         // Tube photos (packaging_type = tube) are also read through these tube field_types,
         // for display only: a tube result is always REVIEW, never PASS.
         'tube_field_types' => ['tube_exp_date'],
+        // Extra LLM read of the tube crimp EXP (advisory, logged as its own ipc_logs row).
+        // Set to an empty value to turn it off.
+        'tube_llm_field_type' => env('VISION_TUBE_LLM_FIELD_TYPE', 'tube_exp_llm'),
     ],
 
     // How each field_type's OCR value is checked against IPC data. A field_type with no rule

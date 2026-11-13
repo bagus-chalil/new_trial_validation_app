@@ -15,9 +15,13 @@ class HttpVisionClient implements VisionClient
 {
     public function analyze(string $imageContents, string $filename, string $fieldType, string $requestId): VisionResult
     {
+        $timeout = in_array($fieldType, config('vision.llm_field_types', []), true)
+            ? max((int) config('vision.timeout'), (int) config('vision.llm_timeout'))
+            : (int) config('vision.timeout');
+
         try {
             $response = Http::baseUrl(rtrim(config('vision.base_url'), '/'))
-                ->timeout(config('vision.timeout'))
+                ->timeout($timeout)
                 ->connectTimeout(config('vision.connect_timeout'))
                 ->acceptJson()
                 ->attach('file', $imageContents, $filename)
