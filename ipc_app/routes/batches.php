@@ -6,6 +6,7 @@ use App\Http\Controllers\BatchArchiveController;
 use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
+use App\Http\Controllers\LineStatusController;
 use App\Http\Controllers\PackingCheckController;
 use App\Http\Controllers\PrintController;
 use App\Http\Controllers\StartupCheckController;
@@ -23,8 +24,17 @@ Route::get('verify/{batch}/{stage}', [VerificationController::class, 'show'])
     ->whereIn('stage', [...IpcApproval::STAGES, IpcApproval::LEGACY_STAGE_FILLING_PACKING])
     ->name('verify.show');
 
+// Public line-status page (QR posted at each line) — outside `auth` on purpose, token-protected.
+Route::get('line/{token}', [LineStatusController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]{20,40}')
+    ->middleware('throttle:60,1')
+    ->name('line-status.show');
+
 Route::middleware(['auth'])->group(function () {
-    Route::get('batches', [IpcBatchController::class, 'index'])->name('batches.index');
+    Route::get('monitor-line', [LineStatusController::class, 'monitor'])->name('line-monitor');
+    Route::get('lines/{masterLine}/qr', [LineStatusController::class, 'qr'])->name('master-lines.qr');
+
+    Route::get('batches',[IpcBatchController::class, 'index'])->name('batches.index');
     // Only Staff/Admin open batches (IpcBatchPolicy::create) — not Approver.
     Route::get('batches/create', [IpcBatchController::class, 'create'])->middleware('can:create,'.IpcBatch::class)->name('batches.create');
     Route::post('batches', [IpcBatchController::class, 'store'])->middleware('can:create,'.IpcBatch::class)->name('batches.store');

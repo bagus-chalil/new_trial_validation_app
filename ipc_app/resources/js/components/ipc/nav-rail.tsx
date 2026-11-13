@@ -4,7 +4,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Archive, ClipboardCheck, ClipboardList, Grid2X2, LayoutGrid } from 'lucide-react';
+import { Archive, ClipboardCheck, ClipboardList, Factory, Grid2X2, LayoutGrid } from 'lucide-react';
 import { useState } from 'react';
 
 function RailLink({ href, icon: Icon, active, label }: { href: string; icon: typeof LayoutGrid; active: boolean; label: string }) {
@@ -48,6 +48,7 @@ export function NavRail() {
                 <nav className="flex flex-1 flex-col items-center justify-center gap-3.5">
                     <RailLink href="/dashboard" icon={LayoutGrid} active={isDashboard} label="Home" />
                     <RailLink href="/batches" icon={ClipboardList} active={isBatches} label="Batch" />
+                    <RailLink href="/monitor-line" icon={Factory} active={url.startsWith('/monitor-line')} label="Line" />
                     {props.canApproveIpc && <RailLink href="/approvals" icon={ClipboardCheck} active={isApprovals} label="Approval" />}
                     {props.canManageMaster && <RailLink href="/archive" icon={Archive} active={isArchive} label="Arsip" />}
                     <button

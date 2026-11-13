@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { Head, router, useForm } from '@inertiajs/react';
-import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Pencil, Plus, QrCode, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface MasterLine {
@@ -103,6 +103,11 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
                                 </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
+                                <Button type="button" variant="outline" size="icon" className="size-10" asChild title="QR status line">
+                                    <a href={route('master-lines.qr', line.id)} target="_blank" rel="noreferrer">
+                                        <QrCode className="size-4" />
+                                    </a>
+                                </Button>
                                 <Button type="button" variant="outline" size="icon" className="size-10" onClick={() => openEdit(line)}>
                                     <Pencil className="size-4" />
                                 </Button>
