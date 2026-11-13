@@ -118,10 +118,23 @@ export function StartupAiCard({
     // A finished (read-only) Startup has no way to queue a read, so a photo that was never read is just hidden.
     const fields = status?.fields.filter((f) => !(readOnly && f.state === 'none')) ?? [];
 
+    // Always visible once the feature is on, so "no card" never looks like "broken": say why it is empty.
     if (!status || fields.length === 0) {
-        return error ? (
-            <p className="text-muted-foreground text-[11.5px]">Rekomendasi AI sementara tidak bisa dimuat. Isian tetap bisa disimpan.</p>
-        ) : null;
+        const message = error
+            ? 'Rekomendasi AI sementara tidak bisa dimuat. Isian tetap bisa disimpan.'
+            : !status
+              ? 'Memuat rekomendasi AI...'
+              : 'Belum ada foto Startup yang bisa dibaca AI. Ambil foto Label Bulk, IM Number, atau Primary Coding di Startup Check, hasilnya muncul di sini.';
+
+        return (
+            <div className="border-border col-span-full flex flex-col gap-2 rounded-2xl border p-4">
+                <div className="flex items-center gap-2">
+                    <Sparkles className="size-4" strokeWidth={2.2} />
+                    <h3 className="text-[14px] font-bold">Rekomendasi AI</h3>
+                </div>
+                <p className="text-muted-foreground text-[12px]">{message}</p>
+            </div>
+        );
     }
 
     return (
