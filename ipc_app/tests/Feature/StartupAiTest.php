@@ -208,6 +208,24 @@ class StartupAiTest extends TestCase
         $this->assertSame(0, IpcLog::where('field_type', 'tube_exp_llm')->count());
     }
 
+    public function test_second_tube_photo_is_read_on_its_own_and_logged_separately(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'coding_primary');
+        $this->photo($batch, 'coding_primary_2');
+        $this->fakeVision(
+            $this->coding(['packaging_type' => 'tube']),
+            ['pipeline' => 'tube_emboss', 'status' => 'LOW_CONFIDENCE', 'confidence' => 0.2],
+            $this->tubeLlm(['exp_raw' => '231029']),
+        );
+
+        $this->read($batch, 'coding_primary_2', ['exp_date' => '2029-10-23', 'packaging_type' => 'tube'])
+            ->assertOk()
+            ->assertJsonPath('decision', 'REVIEW');
+
+        $this->assertTrue(IpcLog::where('field_type', 'tube_exp_llm')->where('image_path', 'like', '%coding_primary_2%')->exists());
+    }
+
     public function test_it_is_off_by_default(): void
     {
         config(['vision.startup_ai.enabled' => false]);

@@ -53,6 +53,8 @@ return [
             'date_bulk' => 'label_bulk',
             'im_number' => 'im_document',
             'coding_primary' => 'coding_print',
+            // Optional 2nd angle of the tube crimp (the sensor mark can hide one digit in the 1st photo).
+            'coding_primary_2' => 'coding_print',
         ],
         // Tube photos (packaging_type = tube) are also read through these tube field_types,
         // for display only: a tube result is always REVIEW, never PASS.

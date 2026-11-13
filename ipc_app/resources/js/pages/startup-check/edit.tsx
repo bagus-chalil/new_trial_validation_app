@@ -824,6 +824,38 @@ export default function StartupCheckEdit({
                                                         getEntered={getEntered}
                                                     />
                                                 )}
+                                                {tier === 'primary' && data.primary_packaging_type === 'tube' && !photoNa && (
+                                                    <div className="border-border mt-2 flex flex-col gap-2 border-t pt-3">
+                                                        <Label className="text-muted-foreground text-xs font-semibold">
+                                                            Foto ke-2 (opsional, sudut lain - garis hitam bisa menutupi satu digit)
+                                                        </Label>
+                                                        <button
+                                                            type="button"
+                                                            disabled={isReadOnly}
+                                                            onClick={() => setCameraField('coding_primary_2')}
+                                                            className="border-border bg-background flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] px-3.5 text-[13.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            <Camera className="size-4" strokeWidth={2.2} />
+                                                            {(photoUrls['coding_primary_2'] as string | null) ? 'Ganti Foto ke-2' : 'Ambil Foto ke-2'}
+                                                        </button>
+                                                        {(photoUrls['coding_primary_2'] as string | null) && (
+                                                            <PhotoLightbox
+                                                                src={photoUrls['coding_primary_2'] as string}
+                                                                alt="Foto Operator (Actual Coding) Primer ke-2"
+                                                                triggerClassName="h-24 w-24"
+                                                                imageClassName="border-border h-full w-full rounded-xl border object-cover"
+                                                            />
+                                                        )}
+                                                        {visionAiEnabled && (
+                                                            <StartupAiRead
+                                                                batchId={batch.id}
+                                                                field="coding_primary_2"
+                                                                hasPhoto={Boolean(photoUrls['coding_primary_2'])}
+                                                                getEntered={getEntered}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );
