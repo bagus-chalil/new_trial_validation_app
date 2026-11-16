@@ -68,7 +68,12 @@ class IpcBatchController extends Controller
     {
         $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck']);
 
-        $stageIndex = array_search($batch->current_stage, IpcBatch::STAGES, true);
+        // 'print' is a retired stage; a leftover row is treated as Completed.
+        $stageIndex = array_search(
+            $batch->current_stage === IpcBatch::STAGE_PRINT ? IpcBatch::STAGE_COMPLETED : $batch->current_stage,
+            IpcBatch::STAGES,
+            true,
+        );
 
         $builtStages = [
             IpcBatch::STAGE_STARTUP => route('startup-check.edit', $batch),
@@ -76,7 +81,8 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_PACKING => route('packing-check.edit', $batch),
             IpcBatch::STAGE_FINISHED => route('finished-check.edit', $batch),
             IpcBatch::STAGE_APPROVAL => route('approval.edit', $batch),
-            IpcBatch::STAGE_PRINT => route('print.edit', $batch),
+            // Selesai has no page of its own; its stepper row opens the report print hub.
+            IpcBatch::STAGE_COMPLETED => route('print.edit', $batch),
         ];
 
         $labels = [
@@ -85,7 +91,6 @@ class IpcBatchController extends Controller
             IpcBatch::STAGE_PACKING => 'Packing Check',
             IpcBatch::STAGE_FINISHED => 'Finished Good',
             IpcBatch::STAGE_APPROVAL => 'Approval',
-            IpcBatch::STAGE_PRINT => 'Print',
             IpcBatch::STAGE_COMPLETED => 'Selesai',
         ];
 
@@ -109,8 +114,7 @@ class IpcBatchController extends Controller
                 $unlocked !== null && (bool) $check?->completed_at => 'done',
                 $unlocked !== null => $unlocked ? 'active' : 'locked',
                 $thisIndex < $stageIndex => 'done',
-                // 'completed' has no page of its own — reaching it (batch.current_stage ===
-                // 'completed') means every prior stage, print included, is genuinely finished.
+                // Reaching 'completed' means every prior stage is genuinely finished.
                 $thisIndex === $stageIndex && $key === IpcBatch::STAGE_COMPLETED => 'done',
                 $thisIndex === $stageIndex => 'active',
                 default => 'locked',

@@ -240,7 +240,7 @@ class ApprovalTest extends TestCase
         $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
     }
 
-    public function test_approving_startup_and_the_combined_fillpack_form_advances_batch_to_print(): void
+    public function test_approving_startup_and_the_combined_fillpack_form_advances_batch_to_completed(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
         $user = User::factory()->approver()->create();
@@ -253,10 +253,10 @@ class ApprovalTest extends TestCase
         foreach (['filling', 'packing', 'finished'] as $stage) {
             $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => $stage, 'decision' => 'Approved']);
         }
-        $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+        $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 
-    public function test_approving_all_three_stages_advances_batch_to_print(): void
+    public function test_approving_all_three_stages_advances_batch_to_completed(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
         $user = User::factory()->approver()->create();
@@ -267,7 +267,7 @@ class ApprovalTest extends TestCase
                 ->assertRedirect();
         }
 
-        $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+        $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 
     public function test_rejecting_one_stage_keeps_batch_at_approval_even_if_others_approved(): void
@@ -514,7 +514,7 @@ class ApprovalTest extends TestCase
             );
     }
 
-    public function test_approving_filling_alone_advances_a_filling_only_batch_to_print(): void
+    public function test_approving_filling_alone_advances_a_filling_only_batch_to_completed(): void
     {
         $batch = $this->makeFillingFlowBatchAtApprovalStage();
         $user = User::factory()->approver()->create();
@@ -523,7 +523,7 @@ class ApprovalTest extends TestCase
             ->put("/batches/{$batch->id}/approval/filling", ['decision' => 'Approved'])
             ->assertRedirect();
 
-        $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+        $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 
     public function test_filling_flow_has_no_packing_report_or_approval(): void
@@ -560,6 +560,6 @@ class ApprovalTest extends TestCase
             $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => $stage, 'decision' => 'Approved']);
         }
         $this->assertDatabaseMissing('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => 'filling']);
-        $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+        $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 }

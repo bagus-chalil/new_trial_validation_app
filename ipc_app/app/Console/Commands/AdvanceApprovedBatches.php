@@ -11,14 +11,14 @@ use Illuminate\Console\Command;
  *
  * Batches approved before the 2026-10-05 approval rule change can have every required stage
  * Approved yet still sit at current_stage = approval, because only SaveApproval ever advances a
- * batch to print. They never show in the Approval Queue (nothing is pending) and can't reach Print.
+ * batch to completed. They never show in the Approval Queue (nothing is pending).
  * Safe to re-run: it only touches batches still at `approval` with all required stages Approved.
  */
 class AdvanceApprovedBatches extends Command
 {
     protected $signature = 'ipc:advance-approved-batches {--dry-run : Tampilkan batch yang akan dimajukan tanpa menyimpan}';
 
-    protected $description = 'Majukan batch yang tertahan di tahap Approval padahal semua bagian wajib sudah Approved ke tahap Print';
+    protected $description = 'Majukan batch yang tertahan di tahap Approval padahal semua bagian wajib sudah Approved ke Selesai';
 
     public function handle(): int
     {
@@ -37,16 +37,16 @@ class AdvanceApprovedBatches extends Command
                     return;
                 }
 
-                $this->line(($dryRun ? '[dry-run] ' : '').'Batch #'.$batch->id.' '.$batch->no_batch.' -> print');
+                $this->line(($dryRun ? '[dry-run] ' : '').'Batch #'.$batch->id.' '.$batch->no_batch.' -> completed');
 
                 if (! $dryRun) {
-                    $batch->update(['current_stage' => IpcBatch::STAGE_PRINT]);
+                    $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);
                 }
 
                 $advanced++;
             });
 
-        $this->info($advanced.' batch '.($dryRun ? 'akan dimajukan.' : 'dimajukan ke Print.'));
+        $this->info($advanced.' batch '.($dryRun ? 'akan dimajukan.' : 'dimajukan ke Selesai.'));
 
         return self::SUCCESS;
     }

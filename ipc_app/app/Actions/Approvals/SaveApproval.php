@@ -46,7 +46,8 @@ class SaveApproval
             $allApproved = collect(IpcApproval::requiredStagesFor($batch))->every(fn ($s) => $approvedStages->contains($s));
 
             if ($allApproved && $batch->current_stage === IpcBatch::STAGE_APPROVAL) {
-                $batch->update(['current_stage' => IpcBatch::STAGE_PRINT]);
+                // Print is no longer a stage: every required approval Approved = batch finished.
+                $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);
             }
 
             return $approval;

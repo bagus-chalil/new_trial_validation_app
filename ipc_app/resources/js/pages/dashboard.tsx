@@ -52,13 +52,9 @@ const stageGuides: Record<string, { title: string; description: string }> = {
         title: 'Tinjau hasil pemeriksaan',
         description: 'Batch pada tahap ini menunggu proses persetujuan. Pengguna dengan akses approval dapat meninjau hasil pemeriksaannya.',
     },
-    print: {
-        title: 'Lanjutkan ke dokumen laporan',
-        description: 'Buka batch untuk mengakses dokumen laporan dan melanjutkan proses cetak sesuai akses Anda.',
-    },
     completed: {
         title: 'Telusuri batch yang sudah selesai',
-        description: 'Lihat kembali detail batch, hasil pemeriksaan, dan dokumen yang telah melalui seluruh proses.',
+        description: 'Batch yang seluruh approval-nya sudah disetujui. Buka detail batch untuk melihat hasil pemeriksaan dan mencetak laporan.',
     },
 };
 const focusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
@@ -117,7 +113,7 @@ export default function Dashboard({ stats, stageBreakdown }: DashboardProps) {
     );
     const selected = stageBreakdown.find((item) => item.stage === selectedStage);
     const guide = stageGuides[selectedStage];
-    const printCount = stageBreakdown.find((item) => item.stage === 'print')?.count ?? 0;
+    const completedCount = stageBreakdown.find((item) => item.stage === 'completed')?.count ?? 0;
     const actionHref = props.canApproveIpc ? '/approvals' : '/batches';
     const actionLabel = props.canApproveIpc ? 'Buka antrian approval' : 'Buka daftar batch';
     return (
@@ -306,17 +302,17 @@ export default function Dashboard({ stats, stageBreakdown }: DashboardProps) {
                                     <h2 className="text-base font-bold">Tahap dokumentasi</h2>
                                 </div>
                                 <p className="mt-4 text-3xl font-bold tabular-nums">
-                                    {printCount.toLocaleString('id-ID')}
-                                    <span className="text-muted-foreground ml-2 text-sm font-medium">batch di tahap Print</span>
+                                    {completedCount.toLocaleString('id-ID')}
+                                    <span className="text-muted-foreground ml-2 text-sm font-medium">batch selesai</span>
                                 </p>
                                 <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-                                    Akses laporan pemeriksaan dan lanjutkan proses cetak dari detail batch.
+                                    Laporan pemeriksaan batch yang sudah selesai dapat dicetak kapan saja dari detail batch.
                                 </p>
                                 <Link
-                                    href="/batches?stage=print"
+                                    href="/batches?stage=completed"
                                     className={`${focusClass} text-primary mt-3 flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold`}
                                 >
-                                    Buka batch tahap Print
+                                    Buka batch selesai
                                     <ArrowRight className="size-4" />
                                 </Link>
                             </section>
@@ -359,9 +355,7 @@ export default function Dashboard({ stats, stageBreakdown }: DashboardProps) {
                             >
                                 <ClipboardList className="text-primary size-5 shrink-0" />
                                 <div className="flex-1">
-                                    <p className="text-sm font-semibold">
-                                        {props.canApproveIpc ? 'Tinjau persetujuan' : 'Lanjutkan pemeriksaan'}
-                                    </p>
+                                    <p className="text-sm font-semibold">{props.canApproveIpc ? 'Tinjau persetujuan' : 'Lanjutkan pemeriksaan'}</p>
                                     <p className="text-muted-foreground mt-1 text-xs leading-relaxed">Buka pekerjaan sesuai akses dan peran Anda.</p>
                                 </div>
                                 <ChevronRight className="text-muted-foreground size-4 shrink-0" />

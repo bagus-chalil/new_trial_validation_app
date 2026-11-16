@@ -121,7 +121,9 @@ class DashboardTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->where('stats.pendingApprovalBatches', 2)
             ->where('stats.activeBatches', 3)
-            ->has('stageBreakdown', 7)
+            ->has('stageBreakdown', 6)
+            ->where('stageBreakdown.5.stage', IpcBatch::STAGE_COMPLETED)
+            ->where('stageBreakdown.5.count', 1)
             ->where('stageBreakdown.0.stage', IpcBatch::STAGE_STARTUP)
             ->where('stageBreakdown.0.count', 1)
             ->where('stageBreakdown.4.stage', IpcBatch::STAGE_APPROVAL)

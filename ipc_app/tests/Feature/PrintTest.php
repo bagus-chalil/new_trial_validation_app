@@ -33,7 +33,7 @@ class PrintTest extends TestCase
             'no_batch' => 'BATCH-001',
             'master_line_id' => $line->id,
             'created_by' => $user->id,
-            'current_stage' => IpcBatch::STAGE_PRINT,
+            'current_stage' => IpcBatch::STAGE_COMPLETED,
         ]);
 
         StartupCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $user->id, 'completed_at' => now()]);
@@ -284,7 +284,7 @@ class PrintTest extends TestCase
             'no_batch' => 'BATCH-FILLING-ONLY',
             'master_line_id' => $line->id,
             'created_by' => $user->id,
-            'current_stage' => IpcBatch::STAGE_PRINT,
+            'current_stage' => IpcBatch::STAGE_COMPLETED,
             'flow_type' => IpcBatch::FLOW_FILLING,
         ]);
 
@@ -363,16 +363,15 @@ class PrintTest extends TestCase
         ]);
     }
 
-    public function test_printing_startup_and_fillpack_completes_a_full_flow_batch(): void
+    public function test_printing_a_form_never_changes_the_batch_stage(): void
     {
         $batch = $this->makeBatchAtPrintStage();
         $user = User::factory()->create();
 
         $this->actingAs($user)->get("/batches/{$batch->id}/print/filling_packing_fg/pdf")->assertOk();
-        $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
+        $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
 
         $this->actingAs($user)->get("/batches/{$batch->id}/print/startup/pdf")->assertOk();
-
         $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 
@@ -432,7 +431,7 @@ class PrintTest extends TestCase
         $this->actingAs($user)->get("/batches/{$batch->id}/print/bogus/preview")->assertNotFound();
     }
 
-    public function test_printing_both_full_flow_forms_advances_batch_to_completed(): void
+    public function test_printing_both_full_flow_forms_logs_each_print_and_keeps_batch_completed(): void
     {
         $batch = $this->makeBatchAtPrintStage();
         $user = User::factory()->create();
@@ -442,16 +441,20 @@ class PrintTest extends TestCase
         }
 
         $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
+        $this->assertSame(1, IpcPrintLog::query()->where('ipc_batch_id', $batch->id)->where('stage', 'startup')->count());
+        $this->assertSame(1, IpcPrintLog::query()->where('ipc_batch_id', $batch->id)->where('stage', 'filling_packing_fg')->count());
     }
 
-    public function test_printing_only_two_of_three_stages_does_not_advance_batch(): void
+    public function test_a_leftover_batch_at_the_retired_print_stage_can_still_be_printed(): void
     {
         $batch = $this->makeBatchAtPrintStage();
+        $batch->update(['current_stage' => IpcBatch::STAGE_PRINT]);
         $user = User::factory()->create();
 
+        $this->actingAs($user)->get("/batches/{$batch->id}/print")->assertOk();
         $this->actingAs($user)->get("/batches/{$batch->id}/print/startup/pdf")->assertOk();
-        $this->actingAs($user)->get("/batches/{$batch->id}/print/filling/pdf")->assertOk();
 
+        // Printing no longer advances anything; only the data migration moves such rows.
         $this->assertSame(IpcBatch::STAGE_PRINT, $batch->fresh()->current_stage);
     }
 

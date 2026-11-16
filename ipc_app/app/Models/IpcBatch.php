@@ -20,6 +20,12 @@ class IpcBatch extends Model
 
     public const STAGE_APPROVAL = 'approval';
 
+    /**
+     * Retired 2026-11-16: Print is no longer a workflow stage — once every required approval is
+     * Approved the batch goes straight to Completed, and printing is just an action (logged in
+     * ipc_print_logs) available on approved/completed batches. The constant stays only so old
+     * code/rows that still mention 'print' keep resolving; it is not part of STAGES/activeStages().
+     */
     public const STAGE_PRINT = 'print';
 
     public const STAGE_COMPLETED = 'completed';
@@ -30,7 +36,6 @@ class IpcBatch extends Model
         self::STAGE_PACKING,
         self::STAGE_FINISHED,
         self::STAGE_APPROVAL,
-        self::STAGE_PRINT,
         self::STAGE_COMPLETED,
     ];
 
@@ -168,7 +173,6 @@ class IpcBatch extends Model
                 self::STAGE_STARTUP,
                 self::STAGE_FILLING,
                 self::STAGE_APPROVAL,
-                self::STAGE_PRINT,
                 self::STAGE_COMPLETED,
             ],
             self::FLOW_PACKING_FG => [
@@ -176,7 +180,6 @@ class IpcBatch extends Model
                 self::STAGE_PACKING,
                 self::STAGE_FINISHED,
                 self::STAGE_APPROVAL,
-                self::STAGE_PRINT,
                 self::STAGE_COMPLETED,
             ],
             default => self::STAGES,

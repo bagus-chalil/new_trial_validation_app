@@ -15,7 +15,7 @@ use Inertia\Response;
 /**
  * Ports legacy's gallery_printer -> {StartReport_View, FIllingPackingReport_View,
  * FinishedReport_View} -> gallery_printer flow — the final MAIN["PRINT"] stage, reached only
- * once all three Approval stages are Approved (batch.current_stage === 'print'). Same
+ * once all three Approval stages are Approved (retired 2026-11-16: now batch.current_stage === 'completed'). Same
  * read-only-report shape as ApprovalController's detail pages (shares BuildsIpcReportPayloads so
  * the two can't drift apart), minus the decision form: legacy's *_View screens are pure
  * read+print, no approve/reject action of their own.
@@ -219,7 +219,7 @@ class PrintController extends Controller
         abort_unless(
             in_array($batch->current_stage, [IpcBatch::STAGE_PRINT, IpcBatch::STAGE_COMPLETED], true),
             403,
-            'Batch ini belum masuk tahap Print — semua tahap Approval harus Approved terlebih dahulu.'
+            'Laporan hanya bisa dicetak setelah semua tahap Approval Approved (batch Selesai).'
         );
     }
 }

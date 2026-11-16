@@ -64,14 +64,13 @@ const STALE_MIN = 120; // > 2 h without activity: "lama"
 const STUCK_MIN = 24 * 60; // > 1 day: "macet"
 const MAX_BATCHES_PER_CARD = 3;
 
-const STAGE_ORDER = ['startup', 'filling', 'packing', 'finished', 'approval', 'print'];
+const STAGE_ORDER = ['startup', 'filling', 'packing', 'finished', 'approval'];
 const SHORT_STAGE: Record<string, string> = {
     startup: 'Startup',
     filling: 'Filling',
     packing: 'Packing',
     finished: 'FG',
     approval: 'Approval',
-    print: 'Print',
 };
 
 function stageColor(stage: string) {

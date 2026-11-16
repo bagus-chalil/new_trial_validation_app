@@ -171,7 +171,8 @@ export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batc
                         <div className="flex flex-col gap-2.5">
                             <p className="text-muted-foreground text-[14.5px] font-bold">Sudah selesai</p>
                             {doneStages.map((stage) => {
-                                const isPrint = stage.key === 'print';
+                                // Selesai's stepper row opens the report print hub (Print is no longer its own stage).
+                                const isPrint = stage.key === 'completed';
                                 const body = (
                                     <>
                                         <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-green-100">
@@ -191,7 +192,7 @@ export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batc
                                         </div>
                                         {stage.href && (
                                             <span className={cn('shrink-0 text-xs font-bold', isPrint ? 'text-primary' : 'text-muted-foreground')}>
-                                                {isPrint ? 'Cetak' : 'Lihat'}
+                                                {isPrint ? 'Cetak Laporan' : 'Lihat'}
                                             </span>
                                         )}
                                         {stage.href && <ChevronRight className="text-muted-foreground/60 size-4 shrink-0" strokeWidth={2.4} />}

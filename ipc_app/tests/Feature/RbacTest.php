@@ -208,7 +208,7 @@ class RbacTest extends TestCase
                 'approved_at' => now(),
             ]);
         }
-        $batch->update(['current_stage' => IpcBatch::STAGE_PRINT]);
+        $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);
 
         $this->actingAs($approver)->get('/approvals')
             ->assertOk()
@@ -277,7 +277,7 @@ class RbacTest extends TestCase
     {
         $approver = User::factory()->approver()->create();
         $batch = $this->makeBatchAtApprovalStage(User::factory()->create()->id);
-        $batch->update(['current_stage' => IpcBatch::STAGE_PRINT]);
+        $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);
 
         foreach (IpcApproval::STAGES as $stage) {
             IpcApproval::create([

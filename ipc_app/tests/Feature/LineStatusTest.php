@@ -68,12 +68,12 @@ class LineStatusTest extends TestCase
         $this->get($line->publicUrl())->assertOk()->assertSee('Line idle');
     }
 
-    public function test_batches_in_approval_or_print_are_not_shown(): void
+    public function test_batches_in_approval_or_completed_are_not_shown(): void
     {
         $line = $this->line();
         $user = User::factory()->create();
         $this->batch($line, IpcBatch::STAGE_APPROVAL, $user);
-        $this->batch($line, IpcBatch::STAGE_PRINT, $user);
+        $this->batch($line, IpcBatch::STAGE_COMPLETED, $user);
 
         $this->get($line->publicUrl())->assertOk()->assertSee('Line idle')->assertDontSee('B-100');
         $this->actingAs($user)->get('/monitor-line')
