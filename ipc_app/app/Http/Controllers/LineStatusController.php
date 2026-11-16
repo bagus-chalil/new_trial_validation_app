@@ -5,10 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\IpcSetting;
 use App\Models\MasterLine;
 use App\Services\LineStatus\LineStatusBoard;
-use BaconQrCode\Renderer\Image\SvgImageBackEnd;
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
-use BaconQrCode\Writer;
+use App\Services\LineStatus\QrSvg;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Inertia\Inertia;
@@ -40,8 +37,8 @@ class LineStatusController extends Controller
             'lines' => fn () => $this->lines($board, withLinks: true),
             'share' => [
                 'url' => $boardUrl,
-                'qr_svg' => $this->qrSvg($boardUrl, 220),
-                'qr_url' => route('line-monitor.qr'),
+                'qr_svg' => QrSvg::make($boardUrl, 220),
+                'poster_url' => route('line-monitor.qr'),
                 'can_regenerate' => (bool) request()->user()?->can('manage-master'),
             ],
         ]);
@@ -71,7 +68,7 @@ class LineStatusController extends Controller
             'subtitle' => 'Status semua line produksi',
             'hint' => 'Scan untuk melihat status IPC semua line',
             'pageTitle' => 'QR Monitor Line',
-            'svg' => $this->qrSvg($url, 320),
+            'svg' => QrSvg::make($url, 320),
             'url' => $url,
         ]);
     }
@@ -93,7 +90,7 @@ class LineStatusController extends Controller
             'subtitle' => "{$masterLine->code} · {$masterLine->category} · {$masterLine->area}",
             'hint' => 'Scan untuk melihat status IPC di line ini',
             'pageTitle' => "QR Line {$masterLine->code}",
-            'svg' => $this->qrSvg($url, 320),
+            'svg' => QrSvg::make($url, 320),
             'url' => $url,
         ]);
     }
@@ -115,12 +112,5 @@ class LineStatusController extends Controller
             'qr_url' => $withLinks ? route('master-lines.qr', $line) : null,
             'batches' => $active[$line->id] ?? [],
         ])->values()->all();
-    }
-
-    private function qrSvg(string $url, int $size): string
-    {
-        $renderer = new ImageRenderer(new RendererStyle($size, 1), new SvgImageBackEnd);
-
-        return trim((string) preg_replace('/<\?xml.*?\?>/', '', (new Writer($renderer))->writeString($url)));
     }
 }

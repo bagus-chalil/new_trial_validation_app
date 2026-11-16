@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\MasterLinesTemplateExport;
 use App\Http\Requests\StoreMasterLineRequest;
 use App\Models\MasterLine;
+use App\Services\LineStatus\QrSvg;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -30,6 +31,20 @@ class MasterLineController extends Controller
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
+
+        // Share info (public status link + QR) only for active lines: an inactive line's public page is a 404.
+        $lines->getCollection()->transform(function (MasterLine $line) {
+            if ($line->is_active) {
+                $url = $line->publicUrl();
+                $line->setAttribute('share', [
+                    'url' => $url,
+                    'qr_svg' => QrSvg::make($url, 220),
+                    'poster_url' => route('master-lines.qr', $line),
+                ]);
+            }
+
+            return $line;
+        });
 
         return Inertia::render('masters/lines/index', [
             'lines' => $lines,

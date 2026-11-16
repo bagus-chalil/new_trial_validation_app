@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { MasterImportDialog } from '@/components/ipc/master-import-dialog';
 import { MasterSearchBar } from '@/components/ipc/master-search-bar';
 import { PaginationFooter } from '@/components/ipc/pagination-footer';
+import { ShareLinkDialog, type ShareLinkInfo } from '@/components/ipc/share-link-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { Head, router, useForm } from '@inertiajs/react';
-import { MapPin, Pencil, Plus, QrCode, Trash2 } from 'lucide-react';
+import { MapPin, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface MasterLine {
@@ -20,6 +21,7 @@ interface MasterLine {
     code: string;
     name: string;
     is_active: boolean;
+    share?: ShareLinkInfo;
 }
 
 interface Paginated<T> {
@@ -34,6 +36,7 @@ const emptyForm = { id: null as number | null, category: '', area: '', code: '',
 
 export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<MasterLine>; filters: { q?: string } }) {
     const [open, setOpen] = useState(false);
+    const [sharing, setSharing] = useState<MasterLine | null>(null);
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm(emptyForm);
 
     const openCreate = () => {
@@ -103,10 +106,17 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
                                 </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
-                                <Button type="button" variant="outline" size="icon" className="size-10" asChild title="QR status line">
-                                    <a href={route('master-lines.qr', line.id)} target="_blank" rel="noreferrer">
-                                        <QrCode className="size-4" />
-                                    </a>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="size-10"
+                                    disabled={!line.share}
+                                    title={line.share ? 'Bagikan status line (QR / link)' : 'Line nonaktif: halaman publik tidak aktif'}
+                                    aria-label="Bagikan"
+                                    onClick={() => setSharing(line)}
+                                >
+                                    <Share2 className="size-4" />
                                 </Button>
                                 <Button type="button" variant="outline" size="icon" className="size-10" onClick={() => openEdit(line)}>
                                     <Pencil className="size-4" />
@@ -128,6 +138,16 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
 
                 <PaginationFooter links={lines.links} lastPage={lines.last_page} />
             </div>
+
+            {sharing?.share && (
+                <ShareLinkDialog
+                    open
+                    onOpenChange={(o) => !o && setSharing(null)}
+                    title={`Bagikan ${sharing.name}`}
+                    description={`Status line ${sharing.code} bisa dibuka tanpa login lewat link atau QR di bawah (produk, batch, FG, dan PIC). Hanya bisa dibuka dari jaringan kantor.`}
+                    share={sharing.share}
+                />
+            )}
 
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>

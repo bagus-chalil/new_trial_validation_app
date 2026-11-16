@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ShareLinkDialog, type ShareLinkInfo, useCopied } from '@/components/ipc/share-link-dialog';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { STAGE_BADGE_COLORS, stageLabel } from '@/lib/ipc-stages';
 import { Head, Link, router } from '@inertiajs/react';
@@ -15,7 +15,6 @@ import {
     Play,
     QrCode,
     Radio,
-    RefreshCw,
     Share2,
     User,
 } from 'lucide-react';
@@ -47,38 +46,8 @@ interface Line {
     batches: LineBatch[];
 }
 
-interface ShareInfo {
-    url: string;
-    qr_svg: string;
-    qr_url: string;
+interface ShareInfo extends ShareLinkInfo {
     can_regenerate: boolean;
-}
-
-/** Copy text to the clipboard; falls back to a hidden textarea where the Clipboard API is blocked (plain HTTP). */
-async function copyText(text: string) {
-    try {
-        await navigator.clipboard.writeText(text);
-    } catch {
-        const el = document.createElement('textarea');
-        el.value = text;
-        document.body.appendChild(el);
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
-    }
-}
-
-function useCopied(): [boolean, (text: string) => void] {
-    const [copied, setCopied] = useState(false);
-    return [
-        copied,
-        (text: string) => {
-            void copyText(text).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1800);
-            });
-        },
-    ];
 }
 
 /* Wallboard tuning */
@@ -127,6 +96,32 @@ function health(min: number | null): 'ok' | 'stale' | 'stuck' {
     if (min > STUCK_MIN) return 'stuck';
     if (min > STALE_MIN) return 'stale';
     return 'ok';
+}
+
+type Health = 'ok' | 'stale' | 'stuck';
+type GroupBy = 'area' | 'category' | 'status';
+const GROUP_OPTIONS: { key: GroupBy; label: string }[] = [
+    { key: 'area', label: 'Area' },
+    { key: 'category', label: 'Kategori' },
+    { key: 'status', label: 'Status' },
+];
+const HEALTH_RANK: Record<Health, number> = { stuck: 0, stale: 1, ok: 2 };
+const HEALTH_TITLE: Record<Health, string> = { stuck: 'Macet (> 1 hari)', stale: 'Lama (> 2 jam)', ok: 'Normal' };
+
+/** Worst health among a line's batches. */
+function lineHealth(line: Line): Health {
+    return line.batches.reduce<Health>((acc, b) => {
+        const h = health(idleMinutes(b.last_activity_at));
+        return HEALTH_RANK[h] < HEALTH_RANK[acc] ? h : acc;
+    }, 'ok');
+}
+
+interface LineGroup {
+    key: string;
+    title: string;
+    rank: number;
+    lines: Line[];
+    idle: Line[];
 }
 
 function readPref(key: string, fallback: boolean): boolean {
@@ -345,7 +340,7 @@ function StageTrack({ batch }: { batch: LineBatch }) {
     );
 }
 
-function BatchRow({ batch, compact, linkable }: { batch: LineBatch; compact?: boolean; linkable: boolean }) {
+function BatchRow({ batch, linkable }: { batch: LineBatch; linkable: boolean }) {
     const idle = idleMinutes(batch.last_activity_at);
     const h = health(idle);
     const color = stageColor(batch.stage);
@@ -374,7 +369,7 @@ function BatchRow({ batch, compact, linkable }: { batch: LineBatch; compact?: bo
                 {batch.flow && <span className="bg-muted text-muted-foreground rounded-md px-1.5 py-px text-[10px] font-semibold">{batch.flow}</span>}
             </div>
 
-            {!compact && batch.stages.length > 0 && <StageTrack batch={batch} />}
+            {batch.stages.length > 0 && <StageTrack batch={batch} />}
 
             <div className="mt-2.5 flex items-center justify-between gap-2 text-[12px]">
                 <span className="flex min-w-0 items-center gap-1.5 font-semibold">
@@ -406,6 +401,37 @@ function BatchFrame({ href, className, children }: { href: string | null; classN
     );
 }
 
+/** One-line summary for the 2nd, 3rd... batch of a line (the lead batch gets the full row). */
+function BatchMini({ batch, linkable }: { batch: LineBatch; linkable: boolean }) {
+    const idle = idleMinutes(batch.last_activity_at);
+    const h = health(idle);
+    const color = stageColor(batch.stage);
+
+    return (
+        <BatchFrame
+            href={linkable ? route('batches.show', batch.id) : null}
+            className="border-border-soft flex items-center justify-between gap-2 rounded-xl border px-3 py-2"
+        >
+            <div className="min-w-0">
+                <p className="truncate font-mono text-[12.5px] font-bold">{batch.no_batch}</p>
+                <p className="text-muted-foreground truncate text-[11px]">{batch.product_name ?? '-'}</p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: color.bg, color: color.fg }}>
+                    {batch.stage_label}
+                </span>
+                <span
+                    className={
+                        'text-[10.5px] font-semibold ' + (h === 'stuck' ? 'text-red-700' : h === 'stale' ? 'text-amber-700' : 'text-muted-foreground')
+                    }
+                >
+                    {formatIdle(idle)}
+                </span>
+            </div>
+        </BatchFrame>
+    );
+}
+
 function LinkActions({ line }: { line: Line }) {
     const [copied, copy] = useCopied();
     if (!line.public_url || !line.qr_url) return null;
@@ -413,8 +439,9 @@ function LinkActions({ line }: { line: Line }) {
 
     const btn = 'text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center rounded-lg transition-colors';
 
+    // On devices with a real pointer the actions fade in on hover; touch tablets always see them.
     return (
-        <div className="flex shrink-0 items-center">
+        <div className="flex shrink-0 items-center transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
             <a href={line.qr_url} target="_blank" rel="noreferrer" className={btn} title="Poster QR" aria-label="Poster QR">
                 <QrCode className="size-4" />
             </a>
@@ -441,18 +468,18 @@ function LinkActions({ line }: { line: Line }) {
     );
 }
 
-function LineCard({ line, linkable }: { line: Line; linkable: boolean }) {
+function LineCard({ line, linkable, groupBy }: { line: Line; linkable: boolean; groupBy: GroupBy }) {
+    const worst = lineHealth(line);
+    // Accent = health first (red/amber), otherwise the lead batch's stage colour.
     const lead = line.batches[0];
-    const accent = lead ? stageColor(lead.stage).fg : '#A1A1AA';
-    const worst = line.batches.reduce<'ok' | 'stale' | 'stuck'>((acc, b) => {
-        const h = health(idleMinutes(b.last_activity_at));
-        return h === 'stuck' || acc === 'stuck' ? 'stuck' : h === 'stale' || acc === 'stale' ? 'stale' : 'ok';
-    }, 'ok');
+    const accent = worst === 'stuck' ? '#DC2626' : worst === 'stale' ? '#D97706' : lead ? stageColor(lead.stage).fg : '#A1A1AA';
     const shown = line.batches.slice(0, MAX_BATCHES_PER_CARD);
     const hidden = line.batches.length - shown.length;
+    // The grouping dimension is already in the section header, so only show the other ones here.
+    const meta = [line.code, groupBy !== 'category' ? line.category : null, groupBy !== 'area' ? line.area : null].filter(Boolean).join(' · ');
 
     return (
-        <div className="lm-card border-border-soft bg-card relative flex break-inside-avoid flex-col gap-2.5 overflow-hidden rounded-[22px] border p-4 pt-5 shadow-sm">
+        <div className="lm-card group border-border-soft bg-card relative flex h-full flex-col gap-2.5 overflow-hidden rounded-[22px] border p-4 pt-5 shadow-sm">
             <span className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: accent }} />
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -466,25 +493,23 @@ function LineCard({ line, linkable }: { line: Line; linkable: boolean }) {
                             />
                         )}
                     </div>
-                    <p className="text-muted-foreground/80 mt-0.5 truncate text-[11.5px] font-medium">
-                        {line.code} &middot; {line.category} &middot; {line.area}
-                    </p>
+                    <p className="text-muted-foreground/80 mt-0.5 truncate text-[11.5px] font-medium">{meta}</p>
                 </div>
                 <LinkActions line={line} />
             </div>
 
-            {shown.map((b, i) => (
-                <BatchRow key={b.id} batch={b} compact={i > 0} linkable={linkable} />
-            ))}
+            {shown.map((b, i) =>
+                i === 0 ? <BatchRow key={b.id} batch={b} linkable={linkable} /> : <BatchMini key={b.id} batch={b} linkable={linkable} />,
+            )}
 
             {hidden > 0 && <p className="text-muted-foreground text-center text-[11.5px] font-semibold">+{hidden} batch lain di line ini</p>}
         </div>
     );
 }
 
-/** Share the whole board publicly: link to copy, QR to scan, printable poster, regenerate (admin). */
+/** Share the whole board publicly: QR, link to copy, printable poster, regenerate (admin). */
 function ShareBoard({ share }: { share: ShareInfo }) {
-    const [copied, copy] = useCopied();
+    const [open, setOpen] = useState(false);
 
     const regenerate = () => {
         if (!window.confirm('Buat link baru? Link dan QR lama (termasuk yang sudah dicetak) tidak bisa dipakai lagi.')) return;
@@ -492,78 +517,23 @@ function ShareBoard({ share }: { share: ShareInfo }) {
     };
 
     return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <button
-                    type="button"
-                    className="border-border-soft bg-card text-foreground hover:bg-muted flex h-10 items-center gap-2 rounded-xl border px-3 text-[12.5px] font-bold transition-colors"
-                >
-                    <Share2 className="size-4" /> Bagikan
-                </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Bagikan Monitor Line</DialogTitle>
-                    <DialogDescription>
-                        Layar ini bisa dibuka tanpa login lewat link atau QR di bawah. Hanya bisa dibuka dari jaringan kantor.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="flex flex-col items-center gap-2">
-                    <div
-                        className="rounded-2xl border bg-white p-3 [&_svg]:size-[200px]"
-                        aria-label="QR Monitor Line"
-                        dangerouslySetInnerHTML={{ __html: share.qr_svg }}
-                    />
-                    <p className="text-muted-foreground text-center text-[12px]">Scan dengan kamera HP / tablet</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <input
-                        readOnly
-                        value={share.url}
-                        onFocus={(e) => e.currentTarget.select()}
-                        className="border-border-soft bg-muted/40 h-10 min-w-0 flex-1 rounded-xl border px-3 font-mono text-[12px]"
-                    />
-                    <button
-                        type="button"
-                        onClick={() => copy(share.url)}
-                        className="bg-foreground text-background flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[12.5px] font-bold"
-                    >
-                        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                        {copied ? 'Tersalin' : 'Salin'}
-                    </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                    <a
-                        href={share.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="border-border-soft hover:bg-muted flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[12.5px] font-semibold"
-                    >
-                        <ExternalLink className="size-4" /> Buka tanpa login
-                    </a>
-                    <a
-                        href={share.qr_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="border-border-soft hover:bg-muted flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[12.5px] font-semibold"
-                    >
-                        <QrCode className="size-4" /> Poster QR (cetak)
-                    </a>
-                    {share.can_regenerate && (
-                        <button
-                            type="button"
-                            onClick={regenerate}
-                            className="ml-auto flex h-9 items-center gap-1.5 rounded-xl border border-red-200 px-3 text-[12.5px] font-semibold text-red-700 hover:bg-red-50"
-                        >
-                            <RefreshCw className="size-4" /> Buat link baru
-                        </button>
-                    )}
-                </div>
-            </DialogContent>
-        </Dialog>
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="border-border-soft bg-card text-foreground hover:bg-muted flex h-10 items-center gap-2 rounded-xl border px-3 text-[12.5px] font-bold transition-colors"
+            >
+                <Share2 className="size-4" /> Bagikan
+            </button>
+            <ShareLinkDialog
+                open={open}
+                onOpenChange={setOpen}
+                title="Bagikan Monitor Line"
+                description="Layar ini bisa dibuka tanpa login lewat link atau QR di bawah. Hanya bisa dibuka dari jaringan kantor."
+                share={share}
+                onRegenerate={share.can_regenerate ? regenerate : undefined}
+            />
+        </>
     );
 }
 
@@ -656,7 +626,65 @@ export default function LineMonitor({ lines, share, publicMode = false }: { line
         return running.map((l) => ({ ...l, batches: l.batches.filter((b) => b.stage === stageFilter) })).filter((l) => l.batches.length > 0);
     }, [lines, stageFilter]);
 
-    const idleLines = useMemo(() => lines.filter((l) => l.batches.length === 0), [lines]);
+    const [groupBy, setGroupBy] = useState<GroupBy>(() => {
+        try {
+            const v = window.localStorage.getItem('lm.group');
+            return GROUP_OPTIONS.some((o) => o.key === v) ? (v as GroupBy) : 'area';
+        } catch {
+            return 'area';
+        }
+    });
+    const changeGroupBy = (key: GroupBy) => {
+        setGroupBy(key);
+        try {
+            window.localStorage.setItem('lm.group', key);
+        } catch {
+            // storage blocked: the choice just isn't remembered
+        }
+    };
+
+    // Sections: running lines grouped by area / category / health, problem lines first inside each.
+    const groups = useMemo(() => {
+        const map = new Map<string, LineGroup>();
+        const bucket = (key: string, title: string, rank: number) => {
+            let g = map.get(key);
+            if (!g) {
+                g = { key, title, rank, lines: [], idle: [] };
+                map.set(key, g);
+            }
+            return g;
+        };
+        const byAttention = (a: Line, b: Line) => HEALTH_RANK[lineHealth(a)] - HEALTH_RANK[lineHealth(b)] || a.name.localeCompare(b.name);
+
+        for (const l of visible) {
+            if (groupBy === 'status') {
+                const h = lineHealth(l);
+                bucket(h, HEALTH_TITLE[h], HEALTH_RANK[h]).lines.push(l);
+            } else {
+                const label = (groupBy === 'area' ? l.area : l.category) || (groupBy === 'area' ? 'Tanpa area' : 'Tanpa kategori');
+                bucket(label, label, 0).lines.push(l);
+            }
+        }
+        if (!stageFilter) {
+            for (const l of lines.filter((x) => x.batches.length === 0)) {
+                if (groupBy === 'status') {
+                    bucket('idle', 'Line idle', 99).idle.push(l);
+                } else {
+                    const label = (groupBy === 'area' ? l.area : l.category) || (groupBy === 'area' ? 'Tanpa area' : 'Tanpa kategori');
+                    bucket(label, label, 0).idle.push(l);
+                }
+            }
+        }
+
+        const attention = (g: LineGroup) => g.lines.filter((l) => lineHealth(l) !== 'ok').length;
+        const list = [...map.values()];
+        for (const g of list) {
+            g.lines.sort(byAttention);
+            g.idle.sort((a, b) => a.name.localeCompare(b.name));
+        }
+        return list.sort((a, b) => a.rank - b.rank || attention(b) - attention(a) || a.title.localeCompare(b.title));
+    }, [visible, lines, groupBy, stageFilter]);
+
     const stagesPresent = STAGE_ORDER.filter((s) => stats.byStage[s]);
 
     const Frame = publicMode ? PublicFrame : IpcShell;
@@ -745,6 +773,27 @@ export default function LineMonitor({ lines, share, publicMode = false }: { line
                     )}
 
                     <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                        <div
+                            className="border-border-soft mr-2 flex items-center rounded-full border p-0.5"
+                            role="group"
+                            aria-label="Kelompokkan berdasarkan"
+                        >
+                            <span className="text-muted-foreground px-2.5 text-[11px] font-bold tracking-wide uppercase">Grup</span>
+                            {GROUP_OPTIONS.map((o) => (
+                                <button
+                                    key={o.key}
+                                    type="button"
+                                    onClick={() => changeGroupBy(o.key)}
+                                    aria-pressed={groupBy === o.key}
+                                    className={
+                                        'rounded-full px-3 py-1 text-[12px] font-bold transition-colors ' +
+                                        (groupBy === o.key ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted')
+                                    }
+                                >
+                                    {o.label}
+                                </button>
+                            ))}
+                        </div>
                         <button
                             type="button"
                             onClick={() => setStageFilter(null)}
@@ -801,37 +850,56 @@ export default function LineMonitor({ lines, share, publicMode = false }: { line
             </div>
 
             <div ref={scrollRef} tabIndex={0} className="min-h-0 flex-1 overflow-y-auto p-5 outline-none md:p-6">
-                <div className="gap-4 [column-fill:balance] sm:columns-2 xl:columns-3 2xl:columns-4">
-                    {visible.map((line) => (
-                        <div key={line.id} className="mb-4 break-inside-avoid">
-                            <LineCard line={line} linkable={!publicMode} />
-                        </div>
-                    ))}
-                </div>
+                {groups.map((g) => {
+                    const batchCount = g.lines.reduce((n, l) => n + l.batches.length, 0);
+                    const attention = g.lines.filter((l) => lineHealth(l) !== 'ok').length;
+                    return (
+                        <section key={g.key} className="mb-7">
+                            <div className="mb-3 flex items-center gap-3">
+                                <h2 className="text-[16px] font-extrabold tracking-tight">{g.title}</h2>
+                                <span className="text-muted-foreground text-[12px] font-semibold">
+                                    {g.lines.length > 0 ? `${g.lines.length} line · ${batchCount} batch` : `${g.idle.length} line`}
+                                </span>
+                                {attention > 0 && groupBy !== 'status' && (
+                                    <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+                                        <AlertTriangle className="size-3" /> {attention} perlu perhatian
+                                    </span>
+                                )}
+                                <div className="bg-border-soft h-px flex-1" />
+                            </div>
+
+                            {g.lines.length > 0 && (
+                                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                                    {g.lines.map((line) => (
+                                        <LineCard key={line.id} line={line} linkable={!publicMode} groupBy={groupBy} />
+                                    ))}
+                                </div>
+                            )}
+
+                            {g.idle.length > 0 && (
+                                <div className={'flex flex-wrap items-center gap-2 ' + (g.lines.length > 0 ? 'mt-3' : '')}>
+                                    <span className="text-muted-foreground flex items-center gap-1.5 text-[11.5px] font-bold tracking-wide uppercase">
+                                        <Moon className="size-3.5" /> Idle
+                                    </span>
+                                    {g.idle.map((l) => (
+                                        <span
+                                            key={l.id}
+                                            className="bg-muted text-muted-foreground rounded-xl px-3 py-1.5 text-[12.5px] font-semibold"
+                                            title={`${l.code} · ${l.area}`}
+                                        >
+                                            {l.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    );
+                })}
 
                 {visible.length === 0 && (
                     <p className="text-muted-foreground py-12 text-center text-sm">
                         {stageFilter ? `Tidak ada batch di tahap ${stageLabel(stageFilter)}.` : 'Belum ada line yang berjalan.'}
                     </p>
-                )}
-
-                {!stageFilter && idleLines.length > 0 && (
-                    <div className="border-border-soft mt-2 rounded-[22px] border border-dashed p-4">
-                        <p className="text-muted-foreground mb-2.5 flex items-center gap-2 text-[12px] font-bold tracking-wide uppercase">
-                            <Moon className="size-3.5" /> Line idle ({idleLines.length})
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            {idleLines.map((l) => (
-                                <span
-                                    key={l.id}
-                                    className="bg-muted text-muted-foreground rounded-xl px-3 py-1.5 text-[12.5px] font-semibold"
-                                    title={`${l.code} · ${l.area}`}
-                                >
-                                    {l.name}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
                 )}
             </div>
         </Frame>

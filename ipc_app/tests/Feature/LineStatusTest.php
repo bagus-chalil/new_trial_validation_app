@@ -143,6 +143,30 @@ class LineStatusTest extends TestCase
         $this->get(route('line-monitor.public', IpcSetting::lineMonitorToken()))->assertOk();
     }
 
+    public function test_master_line_list_gives_share_info_only_for_active_lines(): void
+    {
+        $active = $this->line();
+        $inactive = $this->line(['code' => 'L-02', 'name' => 'Line 02', 'is_active' => false]);
+
+        $admin = User::factory()->create();
+        $admin->forceFill(['role' => User::ROLE_ADMIN])->save();
+
+        $this->actingAs($admin)->get(route('master-lines.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('masters/lines/index')
+                ->where('lines.data', function ($rows) use ($active, $inactive) {
+                    $byId = collect($rows)->keyBy('id');
+                    $a = $byId[$active->id]['share'] ?? null;
+
+                    return $a !== null
+                        && $a['url'] === $active->publicUrl()
+                        && str_contains($a['qr_svg'], '<svg')
+                        && $a['poster_url'] === route('master-lines.qr', $active)
+                        && ! isset($byId[$inactive->id]['share']);
+                }));
+    }
+
     public function test_unknown_or_inactive_line_token_is_404(): void
     {
         $this->get('/line/'.str_repeat('a', 32))->assertNotFound();
