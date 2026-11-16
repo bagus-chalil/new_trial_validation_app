@@ -143,16 +143,9 @@ function writePref(key: string, value: boolean) {
 
 /**
  * Slow continuous auto-scroll for a TV/wall display. Holds a few seconds at the top and at the
- * bottom, then glides back up to the top (eased animation, not a jump). Any touch, wheel, drag or key pauses it for a while so a
- * person standing at the screen can read or scroll by hand.
+ * bottom and scrolls back the other way at the same speed (ping-pong, no jump). Any touch, wheel, drag or key pauses it for a
+ * while so a person standing at the screen can read or scroll by hand.
  */
-const REWIND_SPEEDUP = 4; // going back up is 4x the chosen scroll speed...
-const REWIND_MIN_MS = 1_500; // ...but never shorter than this (still visibly animated)
-const REWIND_MAX_MS = 6_000; // ...nor longer than this on a very long board
-
-function easeInOutCubic(x: number): number {
-    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-}
 
 function useAutoScroll(ref: RefObject<HTMLDivElement | null>, enabled: boolean, pxPerSec: number) {
     const [progress, setProgress] = useState(0);
@@ -170,16 +163,12 @@ function useAutoScroll(ref: RefObject<HTMLDivElement | null>, enabled: boolean, 
         let last = 0;
         let pos = el.scrollTop;
         let holdUntil = performance.now() + EDGE_HOLD_MS;
-        let atEnd = false;
+        let dir: 1 | -1 = 1; // 1 = down, -1 = up
         let resync = false;
         let lastReported = -1;
-        // Animated return to the top (instead of a hard jump): eased, a few times faster than going down.
-        let rewind: { from: number; start: number; duration: number } | null = null;
 
         const pause = () => {
             holdUntil = performance.now() + USER_PAUSE_MS;
-            atEnd = false;
-            rewind = null;
             resync = true;
         };
 
@@ -194,27 +183,15 @@ function useAutoScroll(ref: RefObject<HTMLDivElement | null>, enabled: boolean, 
             }
 
             if (max > 2 && t >= holdUntil && !resync) {
-                if (atEnd) {
-                    atEnd = false;
-                    const duration = Math.min(REWIND_MAX_MS, Math.max(REWIND_MIN_MS, (pos / (speedRef.current * REWIND_SPEEDUP)) * 1000));
-                    rewind = { from: pos, start: t, duration };
-                } else if (rewind) {
-                    const p = Math.min(1, (t - rewind.start) / rewind.duration);
-                    pos = rewind.from * (1 - easeInOutCubic(p));
-                    el.scrollTop = pos;
-                    if (p >= 1) {
-                        rewind = null;
-                        pos = 0;
-                        el.scrollTop = 0;
-                        holdUntil = t + EDGE_HOLD_MS;
-                    }
-                } else {
-                    pos = Math.min(max, pos + (speedRef.current * dt) / 1000);
-                    el.scrollTop = pos;
-                    if (pos >= max - 1) {
-                        atEnd = true;
-                        holdUntil = t + EDGE_HOLD_MS;
-                    }
+                // Ping-pong: same speed down and up, hold briefly at each end.
+                pos = Math.min(max, Math.max(0, pos + dir * ((speedRef.current * dt) / 1000)));
+                el.scrollTop = pos;
+                if (dir === 1 && pos >= max - 1) {
+                    dir = -1;
+                    holdUntil = t + EDGE_HOLD_MS;
+                } else if (dir === -1 && pos <= 1) {
+                    dir = 1;
+                    holdUntil = t + EDGE_HOLD_MS;
                 }
             }
 
