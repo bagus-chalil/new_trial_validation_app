@@ -14,6 +14,16 @@ use Illuminate\Support\Collection;
  */
 class LineStatusBoard
 {
+    /**
+     * Stages that no longer involve the physical line: Approval and Print happen only in the
+     * system, Completed is done. A batch in one of these is not shown as running on its line.
+     */
+    public const OFF_LINE_STAGES = [
+        IpcBatch::STAGE_APPROVAL,
+        IpcBatch::STAGE_PRINT,
+        IpcBatch::STAGE_COMPLETED,
+    ];
+
     public const STAGE_LABELS = [
         IpcBatch::STAGE_STARTUP => 'Startup Check',
         IpcBatch::STAGE_FILLING => 'Filling Check',
@@ -36,7 +46,7 @@ class LineStatusBoard
         $batches = IpcBatch::query()
             ->whereIn('master_line_id', $lines->pluck('id')->all())
             ->whereNull('archived_at')
-            ->where('current_stage', '!=', IpcBatch::STAGE_COMPLETED)
+            ->whereNotIn('current_stage', self::OFF_LINE_STAGES)
             ->with(['masterProduct', 'creator', 'startupCheck.user', 'fillingCheck.user', 'packingCheck.user', 'finishedCheck.user'])
             ->orderByDesc('updated_at')
             ->get();
@@ -62,7 +72,7 @@ class LineStatusBoard
 
         $stages = array_values(array_filter(
             $batch->activeStages(),
-            fn (string $stage) => $stage !== IpcBatch::STAGE_COMPLETED,
+            fn (string $stage) => ! in_array($stage, self::OFF_LINE_STAGES, true),
         ));
         $index = array_search($batch->current_stage, $stages, true);
 
@@ -73,6 +83,8 @@ class LineStatusBoard
             'fg_code' => $batch->masterProduct?->fg_code,
             'stage' => $batch->current_stage,
             'stage_label' => self::STAGE_LABELS[$batch->current_stage] ?? $batch->current_stage,
+            'stages' => $stages,
+            'flow' => IpcBatch::FLOW_SHORT_LABELS[$batch->flow_type] ?? null,
             'step' => $index === false ? null : $index + 1,
             'total_steps' => count($stages),
             'pic' => ($check?->user ?? $batch->creator)?->name,

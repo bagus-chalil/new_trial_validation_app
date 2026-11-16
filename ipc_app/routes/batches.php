@@ -30,11 +30,21 @@ Route::get('line/{token}', [LineStatusController::class, 'show'])
     ->middleware('throttle:60,1')
     ->name('line-status.show');
 
+// Public whole-board Monitor Line (TV / wall display), same idea: no login, one board token.
+Route::get('monitor/{token}', [LineStatusController::class, 'board'])
+    ->where('token', '[A-Za-z0-9]{20,60}')
+    ->middleware('throttle:120,1')
+    ->name('line-monitor.public');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('monitor-line', [LineStatusController::class, 'monitor'])->name('line-monitor');
+    Route::get('monitor-line/qr', [LineStatusController::class, 'boardQr'])->name('line-monitor.qr');
+    Route::post('monitor-line/token', [LineStatusController::class, 'regenerateBoardToken'])
+        ->middleware('can:manage-master')
+        ->name('line-monitor.regenerate-token');
     Route::get('lines/{masterLine}/qr', [LineStatusController::class, 'qr'])->name('master-lines.qr');
 
-    Route::get('batches',[IpcBatchController::class, 'index'])->name('batches.index');
+    Route::get('batches', [IpcBatchController::class, 'index'])->name('batches.index');
     // Only Staff/Admin open batches (IpcBatchPolicy::create) — not Approver.
     Route::get('batches/create', [IpcBatchController::class, 'create'])->middleware('can:create,'.IpcBatch::class)->name('batches.create');
     Route::post('batches', [IpcBatchController::class, 'store'])->middleware('can:create,'.IpcBatch::class)->name('batches.store');

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>QR Line {{ $line->code }}</title>
+<title>{{ $pageTitle }}</title>
 <style>
     body { margin: 0; padding: 40px 20px; font-family: 'Segoe UI', Arial, sans-serif; text-align: center; color: #111827; }
     .brand { font-size: 14px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #2f6fed; }
@@ -18,10 +18,10 @@
 </head>
 <body>
     <div class="brand">IPC · Status Line</div>
-    <h1>{{ $line->name }}</h1>
-    <div class="sub">{{ $line->code }} · {{ $line->category }} · {{ $line->area }}</div>
+    <h1>{{ $title }}</h1>
+    <div class="sub">{{ $subtitle }}</div>
     <div class="qr">{!! $svg !!}</div>
-    <div class="hint">Scan untuk melihat status IPC di line ini</div>
+    <div class="hint">{{ $hint }}</div>
     <div class="url">{{ $url }}</div>
     <p class="noprint"><button onclick="window.print()" style="padding:10px 20px;font-size:15px">Cetak</button></p>
 </body>

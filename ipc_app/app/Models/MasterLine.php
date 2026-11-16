@@ -28,6 +28,11 @@ class MasterLine extends Model
     /** Public URL the line's QR code points at (read-only status page, no login). */
     public function publicUrl(): string
     {
+        // Self-heal: lines created/restored before the token existed (or whose backfill missed) get one now.
+        if (blank($this->public_token)) {
+            $this->forceFill(['public_token' => Str::random(32)])->saveQuietly();
+        }
+
         return route('line-status.show', $this->public_token);
     }
 
