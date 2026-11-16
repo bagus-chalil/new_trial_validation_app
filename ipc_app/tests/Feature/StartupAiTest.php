@@ -8,6 +8,8 @@ use App\Models\IpcBatchBulkCode;
 use App\Models\IpcLog;
 use App\Models\MasterProduct;
 use App\Models\User;
+use App\Services\Vision\StartupVisionEvaluator;
+use App\Services\Vision\VisionResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -290,6 +292,83 @@ class StartupAiTest extends TestCase
         $this->read($batch, 'date_bulk', ['mixing_date' => '2026-10-23'])
             ->assertOk()
             ->assertJsonPath('decision', 'REVIEW');
+    }
+
+    public function test_unreliable_photo_gets_a_specific_retake_hint_but_stays_review(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'date_bulk');
+        $this->fakeVision($this->labelBulk([
+            'mixing_date_raw' => '24/10/2026',
+            'view_agreement' => ['no_batch' => true, 'mixing_date' => false, 'kode_bulk' => true],
+        ]));
+
+        $items = collect($this->read($batch, 'date_bulk', ['mixing_date' => '2026-10-24'])
+            ->assertOk()
+            ->assertJsonPath('decision', 'REVIEW')
+            ->json('items'));
+
+        $mixing = $items->firstWhere('key', 'mixing_date');
+        $this->assertTrue($mixing['retake']);
+        $this->assertStringContainsString('gelap', $mixing['note']);
+        $this->assertFalse($items->firstWhere('key', 'no_batch')['retake']);
+    }
+
+    private function suggest(string $fieldType, array $raw, array $entered = []): array
+    {
+        return app(StartupVisionEvaluator::class)
+            ->suggestions($fieldType, VisionResult::fromResponse($raw), $entered);
+    }
+
+    public function test_trusted_mixing_date_is_suggested_only_while_the_form_field_is_empty(): void
+    {
+        $suggestions = $this->suggest('label_bulk', $this->labelBulk());
+        $this->assertCount(1, $suggestions);
+        $this->assertSame(['field' => 'mixing_date', 'label' => 'Mixing Date', 'value' => '2026-10-23', 'display' => '23/10/2026'], $suggestions[0]);
+
+        // Something already typed is never overwritten, even when it differs from the AI read.
+        $this->assertSame([], $this->suggest('label_bulk', $this->labelBulk(), ['mixing_date' => '2026-10-24']));
+    }
+
+    public function test_untrusted_or_failed_reads_are_never_suggested(): void
+    {
+        $untrusted = $this->labelBulk(['view_agreement' => ['no_batch' => true, 'mixing_date' => false, 'kode_bulk' => true]]);
+        $this->assertSame([], $this->suggest('label_bulk', $untrusted));
+
+        $badDate = $this->labelBulk(['mixing_date_raw' => '31/02/2026']);
+        $this->assertSame([], $this->suggest('label_bulk', $badDate));
+
+        $this->assertSame([], app(StartupVisionEvaluator::class)
+            ->suggestions('label_bulk', VisionResult::error('DOWN'), []));
+    }
+
+    public function test_trusted_im_shelf_life_is_suggested_in_months_when_empty(): void
+    {
+        $raw = [
+            'pipeline' => 'llm', 'status' => 'OK', 'im_number' => 'IM-123',
+            'shelf_life_value' => ['years' => 2, 'months' => 6],
+            'legible' => ['shelf_life' => true], 'format_ok' => ['shelf_life' => true], 'view_agreement' => ['shelf_life' => true],
+        ];
+
+        $suggestions = $this->suggest('im_document', $raw);
+        $this->assertSame('shelf_life_months', $suggestions[0]['field']);
+        $this->assertSame(30, $suggestions[0]['value']);
+
+        $this->assertSame([], $this->suggest('im_document', $raw, ['shelf_life_months' => 36]));
+        // Coding photos never suggest anything.
+        $this->assertSame([], $this->suggest('coding_print', $this->coding()));
+    }
+
+    public function test_unreadable_value_advises_retaking_the_photo(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'date_bulk');
+        $this->fakeVision($this->labelBulk(['kode_bulk' => null]));
+
+        $item = collect($this->read($batch, 'date_bulk', ['mixing_date' => '2026-10-24'])->json('items'))->firstWhere('key', 'kode_bulk');
+
+        $this->assertTrue($item['retake']);
+        $this->assertStringContainsString('ambil ulang', $item['note']);
     }
 
     public function test_label_bulk_without_typed_mixing_date_is_review(): void

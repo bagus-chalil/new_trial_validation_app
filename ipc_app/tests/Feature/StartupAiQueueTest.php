@@ -97,6 +97,46 @@ class StartupAiQueueTest extends TestCase
         return $this->postJson(route('startup-check.ai-queue', $batch), $form);
     }
 
+    public function test_status_offers_a_mixing_date_suggestion_only_while_the_form_field_is_empty(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'date_bulk');
+        $this->fakeVision([
+            'pipeline' => 'llm', 'status' => 'OK', 'no_batch_raw' => '26X005/EKB', 'mixing_date_raw' => '23/10/2026', 'kode_bulk' => '6124490033',
+            'legible' => ['no_batch' => true, 'mixing_date' => true, 'kode_bulk' => true],
+            'format_ok' => ['no_batch' => true, 'mixing_date' => true, 'kode_bulk' => true],
+            'view_agreement' => ['no_batch' => true, 'mixing_date' => true, 'kode_bulk' => true],
+            'confidence' => 0.95,
+        ]);
+
+        $empty = $this->queueReads($batch)->assertOk();
+        $empty->assertJsonPath('fields.0.suggestions.0.field', 'mixing_date')
+            ->assertJsonPath('fields.0.suggestions.0.value', '2026-10-23');
+
+        // Re-evaluated from the stored read (no new AI call) once the operator has typed something.
+        $typed = $this->getJson(route('startup-check.ai-status', ['batch' => $batch, 'mixing_date' => '2026-10-24']))->assertOk();
+        $this->assertSame([], $typed->json('fields.0.suggestions'));
+        $this->assertSame('FAIL', $typed->json('fields.0.decision'));
+    }
+
+    public function test_no_suggestion_when_another_part_of_the_same_photo_needs_retaking(): void
+    {
+        $batch = $this->makeBatch();
+        $this->photo($batch, 'date_bulk');
+        $this->fakeVision([
+            'pipeline' => 'llm', 'status' => 'LOW_CONFIDENCE', 'no_batch_raw' => '26K006/EKG', 'mixing_date_raw' => '23/10/2026', 'kode_bulk' => '6124490033',
+            'legible' => ['no_batch' => true, 'mixing_date' => true, 'kode_bulk' => true],
+            'format_ok' => ['no_batch' => true, 'mixing_date' => true, 'kode_bulk' => true],
+            'view_agreement' => ['no_batch' => false, 'mixing_date' => true, 'kode_bulk' => true],
+            'confidence' => 0.5,
+        ]);
+
+        $field = $this->queueReads($batch)->assertOk()->json('fields.0');
+
+        $this->assertSame([], $field['suggestions']);
+        $this->assertTrue(collect($field['items'])->firstWhere('key', 'no_batch')['retake']);
+    }
+
     public function test_photos_are_read_in_the_background_and_evaluated_against_the_current_form(): void
     {
         $batch = $this->makeBatch();

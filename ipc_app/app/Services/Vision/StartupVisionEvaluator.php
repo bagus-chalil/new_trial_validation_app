@@ -71,6 +71,44 @@ class StartupVisionEvaluator
         );
     }
 
+    /**
+     * "Pakai saran": values the AI read that the operator may copy into a still-EMPTY form field.
+     * Only non-decision inputs (Mixing Date from Label Bulk, Shelf Life from the IM) and only when
+     * the Vision Service trusts the read. Never overwrites something already typed, never touches a
+     * Conform / Not Conform toggle or a decision; the operator must click to apply.
+     *
+     * @param  array{mixing_date?: ?string, shelf_life_months?: ?int}  $entered
+     * @return list<array{field: string, label: string, value: string|int, display: string}>
+     */
+    public function suggestions(string $fieldType, VisionResult $result, array $entered): array
+    {
+        if ($result->status === VisionResult::STATUS_ERROR) {
+            return [];
+        }
+        $raw = $result->raw;
+        $out = [];
+
+        if ($fieldType === 'label_bulk' && empty($entered['mixing_date'])) {
+            $read = $raw['mixing_date_raw'] ?? null;
+            $iso = $this->labelDateToIso($read);
+            if ($iso !== null && $this->trusted($raw, 'mixing_date')) {
+                $out[] = ['field' => 'mixing_date', 'label' => 'Mixing Date', 'value' => $iso, 'display' => (string) $read];
+            }
+        }
+
+        if ($fieldType === 'im_document' && empty($entered['shelf_life_months'])) {
+            $value = $raw['shelf_life_value'] ?? null;
+            if ($value !== null && $this->trusted($raw, 'shelf_life')) {
+                $months = ((int) ($value['years'] ?? 0) * 12) + (int) ($value['months'] ?? 0);
+                if ($months > 0) {
+                    $out[] = ['field' => 'shelf_life_months', 'label' => 'Shelf Life', 'value' => $months, 'display' => $months.' bulan'];
+                }
+            }
+        }
+
+        return $out;
+    }
+
     /** @param list<array<string, mixed>> $items */
     private function decide(array $items, bool $forceReview): string
     {
@@ -101,6 +139,7 @@ class StartupVisionEvaluator
             'no_batch', 'No. Batch', $batch->no_batch, $read,
             $this->trusted($raw, 'no_batch'),
             fn () => $this->normBatch($read) === $this->normBatch($batch->no_batch),
+            untrustedNote: $this->retakeNote($raw, 'no_batch'),
         );
 
         // Mixing date on the label (DD/MM/YYYY) vs the form's mixing date.
@@ -112,6 +151,7 @@ class StartupVisionEvaluator
             $this->trusted($raw, 'mixing_date') && $readIso !== null,
             fn () => $readIso === $expected,
             $expected ? null : 'Isi Mixing Date di form dulu untuk dibandingkan.',
+            $this->retakeNote($raw, 'mixing_date'),
         );
 
         // Bulk code on the label vs any bulk code the batch was created with.
@@ -121,6 +161,7 @@ class StartupVisionEvaluator
             'kode_bulk', 'Kode Bulk', $codes->implode(', ') ?: null, $read,
             $this->trusted($raw, 'kode_bulk'),
             fn () => $codes->contains(strtoupper(trim((string) $read))),
+            untrustedNote: $this->retakeNote($raw, 'kode_bulk'),
         );
 
         return [$items, false, null];
@@ -146,6 +187,7 @@ class StartupVisionEvaluator
             $trusted && $readMonths > 0,
             fn () => $readMonths === (int) $dbMonths,
             $dbMonths ? ($trusted ? null : 'Umur simpan tidak pasti di foto.') : 'Shelf-life belum diisi di form.',
+            $this->retakeNote($raw, 'shelf_life'),
         );
 
         // The EXP the operator typed must be mixing + the shelf-life the IM states.
@@ -187,6 +229,7 @@ class StartupVisionEvaluator
             $this->trusted($raw, 'batch', 'trusted'),
             fn () => strtoupper(trim((string) $read)) === $expectedBatch,
             $expectedBatch ? null : 'Batch 3 huruf tidak bisa ditentukan dari No. Batch.',
+            $this->retakeNote($raw, 'batch', 'trusted'),
         );
 
         // EXP vs the form's EXP date. MM_YYYY prints no day, so only month + year compare.
@@ -200,6 +243,7 @@ class StartupVisionEvaluator
                 $trustedExp,
                 fn () => (int) ($parts['month'] ?? 0) === (int) date('n', strtotime($exp)) && (int) ($parts['year'] ?? 0) === (int) date('Y', strtotime($exp)),
                 $exp ? 'EXP tercetak bulan-tahun; hari tidak dibandingkan.' : 'Isi EXP Date di form dulu.',
+                $this->retakeNote($raw, 'exp', 'trusted'),
             );
         } elseif ($format === 'DDMMYY' && is_array($parts)) {
             $readText = ($parts['day'] ?? '').($parts['month'] ?? '').($parts['year'] ?? '');
@@ -208,9 +252,10 @@ class StartupVisionEvaluator
                 $trustedExp,
                 fn () => $readText === date('dmy', strtotime($exp)),
                 $exp ? null : 'Isi EXP Date di form dulu.',
+                $this->retakeNote($raw, 'exp', 'trusted'),
             );
         } else {
-            $items[] = $this->item('coding_exp', 'EXP (coding)', $exp ? date('dmy', strtotime($exp)) : null, $raw['exp_raw'] ?? null, self::REVIEW, 'Format EXP tidak dikenali / tidak terbaca.');
+            $items[] = $this->item('coding_exp', 'EXP (coding)', $exp ? date('dmy', strtotime($exp)) : null, $raw['exp_raw'] ?? null, self::REVIEW, 'Format EXP tidak dikenali / tidak terbaca - ambil ulang foto coding dengan seluruh tulisan terlihat.', retake: true);
         }
 
         // Tube: display the extra tube read, but the whole result is forced to REVIEW.
@@ -236,19 +281,41 @@ class StartupVisionEvaluator
     }
 
     /** One comparison row. $check is only called when the read is trusted and an expected value exists. */
-    private function compare(string $key, string $label, ?string $expected, ?string $read, bool $trusted, Closure $check, ?string $note = null): array
+    private function compare(string $key, string $label, ?string $expected, ?string $read, bool $trusted, Closure $check, ?string $note = null, ?string $untrustedNote = null): array
     {
         if ($read === null || $read === '' || $read === '/') {
-            return $this->item($key, $label, $expected, null, self::REVIEW, $note ?? 'Tidak terbaca di foto.');
+            return $this->item($key, $label, $expected, null, self::REVIEW, 'Tidak terbaca di foto - ambil ulang: fokus, lebih dekat, cahaya cukup tanpa pantulan, seluruh tulisan masuk frame.', retake: true);
         }
         if ($expected === null || $expected === '') {
             return $this->item($key, $label, null, $read, self::REVIEW, $note ?? 'Tidak ada nilai pembanding.');
         }
         if (! $trusted) {
-            return $this->item($key, $label, $expected, $read, self::REVIEW, 'Bacaan belum yakin (view tidak sepakat / format tidak sesuai) - cek manual.');
+            return $this->item($key, $label, $expected, $read, self::REVIEW, $untrustedNote ?? 'Bacaan belum yakin (view tidak sepakat / format tidak sesuai) - cek manual.', retake: true);
         }
 
         return $this->item($key, $label, $expected, $read, $check() ? self::MATCH : self::MISMATCH, null);
+    }
+
+    /**
+     * Why a value was not trusted, in words an operator can act on (photo advice), from the
+     * flags the Vision Service already returns. Advice only: it never changes a decision.
+     */
+    private function retakeNote(array $raw, string $key, ?string $trustedMapKey = null): string
+    {
+        if ($trustedMapKey !== null && isset($raw[$trustedMapKey][$key])) {
+            return 'Bacaan belum yakin - foto kurang jelas / ada bagian tertutup. Ambil ulang lebih dekat dan tegak lurus.';
+        }
+        if (isset($raw['legible'][$key]) && ! $raw['legible'][$key]) {
+            return 'Bagian ini buram, terlalu gelap, atau terpotong di foto - ambil ulang: fokus, cahaya cukup, seluruh tulisan masuk frame.';
+        }
+        if (isset($raw['format_ok'][$key]) && ! $raw['format_ok'][$key]) {
+            return 'Isi terbaca tapi formatnya tidak sesuai - bagian bisa terpotong/tertutup. Ambil ulang dengan seluruh tulisan terlihat.';
+        }
+        if (isset($raw['view_agreement'][$key]) && ! $raw['view_agreement'][$key]) {
+            return 'Bacaan berubah-ubah antar sudut - foto mungkin terlalu gelap, silau (pantulan), atau miring. Ambil ulang dengan cahaya cukup, tanpa glare, tegak lurus.';
+        }
+
+        return 'Bacaan belum yakin - cek manual atau ambil ulang foto.';
     }
 
     /**
@@ -282,9 +349,9 @@ class StartupVisionEvaluator
         return $this->item('tube_exp_llm', 'EXP (tube, AI LLM)', $expected, $read, self::INFO, $note);
     }
 
-    private function item(string $key, string $label, ?string $expected, ?string $read, string $verdict, ?string $note): array
+    private function item(string $key, string $label, ?string $expected, ?string $read, string $verdict, ?string $note, bool $retake = false): array
     {
-        return compact('key', 'label', 'expected', 'read', 'verdict', 'note');
+        return compact('key', 'label', 'expected', 'read', 'verdict', 'note', 'retake');
     }
 
     /** Trusted only when legible + format ok + every view agrees (Vision Service flags). */

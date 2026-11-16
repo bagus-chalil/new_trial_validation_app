@@ -9,7 +9,7 @@ namespace App\Services\Vision;
  */
 class StartupEvaluation
 {
-    /** @param list<array{key: string, label: string, expected: ?string, read: ?string, verdict: string, note: ?string}> $items */
+    /** @param list<array{key: string, label: string, expected: ?string, read: ?string, verdict: string, note: ?string, retake?: bool}> $items */
     public function __construct(
         public readonly string $decision,
         public readonly string $reason,

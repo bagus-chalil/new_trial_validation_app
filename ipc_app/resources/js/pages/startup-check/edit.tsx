@@ -918,6 +918,14 @@ export default function StartupCheckEdit({
                                     readOnly={isReadOnly}
                                     photoKey={AI_PHOTO_FIELDS.map((k) => String(photoUrls[k] ?? '')).join('|')}
                                     getEntered={getEntered}
+                                    onApply={(s) => {
+                                        setData(s.field, String(s.value));
+                                        setErrorFields((prev) => {
+                                            const n = new Set(prev);
+                                            n.delete(s.field);
+                                            return n;
+                                        });
+                                    }}
                                 />
                             )}
                             <div className="col-span-full flex flex-col gap-2">

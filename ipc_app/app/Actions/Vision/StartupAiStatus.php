@@ -80,10 +80,11 @@ class StartupAiStatus
                 $fieldType = array_key_first($reads);
                 $tubeType = config('vision.startup_ai.tube_field_types.0');
                 $llmType = config('vision.startup_ai.tube_llm_field_type');
+                $mainResult = $this->resultOf($logs[$fieldType]);
                 $evaluation = $this->evaluator->evaluate(
                     $batch,
                     $fieldType,
-                    $this->resultOf($logs[$fieldType]),
+                    $mainResult,
                     $entered,
                     isset($logs[$tubeType]) ? $this->resultOf($logs[$tubeType]) : null,
                     $llmType && isset($logs[$llmType]) ? $this->resultOf($logs[$llmType]) : null,
@@ -92,6 +93,10 @@ class StartupAiStatus
                     'decision' => $evaluation->decision,
                     'reason' => $evaluation->reason,
                     'items' => $evaluation->items,
+                    // A photo with any part that needs retaking is not reliable enough to prefill from.
+                    'suggestions' => collect($evaluation->items)->contains('retake', true)
+                        ? []
+                        : $this->evaluator->suggestions($fieldType, $mainResult, $entered),
                 ];
                 if ($llmType && isset($logs[$llmType])) {
                     $tubeExp[$field] = $logs[$llmType]->vision_response['exp_raw'] ?? null;

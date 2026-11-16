@@ -10,7 +10,12 @@ type AiItem = {
     read: string | null;
     verdict: Verdict;
     note: string | null;
+    /** The photo itself is the problem (blurry / cut off / glare): advise taking it again. */
+    retake?: boolean;
 };
+
+/** A value the AI read with confidence that can be copied into a still-empty form field (operator clicks). */
+export type AiSuggestion = { field: 'mixing_date' | 'shelf_life_months'; label: string; value: string | number; display: string };
 
 type FieldStatus = {
     field: string;
@@ -19,6 +24,7 @@ type FieldStatus = {
     decision?: 'PASS' | 'FAIL' | 'REVIEW';
     reason?: string;
     items?: AiItem[];
+    suggestions?: AiSuggestion[];
 };
 
 type Status = { pending: boolean; fields: FieldStatus[]; notes: string[] };
@@ -58,12 +64,15 @@ export function StartupAiCard({
     readOnly,
     photoKey,
     getEntered,
+    onApply,
 }: {
     batchId: number;
     readOnly: boolean;
     /** Changes whenever an AI-read photo is added/replaced, so the reads get queued. */
     photoKey: string;
     getEntered: () => Entered;
+    /** Operator clicked "Pakai": copy the suggested value into the form field. Omit where the form isn't on screen (no buttons then). */
+    onApply?: (suggestion: AiSuggestion) => void;
 }) {
     const [status, setStatus] = useState<Status | null>(null);
     const [error, setError] = useState(false);
@@ -199,6 +208,36 @@ export function StartupAiCard({
                                 )}
                                 {f.state === 'done' && f.reason && <span className="text-muted-foreground">{f.reason}</span>}
                             </div>
+                            {f.state === 'done' && !readOnly && onApply && f.suggestions && f.suggestions.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-sky-50 p-2.5 text-[12px] text-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                                    <span className="font-bold">Saran isi (form masih kosong):</span>
+                                    {f.suggestions.map((s) => (
+                                        <button
+                                            key={s.field}
+                                            type="button"
+                                            onClick={() => onApply(s)}
+                                            className="rounded-full border border-sky-300 bg-white px-3 py-1 font-bold hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900 dark:hover:bg-sky-800"
+                                        >
+                                            Pakai {s.label}: {s.display}
+                                        </button>
+                                    ))}
+                                    <span className="text-[11px]">Cek dengan foto sebelum disimpan.</span>
+                                </div>
+                            )}
+                            {f.state === 'done' && f.items?.some((i) => i.retake) && (
+                                <div className="rounded-lg bg-amber-50 p-2.5 text-[12px] text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                                    <p className="font-bold">Saran: ambil ulang foto ini</p>
+                                    <ul className="list-disc pl-4">
+                                        {f.items
+                                            .filter((i) => i.retake && i.note)
+                                            .map((i) => (
+                                                <li key={i.key}>
+                                                    <span className="font-semibold">{i.label}:</span> {i.note}
+                                                </li>
+                                            ))}
+                                    </ul>
+                                </div>
+                            )}
                             {f.state === 'done' && f.items && f.items.length > 0 && (
                                 <table className="w-full text-left">
                                     <thead>
