@@ -87,10 +87,12 @@ Setiap fase = satu sesi/chat. Jangan lompat fase. Branch kerja: `feat/integratio
 > **Fase 2 selesai 2026-11-17** (hasil lengkap di bagian 7).
 
 ### Fase 3 — Gantt, My Work, Improvement
-- [ ] Gantt
-- [ ] Project/Improvement milik user masuk ke My Work yang sudah ada (tanpa halaman "Pekerjaan Saya" terpisah)
-- [ ] Board Improvement (ajukan, Tinjauan PI, "To Project" membuat project dengan data terisi)
+- [x] Gantt
+- [x] Project/Improvement milik user masuk ke My Work yang sudah ada (tanpa halaman "Pekerjaan Saya" terpisah)
+- [x] Board Improvement (ajukan, Tinjauan PI, "To Project" membuat project dengan data terisi)
 - Selesai jika: paritas fitur dengan Project Tracking lama.
+
+> **Fase 3 selesai 2026-11-17** (hasil lengkap di bagian 7).
 
 ### Fase 4 — Tautan ke Trial
 - [ ] Stage tipe Validation punya `trial_id`; tombol membuat draft Trial dari stage
@@ -158,6 +160,19 @@ Temuan:
 - Item sidebar "Portofolio" tidak menyala di halaman detail/form (aktif hanya pada URL persis); kosmetik.
 - `UploadedFile::fake()` menebak MIME dari nama, bukan isi; tes ketidakcocokan isi memakai file temp sungguhan.
 
+### Hasil Fase 3 (2026-11-17)
+
+Dibangun: `ProjectGanttController` (`projects.gantt`, read-only, filter project/PIC/status, maks 60 project) + `pages/projects/gantt.tsx` (CSS grid tanpa library: bar rencana vs aktual+progres, stage paralel, diamond milestone, garis hari ini, kolom label sticky, scroll horizontal hanya di dalam kartu). Board Improvement: `ImprovementController` (index/store/show/update/review/convert/destroy), `ImprovementFileController`, 7 Action di `app/Actions/Improvements/`, FormRequest di `app/Http/Requests/Improvements/`, halaman `improvements/{index,show}.tsx` + `ImprovementDialog`; lang group baru `improvements` (id/en/ko, paritas dites). `App\Support\ProjectUploadGuard` mengekstrak cek upload (nama script, whitelist ekstensi, MIME cocok, ukuran) dan dipakai bersama oleh `StoreProjectFile` dan `StoreImprovementFile`. My Work: `DashboardController::myWorkData()` menambah `myProjects`, `myImprovements`, dan hitungan improvement yang menunggu tinjauan PI; kartu "Project Saya" dan "Improvement Saya" di `MyWorkSection`. Sidebar: item Gantt + Improvement; `NavItem.activePattern` menyalakan Portofolio di halaman detail/form.
+
+Keputusan/perilaku:
+- Improvement: semua non-Viewer boleh mengajukan; kontributor biasa hanya melihat miliknya, Staff/Admin/PI/PIE melihat semua (`ImprovementPolicy::seesAll`). Pengaju mengubah hanya selama status `Baru`. Tinjauan (status, keputusan, umpan balik PI) hanya PI/PIE atau Admin; tiap simpan menambah entri `feedback_log`. Hapus = soft delete, hanya Admin. File improvement memakai disk `project_files` dan route ber-policy dengan pola yang sama seperti file project.
+- "To Project" adalah aksi terpisah (`improvements.convert`): membuat project kategori Improvement (status Not Started, prioritas Medium, PIC = pengaju bila masih user aktif, jika tidak yang mengonversi; deskripsi dari Masalah/Latar belakang/Tujuan/Target), menautkan `project_id`, mengubah keputusan jadi To Project dan status Disetujui. Satu improvement hanya bisa dikonversi sekali (error validasi `convert`).
+- Log ke `activity_logs` module IMPROVEMENT (CREATE/UPDATE/REVIEW/CONVERT/DELETE/UPLOAD_FILE/DELETE_FILE).
+
+Temuan: asumsi Fase 2 salah. Riwayat impor (`LEGACY_LOG`) memakai `record_id = legacy:<id baris log>`, bukan id project; id project asal ada di `new_data.scope`. Detail project kini mencocokkan lewat `new_data LIKE '%"scope":"<legacy_id>"%'` (432 dari 859 log punya project; sisanya label modul AUTH/TOOLING dst.).
+
+Verifikasi: `ProjectsPhase3Test` 11 test (gantt+filter, hak ajukan, visibilitas, edit hanya saat Baru, tinjauan, konversi sekali, file + guard script/MIME, hapus Admin, My Work, riwayat legacy, paritas lang). Suite penuh 650 test: 646 lulus, 3 skip lama, 1 gagal lama (`ExportLocaleTest`/ZipArchive). Pint, ESLint (1 warning lama), tsc, `npm run build` lulus; Prettier hanya `resources/ai/trial_document.schema.json` (lama); Larastan hanya error lama migration `rename_pi_review_team_to_pie`. Live Playwright (Chromium headless, 1440 + 390px) terhadap sqlite sementara di scratchpad yang diisi `projects:import-legacy` dari `project_tracker` lokal (baca saja; DB bersama tidak disentuh): Gantt menggambar 249 bar rencana + 170 bar aktual dari data nyata, filter PIC jalan, Portofolio menyala di halaman detail, kontributor hanya melihat miliknya, alur ajukan -> tinjau -> buat project (pra-isi benar) -> tautan balik, My Work kedua kartu, tanpa error console, tanpa overflow horizontal di mobile.
+
 ## 8. Prompt siap pakai
 
 ### Prompt Fase 1 (tempel di chat baru)
@@ -208,6 +223,22 @@ Gunakan pola Fase 2 (controller + Action + FormRequest, ConfirmDialog/Dialog/Fil
 
 Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum user menyetujui. Verifikasi live: buat sqlite sementara di scratchpad (export DB_CONNECTION=sqlite DB_DATABASE=<path> SESSION_DRIVER=file CACHE_STORE=file PROJECT_FILES_PATH=<dir>, cek config('database.default') dulu), migrate --database=sqlite, `projects:import-legacy`, lalu Playwright (playwright-core + chromium cache ms-playwright/chromium-1248). Jangan taskkill php.exe massal (matikan hanya PID di port server). K1-K3 pakai default bagian 3.
 Definisi selesai: paritas fitur dengan Project Tracking lama (Gantt, My Work, Improvement); gate CI hijau (kegagalan lama: Larastan migration rename_pi_review_team_to_pie, ExportLocaleTest/ZipArchive, Prettier resources/ai/trial_document.schema.json); live Playwright pada data impor nyata. Di akhir ikuti ritual penutup bagian 6 dan tulis prompt Fase 4.
+```
+
+### Prompt Fase 4 (tempel di chat baru)
+
+```
+Lanjutkan penggabungan Project Tracking PIE ke new_trial_validation_app/ (branch feat/integration-project-tracking). Baca dulu: PROJECT_MODULE_PLAN.md (bagian 4, 5 Fase 4, bagian 7 "Hasil Fase 1-3"), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (bagian "Projects module" Fase 1-3; insiden DB 2026-08-24; aturan prod additive-only). Fase 1-3 sudah selesai dan di-push: tabel pm_*, importer, UI inti, Gantt, My Work, board Improvement.
+
+Kerjakan HANYA Fase 4 (Tautan ke Trial):
+1. Stage tipe Validation punya trial_id (kolom sudah ada di pm_stages); tombol "Buat Draft Trial" dari stage memakai Action CreateTrial yang sudah ada (data awal dari project: produk/mesin bila tersedia) lalu menyimpan trial_id.
+2. Status stage mengikuti status Trial (Approved -> stage Completed, 100%; Rejected/Need Revision ditampilkan di stage), lewat Action yang dipanggil dari SaveApprovalDecision, bukan polling.
+3. Tautan mesin dan produk (combobox, master_options machine + products), notifikasi ke PIC project saat trial tertaut berubah status (pakai CreateNotification).
+4. Rencana bot (opsional, boleh ditunda): intent status project.
+Pakai pola Fase 2-3 (controller + Action + FormRequest, lang group projects id/en/ko, log activity_logs).
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum user menyetujui. Verifikasi live: sqlite sementara di scratchpad (export DB_CONNECTION=sqlite DB_DATABASE=<path> SESSION_DRIVER=file CACHE_STORE=file PROJECT_FILES_PATH=<dir>, cek config('database.default') dulu; tinker --execute tanpa env itu menembak DB bersama), migrate --database=sqlite, projects:import-legacy, Playwright (playwright-core di scratchpad + chromium cache ms-playwright/chromium-1248, chrome-win64/chrome.exe). Jangan taskkill php.exe massal (matikan hanya PID di port server).
+Definisi selesai: dari stage Validation PIC bisa membuat draft Trial dan statusnya tersinkron; gate CI hijau (kegagalan lama: Larastan migration rename_pi_review_team_to_pie, ExportLocaleTest/ZipArchive, Prettier resources/ai/trial_document.schema.json); live Playwright. Di akhir ikuti ritual penutup bagian 6 dan tulis prompt Fase 5 (cutover).
 ```
 
 ### Template prompt fase berikutnya

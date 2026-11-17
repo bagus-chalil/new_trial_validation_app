@@ -236,6 +236,38 @@ return [
         ],
     ],
 
+    'gantt' => [
+        'title' => '프로젝트 간트',
+        'description' => '병렬 단계와 마일스톤을 포함한 단계별 계획 대비 실제.',
+        'head_title' => '프로젝트 간트',
+        'plan' => '계획',
+        'actual' => '실제',
+        'today' => '오늘',
+        'project' => '프로젝트',
+        'all_projects' => '모든 프로젝트',
+        'all_pics' => '모든 담당자',
+        'all_statuses' => '모든 상태',
+        'empty' => '표시할 프로젝트가 없습니다.',
+        'no_stages' => '단계 없음',
+        'no_dates' => '계획 날짜가 없는 단계는 표시되지 않습니다.',
+        'truncated' => '처음 :count개 프로젝트만 표시됩니다. 필터로 좁혀 주세요.',
+        'milestone' => '마일스톤',
+        'parallel' => '병렬',
+        'legend_plan' => '계획',
+        'legend_actual' => '실제 (진행률)',
+        'legend_milestone' => '마일스톤',
+    ],
+
+    'my_work' => [
+        'projects_title' => '내 프로젝트',
+        'projects_empty' => '진행 중인 프로젝트가 없습니다.',
+        'projects_view_all' => '모든 프로젝트 보기',
+        'improvements_title' => '내 개선 제안',
+        'improvements_empty' => '진행 중인 개선 제안이 없습니다.',
+        'improvements_view_all' => '개선 제안 보드 열기',
+        'improvements_review' => '검토 대기: :count',
+    ],
+
     'upload' => [
         'dangerous' => '파일 ":name" 거부됨: 허용되지 않는 스크립트 확장자가 파일명에 포함되어 있습니다.',
         'type_not_allowed' => '파일 ":name" 거부됨: 허용되지 않는 파일 형식입니다.',

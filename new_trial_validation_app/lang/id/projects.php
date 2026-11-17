@@ -236,6 +236,38 @@ return [
         ],
     ],
 
+    'gantt' => [
+        'title' => 'Gantt Project',
+        'description' => 'Rencana vs aktual setiap stage, termasuk stage paralel dan milestone.',
+        'head_title' => 'Gantt Project',
+        'plan' => 'Rencana',
+        'actual' => 'Aktual',
+        'today' => 'Hari ini',
+        'project' => 'Project',
+        'all_projects' => 'Semua project',
+        'all_pics' => 'Semua PIC',
+        'all_statuses' => 'Semua status',
+        'empty' => 'Tidak ada project untuk ditampilkan.',
+        'no_stages' => 'Belum ada stage',
+        'no_dates' => 'Stage tanpa tanggal rencana tidak digambar.',
+        'truncated' => 'Hanya :count project pertama yang ditampilkan. Gunakan filter untuk mempersempit.',
+        'milestone' => 'Milestone',
+        'parallel' => 'Paralel',
+        'legend_plan' => 'Rencana',
+        'legend_actual' => 'Aktual (progres)',
+        'legend_milestone' => 'Milestone',
+    ],
+
+    'my_work' => [
+        'projects_title' => 'Project Saya',
+        'projects_empty' => 'Tidak ada project aktif.',
+        'projects_view_all' => 'Lihat semua project',
+        'improvements_title' => 'Improvement Saya',
+        'improvements_empty' => 'Tidak ada improvement terbuka.',
+        'improvements_view_all' => 'Buka board improvement',
+        'improvements_review' => 'Perlu Anda tinjau: :count',
+    ],
+
     'upload' => [
         'dangerous' => 'File ":name" ditolak: nama file mengandung ekstensi script yang tidak diizinkan.',
         'type_not_allowed' => 'File ":name" ditolak: tipe file tidak diizinkan.',

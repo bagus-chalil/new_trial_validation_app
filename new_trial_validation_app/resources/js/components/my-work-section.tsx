@@ -5,6 +5,8 @@ import {
     ClipboardCheck,
     Clock,
     FileEdit,
+    FolderKanban,
+    Lightbulb,
 } from 'lucide-react';
 import TrialController from '@/actions/App/Http/Controllers/TrialController';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
@@ -14,11 +16,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from '@/hooks/use-translation';
+import { improvementStatusLabel, projectStatusLabel } from '@/lib/project';
 import {
     trialStatusBadgeClassName,
     trialStatusLabel,
 } from '@/lib/trial-status';
 import { index as approvalsIndex } from '@/routes/approvals';
+import { index as projectsIndex, show as projectShow } from '@/routes/projects';
+import {
+    index as improvementsIndex,
+    show as improvementShow,
+} from '@/routes/projects/improvements';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { edit as editTrial } from '@/routes/trials';
 
@@ -61,7 +69,28 @@ type RecentlyDecided = {
     final_decision: string | null;
 };
 
+type MyProject = {
+    id: number;
+    name: string;
+    code: string;
+    status: string;
+    progress: number;
+    end_date: string | null;
+};
+
+type MyImprovement = {
+    id: number;
+    title: string;
+    status: string;
+};
+
 export type MyWork = {
+    myProjects: MyProject[];
+    myProjectsTotal: number;
+    myImprovements: MyImprovement[];
+    myImprovementsTotal: number;
+    canReviewImprovements: boolean;
+    improvementsToReviewTotal: number;
     draftTrials: MyTrial[];
     draftTrialsTotal: number;
     needsRevisionTrials: MyTrial[];
@@ -230,13 +259,18 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
     const showInProgress = myWork.inProgressTrialsTotal > 0;
     const showReviews = canReviewTrials;
     const showApprovals = canApproveTrials;
+    const showProjects = myWork.myProjectsTotal > 0;
+    const showImprovements =
+        myWork.myImprovementsTotal > 0 || myWork.improvementsToReviewTotal > 0;
 
     if (
         !showDrafts &&
         !showNeedsRevision &&
         !showInProgress &&
         !showReviews &&
-        !showApprovals
+        !showApprovals &&
+        !showProjects &&
+        !showImprovements
     ) {
         return null;
     }
@@ -279,6 +313,111 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
                         editable={false}
                         actionHint={t('dashboard.my_work.in_progress_hint')}
                     />
+                )}
+
+                {showProjects && (
+                    <Card>
+                        <CardHeader className="flex-row items-center gap-2 space-y-0">
+                            <FolderKanban className="size-4 text-muted-foreground" />
+                            <CardTitle className="text-sm">
+                                {t('projects.my_work.projects_title')} (
+                                {myWork.myProjectsTotal})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {myWork.myProjects.map((project) => (
+                                <div
+                                    key={project.id}
+                                    className="space-y-1 border-b pb-2 last:border-b-0 last:pb-0"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Link
+                                            href={projectShow(project.id).url}
+                                            className="font-medium underline underline-offset-2"
+                                        >
+                                            {project.name}
+                                        </Link>
+                                        <Badge variant="outline">
+                                            {projectStatusLabel(
+                                                t,
+                                                project.status,
+                                            )}
+                                        </Badge>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {project.progress}%
+                                        {project.end_date
+                                            ? ` · ${project.end_date}`
+                                            : ''}
+                                    </div>
+                                </div>
+                            ))}
+                            {myWork.myProjectsTotal >
+                                myWork.myProjects.length && (
+                                <p className="text-xs text-muted-foreground">
+                                    {t('dashboard.my_work.more', {
+                                        count:
+                                            myWork.myProjectsTotal -
+                                            myWork.myProjects.length,
+                                    })}
+                                </p>
+                            )}
+                            <Link
+                                href={projectsIndex().url}
+                                className="text-xs underline underline-offset-2"
+                            >
+                                {t('projects.my_work.projects_view_all')}
+                            </Link>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {showImprovements && (
+                    <Card>
+                        <CardHeader className="flex-row items-center gap-2 space-y-0">
+                            <Lightbulb className="size-4 text-muted-foreground" />
+                            <CardTitle className="text-sm">
+                                {t('projects.my_work.improvements_title')} (
+                                {myWork.myImprovementsTotal})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {myWork.myImprovements.length === 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    {t('projects.my_work.improvements_empty')}
+                                </p>
+                            )}
+                            {myWork.myImprovements.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="flex items-center justify-between gap-2 border-b pb-2 last:border-b-0 last:pb-0"
+                                >
+                                    <Link
+                                        href={improvementShow(item.id).url}
+                                        className="font-medium underline underline-offset-2"
+                                    >
+                                        {item.title}
+                                    </Link>
+                                    <Badge variant="outline">
+                                        {improvementStatusLabel(t, item.status)}
+                                    </Badge>
+                                </div>
+                            ))}
+                            {myWork.canReviewImprovements && (
+                                <p className="text-xs text-muted-foreground">
+                                    {t('projects.my_work.improvements_review', {
+                                        count: myWork.improvementsToReviewTotal,
+                                    })}
+                                </p>
+                            )}
+                            <Link
+                                href={improvementsIndex().url}
+                                className="text-xs underline underline-offset-2"
+                            >
+                                {t('projects.my_work.improvements_view_all')}
+                            </Link>
+                        </CardContent>
+                    </Card>
                 )}
 
                 {showReviews && (

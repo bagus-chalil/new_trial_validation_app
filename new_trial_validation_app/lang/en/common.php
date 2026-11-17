@@ -35,6 +35,8 @@ return [
         'projects' => 'Projects',
         'project_portfolio' => 'Portfolio',
         'project_quotations' => 'Quotation & PO',
+        'project_gantt' => 'Gantt',
+        'project_improvements' => 'Improvement',
         'old_app' => 'Legacy Application',
         'open_old_app' => 'Open Legacy Application',
     ],

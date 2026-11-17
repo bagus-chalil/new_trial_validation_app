@@ -35,6 +35,8 @@ return [
         'projects' => '프로젝트',
         'project_portfolio' => '포트폴리오',
         'project_quotations' => '견적 및 PO',
+        'project_gantt' => '간트',
+        'project_improvements' => '개선 제안',
         'old_app' => '기존 애플리케이션',
         'open_old_app' => '기존 애플리케이션 열기',
     ],

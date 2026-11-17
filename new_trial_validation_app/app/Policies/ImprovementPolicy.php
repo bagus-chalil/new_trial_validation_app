@@ -18,9 +18,15 @@ class ImprovementPolicy
         return true;
     }
 
+    /** Whether this user sees every improvement (else only their own). */
+    public function seesAll(User $user): bool
+    {
+        return $user->isStaff() || $this->isPiReviewer($user);
+    }
+
     public function view(User $user, Improvement $improvement): bool
     {
-        return $user->isStaff() || $this->isOwner($user, $improvement) || $this->isPiReviewer($user);
+        return $this->seesAll($user) || $this->isOwner($user, $improvement);
     }
 
     public function create(User $user): bool

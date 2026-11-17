@@ -82,3 +82,24 @@ export function formatMoney(
         return `${currency} ${amount.toLocaleString(intlLocale)}`;
     }
 }
+
+export const improvementStatusLabel = (t: TranslateFn, status: string) =>
+    translateOrRaw(t, `improvements.status.${status}`, status);
+
+export const improvementDecisionLabel = (t: TranslateFn, decision: string) =>
+    translateOrRaw(t, `improvements.decision.${decision}`, decision);
+
+export const improvementStatusClassName = (status: string): string => {
+    switch (status) {
+        case 'Disetujui':
+            return 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200';
+        case 'Review PI':
+            return 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200';
+        case 'Menunggu Data':
+            return 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200';
+        case 'Tidak Perlu Improvement':
+            return 'border-border bg-muted text-muted-foreground';
+        default:
+            return 'border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200';
+    }
+};

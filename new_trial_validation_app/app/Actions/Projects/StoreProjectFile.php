@@ -6,7 +6,7 @@ use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectQuotation;
 use App\Models\User;
-use App\Support\ProjectOptions;
+use App\Support\ProjectUploadGuard;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -29,25 +29,7 @@ class StoreProjectFile
     public function __invoke(Project $project, UploadedFile $upload, string $context, ?int $stageId, ?int $quotationId, ?string $description, User $user): ProjectFile
     {
         $originalName = $upload->getClientOriginalName();
-        $extension = strtolower($upload->getClientOriginalExtension());
-
-        if (preg_match(ProjectOptions::DANGEROUS_NAME_PATTERN, $originalName) === 1) {
-            throw new InvalidArgumentException(__('projects.upload.dangerous', ['name' => $originalName]));
-        }
-
-        if ($extension === '' || ! array_key_exists($extension, ProjectOptions::UPLOAD_MIMES)) {
-            throw new InvalidArgumentException(__('projects.upload.type_not_allowed', ['name' => $originalName]));
-        }
-
-        if (! $upload->isValid() || $upload->getSize() > ProjectOptions::MAX_UPLOAD_BYTES) {
-            throw new InvalidArgumentException(__('projects.upload.too_large', ['name' => $originalName]));
-        }
-
-        $detected = strtolower((string) ($upload->getMimeType() ?: 'application/octet-stream'));
-
-        if (! in_array($detected, ProjectOptions::UPLOAD_MIMES[$extension], true)) {
-            throw new InvalidArgumentException(__('projects.upload.mime_mismatch', ['name' => $originalName, 'mime' => $detected, 'ext' => $extension]));
-        }
+        ['extension' => $extension, 'mime' => $detected] = ProjectUploadGuard::check($upload);
 
         $stored = bin2hex(random_bytes(16)).'.'.$extension;
 

@@ -236,6 +236,38 @@ return [
         ],
     ],
 
+    'gantt' => [
+        'title' => 'Project Gantt',
+        'description' => 'Plan vs actual for every stage, including parallel stages and milestones.',
+        'head_title' => 'Project Gantt',
+        'plan' => 'Plan',
+        'actual' => 'Actual',
+        'today' => 'Today',
+        'project' => 'Project',
+        'all_projects' => 'All projects',
+        'all_pics' => 'All PICs',
+        'all_statuses' => 'All statuses',
+        'empty' => 'No projects to show.',
+        'no_stages' => 'No stages yet',
+        'no_dates' => 'Stages without planned dates are not drawn.',
+        'truncated' => 'Only the first :count projects are shown. Use the filters to narrow down.',
+        'milestone' => 'Milestone',
+        'parallel' => 'Parallel',
+        'legend_plan' => 'Plan',
+        'legend_actual' => 'Actual (progress)',
+        'legend_milestone' => 'Milestone',
+    ],
+
+    'my_work' => [
+        'projects_title' => 'My Projects',
+        'projects_empty' => 'No active projects.',
+        'projects_view_all' => 'View all projects',
+        'improvements_title' => 'My Improvements',
+        'improvements_empty' => 'No open improvements.',
+        'improvements_view_all' => 'Open improvement board',
+        'improvements_review' => 'Waiting for your review: :count',
+    ],
+
     'upload' => [
         'dangerous' => 'File ":name" rejected: the file name contains a script extension that is not allowed.',
         'type_not_allowed' => 'File ":name" rejected: file type is not allowed.',

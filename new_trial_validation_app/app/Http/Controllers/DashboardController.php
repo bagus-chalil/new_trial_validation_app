@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Improvement;
 use App\Models\MasterOption;
+use App\Models\Project;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
@@ -222,6 +224,29 @@ class DashboardController extends Controller
                 ->get(['id', 'trial_code', 'product_name', 'final_decision', 'updated_at']);
         }
 
+        // Projects module: own active projects and own/pending improvements.
+        $ownProjectQuery = Project::query()
+            ->whereNull('deleted_at')
+            ->where('status', '!=', 'Completed')
+            ->where(fn ($q) => $q->where('pic_user_id', $user->id)->orWhere('created_by_user_id', $user->id));
+        $myProjectsTotal = (clone $ownProjectQuery)->count();
+        $myProjects = (clone $ownProjectQuery)->orderBy('end_date')->orderBy('id')->limit(5)
+            ->get(['id', 'name', 'code', 'status', 'progress', 'end_date']);
+
+        $ownImprovementQuery = Improvement::query()
+            ->whereNull('deleted_at')
+            ->where('submitted_by_user_id', $user->id)
+            ->whereIn('status', ['Baru', 'Review PI', 'Menunggu Data']);
+        $myImprovementsTotal = (clone $ownImprovementQuery)->count();
+        $myImprovements = (clone $ownImprovementQuery)->orderByDesc('id')->limit(5)
+            ->get(['id', 'title', 'status']);
+
+        $piReviewQuery = Improvement::query()
+            ->whereNull('deleted_at')
+            ->whereIn('status', ['Baru', 'Review PI']);
+        $canReviewImprovements = Gate::forUser($user)->allows('review', new Improvement);
+        $improvementsToReviewTotal = $canReviewImprovements ? (clone $piReviewQuery)->count() : 0;
+
         $trialSummary = fn (Trial $t) => [
             'id' => $t->id,
             'trial_code' => $t->trial_code,
@@ -237,6 +262,23 @@ class DashboardController extends Controller
         ];
 
         return [
+            'myProjects' => $myProjects->map(fn (Project $p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'code' => $p->code,
+                'status' => $p->status,
+                'progress' => $p->progress,
+                'end_date' => $p->end_date?->format('Y-m-d'),
+            ])->values(),
+            'myProjectsTotal' => $myProjectsTotal,
+            'myImprovements' => $myImprovements->map(fn (Improvement $i) => [
+                'id' => $i->id,
+                'title' => $i->title,
+                'status' => $i->status,
+            ])->values(),
+            'myImprovementsTotal' => $myImprovementsTotal,
+            'canReviewImprovements' => $canReviewImprovements,
+            'improvementsToReviewTotal' => $improvementsToReviewTotal,
             'draftTrials' => $draftTrials->map($draftTrialSummary)->values(),
             'draftTrialsTotal' => $draftTrialsTotal,
             'needsRevisionTrials' => $needsRevisionTrials->map($trialSummary)->values(),

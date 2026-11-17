@@ -19,7 +19,11 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property string $decision
  * @property int|null $project_id
+ * @property Carbon|null $submitted_at
+ * @property array<int, string>|null $links
+ * @property array<int, array<string, mixed>>|null $feedback_log
  * @property Carbon|null $deleted_at
+ * @property int|null $deleted_by
  */
 class Improvement extends Model
 {

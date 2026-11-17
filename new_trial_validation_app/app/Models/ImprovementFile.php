@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $improvement_id
  * @property string $stored_name
  * @property bool $is_missing
+ * @property Carbon|null $uploaded_at
  */
 class ImprovementFile extends Model
 {

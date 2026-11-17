@@ -12,10 +12,18 @@ import type { NavGroup } from '@/types';
 
 export function NavMain({ groups = [] }: { readonly groups: NavGroup[] }) {
     const { isCurrentUrl } = useCurrentUrl();
-    const { trial } = usePage<{ trial?: { progress_status?: string } }>().props;
+    const { props, url } = usePage<{
+        trial?: { progress_status?: string };
+    }>();
+    const { trial } = props;
+    const pathname = url.split('?')[0];
 
     function isItemActive(item: NavGroup['items'][number]) {
         if (isCurrentUrl(item.href)) {
+            return true;
+        }
+
+        if (item.activePattern && item.activePattern.test(pathname)) {
             return true;
         }
 

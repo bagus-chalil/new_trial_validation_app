@@ -135,7 +135,19 @@ class ProjectController extends Controller
 
         $logs = ActivityLog::query()
             ->where('module', 'PROJECT')
-            ->where('record_id', (string) $project->id)
+            ->where(function ($w) use ($project) {
+                $w->where('record_id', (string) $project->id);
+
+                // Imported legacy history: `record_id` is the legacy log row id,
+                // the owning project's legacy id sits in `new_data.scope`.
+                if ($project->legacy_id) {
+                    $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string) $project->legacy_id);
+                    $w->orWhere(fn ($legacy) => $legacy
+                        ->where('action', 'LEGACY_LOG')
+                        ->where('new_data', 'like', '%"scope":"'.$like.'"%'));
+                }
+            })
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(30)
             ->get(['id', 'user_name', 'action', 'old_data', 'new_data', 'created_at']);

@@ -205,6 +205,27 @@ export function contextualBreadcrumbs(
             ];
         }
 
+        if (segments[1] === 'gantt') {
+            return [
+                item(projects, '/projects'),
+                item(t('common.nav.project_gantt'), '#'),
+            ];
+        }
+
+        if (segments[1] === 'improvements') {
+            const board = t('common.nav.project_improvements');
+
+            if (segments.length === 2) {
+                return [item(projects, '/projects'), item(board, '#')];
+            }
+
+            return [
+                item(projects, '/projects'),
+                item(board, '/projects/improvements'),
+                item(t('improvements.show.section_detail'), '#'),
+            ];
+        }
+
         const detailLabel =
             segments[1] === 'create'
                 ? t('projects.new')

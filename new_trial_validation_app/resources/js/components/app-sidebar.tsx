@@ -7,6 +7,8 @@ import {
     Bot,
     BriefcaseBusiness,
     FolderKanban,
+    GanttChartSquare,
+    Lightbulb,
     Receipt,
     CheckCircle2,
     CircleCheckBig,
@@ -53,6 +55,8 @@ import { index as usersIndex } from '@/routes/admin/users';
 import { index as approvalsIndex } from '@/routes/approvals';
 import { index as monitoringIndex } from '@/routes/monitoring';
 import { index as projectsIndex } from '@/routes/projects';
+import { gantt as ganttIndex } from '@/routes/projects';
+import { index as improvementsIndex } from '@/routes/projects/improvements';
 import { index as quotationsIndex } from '@/routes/projects/quotations';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
@@ -151,6 +155,18 @@ export function AppSidebar() {
                     title: t('common.nav.project_portfolio'),
                     href: projectsIndex(),
                     icon: FolderKanban,
+                    activePattern: /^\/projects\/(\d+|create)(\/|$)/,
+                },
+                {
+                    title: t('common.nav.project_gantt'),
+                    href: ganttIndex(),
+                    icon: GanttChartSquare,
+                },
+                {
+                    title: t('common.nav.project_improvements'),
+                    href: improvementsIndex(),
+                    icon: Lightbulb,
+                    activePattern: /^\/projects\/improvements\//,
                 },
                 {
                     title: t('common.nav.project_quotations'),

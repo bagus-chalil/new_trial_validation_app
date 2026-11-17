@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Controllers\ImprovementController;
+use App\Http\Controllers\ImprovementFileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFileController;
+use App\Http\Controllers\ProjectGanttController;
 use App\Http\Controllers\ProjectMilestoneController;
 use App\Http\Controllers\ProjectQuotationController;
 use App\Http\Controllers\ProjectStageController;
@@ -14,6 +17,22 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
 
     // Cross-project Quotation & PO list; declared before {project} routes.
     Route::get('quotations', [ProjectQuotationController::class, 'index'])->name('quotations.index');
+
+    Route::get('gantt', [ProjectGanttController::class, 'index'])->name('gantt');
+
+    Route::prefix('improvements')->as('improvements.')->where(['improvement' => '[0-9]+', 'file' => '[0-9]+'])->group(function () {
+        Route::get('/', [ImprovementController::class, 'index'])->name('index');
+        Route::post('/', [ImprovementController::class, 'store'])->name('store');
+        Route::get('{improvement}', [ImprovementController::class, 'show'])->name('show');
+        Route::put('{improvement}', [ImprovementController::class, 'update'])->name('update');
+        Route::post('{improvement}/review', [ImprovementController::class, 'review'])->name('review');
+        Route::post('{improvement}/convert', [ImprovementController::class, 'convert'])->name('convert');
+        Route::delete('{improvement}', [ImprovementController::class, 'destroy'])->name('destroy');
+
+        Route::post('{improvement}/files', [ImprovementFileController::class, 'store'])->name('files.store');
+        Route::get('{improvement}/files/{file}', [ImprovementFileController::class, 'show'])->name('files.show');
+        Route::delete('{improvement}/files/{file}', [ImprovementFileController::class, 'destroy'])->name('files.destroy');
+    });
 
     Route::where(['project' => '[0-9]+', 'stage' => '[0-9]+', 'milestone' => '[0-9]+', 'quotation' => '[0-9]+', 'file' => '[0-9]+'])->group(function () {
         Route::get('{project}', [ProjectController::class, 'show'])->name('show');
