@@ -31,8 +31,8 @@ export function ShelfLifeInput({
     disabled?: boolean;
     className?: string;
 }) {
-    // Start in years when the stored value is a whole number of years, otherwise in months.
-    const [unit, setUnit] = useState<Unit>(() => (Number(months) >= 12 && Number(months) % 12 === 0 ? 'tahun' : 'bulan'));
+    // Default to years (the usual unit on the IM); fall back to months only when the stored value is not a whole number of years.
+    const [unit, setUnit] = useState<Unit>(() => (Number(months) > 0 && Number(months) % 12 !== 0 ? 'bulan' : 'tahun'));
     const [text, setText] = useState(() => toDisplay(months, unit));
     const lastEmitted = useRef(months);
 
