@@ -865,6 +865,86 @@ systemctl status ipc-app-vision-queue ipc-app-vision-queue-development
   PHP-FPM harus jalan sebagai user yang sama (`www-data`) di server yang sama (sama seperti section 11).
 - `--timeout=200` harus di atas `VISION_LLM_TIMEOUT` (150) dan di bawah `DB_QUEUE_RETRY_AFTER` (360).
 - Job yang gagal/mati tidak mengganggu operator: kartu menampilkan "Belum terbaca" + tombol "Coba lagi".
+- Setelah deploy, `php artisan queue:restart` dari CI (section 11) juga me-restart worker ini; tidak perlu langkah tambahan.
+
+## 11c. Checklist server: AI Startup Check (ipc_app, dev dan prod)
+
+Rangkuman urut untuk mengaktifkan "Rekomendasi AI". Fitur ini **advisory**: tidak pernah memblokir Simpan, tidak
+mengisi keputusan. Dijalankan per environment di server (`cd <DEPLOY_PATH>/ipc_app`). Penanda: **[kode]** = sudah
+dicek dari kode repo, **[server]** = hanya bisa dikonfirmasi di server.
+
+**Env (`ipc_app/.env`, di-exclude dari rsync, edit manual).** Semua dibaca dari `config/vision.php`:
+
+| Variabel | Default | Catatan |
+|---|---|---|
+| `VISION_SERVICE_URL` | `http://100.100.160.31:8000` | Harus terjangkau dari server ini (langkah 4) |
+| `VISION_SERVICE_TIMEOUT` | 90 | OCR tube biasa (HTTP, detik) |
+| `VISION_LLM_TIMEOUT` | 150 | Semua field_type LLM; harus < `--timeout=200` worker |
+| `VISION_SERVICE_CONNECT_TIMEOUT` | 5 | |
+| `VISION_STARTUP_AI_ENABLED` | `false` | `true` untuk menyalakan; `false` = route 404, kartu tersembunyi |
+| `VISION_TUBE_LLM_FIELD_TYPE` | `tube_exp_llm` | Kosong = baca LLM tube mati |
+| `DB_QUEUE_RETRY_AFTER` | 360 | Jangan diturunkan (harus > 200 dan > 300) |
+| `QUEUE_CONNECTION` | `database` | Wajib `database`, bukan `sync` |
+
+1. **Env terisi, cache config bersih.**
+   ```bash
+   grep -E '^(VISION_|QUEUE_CONNECTION|DB_QUEUE_RETRY_AFTER)' .env
+   sudo -u www-data php artisan config:clear
+   sudo -u www-data php artisan tinker --execute="dump(config('vision.base_url'), config('vision.startup_ai.enabled'), config('vision.llm_timeout'), config('vision.startup_ai.tube_llm_field_type'));"
+   ```
+2. **Migrasi** (`ipc_logs.comparison` dari `2026_11_12_100000`, tabel `ipc_ai_field_feedback` dari `2026_11_17_100000`)
+   dijalankan otomatis oleh pipeline (`php artisan migrate --force`); **tidak ada tindakan manual**. Verifikasi:
+   ```bash
+   sudo -u www-data php artisan migrate:status | grep -E 'add_comparison_to_ipc_logs|create_ipc_ai_field_feedback'
+   ```
+   Keduanya harus `Ran`. Jangan jalankan `migrate` manual di DB bersama kalau pipeline belum selesai.
+3. **Vision Service terjangkau + field type lengkap** (`vision:ping` memeriksa `/api/health` dan semua field_type di
+   `field_types` + `llm_field_types`, termasuk `tube_exp_llm`; exit 0 = semua ada):
+   ```bash
+   sudo -u www-data php artisan vision:ping; echo "exit=$?"
+   curl -sS -m 10 "$VISION_SERVICE_URL/api/health"
+   ```
+   Baris `[TIDAK ADA di Vision Service] tube_exp_llm` berarti Vision Service lama / belum direstart setelah update
+   `llm_extract.py`.
+4. **Worker vision aktif** (section 11b, satu proses, queue `vision,vision-slow`):
+   ```bash
+   systemctl is-active ipc-app-vision-queue            # production
+   systemctl is-active ipc-app-vision-queue-development # development
+   journalctl -u ipc-app-vision-queue -n 30 --no-pager
+   ps aux | grep '[q]ueue:work' | grep -c vision        # harus 1
+   ```
+   Queue `default` (Import Excel, `ipc-app-queue`) adalah service lain; keduanya harus aktif.
+5. **Timeout web (nginx / php-fpm).** Alur normal (`ai-queue` lalu `ai-status` polling) hanya mengantre job dan
+   membalas cepat, jadi **tidak butuh timeout panjang**; bacaan AI jalan di worker (CLI, tanpa batas PHP-FPM).
+   `fastcgi_read_timeout` di contoh nginx ipc_app **tidak diset** (default 60 dtk). Timeout panjang hanya perlu bila
+   memakai halaman "OCR Test Product" (`VisionTestController`, hingga 90+30 dtk) atau route lama sinkron `ai-read`
+   (tanpa UI, hingga ~400 dtk). Kalau ingin aman untuk keduanya, di blok `location ~ \.php$` vhost ipc_app:
+   `fastcgi_read_timeout 400s;` lalu `sudo nginx -t && sudo systemctl reload nginx`, dan pastikan
+   `request_terminate_timeout` pool php-fpm tidak lebih rendah (`grep -rn request_terminate_timeout /etc/php/*/fpm/pool.d/`;
+   `0` = tanpa batas, aman).
+6. **Nyalakan fitur** (setelah langkah 1-4 hijau): `VISION_STARTUP_AI_ENABLED=true`, `php artisan config:clear`.
+   Uji dengan satu batch di Startup Check: simpan foto Label Bulk, kartu Rekomendasi AI harus berpindah dari
+   "Menunggu antrean AI..." ke hasil dalam beberapa detik. Cek jejaknya:
+   ```bash
+   sudo -u www-data php artisan tinker --execute="dump(App\Models\IpcLog::latest('id')->take(3)->get(['id','field_type','decision','created_at'])->toArray());"
+   ```
+7. **Ukuran piksel foto baru** (commit `99a0db3` + dialog kamera 2026-11-12; resolusi di tablet asli belum pernah
+   dicek). Setelah satu foto diambil dari tablet:
+   ```bash
+   cd storage/app/public && find . -type f -mmin -30 -name '*.jpg' -exec identify -format '%w x %h  %b  %i\n' {} \;
+   ```
+   (atau `file <path>`). Sisi panjang harus mendekati 1600 px (2048 px bila "Tinggi"); kalau masih 640x480,
+   OCR Vision Service tidak akan akurat. Perlu dicek **[server + tablet]**.
+
+**Hal yang belum ada / perlu keputusan:**
+- **Vision Service tanpa auth dan HTTP polos** (`HttpVisionClient` tidak mengirim header auth/token; URL `http://`).
+  Foto produksi dikirim tanpa enkripsi dan siapa pun yang bisa menjangkau port 8000 bisa memanggilnya. Saat ini
+  hanya dibatasi allowlist firewall (`10.10.162.0/24`, `100.100.160.0/24`). Keputusan: tetap di allowlist,
+  atau tambah token + HTTPS (butuh perubahan di Vision Service dan di klien).
+- **Ollama GPU (`100.100.160.26`) hanya listen di `127.0.0.1`**: tidak bisa dijangkau dari server ipc_app. Bukan
+  masalah ipc_app langsung (ipc_app bicara ke Vision Service, bukan Ollama), tetapi Vision Service harus berjalan
+  di host yang bisa mencapai Ollama (tunnel SSH atau reverse proxy di sisi Vision Service). **[server]**
+- Ukuran foto ~200-350 KB per foto (perkiraan, belum diukur di produksi); pantau disk `storage/app/public`.
 
 ## 12. Scheduler Laravel (wajib untuk self-learning AI)
 
