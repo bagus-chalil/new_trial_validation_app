@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A stage (task) of a project. `stage_type` is 'Validation' for stages named
@@ -15,6 +16,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $stage_type
  * @property string $name
  * @property int|null $trial_id
+ * @property Carbon|null $plan_start
+ * @property Carbon|null $plan_end
+ * @property Carbon|null $actual_start
+ * @property Carbon|null $actual_end
+ * @property int $progress
+ * @property bool $is_parallel
+ * @property string $status
+ * @property string $pic_name
+ * @property string|null $note
  */
 class ProjectStage extends Model
 {

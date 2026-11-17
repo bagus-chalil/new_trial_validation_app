@@ -77,12 +77,14 @@ Setiap fase = satu sesi/chat. Jangan lompat fase. Branch kerja: `feat/integratio
 > **Fase 1 selesai 2026-11-17** (hasil lengkap di bagian 7). Impor sungguhan ke DB bersama BELUM dijalankan.
 
 ### Fase 2 — Inti Project (UI)
-- [ ] Sidebar grup "Projects" (Portofolio, Gantt, Improvement, Quotation & PO), role-gated, string i18n ID/EN/KO
-- [ ] Portofolio: KPI, daftar + filter, project aktif, kartu "Perlu perhatian"
-- [ ] Form project (buat/ubah), detail project, stage CRUD, milestone
-- [ ] Quotation & PO, upload file lewat route ter-otorisasi
-- [ ] Log ke `activity_logs`
+- [x] Sidebar grup "Projects" (Portofolio, Quotation & PO), role-gated, string i18n ID/EN/KO. **Gantt dan Improvement belum ada di sidebar** (halamannya baru dibangun di Fase 3; tidak ada link ke halaman yang belum ada)
+- [x] Portofolio: KPI, daftar + filter, project aktif, kartu "Perlu perhatian"
+- [x] Form project (buat/ubah), detail project, stage CRUD, milestone
+- [x] Quotation & PO, upload file lewat route ter-otorisasi
+- [x] Log ke `activity_logs` (module PROJECT)
 - Selesai jika: PIC bisa membuat dan mengelola project penuh di app baru; gate CI hijau; diverifikasi live lewat Playwright pada data nyata.
+
+> **Fase 2 selesai 2026-11-17** (hasil lengkap di bagian 7).
 
 ### Fase 3 — Gantt, My Work, Improvement
 - [ ] Gantt
@@ -137,6 +139,25 @@ Gate: Pint, ESLint, tsc, `npm run build`, Pest proyek ini lulus. Kegagalan yang 
 
 Keputusan K1-K3: memakai default bagian 3 (tidak membuat akun; peninjau Improvement = department PI/PIE; kolom budget/actual dibuat, UI ditunda).
 
+### Hasil Fase 2 (2026-11-17)
+
+Dibangun: `routes/projects.php` (`projects.*`), controller per slice (`ProjectController` index/create/store/show/edit/update/destroy, `ProjectStageController`, `ProjectMilestoneController`, `ProjectQuotationController` termasuk daftar lintas project, `ProjectFileController` store/show/destroy), 11 Action class di `app/Actions/Projects/` (`SaveProject`, `DeleteProject` soft delete, `SaveProjectStage`/`DeleteProjectStage`, milestone, quotation, `StoreProjectFile`/`DeleteProjectFile`, `RecalculateProjectProgress`, `LogProjectActivity`), FormRequest di `app/Http/Requests/Projects/`, `App\Support\ProjectOptions` (kosakata status + whitelist MIME). UI: `pages/projects/{index,form,show,quotations}.tsx`, `components/projects/{project-dialogs,progress-bar}.tsx`, `lib/project.ts`; sidebar grup Project, breadcrumb, lang group `projects` (id/en/ko, paritas key dites).
+
+Keputusan/perilaku penting:
+- Hak akses memakai `ProjectPolicy` apa adanya (semua login boleh lihat; Staff PIC/pembuat atau Admin boleh ubah; hanya Admin hapus). Tombol aksi disembunyikan lewat prop `can`, server tetap menolak (403).
+- Progress project = rata-rata progress stage (dihitung ulang tiap simpan/hapus stage); input progress di form hanya aktif selama belum ada stage. Stage status Completed memaksa 100%, progress 100 memaksa Completed. Stage bernama valid/trial otomatis bertipe Validation (kecuali dipilih).
+- File: disk `project_files` privat, nama acak `<32hex>.<ext>`, whitelist ekstensi + MIME terdeteksi harus cocok, nama berekstensi script di mana pun ditolak (`shell.php.png`), maks 100 MB, unduh lewat route ber-policy dengan `nosniff` + CSP sandbox, tampil inline hanya untuk tipe aman. Upload quotation menggantikan file lama (satu file per quotation, karena `pm_files` tidak punya kolom quotation_id; tautannya `pm_quotations.file_id`). Hapus file = hapus baris + file fisik.
+- "Perlu perhatian": belum Completed dan (status Delayed/On Hold, lewat end_date, atau ada stage belum selesai lewat plan_end), maks 6.
+- Vendor quotation: teks bebas (datalist dari master `project_vendor`); `vendor_option_id` terisi hanya jika nama cocok master, tidak pernah membuat master baru. Kolom budget/actual project tidak ada di UI (K3); nilai quotation ada.
+- Log: CREATE/UPDATE/DELETE, *_STAGE/_MILESTONE/_QUOTATION, UPLOAD_FILE/DELETE_FILE, `record_id` = id project; halaman detail menampilkan 30 terakhir.
+
+Verifikasi: `ProjectsModuleTest` 17 test (portfolio/filter/KPI/attention, create/update/delete + policy, stage/milestone/quotation CRUD, upload/unduh/hapus, penolakan script/MIME/target asing, 404 file hilang, paritas lang). Suite penuh 639 test: 635 lulus, 3 skip lama, 1 gagal lama (`ExportLocaleTest`/ZipArchive). Pint, ESLint (1 warning lama), tsc, `npm run build` lulus; Prettier hanya mengeluh `resources/ai/trial_document.schema.json` (lama); Larastan 1 error lama (migration rename_pi_review_team_to_pie). Live Playwright (Chromium headless, 1440 + 390px, id/en/ko) terhadap **DB sqlite sementara di scratchpad yang diisi `projects:import-legacy` dari `project_tracker` lokal (baca saja)**: DB bersama `trial_validation_system` tidak disentuh, tidak ada migrate ke sana. Data nyata: 43 project, KPI/atensi/filter benar; buat project + stage + milestone + quotation + upload + unduh + edit + hapus berjalan; anonim diarahkan ke login; tanpa error console; tanpa overflow horizontal di mobile.
+
+Temuan:
+- Riwayat impor (`LEGACY_LOG`, `record_id=legacy:<id>`) tidak muncul di Riwayat Aktivitas project karena kunci log baru adalah id numerik; perlu pemetaan `legacy_id` -> id (Fase 3 atau saat cutover).
+- Item sidebar "Portofolio" tidak menyala di halaman detail/form (aktif hanya pada URL persis); kosmetik.
+- `UploadedFile::fake()` menebak MIME dari nama, bukan isi; tes ketidakcocokan isi memakai file temp sungguhan.
+
 ## 8. Prompt siap pakai
 
 ### Prompt Fase 1 (tempel di chat baru)
@@ -171,6 +192,22 @@ Pakai ProjectPolicy/Gate yang sudah ada, komponen yang sudah ada (Table, Dialog,
 
 Batasan: jangan migrate:fresh/refresh/db:wipe, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum user menyetujui. K1-K3 belum dijawab, pakai default bagian 3.
 Definisi selesai: PIC bisa membuat dan mengelola project penuh di app baru; gate CI hijau (catat kegagalan lama yang sudah ada sebelum Fase 1: Larastan di migration rename_pi_review_team_to_pie, ExportLocaleTest/ZipArchive, Prettier resources/ai/trial_document.schema.json); diverifikasi live lewat Playwright pada data nyata. Di akhir ikuti ritual penutup bagian 6 dan tulis prompt Fase 3.
+```
+
+### Prompt Fase 3 (tempel di chat baru)
+
+```
+Lanjutkan penggabungan Project Tracking PIE ke new_trial_validation_app/ (branch feat/integration-project-tracking). Baca dulu: PROJECT_MODULE_PLAN.md (bagian 4, 5 Fase 3, bagian 7 "Hasil Fase 1" dan "Hasil Fase 2"), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (bagian "Projects module" Fase 1 + Fase 2; insiden DB 2026-08-24; aturan prod additive-only). Fase 1 + 2 sudah selesai dan di-push: tabel pm_*, model, ProjectPolicy/ImprovementPolicy, importer, serta UI inti (portofolio, form, detail, stage, milestone, quotation, file) di routes/projects.php + app/Actions/Projects/.
+
+Kerjakan HANYA Fase 3:
+1. Gantt: halaman `projects.gantt` (sidebar grup Project) dari pm_stages (plan vs actual, paralel, milestone), filter project/PIC, i18n ID/EN/KO. Tanpa library berat kalau bisa (SVG/CSS grid).
+2. Project/Improvement milik user masuk ke My Work yang sudah ada (DashboardController::myWork + MyWorkSection), tanpa halaman "Pekerjaan Saya" terpisah.
+3. Board Improvement: ajukan (semua user login non-Viewer), tinjauan PI (ImprovementPolicy; K2 default department PI/PIE), status Baru/Review PI/Menunggu Data/Disetujui/Tidak Perlu Improvement, keputusan Pending/To Project/Suggestion Only; "To Project" membuat project dengan data terisi dan menautkan project_id. Upload file improvement memakai pola file Fase 2 (pm_improvement_files).
+4. Tambahkan item sidebar Gantt + Improvement; perbaiki highlight sidebar Portofolio di halaman detail/form; tampilkan riwayat LEGACY_LOG di detail project (map record_id `legacy:<id>` lewat pm_projects.legacy_id) bila sederhana.
+Gunakan pola Fase 2 (controller + Action + FormRequest, ConfirmDialog/Dialog/FilterBar, lang group `projects`, log activity_logs module PROJECT/IMPROVEMENT).
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum user menyetujui. Verifikasi live: buat sqlite sementara di scratchpad (export DB_CONNECTION=sqlite DB_DATABASE=<path> SESSION_DRIVER=file CACHE_STORE=file PROJECT_FILES_PATH=<dir>, cek config('database.default') dulu), migrate --database=sqlite, `projects:import-legacy`, lalu Playwright (playwright-core + chromium cache ms-playwright/chromium-1248). Jangan taskkill php.exe massal (matikan hanya PID di port server). K1-K3 pakai default bagian 3.
+Definisi selesai: paritas fitur dengan Project Tracking lama (Gantt, My Work, Improvement); gate CI hijau (kegagalan lama: Larastan migration rename_pi_review_team_to_pie, ExportLocaleTest/ZipArchive, Prettier resources/ai/trial_document.schema.json); live Playwright pada data impor nyata. Di akhir ikuti ritual penutup bagian 6 dan tulis prompt Fase 4.
 ```
 
 ### Template prompt fase berikutnya

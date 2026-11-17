@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * A file attached to a project/stage/quotation. The physical file lives on the
@@ -15,6 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $context
  * @property string $stored_name
  * @property bool $is_missing
+ * @property string $file_name
+ * @property string $mime_type
+ * @property int $size_bytes
+ * @property string|null $description
+ * @property string $uploaded_by_name
+ * @property Carbon|null $uploaded_at
  */
 class ProjectFile extends Model
 {

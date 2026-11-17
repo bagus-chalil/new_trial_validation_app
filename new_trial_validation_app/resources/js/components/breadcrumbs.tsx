@@ -190,6 +190,35 @@ export function contextualBreadcrumbs(
         }
     }
 
+    if (segments[0] === 'projects') {
+        const projects = t('common.nav.projects');
+        const portfolio = t('common.nav.project_portfolio');
+
+        if (segments.length === 1) {
+            return [item(projects, '/projects'), item(portfolio, '#')];
+        }
+
+        if (segments[1] === 'quotations') {
+            return [
+                item(projects, '/projects'),
+                item(t('common.nav.project_quotations'), '#'),
+            ];
+        }
+
+        const detailLabel =
+            segments[1] === 'create'
+                ? t('projects.new')
+                : segments[2] === 'edit'
+                  ? t('projects.form.edit_title')
+                  : t('projects.show.head_title');
+
+        return [
+            item(projects, '/projects'),
+            item(portfolio, '/projects'),
+            item(detailLabel, '#'),
+        ];
+    }
+
     if (singlePages[pathname]) {
         return [item(t(singlePages[pathname]), pathname)];
     }

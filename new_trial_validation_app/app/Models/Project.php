@@ -26,6 +26,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $created_by_user_id
  * @property Carbon|null $start_date
  * @property Carbon|null $end_date
+ * @property int|null $deleted_by
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $end_date
  * @property int $progress
  * @property Carbon|null $deleted_at
  */
