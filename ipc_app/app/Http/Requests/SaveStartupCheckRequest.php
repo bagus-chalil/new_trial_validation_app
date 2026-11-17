@@ -55,6 +55,7 @@ class SaveStartupCheckRequest extends FormRequest
             'shelf_life_months' => ['required', 'integer', 'min:1', 'max:120'],
             'primary_packaging_type' => ['required', Rule::in(IpcBatch::PACKAGING_TYPES)],
             'exp_date' => ['required', 'date'],
+            'ai_applied' => ['nullable', 'string', 'max:100'],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],
             'filling_range_min' => ['nullable', 'numeric', 'decimal:0,2'],

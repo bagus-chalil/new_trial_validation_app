@@ -232,6 +232,11 @@ class IpcBatch extends Model
         };
     }
 
+    public function ipcLogs()
+    {
+        return $this->hasMany(IpcLog::class, 'ipc_batch_id');
+    }
+
     public function startupCheck()
     {
         return $this->hasOne(StartupCheck::class);

@@ -5,6 +5,7 @@ namespace App\Actions\Vision;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\IpcLog;
+use App\Services\Vision\PhotoQuality;
 use App\Services\Vision\VisionClient;
 use App\Services\Vision\VisionEvaluation;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +19,9 @@ use Illuminate\Support\Str;
  */
 class ReadStartupPhoto
 {
+    /** engine_used of a log written by the pre-check; excluded from accuracy feedback. */
+    public const PRECHECK_ENGINE = 'photo_precheck';
+
     public function __construct(private readonly VisionClient $client) {}
 
     public function handle(IpcBatch $batch, IpcAttachment $attachment, string $field, string $fieldType, ?int $userId): ?IpcLog
@@ -27,8 +31,32 @@ class ReadStartupPhoto
         }
 
         $requestId = (string) Str::uuid();
+        $bytes = Storage::disk('public')->get($attachment->file_path);
+
+        // A blank / almost black photo (failed capture) is never worth a GPU read: log it as LOW with a
+        // precise reason so the card can say "foto kosong, ambil ulang" instead of "belum yakin".
+        $quality = app(PhotoQuality::class)->assess($bytes);
+        if ($quality !== null && $quality['blank']) {
+            return IpcLog::create([
+                'request_id' => $requestId,
+                'ipc_batch_id' => $batch->id,
+                'stage' => IpcBatch::STAGE_STARTUP,
+                'field_type' => $fieldType,
+                'image_path' => $attachment->file_path,
+                'vision_status' => 'LOW_CONFIDENCE',
+                'engine_used' => self::PRECHECK_ENGINE,
+                'confidence' => 0.0,
+                'error_reason' => 'PHOTO_BLANK',
+                'vision_response' => ['status' => 'LOW_CONFIDENCE', 'confidence' => 0.0, 'engine_used' => self::PRECHECK_ENGINE, 'photo_quality' => $quality],
+                'decision' => VisionEvaluation::REVIEW,
+                'decision_reason' => 'Foto kosong / terlalu gelap, tidak dikirim ke Vision Service.',
+                'comparison' => ['field' => $field, 'queued' => true, 'precheck' => 'blank'],
+                'created_by' => $userId,
+            ]);
+        }
+
         $result = $this->client->analyze(
-            Storage::disk('public')->get($attachment->file_path),
+            $bytes,
             basename($attachment->file_path),
             $fieldType,
             $requestId,

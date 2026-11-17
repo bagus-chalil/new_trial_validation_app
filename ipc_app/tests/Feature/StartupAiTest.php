@@ -258,7 +258,7 @@ class StartupAiTest extends TestCase
         $this->read($batch, 'date_bulk', ['mixing_date' => '2026-10-23'])
             ->assertOk()
             ->assertJsonPath('decision', 'PASS')
-            ->assertJsonCount(3, 'items');
+            ->assertJsonCount(4, 'items'); // 3 compared values + the 'Format foto' advice item
 
         Http::assertSent(fn (Request $r) => str_contains($r->body(), 'label_bulk'));
         $log = IpcLog::first();
@@ -266,7 +266,7 @@ class StartupAiTest extends TestCase
         $this->assertSame('startup', $log->stage);
         $this->assertSame('PASS', $log->decision);
         $this->assertSame('2026-10-23', $log->comparison['entered']['mixing_date']);
-        $this->assertCount(3, $log->comparison['items']);
+        $this->assertCount(4, $log->comparison['items']); // 3 compared values + 'Format foto' advice
     }
 
     public function test_label_bulk_trusted_mismatch_is_fail(): void

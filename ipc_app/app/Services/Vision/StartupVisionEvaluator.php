@@ -46,6 +46,20 @@ class StartupVisionEvaluator
         }
 
         $raw = $result->raw;
+
+        // The photo never reached the AI because it is blank / almost black (see PhotoQuality).
+        if (($raw['photo_quality']['blank'] ?? false) === true) {
+            return new StartupEvaluation(
+                VisionEvaluation::REVIEW,
+                'Foto kosong atau terlalu gelap - ambil ulang foto ini.',
+                [$this->item(
+                    'photo_quality', 'Kualitas foto', 'Foto terlihat jelas', 'Kosong / terlalu gelap', self::INFO,
+                    'Foto ini kosong atau hampir hitam (kamera gagal menangkap gambar). Ambil ulang: pastikan lensa tidak tertutup, cahaya cukup, dan tulisan terlihat di layar sebelum menekan Ambil Foto.',
+                    retake: true,
+                )],
+            );
+        }
+
         $batch->loadMissing(['masterProduct', 'bulkCodes']);
 
         [$items, $forceReview, $note] = match ($fieldType) {
@@ -164,7 +178,107 @@ class StartupVisionEvaluator
             untrustedNote: $this->retakeNote($raw, 'kode_bulk'),
         );
 
+        $items[] = $this->labelBulkFormat($raw);
+
         return [$items, false, null];
+    }
+
+    /**
+     * Is this photo really a readable Label Bulk (yellow label with Kode Bulk, No Batch, Mixing Date)?
+     * Advice only: always INFO (it never changes PASS/REVIEW/FAIL), `retake` = true shows the amber advice banner. Format rules follow real
+     * data, not an ideal: No. Batch is written "26X035/KKB" (82%), "26X035 KKB" or "KKB 26X035", so
+     * separator and order are tolerated; Kode Bulk is 10 digits (697 of 698 batches).
+     *
+     * @return array<string, mixed>
+     */
+    private function labelBulkFormat(array $raw): array
+    {
+        $problems = [];
+
+        $noBatch = $raw['no_batch_raw'] ?? null;
+        if ($noBatch === null || trim((string) $noBatch) === '') {
+            $problems[] = 'No. Batch tidak terbaca';
+        } elseif (! $this->batchNumberFormatOk((string) $noBatch)) {
+            $problems[] = "No. Batch '{$noBatch}' tidak sesuai bentuk biasa (contoh 26X035/KKB)";
+        }
+
+        $mixing = $raw['mixing_date_raw'] ?? null;
+        if ($mixing === null || $this->labelDateToIso($mixing) === null) {
+            $problems[] = $mixing === null ? 'Mixing Date tidak terbaca' : "Mixing Date '{$mixing}' bukan tanggal DD/MM/YYYY yang valid";
+        }
+
+        $kode = $raw['kode_bulk'] ?? null;
+        if ($kode === null || preg_match('/^\d{10}$/', trim((string) $kode)) !== 1) {
+            $problems[] = $kode === null ? 'Kode Bulk tidak terbaca' : "Kode Bulk '{$kode}' bukan 10 digit";
+        }
+
+        if ($problems === []) {
+            return $this->item('photo_format', 'Format foto Label Bulk', 'Label Bulk lengkap', 'Sesuai format', self::INFO, null);
+        }
+
+        return $this->item(
+            'photo_format', 'Format foto Label Bulk', 'Label Bulk lengkap', 'Belum sesuai', self::INFO,
+            'Foto belum sesuai format Label Bulk: '.implode('; ', $problems).'. Foto seluruh label kuning (Kode Bulk, No Batch, Mixing Date harus terlihat utuh), tegak lurus, tanpa pantulan cahaya.',
+            retake: true,
+        );
+    }
+
+    /** "26X035/KKB", "26X035 KKB", "KKB 26X035" or a bare "26X035" (all seen in real data). */
+    private function batchNumberFormatOk(string $value): bool
+    {
+        $parts = preg_split('#[/\s]+#', strtoupper(trim($value))) ?: [];
+        $isCode = fn (string $p): bool => preg_match('/^\d{2}[A-Z]\d{3}$/', $p) === 1;
+        $isLetters = fn (string $p): bool => preg_match('/^[A-Z]{3,4}$/', $p) === 1;
+
+        return match (count($parts)) {
+            1 => $isCode($parts[0]),
+            2 => ($isCode($parts[0]) && $isLetters($parts[1])) || ($isLetters($parts[0]) && $isCode($parts[1])),
+            default => false,
+        };
+    }
+
+    /**
+     * Is this photo the IM page that states the shelf-life ("n Tahun dari Tanggal Mixing") with its
+     * IM number (IM-XXX-NAMA PRODUK, version suffix optional)? Advice only, INFO + retake, never changes the decision. A photo of
+     * the wrong part of the IM, or one that is cut off, shows up as an unstable shelf-life / IM number
+     * across the views the Vision Service reads.
+     *
+     * @return array<string, mixed>
+     */
+    private function imFormat(array $raw): array
+    {
+        $problems = [];
+
+        $imNumber = $raw['im_number'] ?? null;
+        if ($imNumber === null || trim((string) $imNumber) === '') {
+            $problems[] = 'No. IM (IM-XXX-NAMA PRODUK) tidak terbaca';
+        } elseif (preg_match('/^IM[-\s]*[A-Z]{3}/i', trim((string) $imNumber)) !== 1) {
+            $problems[] = "No. IM '{$imNumber}' tidak berawalan IM-XXX";
+        } elseif (isset($raw['view_agreement']['im_number']) && ! $raw['view_agreement']['im_number']) {
+            $problems[] = 'No. IM terbaca berbeda-beda antar sudut (bagian tepi mungkin terpotong)';
+        }
+
+        $value = $raw['shelf_life_value'] ?? null;
+        if ($value === null) {
+            $problems[] = isset($raw['view_agreement']['shelf_life']) && ! $raw['view_agreement']['shelf_life']
+                ? "pernyataan umur simpan ('n Tahun dari Tanggal Mixing') terbaca tidak konsisten antar sudut"
+                : "pernyataan umur simpan ('n Tahun dari Tanggal Mixing') tidak ditemukan di foto";
+        } else {
+            $months = ((int) ($value['years'] ?? 0) * 12) + (int) ($value['months'] ?? 0);
+            if ($months < 6 || $months > 120) {
+                $problems[] = "umur simpan terbaca {$months} bulan, di luar kewajaran (6-120 bulan)";
+            }
+        }
+
+        if ($problems === []) {
+            return $this->item('photo_format', 'Format foto IM', 'IM dengan umur simpan', 'Sesuai format', self::INFO, null);
+        }
+
+        return $this->item(
+            'photo_format', 'Format foto IM', 'IM dengan umur simpan', 'Belum sesuai', self::INFO,
+            'Foto IM belum sesuai format: '.implode('; ', $problems).'. Foto bagian IM yang memuat No. IM dan teks umur simpan (mis. di bagian A.2 Apperance Packing, "EXP Date ... 2 Tahun dari Tanggal Mixing") secara utuh, tidak terpotong, tegak lurus.',
+            retake: true,
+        );
     }
 
     /** @return array{0: list<array<string, mixed>>, 1: bool, 2: ?string} */
@@ -204,6 +318,8 @@ class StartupVisionEvaluator
         } elseif ($trusted) {
             $items[] = $this->item('exp_formula', 'EXP = Mixing + Umur Simpan', null, null, self::REVIEW, 'Isi Mixing Date dan EXP Date di form dulu.');
         }
+
+        $items[] = $this->imFormat($raw);
 
         return [$items, false, null];
     }

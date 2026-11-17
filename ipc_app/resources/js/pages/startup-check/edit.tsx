@@ -171,6 +171,9 @@ export default function StartupCheckEdit({
         shelf_life_months: String(batch.shelf_life_months ?? batch.master_product.shelf_life_months ?? ''),
         primary_packaging_type: batch.primary_packaging_type ?? '',
         master_line_id: batch.master_line_id ? String(batch.master_line_id) : '',
+        // Comma-separated form fields filled through "Pakai saran"; lets the server label AI accuracy
+        // feedback so a copied suggestion is not counted as proof the AI was right.
+        ai_applied: '',
         validation_report_status: (startupCheck?.validation_report_status as string) ?? '',
         filling_range_min: (startupCheck?.filling_range_min as string) ?? '',
         filling_range_max: (startupCheck?.filling_range_max as string) ?? '',
@@ -919,7 +922,11 @@ export default function StartupCheckEdit({
                                     photoKey={AI_PHOTO_FIELDS.map((k) => String(photoUrls[k] ?? '')).join('|')}
                                     getEntered={getEntered}
                                     onApply={(s) => {
-                                        setData(s.field, String(s.value));
+                                        setData((prev) => ({
+                                            ...prev,
+                                            [s.field]: String(s.value),
+                                            ai_applied: Array.from(new Set([...(prev.ai_applied ?? '').split(',').filter(Boolean), s.field])).join(','),
+                                        }));
                                         setErrorFields((prev) => {
                                             const n = new Set(prev);
                                             n.delete(s.field);

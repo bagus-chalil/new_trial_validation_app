@@ -2,6 +2,7 @@
 
 namespace App\Actions\StartupChecks;
 
+use App\Actions\Vision\RecordStartupAiFeedback;
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
 use App\Models\StartupCheck;
@@ -21,6 +22,9 @@ class SaveStartupCheck
         $shelfLifeMonths = Arr::pull($data, 'shelf_life_months');
         $packagingType = Arr::pull($data, 'primary_packaging_type');
         $masterLineId = Arr::pull($data, 'master_line_id');
+        // Which "Pakai saran" buttons the operator used (comma separated form-field names); only
+        // used to label the AI accuracy feedback row, never stored on the check itself.
+        $aiApplied = array_values(array_filter(explode(',', (string) Arr::pull($data, 'ai_applied'))));
 
         // N/A wins over any number still sitting in the input — never store both.
         $data['density_not_applicable'] = (bool) ($data['density_not_applicable'] ?? false);
@@ -41,7 +45,7 @@ class SaveStartupCheck
             $data["coding_operator_na_{$tier}"] = (bool) ($data["coding_operator_na_{$tier}"] ?? false);
         }
 
-        return DB::transaction(function () use ($batch, $user, $data, $mixingDate, $expDate, $shelfLifeMonths, $packagingType, $masterLineId) {
+        $startupCheck = DB::transaction(function () use ($batch, $user, $data, $mixingDate, $expDate, $shelfLifeMonths, $packagingType, $masterLineId) {
             $startupCheck = StartupCheck::updateOrCreate(
                 ['ipc_batch_id' => $batch->id],
                 [
@@ -68,5 +72,14 @@ class SaveStartupCheck
 
             return $startupCheck;
         });
+
+        // Measurement only (AI read vs final value). Must never break or delay the operator's save.
+        try {
+            app(RecordStartupAiFeedback::class)->handle($batch, $aiApplied);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $startupCheck;
     }
 }
