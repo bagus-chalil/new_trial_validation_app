@@ -66,13 +66,15 @@ Hak akses: admin → Admin/Super Admin (Gate `manage-projects`); user/PIC → St
 Setiap fase = satu sesi/chat. Jangan lompat fase. Branch kerja: `feat/integration-project-tracking`.
 
 ### Fase 1 — Fondasi data
-- [ ] Migration `pm_*` (semua tabel di bagian 4, dengan guard `Schema::hasTable`)
-- [ ] Model Eloquent + relasi, factory hanya untuk test sqlite
-- [ ] `ProjectPolicy`, `ImprovementPolicy`, Gate `manage-projects`
-- [ ] Command artisan impor `projects:import-legacy` (`--dry-run`, `--connection`, idempoten, `COLLATE` eksplisit), termasuk penyalinan file dan tabel padanan user
-- [ ] Test Pest: migration, impor (fixture sqlite), idempotensi, policy
-- [ ] Verifikasi: dry-run di salinan DB lokal mencetak 43 / 249 / 24 / 0 / 131 / 859 / 1
+- [x] Migration `pm_*` (semua tabel di bagian 4, dengan guard `Schema::hasTable`)
+- [x] Model Eloquent + relasi, factory hanya untuk test sqlite
+- [x] `ProjectPolicy`, `ImprovementPolicy`, Gate `manage-projects`
+- [x] Command artisan impor `projects:import-legacy` (`--dry-run`, `--connection`, idempoten, `COLLATE` eksplisit), termasuk penyalinan file dan tabel padanan user
+- [x] Test Pest: migration, impor (fixture sqlite), idempotensi, policy
+- [x] Verifikasi: dry-run di salinan DB lokal mencetak 43 / 249 / 24 / 0 / 131 / 859 / 1
 - Selesai jika: gate CI hijau dan angka dry-run cocok dengan bagian 2. **Belum ada UI.** Belum ada impor sungguhan ke DB bersama kecuali user menyetujui.
+
+> **Fase 1 selesai 2026-11-17** (hasil lengkap di bagian 7). Impor sungguhan ke DB bersama BELUM dijalankan.
 
 ### Fase 2 — Inti Project (UI)
 - [ ] Sidebar grup "Projects" (Portofolio, Gantt, Improvement, Quotation & PO), role-gated, string i18n ID/EN/KO
@@ -116,6 +118,25 @@ _(diisi per fase)_
 
 - 2026-11-17: kajian selesai, dokumen dibuat. K1-K3 belum dijawab, memakai default bagian 3.
 
+### Hasil Fase 1 (2026-11-17)
+
+Dibangun (tanpa UI): migration `2026_11_17_000001/2` (8 tabel pm_*, semua `Schema::hasTable`, tanpa FK), 8 model (`Project`, `ProjectStage`, `ProjectMilestone`, `ProjectQuotation`, `ProjectFile`, `ProjectStageTemplate`, `Improvement`, `ImprovementFile`), `ProjectPolicy`, `ImprovementPolicy`, Gate `manage-projects` (Admin), koneksi `project_tracker` (env `PT_DB_*`, hanya baca), disk `project_files`, `config/projects.php`, command `projects:import-legacy` (`--dry-run`, `--connection`, `--files-path`, `--user-map`) + `App\Services\Projects\LegacyProjectImporter`. Test: `ProjectsImportLegacyTest` (7) + `ProjectPolicyTest` (3).
+
+Hasil `--dry-run` terhadap DB lokal (baca saja, tidak menulis apa pun): projects 43, stages 249 (Validation 48), quotations 24, files 131 (130 pm_files + 1 pm_improvement_files; konteks stage 76, project 25, quotation 21, tooling 8), logs 859, improvement 1, milestones **1** (bukan 0: tabel `project_milestones` lokal sekarang berisi 1 baris), stage template 3, 4 kategori, 16 vendor.
+
+Temuan penting dari data sumber (mengubah rancangan):
+- `project_stages` dan `project_quotations` dibuat ulang dengan UUID baru setiap project disimpan di app lama, dan tabel stage membuang tanggal actual + progress. Maka stage dan quotation diimpor dari `projects.metadata` (ID stabil, lengkap: plan/actual, progress, parallel, lampiran per stage); jumlah tabel dicetak sebagai pembanding (cocok: 249 dan 24). `pm_stages` punya kolom plan_start/plan_end/actual_start/actual_end/progress/is_parallel.
+- `project_logs.project_id` berisi id project ATAU label modul (AUTH 344, TOOLING 31, FILE 18, IMPROVEMENT 9, SYSTEM 11); semua 859 diimpor ke `activity_logs` (`module=PROJECT`, `action=LEGACY_LOG`, `record_id=legacy:<id>`, tanggal asli). `metadata.log` (363 entri) disimpan utuh di `pm_projects.legacy_meta` (beserta `pos`, 3 entri PO).
+- **File fisik tidak ada di checkout ini**: `Project-Tracking-PIE-Team/storage/files` kosong, `PT_FILES_DIR` tidak diset. Dry-run melaporkan 131 file "missing". Salin + verifikasi ukuran sudah dites dengan fixture, tetapi belum bisa dibuktikan terhadap 131 file asli. Impor akan tetap mengimpor barisnya dengan `is_missing=true`; jalankan ulang dengan `--files-path=<folder asli>` (idempoten) saat folder tersedia.
+- `settings.tracker_state` juga berisi `toolings` (fitur Check Tooling, 1 data) di luar rencana ini; tidak dimigrasi. 8 file `TLG-*` tetap disalin sebagai `pm_files.context=tooling`.
+- Tidak ada JOIN lintas DB: pencocokan user/vendor dilakukan di PHP, sehingga error collation 1267 tidak mungkin terjadi. Tabel `project_tracker` lokal bercollation `utf8mb4_0900_ai_ci` (bukan unicode_ci seperti di rencana). Kalau nanti ada JOIN SQL lintas DB, wajib `COLLATE` eksplisit.
+- Padanan user: otomatis (nama/email persis, tidak ambigu) + `--user-map` / `config/projects.php`. Belum cocok dan disimpan sebagai teks: Rozy, Validasi, Zahra (PIC aktif Zahra dan Rozy perlu dipetakan lewat `--user-map` sebelum impor sungguhan). Tidak pernah membuat akun.
+- Impor ulang meng-update baris per `legacy_id` tetapi tidak menimpa kolom yang hanya ada di app baru (mis. `pm_stages.trial_id`); teruji.
+
+Gate: Pint, ESLint, tsc, `npm run build`, Pest proyek ini lulus. Kegagalan yang sudah ada sebelum Fase 1 (dikonfirmasi pada baseline tanpa perubahan saya): Larastan 1 error di migration `2026_10_09_000001_rename_pi_review_team_to_pie.php`, `ExportLocaleTest` (ekstensi PHP `ZipArchive` tidak aktif di mesin ini), Prettier mengeluh `resources/ai/trial_document.schema.json`, 1 warning ESLint `incompatible-library`.
+
+Keputusan K1-K3: memakai default bagian 3 (tidak membuat akun; peninjau Improvement = department PI/PIE; kolom budget/actual dibuat, UI ditunda).
+
 ## 8. Prompt siap pakai
 
 ### Prompt Fase 1 (tempel di chat baru)
@@ -133,6 +154,23 @@ Kerjakan HANYA Fase 1 (Fondasi data), belum ada UI:
 Batasan: jangan migrate:fresh/refresh/db:wipe, jangan pakai factory di tinker, jangan menyentuh Project-Tracking-PIE-Team/ (hanya dibaca), jangan commit folder itu. Keputusan K1-K3 belum dijawab: pakai default di PROJECT_MODULE_PLAN.md bagian 3.
 
 Setelah selesai, ikuti "Ritual penutup" bagian 6: gate lengkap, update PROJECT_MODULE_PLAN.md dan CLAUDE.md, commit + push ke feat/integration-project-tracking, lalu tulis prompt Fase 2 untuk chat baru.
+```
+
+### Prompt Fase 2 (tempel di chat baru)
+
+```
+Lanjutkan penggabungan Project Tracking PIE ke new_trial_validation_app/ (branch feat/integration-project-tracking). Baca dulu: PROJECT_MODULE_PLAN.md (bagian 4, 5 Fase 2, dan bagian 7 "Hasil Fase 1"), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (bagian "Projects module — Fase 1"; juga catatan insiden DB 2026-08-24 dan aturan prod additive-only). Fase 1 sudah selesai dan di-push: tabel pm_*, model Project/ProjectStage/ProjectMilestone/ProjectQuotation/ProjectFile/ProjectStageTemplate/Improvement/ImprovementFile, ProjectPolicy, ImprovementPolicy, Gate manage-projects, command projects:import-legacy. Impor sungguhan ke DB bersama BELUM dijalankan (tabel pm_* belum ada di trial_validation_system; jangan migrate manual ke DB bersama, kerjakan dan uji di sqlite; verifikasi live hanya baca atau pakai salinan DB lokal yang disetujui user).
+
+Kerjakan HANYA Fase 2 (Inti Project, UI):
+1. Sidebar grup "Projects" (Portofolio, Gantt, Improvement, Quotation & PO) role-gated, string i18n ID/EN/KO mengikuti konvensi "Multi-language UI".
+2. Portofolio: KPI, daftar + filter, project aktif, kartu "Perlu perhatian".
+3. Form project (buat/ubah), halaman detail project ("detail dulu baru aksi"), CRUD stage, milestone.
+4. Quotation & PO; upload dan unduh file lewat route ter-otorisasi (disk project_files, whitelist MIME dan tolak ekstensi script seperti Project Tracking lama, tanpa path publik).
+5. Log ke activity_logs module PROJECT.
+Pakai ProjectPolicy/Gate yang sudah ada, komponen yang sudah ada (Table, Dialog, Combobox, toast), controller + Action class + FormRequest seperti pola Fase 3 Trial. Kolom budget/actual: dibuat di DB tetapi UI-nya ditunda (K3). Data uji: pakai tabel pm_* di sqlite; boleh memakai hasil impor dari fixture.
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum user menyetujui. K1-K3 belum dijawab, pakai default bagian 3.
+Definisi selesai: PIC bisa membuat dan mengelola project penuh di app baru; gate CI hijau (catat kegagalan lama yang sudah ada sebelum Fase 1: Larastan di migration rename_pi_review_team_to_pie, ExportLocaleTest/ZipArchive, Prettier resources/ai/trial_document.schema.json); diverifikasi live lewat Playwright pada data nyata. Di akhir ikuti ritual penutup bagian 6 dan tulis prompt Fase 3.
 ```
 
 ### Template prompt fase berikutnya

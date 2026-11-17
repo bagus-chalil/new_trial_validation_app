@@ -154,6 +154,9 @@ Verified live via an ad-hoc Playwright session (same precedent as prior UX passe
 ### Line Configuration Report: Draft vs Kirim Approval (2026-10-02)
 A Line Configuration Report can now be saved as a **Draft** (incomplete allowed, no approvers stored, not locked, no email). Or it can be saved with **Simpan & Kirim Approval**, which requires every field plus both approvers (Approved PIE + Checked PROD) and then locks the report into the approval chain. A submitted report can't go back to draft. Full detail: `new_trial_validation_app/CLAUDE.md` → "Line Configuration Report: Draft vs Kirim Approval".
 
+### Projects module — merge of Project Tracking PIE (2026-11-17, in progress)
+`Project-Tracking-PIE-Team/` (standalone plain-PHP app, DB `project_tracker`, **not tracked in this repo — never commit it**) is being merged into `new_trial_validation_app/` as the "Projects" module. Source of truth for order of work: `PROJECT_MODULE_PLAN.md` (repo root). **Fase 1 (data foundation) done 2026-11-17, no UI yet:** `pm_*` tables (additive, `Schema::hasTable`-guarded, no FKs), models, `ProjectPolicy`/`ImprovementPolicy`, Gate `manage-projects`, and `php artisan projects:import-legacy` (read-only source connection `project_tracker`, `--dry-run`, idempotent by `legacy_id`). Dry-run against the local source DB: 43 projects / 249 stages / 24 quotations / 131 files / 859 logs / 1 improvement (milestones 1, not 0). **The real import into the shared DB has NOT been run** and needs the user's explicit approval; the 131 physical files are not present in this checkout, so file copying is only fixture-tested. Next: Fase 2 (UI). See the plan's section 7 for findings and the Fase 2 prompt.
+
 ### Fase 4 — Decommission
 - [ ] Turn off legacy PHP app
 - [ ] Remove SSO bridge (`/sso/*` routes both sides, `sso_tickets` table)

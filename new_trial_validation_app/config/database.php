@@ -32,6 +32,22 @@ return [
 
     'connections' => [
 
+        // READ-ONLY source of `projects:import-legacy` (standalone Project
+        // Tracking PIE database). Never used by the app at runtime.
+        'project_tracker' => [
+            'driver' => 'mysql',
+            'host' => env('PT_DB_HOST', '127.0.0.1'),
+            'port' => env('PT_DB_PORT', '3306'),
+            'database' => env('PT_DB_DATABASE', 'project_tracker'),
+            'username' => env('PT_DB_USERNAME', 'root'),
+            'password' => env('PT_DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
