@@ -106,8 +106,8 @@ class IpcBatch extends Model
     ];
 
     protected $casts = [
-        'mixing_date' => 'date',
-        'exp_date' => 'date',
+        'mixing_date' => 'date:Y-m-d',
+        'exp_date' => 'date:Y-m-d',
         'shelf_life_months' => 'integer',
         'archived_at' => 'datetime',
     ];

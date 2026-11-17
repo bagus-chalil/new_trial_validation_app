@@ -33,7 +33,7 @@ class IpcReportDocument extends Model
     protected function casts(): array
     {
         return [
-            'effective_date' => 'date',
+            'effective_date' => 'date:Y-m-d',
         ];
     }
 
