@@ -60,8 +60,17 @@ class IpcApproval extends Model
     // all, just a bare Approval="Y" Patch — no reject option, no remarks, no approver identity.
     // Approved/Rejected is this app's own addition on top of that (confirmed with the user
     // 2026-09-04), not a ported vocabulary.
+    /**
+     * Added 2026-11-18 (user request): the approver sends the report back to QC to be corrected
+     * instead of rejecting it. The chosen stage(s) are reopened for editing; once QC finalizes
+     * them again the decision is cleared and the report is back in the approval queue. Rejected
+     * stays a final, separate decision.
+     */
+    public const DECISION_REVISION = 'Revision';
+
     public const DECISIONS = [
         self::DECISION_APPROVED,
+        self::DECISION_REVISION,
         self::DECISION_REJECTED,
     ];
 

@@ -41,6 +41,7 @@ export interface SharedData {
     canManageMaster: boolean;
     canUseVisionTest: boolean;
     canCreateBatch: boolean;
+    revisionRequest?: { stages: string[]; remarks: string | null; by: string | null; at: string | null } | null;
     [key: string]: unknown;
 }
 

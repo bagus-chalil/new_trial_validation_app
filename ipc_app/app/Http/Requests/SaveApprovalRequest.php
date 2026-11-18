@@ -3,8 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Models\IpcApproval;
+use App\Models\IpcBatch;
+use App\Models\IpcReportDocument;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class SaveApprovalRequest extends FormRequest
 {
@@ -13,13 +16,67 @@ class SaveApprovalRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // A single-stage report can only send back that one stage, so the form doesn't ask.
+        if ($this->isRevision() && ! $this->isCombinedReport() && ! $this->has('revise_stages')) {
+            $this->merge(['revise_stages' => [(string) $this->route('stage')]]);
+        }
+    }
+
     public function rules(): array
     {
-        $rejected = $this->input('decision') === IpcApproval::DECISION_REJECTED;
+        $needsNote = in_array($this->input('decision'), [IpcApproval::DECISION_REJECTED, IpcApproval::DECISION_REVISION], true);
 
         return [
             'decision' => ['required', Rule::in(IpcApproval::DECISIONS)],
-            'remarks' => [$rejected ? 'required' : 'nullable', 'string'],
+            'remarks' => [$needsNote ? 'required' : 'nullable', 'string'],
+            'revise_stages' => [$this->isRevision() ? 'required' : 'nullable', 'array', 'min:1'],
+            'revise_stages.*' => ['string', Rule::in($this->revisableStages())],
         ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'remarks.required' => 'Tuliskan catatan agar QC tahu apa yang harus diperbaiki / alasan penolakan.',
+            'revise_stages.required' => 'Pilih minimal satu bagian laporan yang perlu direvisi.',
+            'revise_stages.min' => 'Pilih minimal satu bagian laporan yang perlu direvisi.',
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $batch = $this->route('batch');
+
+            // Once printing started, the report is already issued — correcting it is not a
+            // revision of an open approval any more.
+            if ($this->isRevision() && $batch instanceof IpcBatch && $batch->current_stage !== IpcBatch::STAGE_APPROVAL) {
+                $validator->errors()->add('decision', 'Revisi hanya bisa diminta selama batch masih di tahap Approval.');
+            }
+        });
+    }
+
+    private function isRevision(): bool
+    {
+        return $this->input('decision') === IpcApproval::DECISION_REVISION;
+    }
+
+    private function isCombinedReport(): bool
+    {
+        return $this->route('stage') === IpcReportDocument::KEY_FILLING_PACKING_FG;
+    }
+
+    /** @return list<string> */
+    private function revisableStages(): array
+    {
+        $batch = $this->route('batch');
+
+        if ($this->isCombinedReport() && $batch instanceof IpcBatch) {
+            return IpcApproval::combinedStagesFor($batch);
+        }
+
+        return [(string) $this->route('stage')];
     }
 }

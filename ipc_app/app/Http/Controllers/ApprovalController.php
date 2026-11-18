@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Approvals\RequestApprovalRevision;
 use App\Actions\Approvals\SaveApproval;
 use App\Http\Controllers\Concerns\BuildsIpcReportPayloads;
 use App\Http\Requests\SaveApprovalRequest;
@@ -140,13 +141,27 @@ class ApprovalController extends Controller
                 'approval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
             ],
             'decisions' => IpcApproval::DECISIONS,
+            'reviseOptions' => collect(IpcApproval::combinedStagesFor($batch))
+                ->map(fn (string $part) => ['value' => $part, 'label' => IpcApproval::STAGE_LABELS[$part]])
+                ->values(),
         ]);
     }
 
-    public function update(SaveApprovalRequest $request, IpcBatch $batch, string $stage, SaveApproval $action): RedirectResponse
-    {
+    public function update(
+        SaveApprovalRequest $request,
+        IpcBatch $batch,
+        string $stage,
+        SaveApproval $action,
+        RequestApprovalRevision $revision,
+    ): RedirectResponse {
         $this->guardFinished($batch);
         abort_unless(IpcApproval::stageReady($batch, $stage), 403, 'Tahap ini belum selesai, belum bisa di-approve.');
+
+        if ($request->validated('decision') === IpcApproval::DECISION_REVISION) {
+            $revision->handle($batch, $request->user(), $stage, $request->validated('revise_stages'), $request->validated('remarks'));
+
+            return redirect()->route('approvals.index')->with('success', 'Revisi diminta. Laporan dikembalikan ke QC untuk diperbaiki.');
+        }
 
         if ($stage === IpcReportDocument::KEY_FILLING_PACKING_FG) {
             foreach (IpcApproval::combinedStagesFor($batch) as $part) {
@@ -234,5 +249,6 @@ class ApprovalController extends Controller
     private function guardFinished(IpcBatch $batch): void
     {
         abort_unless($batch->isReadyForApproval(), 403, 'Tahap pemeriksaan untuk batch ini belum selesai — batch belum masuk tahap Approval.');
+        abort_if($batch->hasOpenRevision(), 403, 'Laporan sedang direvisi oleh QC — tunggu sampai diselesaikan ulang.');
     }
 }

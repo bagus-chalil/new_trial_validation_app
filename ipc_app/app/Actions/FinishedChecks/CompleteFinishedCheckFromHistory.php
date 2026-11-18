@@ -51,7 +51,7 @@ class CompleteFinishedCheckFromHistory
             $revision->update(['finalize' => true]);
 
             if ($batch->current_stage === IpcBatch::STAGE_FINISHED) {
-                $batch->update(['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_FINISHED)]);
+                $batch->advanceFrom(IpcBatch::STAGE_FINISHED);
             }
 
             return $finishedCheck->fresh(['samples', 'revisions.samples', 'revisions.user']);
