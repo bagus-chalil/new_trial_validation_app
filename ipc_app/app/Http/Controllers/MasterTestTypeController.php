@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreMasterTestTypeRequest;
 use App\Models\MasterTestType;
+use App\Support\SearchTerm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,12 +15,7 @@ class MasterTestTypeController extends Controller
     public function index(Request $request): Response
     {
         $testTypes = MasterTestType::query()
-            ->when($request->string('q')->toString(), function ($query, $q) {
-                $query->where(function ($query) use ($q) {
-                    $query->where('name', 'like', "%{$q}%")
-                        ->orWhere('category', 'like', "%{$q}%");
-                });
-            })
+            ->when($request->string('q')->toString(), fn ($query, $q) => SearchTerm::apply($query, $q, ['name', 'category']))
             ->orderBy('category')
             ->orderBy('name')
             ->paginate(20)

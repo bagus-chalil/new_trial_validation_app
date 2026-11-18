@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
+use App\Support\SearchTerm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,15 +24,9 @@ class LookupController extends Controller
 
         $products = MasterProduct::query()
             ->where('is_active', true)
-            ->when($q !== '', function ($query) use ($q) {
-                $like = $this->escapeLike($q);
-                $query->where(function ($query) use ($like) {
-                    // fg_code prefix match can use the unique index; name is a contains match
-                    // over a table that's small enough (~10k rows) for that to stay cheap.
-                    $query->where('fg_code', 'like', "{$like}%")
-                        ->orWhere('product_name', 'like', "%{$like}%");
-                });
-            })
+            // Every word may appear anywhere in FG code or name; a contains match over a table
+            // this small (~10k rows) stays cheap, and LIMIT caps what is sent back.
+            ->when($q !== '', fn ($query) => SearchTerm::apply($query, $q, ['fg_code', 'product_name']))
             ->with(['bulkCodes' => fn ($query) => $query->where('is_active', true)->orderBy('bulk_code')->select(['id', 'master_product_id', 'bulk_code'])])
             ->orderBy('fg_code')
             ->limit(self::LIMIT)
@@ -55,10 +50,5 @@ class LookupController extends Controller
             ->get(['id', 'no_batch', 'current_stage', 'flow_type', 'master_product_id', 'master_line_id']);
 
         return response()->json($batches);
-    }
-
-    private function escapeLike(string $value): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }

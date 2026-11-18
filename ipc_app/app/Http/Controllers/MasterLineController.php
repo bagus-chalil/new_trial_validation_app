@@ -6,6 +6,7 @@ use App\Exports\MasterLinesTemplateExport;
 use App\Http\Requests\StoreMasterLineRequest;
 use App\Models\MasterLine;
 use App\Services\LineStatus\QrSvg;
+use App\Support\SearchTerm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,14 +19,7 @@ class MasterLineController extends Controller
     public function index(Request $request): Response
     {
         $lines = MasterLine::query()
-            ->when($request->string('q')->toString(), function ($query, $q) {
-                $query->where(function ($query) use ($q) {
-                    $query->where('name', 'like', "%{$q}%")
-                        ->orWhere('code', 'like', "%{$q}%")
-                        ->orWhere('category', 'like', "%{$q}%")
-                        ->orWhere('area', 'like', "%{$q}%");
-                });
-            })
+            ->when($request->string('q')->toString(), fn ($query, $q) => SearchTerm::apply($query, $q, ['name', 'code', 'category', 'area']))
             ->orderBy('category')
             ->orderBy('area')
             ->orderBy('name')

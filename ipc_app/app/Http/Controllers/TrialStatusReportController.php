@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
 use App\Services\TrialStatus\TrialStatusClient;
+use App\Support\SearchTerm;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -59,10 +60,10 @@ class TrialStatusReportController extends Controller
             ];
         })->values();
 
-        $q = mb_strtolower($request->string('q')->toString());
-        $searched = $q === ''
+        $q = trim($request->string('q')->toString());
+        $searched = SearchTerm::tokens($q) === []
             ? $rows
-            : $rows->filter(fn (array $row) => str_contains(mb_strtolower($row['fg_code'].' '.$row['product_name'].' '.$row['latest_trial_code']), $q));
+            : $rows->filter(fn (array $row) => SearchTerm::matches($row['fg_code'].' '.$row['product_name'].' '.$row['latest_trial_code'], $q));
 
         $status = $request->string('status')->toString();
         $stage = $request->string('stage')->toString();

@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateUserRoleRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\SearchTerm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -19,12 +20,7 @@ class UserRoleController extends Controller
     {
         $users = User::query()
             ->with('roleRecord')
-            ->when($request->string('q')->toString(), function ($query, $q) {
-                $query->where(function ($query) use ($q) {
-                    $query->where('name', 'like', "%{$q}%")
-                        ->orWhere('email', 'like', "%{$q}%");
-                });
-            })
+            ->when($request->string('q')->toString(), fn ($query, $q) => SearchTerm::apply($query, $q, ['name', 'email']))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();

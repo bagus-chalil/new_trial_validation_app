@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\SearchTerm;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class IpcBatch extends Model
 {
@@ -375,11 +377,16 @@ class IpcBatch extends Model
         return $this->hasMany(IpcAttachment::class);
     }
 
+    /** Newest N batch-number matches kept per search; see noBatchIdsMatching(). */
+    private const NO_BATCH_MATCH_CAP = 500;
+
     /**
-     * Batch search: no_batch prefix OR product-name contains, built so it stays index-driven
-     * at ~1M batches. A single `WHERE no_batch LIKE .. OR master_product_id IN (..)` defeats
-     * every index — a search with no hits scanned the whole table (2.6s measured) — so each
-     * side runs as its own indexed query and only the ids are merged.
+     * Batch search: batch number contains the term (any position, e.g. "BLB" finds "26Y252/BLB")
+     * OR product name / FG code contains it. Kept cheap at ~1M batches: a single
+     * `WHERE no_batch LIKE .. OR master_product_id IN (..)` defeats every index — a search with
+     * no hits scanned the whole table (2.6s measured) — so each side runs as its own query and
+     * only ids are merged. The batch-number side first reads ids from the no_batch index alone
+     * (see noBatchIdsMatching), then the stage/archive/scope filters run on those few ids.
      *
      * @return array{0: Builder, 1: Builder} [by no_batch, by product name], unordered
      */
@@ -391,35 +398,53 @@ class IpcBatch extends Model
             ->archived($archived);
 
         return [
-            $base()->where('no_batch', 'like', static::escapeLike($q).'%'),
+            $base()->whereIn('id', static::noBatchIdsMatching($q)),
             $base()->whereIn('master_product_id', static::productIdsMatching($q)),
         ];
     }
 
     /**
+     * Ids of the newest batches whose number contains every word of `$q`. The query touches only
+     * `no_batch` and the primary key, so MySQL answers it from the `no_batch` index (an index-only
+     * scan, no table rows read) — a contains match can't seek, but it is a scan of short strings,
+     * not of whole rows. Soft-deleted rows are filtered by the caller's query, and the cap keeps
+     * the id list (and the IN clause built from it) small for very broad terms.
+     *
+     * @return list<int>
+     */
+    private static function noBatchIdsMatching(string $q): array
+    {
+        if (SearchTerm::tokens($q) === []) {
+            return [];
+        }
+
+        // forceIndex: with ORDER BY id DESC the optimizer otherwise prefers the clustered primary
+        // key and reads whole rows until it finds enough matches — a full table read when few
+        // batches match. With the no_batch index (which carries the id) it is index-only
+        // ("Using index" in EXPLAIN). Name = Laravel's default for ipc_batches.no_batch.
+        $query = DB::table('ipc_batches')->forceIndex('ipc_batches_no_batch_index')->select('id');
+        SearchTerm::apply($query, $q, ['no_batch']);
+
+        return $query->orderByDesc('id')->limit(self::NO_BATCH_MATCH_CAP)->pluck('id')->all();
+    }
+
+    /**
      * Free-text search for the small queue lists (Approval Queue): batch number,
-     * product name or FG code *contains* the term. The big Batch list uses searchIds() instead, since a
-     * leading-wildcard LIKE can't use an index at ~1M rows.
+     * product name or FG code contains the term.
      */
     public function scopeMatchingSearch(Builder $query, string $q): Builder
     {
-        $like = '%'.static::escapeLike($q).'%';
-
         return $query->where(fn (Builder $w) => $w
-            ->where('no_batch', 'like', $like)
-            ->orWhereIn('master_product_id', MasterProduct::withTrashed()->select('id')->where(fn (Builder $p) => $p->where('product_name', 'like', $like)->orWhere('fg_code', 'like', $like))));
+            ->whereIn('id', static::noBatchIdsMatching($q))
+            ->orWhereIn('master_product_id', static::productIdsMatching($q)));
     }
 
     private static function productIdsMatching(string $q): Builder
     {
-        $like = '%'.static::escapeLike($q).'%';
+        $products = MasterProduct::withTrashed()->select('id');
+        SearchTerm::apply($products, $q, ['product_name', 'fg_code']);
 
-        return MasterProduct::withTrashed()->select('id')->where(fn (Builder $p) => $p->where('product_name', 'like', $like)->orWhere('fg_code', 'like', $like));
-    }
-
-    private static function escapeLike(string $value): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+        return $products;
     }
 
     /** Ids of the newest matching batches, newest first: `$take` rows after skipping `$skip`. */
