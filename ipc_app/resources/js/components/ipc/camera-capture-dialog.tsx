@@ -83,9 +83,12 @@ export function CameraCaptureDialog({
     onCapture: (file: File) => void;
     title?: string;
 }) {
-    const videoRef = useRef<HTMLVideoElement>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // Non-fatal hint (keeps the live view); `error` replaces the view, so it must not be used for "not ready yet".
+    const [notice, setNotice] = useState<string | null>(null);
+    const [ready, setReady] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
 
@@ -104,6 +107,17 @@ export function CameraCaptureDialog({
         streamRef.current = null;
     };
 
+    // The <video> can mount after the stream is already open (Radix portals render one commit late,
+    // and "Ambil Ulang" swaps the preview back to the video), so attach from the ref callback too.
+    const attachStream = (el: HTMLVideoElement | null) => {
+        videoRef.current = el;
+        const stream = streamRef.current;
+        if (el && stream && el.srcObject !== stream) {
+            el.srcObject = stream;
+            void el.play().catch(() => undefined);
+        }
+    };
+
     // Applies one advanced constraint to the live track; silently ignored when unsupported.
     const applyAdvanced = async (constraint: Record<string, unknown>) => {
         const track = streamRef.current?.getVideoTracks()[0];
@@ -117,13 +131,13 @@ export function CameraCaptureDialog({
 
     const startStream = async (nextDeviceId: string | null = deviceId, nextQuality: QualityKey = quality) => {
         setError(null);
+        setNotice(null);
+        setReady(false);
         stopStream();
         try {
             const stream = await openCameraStream(nextDeviceId, nextQuality);
             streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
+            attachStream(videoRef.current);
 
             const track = stream.getVideoTracks()[0];
             const capabilities = (track?.getCapabilities?.() ?? {}) as ExtendedCapabilities;
@@ -156,7 +170,16 @@ export function CameraCaptureDialog({
             setPreviewUrl(null);
             setPreviewBlob(null);
             setError(null);
-            return;
+            setNotice(null);
+            setReady(false);
+            // Safety net: if Radix ever leaves `pointer-events: none` on <body> after the dialog closes
+            // (the whole page then looks frozen/unclickable), clear it once no dialog is actually open.
+            const timer = window.setTimeout(() => {
+                if (!document.querySelector('[role="dialog"][data-state="open"]')) {
+                    document.body.style.removeProperty('pointer-events');
+                }
+            }, 400);
+            return () => window.clearTimeout(timer);
         }
 
         let cancelled = false;
@@ -232,7 +255,11 @@ export function CameraCaptureDialog({
 
     const capture = () => {
         const video = videoRef.current;
-        if (!video || video.videoWidth === 0) return;
+        if (!video || video.videoWidth === 0) {
+            setNotice('Kamera belum siap. Tunggu sampai gambar tampil, lalu tekan Ambil Foto lagi.');
+            return;
+        }
+        setNotice(null);
 
         // A failed capture must be visible to the operator (it used to just do nothing) and reach the issue log.
         const failCapture = (reason: string) => {
@@ -292,12 +319,22 @@ export function CameraCaptureDialog({
                     <DialogTitle>{title}</DialogTitle>
                 </DialogHeader>
 
-                {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+                {error && (
+                    <div className="flex flex-col items-start gap-3">
+                        <p className="text-sm font-medium text-red-600">{error}</p>
+                        <button type="button" onClick={() => void startStream()} className={`${buttonClass} h-12 px-6`}>
+                            Coba Lagi
+                        </button>
+                    </div>
+                )}
+                {notice && !error && <p className="text-sm font-medium text-amber-600">{notice}</p>}
 
                 {live && (
                     // object-contain (not cover) so the preview shows the WHOLE frame that will be saved.
                     <video
-                        ref={videoRef}
+                        ref={attachStream}
+                        onLoadedData={() => setReady(true)}
+                        onPlaying={() => setReady(true)}
                         autoPlay
                         playsInline
                         muted
@@ -411,9 +448,10 @@ export function CameraCaptureDialog({
                         <button
                             type="button"
                             onClick={capture}
-                            className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-sm font-bold text-white"
+                            disabled={!ready}
+                            className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-sm font-bold text-white disabled:opacity-60"
                         >
-                            Ambil Foto
+                            {ready ? 'Ambil Foto' : 'Menyiapkan kamera…'}
                         </button>
                     )}
                     {previewUrl && (

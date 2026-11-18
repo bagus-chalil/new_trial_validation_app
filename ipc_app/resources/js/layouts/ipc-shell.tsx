@@ -1,6 +1,7 @@
 import { BottomNav } from '@/components/ipc/bottom-nav';
 import { FlowBanner, flowTheme } from '@/components/ipc/flow-identity';
 import { NavRail } from '@/components/ipc/nav-rail';
+import { NetworkBadge } from '@/components/ipc/network-badge';
 import { VersionWatcher } from '@/components/ipc/version-watcher';
 import { markBackClicked, previousUrl, recordVisit } from '@/lib/nav-history';
 import { returnToFromUrl } from '@/lib/return-to';
@@ -72,6 +73,7 @@ export function IpcShell({
                     </div>
                 )}
 
+                <NetworkBadge />
                 <VersionWatcher />
 
                 {props.flash?.success && (
