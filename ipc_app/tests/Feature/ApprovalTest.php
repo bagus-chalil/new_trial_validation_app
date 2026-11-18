@@ -240,6 +240,24 @@ class ApprovalTest extends TestCase
         $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
     }
 
+    public function test_approve_and_reject_accept_the_empty_revise_stages_the_form_always_sends(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+        $user = User::factory()->approver()->create();
+
+        $this->actingAs($user)
+            ->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved', 'remarks' => '', 'revise_stages' => []])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+        $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => 'startup', 'decision' => 'Approved']);
+
+        $this->actingAs($user)
+            ->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Rejected', 'remarks' => 'Salah', 'revise_stages' => []])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+        $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => 'startup', 'decision' => 'Rejected']);
+    }
+
     public function test_approving_startup_and_the_combined_fillpack_form_advances_batch_to_print(): void
     {
         $batch = $this->makeBatchAtApprovalStage();
