@@ -32,7 +32,9 @@ class SaveApprovalRequest extends FormRequest
         return [
             'decision' => ['required', Rule::in(IpcApproval::DECISIONS)],
             'remarks' => [$needsNote ? 'required' : 'nullable', 'string'],
-            'revise_stages' => [$this->isRevision() ? 'required' : 'nullable', 'array', 'min:1'],
+            // The form always sends `revise_stages: []`; only a Revision needs at least one stage,
+            // so Approved / Rejected must accept the empty array.
+            'revise_stages' => $this->isRevision() ? ['required', 'array', 'min:1'] : ['nullable', 'array'],
             'revise_stages.*' => ['string', Rule::in($this->revisableStages())],
         ];
     }
