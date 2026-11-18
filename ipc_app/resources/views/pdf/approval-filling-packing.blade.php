@@ -99,7 +99,13 @@
                     <tr>
                         <td>Sample {{ $no }}</td>
                         @foreach ($fillingRounds as $round)
-                            <td class="center">{{ $round->samples->firstWhere('sample_no', $no)->weight_value ?? '—' }}</td>
+                            @php
+                                $wv = $round->samples->firstWhere('sample_no', $no)->weight_value ?? null;
+                                $rMin = $startupCheck->filling_range_min ?? null;
+                                $rMax = $startupCheck->filling_range_max ?? null;
+                                $outOfRange = $wv !== null && (($rMin !== null && (float) $wv < (float) $rMin) || ($rMax !== null && (float) $wv > (float) $rMax));
+                            @endphp
+                            <td class="center" @if ($outOfRange) style="background:#fde68a;font-weight:700" @endif>{{ $wv ?? '—' }}</td>
                         @endforeach
                     </tr>
                 @endforeach

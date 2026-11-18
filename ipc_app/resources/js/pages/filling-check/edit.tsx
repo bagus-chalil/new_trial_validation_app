@@ -11,6 +11,8 @@ import { StickySaveBar } from '@/components/ipc/sticky-save-bar';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { WorkflowForm } from '@/components/ipc/workflow-form';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -185,6 +187,43 @@ export default function FillingCheckEdit({
         document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
+    // Advisory range check against the Filling Range Min/Max set on Startup Check. Never blocks:
+    // QC can still save (a real out-of-range reading must be recordable), but has to acknowledge it.
+    const rangeMin = toNumber(batch.startup_check?.filling_range_min);
+    const rangeMax = toNumber(batch.startup_check?.filling_range_max);
+    const [pendingSave, setPendingSave] = useState<(() => void) | null>(null);
+
+    const rangeStatus = (value: string | null): 'low' | 'high' | null => {
+        const n = toNumber(value);
+        if (n === null) return null;
+        if (rangeMin !== null && n < rangeMin) return 'low';
+        if (rangeMax !== null && n > rangeMax) return 'high';
+        return null;
+    };
+
+    const outOfRangeSamples = data.samples
+        .map((row) => ({ sample_no: row.sample_no, value: toNumber(row.weight_value), status: rangeStatus(row.weight_value) }))
+        .filter((row) => row.status !== null);
+
+    const filledCount = data.samples.filter((row) => toNumber(row.weight_value) !== null).length;
+    const allFilledOutOfRange = filledCount > 0 && outOfRangeSamples.length === filledCount;
+
+    const guardRange = (run: () => void) => {
+        if (outOfRangeSamples.length === 0) {
+            run();
+            return;
+        }
+        // Out-of-range readings must be explained (also enforced server-side in SaveFillingCheckRequest).
+        if (!data.remarks.trim()) {
+            const empty = new Set(['remarks']);
+            setErrorFields(empty);
+            toast('Ada sampel di luar standar — isi Remarks untuk menjelaskan sebelum menyimpan.');
+            scrollToFirstError(empty);
+            return;
+        }
+        setPendingSave(() => run);
+    };
+
     const revisions = [...(fillingCheck?.revisions ?? [])].sort((a, b) => b.revision_no - a.revision_no);
 
     // Selesaikan always asks for confirmation first — it sits next to Simpan Progress and locks the stage.
@@ -214,8 +253,10 @@ export default function FillingCheckEdit({
             return;
         }
         setErrorFields(new Set());
-        transform((current) => ({ ...current, finalize: true }));
-        put(`/batches/${batch.id}/filling-check`, { onError: showProgressError });
+        guardRange(() => {
+            transform((current) => ({ ...current, finalize: true }));
+            put(`/batches/${batch.id}/filling-check`, { onError: showProgressError });
+        });
     };
 
     const finalizeWithHistory = () => {
@@ -281,8 +322,14 @@ export default function FillingCheckEdit({
             return;
         }
         setErrorFields(new Set());
-        transform((current) => ({ ...current, finalize: false }));
-        put(`/batches/${batch.id}/filling-check`, { preserveState: true, onSuccess: () => setData(blankForm()), onError: showProgressError });
+        guardRange(() => {
+            transform((current) => ({ ...current, finalize: false }));
+            put(`/batches/${batch.id}/filling-check`, {
+                preserveState: true,
+                onSuccess: () => setData(blankForm()),
+                onError: showProgressError,
+            });
+        });
     };
 
     const uploadPhoto = (field: string, file: File) => {
@@ -409,7 +456,7 @@ export default function FillingCheckEdit({
                                                     aria-label={`Berat sampel ${row.sample_no}`}
                                                     type="number"
                                                     step="0.01"
-                                                    className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-destructive ring-1' : 'border-border'}`}
+                                                    className={`h-11 rounded-[11px] border-[1.5px] px-1 text-center text-[13px] font-semibold ${errorFields.has('samples') && !row.weight_value ? 'border-destructive ring-destructive ring-1' : rangeStatus(row.weight_value) ? 'border-orange-500 bg-orange-50 text-orange-700 ring-1 ring-orange-500' : 'border-border'}`}
                                                     value={row.weight_value ?? ''}
                                                     onChange={(e) => setWeight(row.sample_no, e.target.value)}
                                                     disabled={isReadOnly}
@@ -418,6 +465,13 @@ export default function FillingCheckEdit({
                                         );
                                     })}
                                 </div>
+                                {outOfRangeSamples.length > 0 && (
+                                    <div className="mt-3 rounded-xl border border-orange-300 bg-orange-50 px-3.5 py-2.5 text-xs font-semibold text-orange-800">
+                                        {outOfRangeSamples.length} sampel di luar standar ({batch.startup_check?.filling_range_min ?? '—'} –{' '}
+                                        {batch.startup_check?.filling_range_max ?? '—'}): {outOfRangeSamples.map((s) => `#${s.sample_no}`).join(', ')}
+                                        . Cek ulang timbangan/penulisan sebelum menyimpan.
+                                    </div>
+                                )}
                                 <div className="border-border-soft bg-muted/30 mt-3.5 flex items-center justify-between rounded-xl border px-3.5 py-2.5">
                                     <span className="text-muted-foreground text-xs font-semibold">Average Weight</span>
                                     <span className="text-[15px] font-bold">{liveAverageWeight() ?? fillingCheck?.average_weight ?? '—'}</span>
@@ -558,6 +612,38 @@ export default function FillingCheckEdit({
                 stageLabel="Filling Check"
                 onConfirm={proceedFinalize}
             />
+
+            <Dialog open={pendingSave !== null} onOpenChange={(open) => !open && setPendingSave(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Ada sampel di luar standar</DialogTitle>
+                        <DialogDescription>
+                            Standar Filling {batch.startup_check?.filling_range_min ?? '—'} – {batch.startup_check?.filling_range_max ?? '—'}. Sampel
+                            di luar batas:{' '}
+                            {outOfRangeSamples.map((s) => `#${s.sample_no} (${s.value} ${s.status === 'low' ? '< min' : '> max'})`).join(', ')}.{' '}
+                            {allFilledOutOfRange &&
+                                'Semua sampel terisi di luar standar — kemungkinan angka salah input atau standar di Startup Check salah. '}
+                            Disarankan cek ulang timbangan atau koreksi penulisan angka. Jika memang hasil aktual, Anda tetap bisa menyimpan; alasan
+                            di Remarks ikut tercatat.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-2">
+                        <Button type="button" variant="outline" onClick={() => setPendingSave(null)}>
+                            Periksa Lagi
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => {
+                                const run = pendingSave;
+                                setPendingSave(null);
+                                run?.();
+                            }}
+                        >
+                            Tetap Simpan
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {revisions.length > 0 && (
                 <FinalizeChoiceDialog
