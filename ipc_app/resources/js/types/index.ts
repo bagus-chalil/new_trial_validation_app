@@ -41,6 +41,7 @@ export interface SharedData {
     canManageMaster: boolean;
     canUseVisionTest: boolean;
     canCreateBatch: boolean;
+    openClientIssues: number;
     [key: string]: unknown;
 }
 

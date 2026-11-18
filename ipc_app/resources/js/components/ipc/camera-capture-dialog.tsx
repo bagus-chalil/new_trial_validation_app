@@ -1,5 +1,6 @@
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { reportClientEvent } from '@/lib/client-reporter';
 import { useEffect, useRef, useState } from 'react';
 
 // Deliberately does NOT fall back to a plain <input type="file"> picker: the whole point is to
@@ -142,7 +143,9 @@ export function CameraCaptureDialog({
             } catch {
                 setDevices([]);
             }
-        } catch {
+        } catch (caught) {
+            const name = caught instanceof DOMException ? caught.name : 'Error';
+            reportClientEvent('camera', `Kamera tidak bisa dibuka (${name})`, `secureContext=${window.isSecureContext} quality=${nextQuality}`);
             setError('Tidak bisa mengakses kamera. Pastikan izin kamera diaktifkan di browser.');
         }
     };
@@ -160,6 +163,7 @@ export function CameraCaptureDialog({
 
         (async () => {
             if (!navigator.mediaDevices?.getUserMedia) {
+                reportClientEvent('camera', 'Kamera tidak tersedia (mediaDevices kosong)', `secureContext=${window.isSecureContext}`);
                 if (!cancelled) setError('Kamera tidak tersedia di perangkat/browser ini.');
                 return;
             }
@@ -230,15 +234,30 @@ export function CameraCaptureDialog({
         const video = videoRef.current;
         if (!video || video.videoWidth === 0) return;
 
-        const scale = Math.min(1, QUALITY[quality].maxLongSide / Math.max(video.videoWidth, video.videoHeight));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(video.videoWidth * scale);
-        canvas.height = Math.round(video.videoHeight * scale);
-        canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // A failed capture must be visible to the operator (it used to just do nothing) and reach the issue log.
+        const failCapture = (reason: string) => {
+            reportClientEvent('camera', `Foto gagal diproses (${reason})`, `video=${video.videoWidth}x${video.videoHeight} quality=${quality}`);
+            setError('Foto gagal diproses di perangkat ini. Tutup, buka lagi, lalu coba kualitas "Standar (1080p)".');
+        };
+
+        let canvas: HTMLCanvasElement;
+        try {
+            const scale = Math.min(1, QUALITY[quality].maxLongSide / Math.max(video.videoWidth, video.videoHeight));
+            canvas = document.createElement('canvas');
+            canvas.width = Math.round(video.videoWidth * scale);
+            canvas.height = Math.round(video.videoHeight * scale);
+            canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } catch (caught) {
+            failCapture(caught instanceof Error ? caught.message : 'canvas');
+            return;
+        }
 
         canvas.toBlob(
             (blob) => {
-                if (!blob) return;
+                if (!blob) {
+                    failCapture('toBlob kosong');
+                    return;
+                }
                 setPreviewBlob(blob);
                 setPreviewUrl(URL.createObjectURL(blob));
                 stopStream();

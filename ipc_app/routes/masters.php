@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ClientEventController;
 use App\Http\Controllers\IpcReportDocumentController;
 use App\Http\Controllers\MasterImportController;
 use App\Http\Controllers\MasterLineController;
@@ -47,4 +48,8 @@ Route::middleware(['auth', 'can:manage-master'])->prefix('masters')->group(funct
     Route::patch('recycle-bin/products/{id}/restore', [RecycleBinController::class, 'restoreProduct'])->name('recycle-bin.products.restore');
     Route::patch('recycle-bin/lines/{id}/restore', [RecycleBinController::class, 'restoreLine'])->name('recycle-bin.lines.restore');
     Route::patch('recycle-bin/test-types/{id}/restore', [RecycleBinController::class, 'restoreTestType'])->name('recycle-bin.test-types.restore');
+
+    Route::get('client-events', [ClientEventController::class, 'index'])->name('client-events.index');
+    Route::post('client-events/resolve', [ClientEventController::class, 'resolve'])->name('client-events.resolve');
+    Route::post('client-events/analyze', [ClientEventController::class, 'analyze'])->middleware('throttle:6,1')->name('client-events.analyze');
 });

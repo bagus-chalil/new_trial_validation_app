@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ClientEventController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LookupController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,9 @@ Route::get('app-version', fn () => response()
     ->json(['version' => Inertia::getVersion()])
     ->header('Cache-Control', 'no-store, max-age=0'))
     ->name('app-version');
+
+// Browser reporter (field issues). Open to guests on purpose, so a problem on the login page is seen too.
+Route::post('client-log', [ClientEventController::class, 'store'])->middleware('throttle:60,1')->name('client-log.store');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

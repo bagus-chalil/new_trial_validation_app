@@ -64,6 +64,13 @@ return [
         'tube_llm_field_type' => env('VISION_TUBE_LLM_FIELD_TYPE', 'tube_exp_llm'),
     ],
 
+    // "Analisis AI" on the admin field-issue log (Log Kendala): an anonymised digest of open issues goes
+    // to the Vision Service text endpoint (same Ollama GPU route as the OCR reads). Advisory text only.
+    // Off by default, like startup_ai, so a deploy without a reachable/updated Vision Service is unaffected.
+    'issue_ai' => [
+        'enabled' => (bool) env('VISION_ISSUE_AI_ENABLED', false),
+    ],
+
     // How each field_type's OCR value is checked against IPC data. A field_type with no rule
     // here always ends up REVIEW (never PASS) until a rule is added.
     //   batch_exp_date      : OCR'd EXP (DDMMYY) must equal ipc_batches.exp_date

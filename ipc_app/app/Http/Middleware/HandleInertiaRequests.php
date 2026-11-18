@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\ClientEventController;
 use App\Models\IpcBatch;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -47,6 +48,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'openClientIssues' => fn () => $request->user()?->isAdmin() ? ClientEventController::openIssueCount() : 0,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
