@@ -1,5 +1,6 @@
 ﻿import { AppsDrawer } from '@/components/ipc/apps-drawer';
 import { CosmaxLogo } from '@/components/ipc/cosmax-logo';
+import { NetworkDot } from '@/components/ipc/network-badge';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type SharedData } from '@/types';
@@ -64,6 +65,8 @@ export function NavRail() {
                         <span className="text-[10px] font-semibold">Apps</span>
                     </button>
                 </nav>
+
+                <NetworkDot className="mb-3" />
 
                 <button
                     type="button"

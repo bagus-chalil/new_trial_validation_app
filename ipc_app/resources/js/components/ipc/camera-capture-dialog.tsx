@@ -1,6 +1,8 @@
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reportClientEvent } from '@/lib/client-reporter';
+import { useActivity } from '@/lib/network-status';
+import { Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 // Deliberately does NOT fall back to a plain <input type="file"> picker: the whole point is to
@@ -83,6 +85,8 @@ export function CameraCaptureDialog({
     onCapture: (file: File) => void;
     title?: string;
 }) {
+    // A photo from a previous capture may still be uploading; opening the camera again then looks like "nothing happened".
+    const uploading = useActivity().kind === 'upload';
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -185,6 +189,7 @@ export function CameraCaptureDialog({
         let cancelled = false;
 
         (async () => {
+            if (uploading) return; // the dialog shows a wait notice instead of opening the camera
             if (!navigator.mediaDevices?.getUserMedia) {
                 reportClientEvent('camera', 'Kamera tidak tersedia (mediaDevices kosong)', `secureContext=${window.isSecureContext}`);
                 if (!cancelled) setError('Kamera tidak tersedia di perangkat/browser ini.');
@@ -198,7 +203,7 @@ export function CameraCaptureDialog({
             stopStream();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [open, uploading]);
 
     const changeDevice = (id: string) => {
         setDeviceId(id);
@@ -306,7 +311,7 @@ export function CameraCaptureDialog({
         onOpenChange(false);
     };
 
-    const live = !error && !previewUrl;
+    const live = !error && !previewUrl && !uploading;
     const buttonClass = 'border-border bg-background flex h-11 items-center justify-center rounded-xl border-[1.5px] px-4 text-sm font-bold';
 
     return (
@@ -319,6 +324,12 @@ export function CameraCaptureDialog({
                     <DialogTitle>{title}</DialogTitle>
                 </DialogHeader>
 
+                {uploading && (
+                    <p className="flex items-center gap-2 text-sm font-medium text-amber-700">
+                        <Loader2 className="size-4 animate-spin" />
+                        Foto sebelumnya masih diunggah. Tunggu sampai selesai, lalu buka kamera lagi.
+                    </p>
+                )}
                 {error && (
                     <div className="flex flex-col items-start gap-3">
                         <p className="text-sm font-medium text-red-600">{error}</p>

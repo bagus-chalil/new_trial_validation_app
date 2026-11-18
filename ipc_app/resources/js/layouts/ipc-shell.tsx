@@ -1,7 +1,7 @@
 import { BottomNav } from '@/components/ipc/bottom-nav';
 import { FlowBanner, flowTheme } from '@/components/ipc/flow-identity';
 import { NavRail } from '@/components/ipc/nav-rail';
-import { NetworkBadge } from '@/components/ipc/network-badge';
+import { ActivityIndicator, NetworkBadge, NetworkDot } from '@/components/ipc/network-badge';
 import { VersionWatcher } from '@/components/ipc/version-watcher';
 import { markBackClicked, previousUrl, recordVisit } from '@/lib/nav-history';
 import { returnToFromUrl } from '@/lib/return-to';
@@ -74,6 +74,7 @@ export function IpcShell({
                 )}
 
                 <NetworkBadge />
+                <ActivityIndicator />
                 <VersionWatcher />
 
                 {props.flash?.success && (
@@ -105,7 +106,10 @@ export function IpcShell({
                     <select>) inside this clip instead of stretching the document below the shell. */}
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
                 <footer className="border-border-soft bg-card text-muted-foreground mb-[calc(82px+env(safe-area-inset-bottom,0px))] flex shrink-0 flex-wrap items-center justify-center gap-x-2 border-t px-4 py-2 text-center text-[10px] md:mb-0 md:justify-between md:px-6 md:text-[11px]">
-                    <span className="font-semibold">IPC App versi 1.5.0</span>
+                    <span className="flex items-center gap-3 font-semibold">
+                        IPC App versi 1.5.0
+                        <NetworkDot />
+                    </span>
                     <span>created by IT Cosmax IDN</span>
                 </footer>
             </div>
