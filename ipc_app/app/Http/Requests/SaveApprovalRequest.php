@@ -18,8 +18,9 @@ class SaveApprovalRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        // A single-stage report can only send back that one stage, so the form doesn't ask.
-        if ($this->isRevision() && ! $this->isCombinedReport() && ! $this->has('revise_stages')) {
+        // A single-stage report can only send back that one stage, so the form doesn't ask — and
+        // always sends an empty `revise_stages: []`, which must not count as "already chosen".
+        if ($this->isRevision() && ! $this->isCombinedReport()) {
             $this->merge(['revise_stages' => [(string) $this->route('stage')]]);
         }
     }
