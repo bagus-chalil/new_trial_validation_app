@@ -186,6 +186,80 @@ class IpcBatch extends Model
         };
     }
 
+    /** The check stages (those with their own `completed_at`) in workflow order. */
+    public const CHECK_STAGES = [
+        self::STAGE_STARTUP,
+        self::STAGE_FILLING,
+        self::STAGE_PACKING,
+        self::STAGE_FINISHED,
+    ];
+
+    /** Fresh query (not the loaded relation), so a just-updated completed_at is always seen. */
+    public function stageIsCompleted(string $stage): bool
+    {
+        $relation = match ($stage) {
+            self::STAGE_STARTUP => $this->startupCheck(),
+            self::STAGE_FILLING => $this->fillingCheck(),
+            self::STAGE_PACKING => $this->packingCheck(),
+            self::STAGE_FINISHED => $this->finishedCheck(),
+            default => null,
+        };
+
+        return $relation !== null && $relation->whereNotNull('completed_at')->exists();
+    }
+
+    /**
+     * Moves the batch on after `$stage` was finalized. Same as `nextStageAfter()` in the normal
+     * flow, but skips stages that are already completed — after an approver requested a revision
+     * of one stage only, finalizing it must land on Approval, not on a later stage that was never
+     * reopened. Reaching Approval again also closes the open revision request (the revised stages
+     * are back in the approval queue as undecided).
+     */
+    public function advanceFrom(string $stage): void
+    {
+        $next = $this->nextStageAfter($stage);
+
+        while (in_array($next, self::CHECK_STAGES, true) && $this->stageIsCompleted($next)) {
+            $following = $this->nextStageAfter($next);
+            if ($following === $next) {
+                break;
+            }
+            $next = $following;
+        }
+
+        $this->update(['current_stage' => $next]);
+
+        if ($next === self::STAGE_APPROVAL) {
+            $this->approvals()
+                ->where('decision', IpcApproval::DECISION_REVISION)
+                ->update(['decision' => null, 'remarks' => null]);
+        }
+    }
+
+    /** An approver sent this batch back for correction and QC has not finished the fix yet. */
+    public function hasOpenRevision(): bool
+    {
+        return $this->approvals()->where('decision', IpcApproval::DECISION_REVISION)->exists();
+    }
+
+    /**
+     * Check stages currently reopened for the revision (not completed). Empty when no revision
+     * is open.
+     *
+     * @return list<string>
+     */
+    public function openRevisionStages(): array
+    {
+        if (! $this->hasOpenRevision()) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_intersect(self::CHECK_STAGES, $this->activeStages()),
+            fn (string $stage) => ! $this->stageIsCompleted($stage),
+        ));
+    }
+
     public function hasFillingStage(): bool
     {
         return in_array(self::STAGE_FILLING, $this->activeStages(), true);
@@ -391,6 +465,8 @@ class IpcBatch extends Model
         $completed = fn ($q) => $q->whereNotNull('completed_at');
 
         return $query
+            // Sent back to QC for correction: not the approver's turn until QC finalizes again.
+            ->whereDoesntHave('approvals', fn ($q) => $q->where('decision', IpcApproval::DECISION_REVISION))
             ->where(function ($query) {
                 $query->whereNotIn('current_stage', [self::STAGE_PRINT, self::STAGE_COMPLETED])
                     ->orWhereIn('id', IpcApproval::query()

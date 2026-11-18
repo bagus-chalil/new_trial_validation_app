@@ -20,7 +20,17 @@ interface Batch {
  * saved onto the Filling, Packing and Finished approvals alike. The PDF is the document being
  * decided on, so the preview button sits in the header.
  */
-export default function ApprovalFillpack({ batch, stage, decisions }: { batch: Batch; stage: StageInfo; decisions: string[] }) {
+export default function ApprovalFillpack({
+    batch,
+    stage,
+    decisions,
+    reviseOptions,
+}: {
+    batch: Batch;
+    stage: StageInfo;
+    decisions: string[];
+    reviseOptions: { value: string; label: string }[];
+}) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
@@ -51,7 +61,7 @@ export default function ApprovalFillpack({ batch, stage, decisions }: { batch: B
                         bawah — satu keputusan berlaku untuk semua tahap di dalamnya.
                     </p>
 
-                    <ApprovalActionCard batchId={batch.id} decisions={decisions} stage={stage} />
+                    <ApprovalActionCard batchId={batch.id} decisions={decisions} stage={stage} reviseOptions={reviseOptions} />
                 </div>
             </TwoPane>
         </IpcShell>

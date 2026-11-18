@@ -80,6 +80,19 @@ export function IpcShell({
                     </div>
                 )}
 
+                {props.revisionRequest && (
+                    <div className="mx-5 mb-1 shrink-0 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-2.5 text-sm text-orange-900 md:mx-6">
+                        <p className="font-bold">
+                            Revisi diminta{props.revisionRequest.by ? ` oleh ${props.revisionRequest.by}` : ''} — perbaiki tahap:{' '}
+                            {props.revisionRequest.stages.join(', ')}
+                        </p>
+                        {props.revisionRequest.remarks && <p className="mt-0.5 font-medium">Catatan: {props.revisionRequest.remarks}</p>}
+                        <p className="mt-0.5 text-xs">
+                            Setelah semua tahap di atas diselesaikan ulang, laporan otomatis kembali ke antrean approval.
+                        </p>
+                    </div>
+                )}
+
                 {props.flash?.error && (
                     <div className="mx-5 mb-1 shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-800 md:mx-6">
                         {props.flash.error}

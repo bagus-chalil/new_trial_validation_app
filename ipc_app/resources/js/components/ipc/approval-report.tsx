@@ -265,25 +265,52 @@ export function PrintActionCard({ batchId, info }: { batchId: number; info: Prin
     );
 }
 
-export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: number; stage: StageInfo; decisions: string[] }) {
+const DECISION_LABELS: Record<string, string> = { Revision: 'Minta Revisi' };
+
+export function ApprovalActionCard({
+    batchId,
+    stage,
+    decisions,
+    reviseOptions,
+}: {
+    batchId: number;
+    stage: StageInfo;
+    decisions: string[];
+    /** Combined reports only: the parts the approver can send back (a single-stage report sends itself back). */
+    reviseOptions?: { value: string; label: string }[];
+}) {
     const { toast, message } = useToast();
     const existing = stage.approval;
 
-    const { data, setData, put, processing, errors, setError, clearErrors } = useForm<{ decision: string; remarks: string }>({
-        decision: existing?.decision ?? '',
-        remarks: existing?.remarks ?? '',
-    });
+    const { data, setData, put, processing, errors, setError, clearErrors } = useForm<{ decision: string; remarks: string; revise_stages: string[] }>(
+        {
+            decision: existing?.decision ?? '',
+            remarks: existing?.remarks ?? '',
+            revise_stages: [],
+        },
+    );
+
+    const needsNote = data.decision === 'Rejected' || data.decision === 'Revision';
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!data.decision) {
-            setError('decision', 'Pilih Approved untuk menyetujui atau Rejected untuk menolak hasil pemeriksaan.');
-            toast('Pilih keputusan (Approved/Rejected) dulu.');
+            setError('decision', 'Pilih Approved untuk menyetujui, Minta Revisi untuk dikembalikan ke QC, atau Rejected untuk menolak.');
+            toast('Pilih keputusan dulu.');
             return;
         }
-        if (data.decision === 'Rejected' && !data.remarks.trim()) {
-            setError('remarks', 'Jelaskan alasan penolakan agar petugas mengetahui hal yang perlu diperbaiki.');
+        if (needsNote && !data.remarks.trim()) {
+            setError(
+                'remarks',
+                data.decision === 'Revision'
+                    ? 'Tuliskan bagian mana yang salah dan apa yang harus diperbaiki.'
+                    : 'Jelaskan alasan penolakan agar petugas mengetahui hal yang perlu diperbaiki.',
+            );
             document.getElementById(`approval-remarks-${stage.stage}`)?.focus();
+            return;
+        }
+        if (data.decision === 'Revision' && reviseOptions && data.revise_stages.length === 0) {
+            setError('revise_stages', 'Pilih minimal satu bagian laporan yang perlu direvisi.');
             return;
         }
         put(`/batches/${batchId}/approval/${stage.stage}`, { preserveScroll: true });
@@ -323,21 +350,60 @@ export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: num
                     <ChipToggleGroup
                         name="Keputusan approval"
                         options={decisions}
+                        labels={DECISION_LABELS}
                         value={data.decision}
                         disabled={processing}
                         onChange={(value) => {
                             setData('decision', value);
                             clearErrors('decision');
-                            if (value !== 'Rejected') clearErrors('remarks');
+                            if (value !== 'Rejected' && value !== 'Revision') clearErrors('remarks');
                         }}
                     />
                     <InputError message={errors.decision} />
-                    <Label htmlFor={`approval-remarks-${stage.stage}`}>Catatan {data.decision === 'Rejected' ? '(wajib diisi)' : '(opsional)'}</Label>
+                    {data.decision === 'Revision' && (
+                        <div className="flex flex-col gap-2 rounded-xl border border-orange-300 bg-orange-50 p-3">
+                            <p className="text-[12.5px] leading-relaxed font-medium text-orange-900">
+                                Laporan dikembalikan ke QC. Bagian yang dipilih dibuka kembali untuk diedit; data lama tetap tersimpan di riwayat.
+                                Setelah QC menyelesaikan ulang, laporan masuk antrean approval lagi.
+                            </p>
+                            {reviseOptions && (
+                                <fieldset className="flex flex-wrap gap-2" disabled={processing}>
+                                    <legend className="mb-1 text-[12px] font-bold text-orange-900">Bagian yang direvisi</legend>
+                                    {reviseOptions.map((opt) => {
+                                        const checked = data.revise_stages.includes(opt.value);
+                                        return (
+                                            <label
+                                                key={opt.value}
+                                                className="bg-card flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-[13px] font-bold"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => {
+                                                        clearErrors('revise_stages');
+                                                        setData(
+                                                            'revise_stages',
+                                                            checked
+                                                                ? data.revise_stages.filter((s) => s !== opt.value)
+                                                                : [...data.revise_stages, opt.value],
+                                                        );
+                                                    }}
+                                                />
+                                                {opt.label}
+                                            </label>
+                                        );
+                                    })}
+                                </fieldset>
+                            )}
+                            <InputError message={errors.revise_stages} />
+                        </div>
+                    )}
+                    <Label htmlFor={`approval-remarks-${stage.stage}`}>Catatan {needsNote ? '(wajib diisi)' : '(opsional)'}</Label>
                     <Textarea
                         id={`approval-remarks-${stage.stage}`}
                         aria-invalid={Boolean(errors.remarks)}
                         aria-describedby={errors.remarks ? `approval-remarks-error-${stage.stage}` : undefined}
-                        placeholder="Catatan (wajib jika Rejected)"
+                        placeholder="Catatan (wajib jika Revisi atau Rejected)"
                         rows={2}
                         className="border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px]"
                         value={data.remarks}

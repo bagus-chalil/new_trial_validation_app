@@ -42,6 +42,7 @@ export interface SharedData {
     canUseVisionTest: boolean;
     canCreateBatch: boolean;
     openClientIssues: number;
+    revisionRequest?: { stages: string[]; remarks: string | null; by: string | null; at: string | null } | null;
     [key: string]: unknown;
 }
 

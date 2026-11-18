@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\Controllers\ClientEventController;
+use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -65,6 +66,32 @@ class HandleInertiaRequests extends Middleware
             'canManageMaster' => fn () => (bool) $request->user()?->isAdmin(),
             'canUseVisionTest' => fn () => (bool) $request->user()?->can('use-vision-test'),
             'canCreateBatch' => fn () => (bool) $request->user()?->can('create', IpcBatch::class),
+            // Set on any page of a batch whose report an approver sent back for correction, so
+            // QC sees the note and which stages were reopened on every stage page.
+            'revisionRequest' => function () use ($request) {
+                $batch = $request->route('batch');
+                if (! $batch instanceof IpcBatch) {
+                    return null;
+                }
+
+                $stages = $batch->openRevisionStages();
+                if ($stages === []) {
+                    return null;
+                }
+
+                $approval = $batch->approvals()
+                    ->where('decision', IpcApproval::DECISION_REVISION)
+                    ->with('approver:id,name')
+                    ->latest('updated_at')
+                    ->first();
+
+                return [
+                    'stages' => array_map(fn (string $s) => IpcApproval::STAGE_LABELS[$s] ?? $s, $stages),
+                    'remarks' => $approval?->remarks,
+                    'by' => $approval?->approver?->name,
+                    'at' => $approval?->approved_at?->toIso8601String(),
+                ];
+            },
         ]);
     }
 }
