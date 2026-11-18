@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\FinishedCheck;
 use App\Models\IpcBatch;
+use App\Models\IpcDataFlag;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
@@ -47,6 +48,29 @@ class AuditNumberFormatsTest extends TestCase
         $this->artisan('ipc:audit-number-formats')->assertExitCode(1);
 
         $this->assertSame('1920,5', $check->fresh()->standard_weight_mb);
+    }
+
+    public function test_flag_option_records_bad_values_idempotently_without_touching_the_rows(): void
+    {
+        $batch = $this->makeBatch();
+        $bad = FinishedCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'masterbox' => '7.23', 'no_pallet_qty' => '1/2016']);
+
+        $this->artisan('ipc:audit-number-formats', ['--flag' => true])->assertExitCode(1);
+        $this->artisan('ipc:audit-number-formats', ['--flag' => true])->assertExitCode(1); // re-run: no duplicates
+
+        $this->assertSame([(string) $bad->id], IpcDataFlag::excludedIds('finished_checks', IpcDataFlag::BAD_NUMBER_FORMAT));
+        $this->assertSame(1, IpcDataFlag::where('source_table', 'finished_checks')->count());
+        $this->assertSame('7.23', $bad->fresh()->masterbox);
+    }
+
+    public function test_audit_without_flag_option_writes_no_flags(): void
+    {
+        $batch = $this->makeBatch();
+        FinishedCheck::create(['ipc_batch_id' => $batch->id, 'user_id' => $batch->created_by, 'masterbox' => '7.23', 'no_pallet_qty' => '1/2016']);
+
+        $this->artisan('ipc:audit-number-formats')->assertExitCode(1);
+
+        $this->assertSame(0, IpcDataFlag::count());
     }
 
     public function test_migration_rewrites_decimal_comma_to_dot_and_leaves_list_columns_alone(): void
