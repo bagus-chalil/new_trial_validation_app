@@ -225,13 +225,16 @@ export default function BatchesIndex({
     filters,
     filterOptions,
     stages,
+    stageCounts,
 }: {
     batches: Paginated<Batch>;
     filters: BatchFilterValues;
     filterOptions: BatchFilterOptions;
     stages: string[];
+    stageCounts: Record<string, number>;
 }) {
     const [q, setQ] = useState(filters.q ?? '');
+    const totalAll = stages.reduce((sum, stage) => sum + (stageCounts[stage] ?? 0), 0);
     const { props } = usePage<SharedData>();
     const getInitials = useInitials();
 
@@ -319,8 +322,10 @@ export default function BatchesIndex({
                         <div className="border-border-soft bg-card rounded-3xl border p-5 shadow-sm">
                             <div className="mb-3 flex items-center justify-between gap-3">
                                 <div>
-                                    <h3 className="font-bold">Tahapan di halaman ini</h3>
-                                    <p className="text-muted-foreground mt-1 text-xs">Pilih tahapan untuk memfilter daftar batch.</p>
+                                    <h3 className="font-bold">Jumlah batch per tahapan</h3>
+                                    <p className="text-muted-foreground mt-1 text-xs">
+                                        Dihitung dari seluruh batch yang sesuai filter. Pilih tahapan untuk memfilter daftar.
+                                    </p>
                                 </div>
                                 <ClipboardList className="text-primary size-5 shrink-0" />
                             </div>
@@ -332,10 +337,13 @@ export default function BatchesIndex({
                                     className={`focus-visible:outline-primary flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-2 ${!filters.stage ? 'border-primary/40 bg-primary/5' : 'border-border-soft hover:bg-muted'}`}
                                 >
                                     <span className="min-w-0 flex-1 text-xs font-semibold">Semua</span>
+                                    <span className="bg-muted flex h-6 min-w-6 shrink-0 items-center justify-center rounded-lg px-1.5 text-xs font-bold tabular-nums">
+                                        {totalAll.toLocaleString('id-ID')}
+                                    </span>
                                     <ArrowUpRight className="text-muted-foreground size-3.5 shrink-0" />
                                 </button>
                                 {stages.map((stage) => {
-                                    const count = batches.data.filter((batch) => batch.current_stage === stage).length;
+                                    const count = stageCounts[stage] ?? 0;
                                     return (
                                         <button
                                             key={stage}
@@ -345,8 +353,8 @@ export default function BatchesIndex({
                                             className={`focus-visible:outline-primary flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-2 ${filters.stage === stage ? 'border-primary/40 bg-primary/5' : 'border-border-soft hover:bg-muted'}`}
                                         >
                                             <span className="min-w-0 flex-1 text-xs font-semibold">{stageLabel(stage)}</span>
-                                            <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold">
-                                                {count}
+                                            <span className="bg-muted flex h-6 min-w-6 shrink-0 items-center justify-center rounded-lg px-1.5 text-xs font-bold tabular-nums">
+                                                {count.toLocaleString('id-ID')}
                                             </span>
                                             <ArrowUpRight className="text-muted-foreground size-3.5 shrink-0" />
                                         </button>

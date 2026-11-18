@@ -56,7 +56,23 @@ class IpcBatchController extends Controller
             ]))->withQueryString();
         }
 
+        // Per-stage totals over the WHOLE filtered result (not just the 20 cards on this page),
+        // ignoring the stage picker itself so every tile always shows its real number. They add up
+        // to the "N batch" in the header when no stage is chosen.
+        if ($q === '') {
+            $stageCounts = $scope(IpcBatch::query()->archived(false))
+                ->selectRaw('current_stage, count(*) as total')
+                ->groupBy('current_stage')
+                ->pluck('total', 'current_stage');
+        } else {
+            $stageCounts = collect(IpcBatch::STAGES)->mapWithKeys(fn (string $s) => [
+                $s => IpcBatch::searchCount($q, $s, archived: false, scope: $scope),
+            ]);
+        }
+        $stageCounts = collect(IpcBatch::STAGES)->mapWithKeys(fn (string $s) => [$s => (int) ($stageCounts[$s] ?? 0)]);
+
         return Inertia::render('batches/index', [
+            'stageCounts' => $stageCounts,
             'batches' => $batches,
             'filters' => [...$request->only(['q', 'stage']), ...$filter->toArray()],
             'filterOptions' => BatchFilter::options(),

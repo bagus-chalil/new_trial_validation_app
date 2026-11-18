@@ -40,6 +40,9 @@ class AdvanceApprovedBatches extends Command
                 $this->line(($dryRun ? '[dry-run] ' : '').'Batch #'.$batch->id.' '.$batch->no_batch.' -> completed');
 
                 if (! $dryRun) {
+                    // Keep updated_at: the dashboard's "Selesai hari ini" counts completed batches by
+                    // updated_at, so touching it would report these old batches as finished today.
+                    $batch->timestamps = false;
                     $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);
                 }
 
