@@ -124,6 +124,19 @@ class ApprovalRevisionTest extends TestCase
         $this->assertSame(1, $batch->approvals()->where('decision', IpcApproval::DECISION_REVISION)->count());
     }
 
+    public function test_single_stage_revision_works_when_the_form_sends_an_empty_stage_list(): void
+    {
+        $batch = $this->makeBatchAtApprovalStage();
+
+        // The approval form always includes `revise_stages: []` for single-stage reports.
+        $this->actingAs(User::factory()->approver()->create())
+            ->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Revision', 'remarks' => 'Foto IM buram.', 'revise_stages' => []])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('approvals.index'));
+
+        $this->assertNull($batch->fresh()->startupCheck->completed_at);
+    }
+
     public function test_revision_is_refused_once_the_batch_is_past_approval(): void
     {
         $batch = $this->makeBatchAtApprovalStage(IpcBatch::STAGE_PRINT);
