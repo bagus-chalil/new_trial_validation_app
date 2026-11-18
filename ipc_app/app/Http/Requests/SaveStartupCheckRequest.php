@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesDecimalComma;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\StartupCheck;
@@ -12,6 +13,8 @@ use Illuminate\Validation\Rule;
 
 class SaveStartupCheckRequest extends FormRequest
 {
+    use NormalizesDecimalComma;
+
     public function authorize(): bool
     {
         return true;
@@ -33,6 +36,8 @@ class SaveStartupCheckRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $this->normalizeDecimalCommas(['filling_range_min', 'filling_range_max', 'density', 'average_of_empty_bottle_weight']);
+
         $batch = $this->route('batch');
         if (! $batch instanceof IpcBatch) {
             return;

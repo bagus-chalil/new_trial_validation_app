@@ -381,6 +381,17 @@ class PackingCheckTest extends TestCase
         $this->assertSame('1330-1410', $batch->fresh()->packingCheck->standard_weight_mb);
     }
 
+    /** Decimal comma is normalised to a dot so stored values are uniform (user, 2026-11-18). */
+    public function test_standard_weight_mb_decimal_comma_is_stored_with_a_dot(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedFillingCheck();
+
+        $this->put("/batches/{$batch->id}/packing-check", $this->validPayload(['finalize' => false, 'standard_weight_mb' => '1920,5 - 2000,25']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('1920.5-2000.25', $batch->fresh()->packingCheck->standard_weight_mb);
+    }
+
     public function test_missing_checklist_field_is_rejected(): void
     {
         $this->actingAs(User::factory()->create());

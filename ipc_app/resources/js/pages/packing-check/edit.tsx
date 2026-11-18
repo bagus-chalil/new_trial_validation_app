@@ -462,7 +462,7 @@ export default function PackingCheckEdit({
                                     className={`${inputClass} ${errorFields.has('standard_weight_mb') ? errorBorder : ''}`}
                                     value={data.standard_weight_mb ?? ''}
                                     onChange={(e) => {
-                                        setData('standard_weight_mb', e.target.value);
+                                        setData('standard_weight_mb', e.target.value.replace(/,/g, '.'));
                                         setErrorFields((prev) => {
                                             const n = new Set(prev);
                                             n.delete('standard_weight_mb');

@@ -257,6 +257,25 @@ class StartupCheckTest extends TestCase
         $this->get("/batches/{$batch->id}/startup-check")->assertNotFound();
     }
 
+    /** Decimal commas typed by the user are saved as dots (user, 2026-11-18). */
+    public function test_decimal_commas_are_accepted_and_stored_as_dots(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        $payload['density'] = '1,05';
+        $payload['average_of_empty_bottle_weight'] = '21,5';
+        $payload['filling_range_min'] = '10,5';
+
+        $this->put("/batches/{$batch->id}/startup-check", $payload)->assertSessionHasNoErrors();
+
+        $startupCheck = $batch->startupCheck()->first();
+        $this->assertEquals(1.05, (float) $startupCheck->density);
+        $this->assertEquals(21.5, (float) $startupCheck->average_of_empty_bottle_weight);
+        $this->assertEquals(10.5, (float) $startupCheck->filling_range_min);
+    }
+
     public function test_valid_submission_persists_check_and_advances_stage(): void
     {
         $this->actingAs(User::factory()->create());

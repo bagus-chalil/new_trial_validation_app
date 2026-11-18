@@ -104,6 +104,22 @@ class StartupInspectionTest extends TestCase
         $this->assertSame(IpcBatch::STAGE_STARTUP, $batch->fresh()->current_stage);
     }
 
+    /** A decimal comma typed by the user is saved as a dot (user, 2026-11-18). */
+    public function test_volume_weight_decimal_comma_is_stored_as_a_dot(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $payload = $this->validPayload();
+        $first = array_key_first($payload['samples']);
+        $payload['samples'][$first]['volume_weight'] = '12,34';
+
+        $this->put("/batches/{$batch->id}/startup-inspection", $payload)->assertSessionHasNoErrors();
+
+        $sample = $batch->fresh()->startupInspection->samples()->orderBy('sample_no')->first();
+        $this->assertEquals(12.34, (float) $sample->volume_weight);
+    }
+
     public function test_weight_master_box_can_be_left_blank(): void
     {
         $this->actingAs(User::factory()->create());

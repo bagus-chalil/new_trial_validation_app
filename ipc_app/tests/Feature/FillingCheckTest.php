@@ -130,6 +130,21 @@ class FillingCheckTest extends TestCase
         $this->assertEquals(25.5, (float) $fillingCheck->average_weight);
     }
 
+    /** A decimal comma typed by the user is saved as a dot (user, 2026-11-18). */
+    public function test_weight_sample_decimal_comma_is_accepted_and_stored_as_a_dot(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatchWithCompletedStartupCheck();
+
+        $payload = $this->validPayload(false);
+        $payload['samples'][0]['weight_value'] = '21,5';
+
+        $this->put("/batches/{$batch->id}/filling-check", $payload)->assertSessionHasNoErrors();
+
+        $revision = $batch->fillingCheck()->first()->revisions()->with('samples')->first();
+        $this->assertEquals(21.5, (float) $revision->samples->firstWhere('sample_no', 1)->weight_value);
+    }
+
     public function test_weight_samples_allow_at_most_two_decimal_places(): void
     {
         $this->actingAs(User::factory()->create());

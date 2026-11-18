@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesDecimalComma;
 use App\Http\Requests\Concerns\ValidatesThProgressRound;
 use App\Models\FillingCheck;
 use App\Models\IpcBatch;
@@ -10,11 +11,17 @@ use Illuminate\Validation\Validator;
 
 class SaveFillingCheckRequest extends FormRequest
 {
+    use NormalizesDecimalComma;
     use ValidatesThProgressRound;
 
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeDecimalCommas(['samples.*.weight_value']);
     }
 
     public function rules(): array
