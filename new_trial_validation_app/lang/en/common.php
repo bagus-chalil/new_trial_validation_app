@@ -79,6 +79,7 @@ return [
     ],
 
     'actions' => [
+        'row_actions' => 'Actions',
         'search' => 'Search',
         'reset' => 'Reset',
         'cancel' => 'Cancel',
