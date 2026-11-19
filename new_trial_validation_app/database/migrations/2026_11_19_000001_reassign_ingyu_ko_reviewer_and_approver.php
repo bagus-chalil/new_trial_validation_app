@@ -15,7 +15,7 @@ return new class extends Migration
 
     private const REVIEW_EVEN = 'zahra.syahda@cosmax.com';
 
-    /** Approver replacements: decided/pending before the cutoff => MOON, from the cutoff => JAEJUNG. */
+    /** Approver replacements: decided/submitted before the cutoff => MOON, from the cutoff => JAEJUNG. */
     private const APPROVER_BEFORE = 'moonsh@cosmax.com';
 
     private const APPROVER_FROM = 'jaejung.kim@cosmax.com';
@@ -85,7 +85,15 @@ return new class extends Migration
             // 2. Trial approver.
             $trials = DB::table('trials_header')->where('approver_user_id', $old->id)->get();
             foreach ($trials as $t) {
-                $to = $approverFor($t->approved_at ?? $t->rejected_at);
+                // Date that decides the approver: the decision date; if still undecided,
+                // when the trial was submitted for review (that is when ingyu.ko was
+                // picked as approver); else when the trial was created.
+                $submittedAt = Schema::hasTable('activity_logs')
+                    ? DB::table('activity_logs')
+                        ->where('module', 'TRIAL')->where('action', 'SUBMIT_REVIEW')->where('record_id', $t->id)
+                        ->min('created_at')
+                    : null;
+                $to = $approverFor($t->approved_at ?? $t->rejected_at ?? $submittedAt ?? $t->created_at);
                 $update = ['approver_user_id' => $to->id];
                 if ($isOldName($t->approved_by)) {
                     $update['approved_by'] = $to->name;
@@ -104,7 +112,7 @@ return new class extends Migration
             if (Schema::hasTable('trial_line_configuration_reports')) {
                 $reports = DB::table('trial_line_configuration_reports')->where('approved_pie_user_id', $old->id)->get();
                 foreach ($reports as $rep) {
-                    $to = $approverFor($rep->approved_pie_at);
+                    $to = $approverFor($rep->approved_pie_at ?? $rep->created_at);
                     $update = ['approved_pie_user_id' => $to->id];
                     if ($isOldName($rep->approved_pie_by)) {
                         $update['approved_pie_by'] = $to->name;
@@ -124,7 +132,7 @@ return new class extends Migration
                         $approverId = $n->trial_id
                             ? DB::table('trials_header')->where('id', $n->trial_id)->value('approver_user_id')
                             : null;
-                        $toId = ($approverId && $approverId !== $old->id) ? $approverId : $approverFor(null)->id;
+                        $toId = ($approverId && $approverId !== $old->id) ? $approverId : $approverFor($n->created_at)->id;
                     } else {
                         $toId = $reviewerFor($n->created_at)->id;
                     }
