@@ -255,3 +255,20 @@ test('the repair command closes a stuck Pending alias row next to an already-Rev
     expect($stuck->fresh()->comment)->toBe('Sudah OK');
     expect($trial->fresh()->progress_status)->toBe('Ready for Approval');
 });
+
+test('a trial moved to Trash no longer appears in the review queue', function () {
+    $reviewer = User::factory()->reviewUnit('PROD')->create();
+
+    $live = makeInReviewTrial(['trial_code' => 'TRIAL-LIVE-1']);
+    TrialReview::create(['trial_id' => $live->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
+
+    $trashed = makeInReviewTrial(['trial_code' => 'TRIAL-TRASHED-1']);
+    TrialReview::create(['trial_id' => $trashed->id, 'department' => 'PROD', 'review_round' => 1, 'status' => 'Pending']);
+    DB::table('trials_header')->where('id', $trashed->id)->update(['deleted_at' => now()]);
+
+    $this->actingAs($reviewer)->get(route('reviews.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('items.data', 1)
+            ->where('items.data.0.trial_id', $live->id));
+});

@@ -6,7 +6,16 @@ import { FilterBar, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     Table,
     TableBody,
@@ -42,6 +51,13 @@ type Holder = {
     count: number;
     avg_days: number;
     oldest_days: number;
+    people: { name: string | null; count: number; oldest_days: number }[];
+    trials: {
+        id: number;
+        trial_code: string;
+        product_name: string;
+        idle_days: number;
+    }[];
 };
 
 type MonitorRow = {
@@ -86,6 +102,7 @@ export default function MonitoringIndex({
 }: PageProps) {
     const { t, formatDate } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
+    const [detail, setDetail] = useState<Holder | null>(null);
     const url = monitoringIndex().url;
 
     function go(next: Filters) {
@@ -395,14 +412,7 @@ export default function MonitoringIndex({
                                 {holders.map((holder) => (
                                     <TableRow
                                         key={holder.name}
-                                        onClick={() =>
-                                            setFilter(
-                                                'holder',
-                                                filters.holder === holder.name
-                                                    ? ''
-                                                    : holder.name,
-                                            )
-                                        }
+                                        onClick={() => setDetail(holder)}
                                         className={cn(
                                             'cursor-pointer',
                                             filters.holder === holder.name &&
@@ -452,6 +462,161 @@ export default function MonitoringIndex({
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog
+                open={detail !== null}
+                onOpenChange={(open) => !open && setDetail(null)}
+            >
+                <DialogContent className="max-w-2xl">
+                    {detail && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>
+                                    {detail.name} ·{' '}
+                                    {t(
+                                        `monitoring.holders.kinds.${detail.kind}`,
+                                    )}
+                                </DialogTitle>
+                                <DialogDescription>
+                                    {t('monitoring.holders.detail.summary', {
+                                        count: detail.count,
+                                        avg: detail.avg_days,
+                                        oldest: detail.oldest_days,
+                                    })}
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="max-h-[60vh] space-y-5 overflow-y-auto">
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold">
+                                        {t('monitoring.holders.detail.people')}
+                                    </h4>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>
+                                                    {t(
+                                                        'monitoring.holders.detail.person',
+                                                    )}
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    {t(
+                                                        'monitoring.holders.count',
+                                                    )}
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    {t(
+                                                        'monitoring.holders.oldest_days',
+                                                    )}
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {detail.people.map((person, i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell className="font-medium">
+                                                        {person.name ??
+                                                            t(
+                                                                'monitoring.holders.detail.unassigned',
+                                                            )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-semibold">
+                                                        {person.count}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={idleClassName(
+                                                                person.oldest_days,
+                                                                thresholds.warn,
+                                                                thresholds.critical,
+                                                            )}
+                                                        >
+                                                            {person.oldest_days}
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            {detail.people.length === 0 && (
+                                                <TableRow>
+                                                    <TableCell
+                                                        colSpan={3}
+                                                        className="p-4 text-center text-muted-foreground"
+                                                    >
+                                                        {t(
+                                                            'monitoring.holders.empty',
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold">
+                                        {t('monitoring.holders.detail.trials', {
+                                            shown: detail.trials.length,
+                                            total: detail.count,
+                                        })}
+                                    </h4>
+                                    <ul className="divide-y rounded-md border text-sm">
+                                        {detail.trials.map((trial) => (
+                                            <li
+                                                key={trial.id}
+                                                className="flex items-center justify-between gap-3 p-2"
+                                            >
+                                                <div className="min-w-0">
+                                                    <Link
+                                                        href={
+                                                            showReport(
+                                                                trial.id,
+                                                                {
+                                                                    query: {
+                                                                        from: 'overview',
+                                                                    },
+                                                                },
+                                                            ).url
+                                                        }
+                                                        className="font-medium underline underline-offset-2"
+                                                    >
+                                                        {trial.trial_code}
+                                                    </Link>
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        {trial.product_name}
+                                                    </p>
+                                                </div>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={idleClassName(
+                                                        trial.idle_days,
+                                                        thresholds.warn,
+                                                        thresholds.critical,
+                                                    )}
+                                                >
+                                                    {days(trial.idle_days)}
+                                                </Badge>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <DialogFooter>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setFilter('holder', detail.name);
+                                        setDetail(null);
+                                    }}
+                                >
+                                    {t('monitoring.holders.detail.filter')}
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

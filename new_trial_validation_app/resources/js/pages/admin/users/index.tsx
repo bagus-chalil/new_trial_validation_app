@@ -3,10 +3,11 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import ImpersonationController from '@/actions/App/Http/Controllers/Admin/ImpersonationController';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { RowActionsMenu } from '@/components/row-actions-menu';
+import type { RowAction } from '@/components/row-actions-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -212,6 +213,79 @@ export default function AdminUsersIndex({
         setDialogOpen(true);
     }
 
+    function userActions(usr: User): RowAction[] {
+        if (usr.id === auth.user.id) {
+            return [];
+        }
+
+        const actions: RowAction[] = [
+            {
+                key: 'edit',
+                label: t('admin.actions.edit'),
+                onSelect: () => openEdit(usr),
+            },
+        ];
+
+        if (usr.role !== 'Super Admin' || auth.user.role === 'Super Admin') {
+            const toggleLabel = usr.is_active
+                ? t('admin.users.deactivate')
+                : t('admin.users.reactivate');
+            const person = { name: usr.name, email: usr.email };
+
+            actions.push(
+                {
+                    key: 'login-as',
+                    label: t('admin.users.login_as'),
+                    confirm: {
+                        title: t('admin.users.login_as_title'),
+                        description: t(
+                            'admin.users.login_as_description',
+                            person,
+                        ),
+                        confirmLabel: t('admin.users.login_as'),
+                        confirmVariant: 'default',
+                        formProps: ImpersonationController.store.form(usr.id),
+                    },
+                },
+                {
+                    key: 'toggle',
+                    label: toggleLabel,
+                    confirm: {
+                        title: usr.is_active
+                            ? t('admin.users.deactivate_title')
+                            : t('admin.users.reactivate_title'),
+                        description: t(
+                            usr.is_active
+                                ? 'admin.users.deactivate_description'
+                                : 'admin.users.reactivate_description',
+                            person,
+                        ),
+                        confirmLabel: toggleLabel,
+                        confirmVariant: 'default',
+                        formProps: UserController.toggleActive.form(usr.id),
+                    },
+                },
+                {
+                    key: 'delete',
+                    label: t('admin.actions.delete'),
+                    destructive: true,
+                    separator: true,
+                    confirm: {
+                        title: t('admin.users.delete_title'),
+                        description: t(
+                            'admin.users.delete_description',
+                            person,
+                        ),
+                        confirmLabel: t('admin.actions.delete'),
+                        formProps: UserController.destroy.form(usr.id),
+                    },
+                },
+            );
+        }
+
+        return actions;
+    }
+
     return (
         <>
             <Head title={t('admin.users.title')} />
@@ -307,143 +381,9 @@ export default function AdminUsersIndex({
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex gap-2">
-                                                {usr.id !== auth.user.id && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            openEdit(usr)
-                                                        }
-                                                    >
-                                                        {t(
-                                                            'admin.actions.edit',
-                                                        )}
-                                                    </Button>
-                                                )}
-                                                {usr.id !== auth.user.id &&
-                                                    (usr.role !==
-                                                        'Super Admin' ||
-                                                        auth.user.role ===
-                                                            'Super Admin') && (
-                                                        <ConfirmDialog
-                                                            trigger={
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                >
-                                                                    {usr.is_active
-                                                                        ? t(
-                                                                              'admin.users.deactivate',
-                                                                          )
-                                                                        : t(
-                                                                              'admin.users.reactivate',
-                                                                          )}
-                                                                </Button>
-                                                            }
-                                                            title={
-                                                                usr.is_active
-                                                                    ? t(
-                                                                          'admin.users.deactivate_title',
-                                                                      )
-                                                                    : t(
-                                                                          'admin.users.reactivate_title',
-                                                                      )
-                                                            }
-                                                            description={t(
-                                                                usr.is_active
-                                                                    ? 'admin.users.deactivate_description'
-                                                                    : 'admin.users.reactivate_description',
-                                                                {
-                                                                    name: usr.name,
-                                                                    email: usr.email,
-                                                                },
-                                                            )}
-                                                            confirmLabel={
-                                                                usr.is_active
-                                                                    ? t(
-                                                                          'admin.users.deactivate',
-                                                                      )
-                                                                    : t(
-                                                                          'admin.users.reactivate',
-                                                                      )
-                                                            }
-                                                            confirmVariant="default"
-                                                            formProps={UserController.toggleActive.form(
-                                                                usr.id,
-                                                            )}
-                                                        />
-                                                    )}
-                                                {usr.id !== auth.user.id &&
-                                                    (usr.role !==
-                                                        'Super Admin' ||
-                                                        auth.user.role ===
-                                                            'Super Admin') && (
-                                                        <ConfirmDialog
-                                                            trigger={
-                                                                <Button
-                                                                    variant="destructive"
-                                                                    size="sm"
-                                                                >
-                                                                    {t(
-                                                                        'admin.actions.delete',
-                                                                    )}
-                                                                </Button>
-                                                            }
-                                                            title={t(
-                                                                'admin.users.delete_title',
-                                                            )}
-                                                            description={t(
-                                                                'admin.users.delete_description',
-                                                                {
-                                                                    name: usr.name,
-                                                                    email: usr.email,
-                                                                },
-                                                            )}
-                                                            confirmLabel={t(
-                                                                'admin.actions.delete',
-                                                            )}
-                                                            formProps={UserController.destroy.form(
-                                                                usr.id,
-                                                            )}
-                                                        />
-                                                    )}
-                                                {usr.id !== auth.user.id &&
-                                                    (usr.role !==
-                                                        'Super Admin' ||
-                                                        auth.user.role ===
-                                                            'Super Admin') && (
-                                                        <ConfirmDialog
-                                                            trigger={
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                >
-                                                                    {t(
-                                                                        'admin.users.login_as',
-                                                                    )}
-                                                                </Button>
-                                                            }
-                                                            title={t(
-                                                                'admin.users.login_as_title',
-                                                            )}
-                                                            description={t(
-                                                                'admin.users.login_as_description',
-                                                                {
-                                                                    name: usr.name,
-                                                                    email: usr.email,
-                                                                },
-                                                            )}
-                                                            confirmLabel={t(
-                                                                'admin.users.login_as',
-                                                            )}
-                                                            confirmVariant="default"
-                                                            formProps={ImpersonationController.store.form(
-                                                                usr.id,
-                                                            )}
-                                                        />
-                                                    )}
-                                            </div>
+                                            <RowActionsMenu
+                                                actions={userActions(usr)}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))}
