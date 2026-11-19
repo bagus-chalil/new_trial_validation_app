@@ -5,12 +5,34 @@ import { cn } from '@/lib/utils';
 import { type RecentBatch } from '@/types';
 import { Link } from '@inertiajs/react';
 import { Loader2, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+// Every page renders its own BatchNavList, so each Inertia visit remounts it and its scroll box
+// would jump back to the top. Keep the last position at module level (survives SPA navigation)
+// and restore it on mount.
+let savedListScrollTop = 0;
 
 export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; activeId?: number }) {
     const [q, setQ] = useState('');
     const [results, setResults] = useState<RecentBatch[] | null>(null);
     const [loading, setLoading] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        const box = scrollRef.current;
+        if (!box) return;
+        box.scrollTop = savedListScrollTop;
+        // If the active card ended up outside the visible area (e.g. opened from elsewhere), bring it in.
+        const active = box.querySelector<HTMLElement>('[aria-current="page"]');
+        if (active) {
+            const boxRect = box.getBoundingClientRect();
+            const rect = active.getBoundingClientRect();
+            if (rect.top < boxRect.top || rect.bottom > boxRect.bottom) {
+                box.scrollTop += rect.top - boxRect.top - (box.clientHeight - rect.height) / 2;
+            }
+        }
+        // Only on mount: later re-renders must not fight the user's own scrolling.
+    }, []);
 
     // `batches` is only the 20 most recent; a typed search goes to the server so older batches
     // are findable too, without ever shipping the full table to the tablet.
@@ -62,7 +84,14 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                 </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3.5">
+            <div
+                ref={scrollRef}
+                onScroll={(e) => {
+                    // Search results are a different list; only remember the position of the recent list.
+                    if (!q.trim()) savedListScrollTop = e.currentTarget.scrollTop;
+                }}
+                className="min-h-0 flex-1 overflow-y-auto px-3 py-3.5"
+            >
                 <div className="flex flex-col gap-2">
                     {filtered.map((batch) => {
                         const active = activeId === batch.id;
@@ -87,7 +116,9 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                                         {stageLabel(batch.current_stage)}
                                     </span>
                                 </div>
-                                <p className="text-foreground/80 mt-1 text-[11.5px] font-semibold tabular-nums">{batch.master_product?.fg_code ?? '—'}</p>
+                                <p className="text-foreground/80 mt-1 text-[11.5px] font-semibold tabular-nums">
+                                    {batch.master_product?.fg_code ?? '—'}
+                                </p>
                                 <p className="text-muted-foreground truncate text-[11.5px] font-medium">
                                     {batch.master_product?.product_name ?? '—'}
                                 </p>
