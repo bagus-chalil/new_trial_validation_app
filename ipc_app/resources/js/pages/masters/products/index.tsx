@@ -25,6 +25,7 @@ interface MasterProduct {
     fg_code: string;
     product_name: string;
     shelf_life_months: number | null;
+    coding_formula: string | null;
     is_active: boolean;
     bulk_codes_count: number;
     bulk_codes: BulkCode[];
@@ -38,7 +39,14 @@ interface Paginated<T> {
     total: number;
 }
 
-const emptyProductForm = { id: null as number | null, fg_code: '', product_name: '', shelf_life_months: '' as number | '', is_active: true };
+const emptyProductForm = {
+    id: null as number | null,
+    fg_code: '',
+    product_name: '',
+    shelf_life_months: '' as number | '',
+    coding_formula: '',
+    is_active: true,
+};
 const emptyBulkCodeForm = { id: null as number | null, bulk_code: '', is_active: true };
 
 function BulkCodeManager({ product, open, onOpenChange }: { product: MasterProduct | null; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -187,6 +195,7 @@ export default function MasterProductsIndex({
             fg_code: product.fg_code,
             product_name: product.product_name,
             shelf_life_months: product.shelf_life_months ?? '',
+            coding_formula: product.coding_formula ?? '',
             is_active: product.is_active,
         });
         setOpen(true);
@@ -352,6 +361,20 @@ export default function MasterProductsIndex({
                                 Dipakai OCR untuk menghitung EXP dari MFD. Kosongkan jika belum diketahui.
                             </p>
                             <InputError message={errors.shelf_life_months} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="coding_formula">Formula Coding (opsional)</Label>
+                            <Input
+                                id="coding_formula"
+                                placeholder='Kosong = otomatis, mis. ["{BATCH3}","EXP {MMM} {YY}"]'
+                                value={data.coding_formula}
+                                onChange={(e) => setData('coding_formula', e.target.value)}
+                            />
+                            <p className="text-muted-foreground text-[12px]">
+                                Dipakai AI untuk mencari batch dan EXP di foto Primary Coding. Kosongkan jika belum tahu: AI mencoba semua formula
+                                yang dikenal.
+                            </p>
+                            <InputError message={errors.coding_formula} />
                         </div>
                         <div className="flex items-center gap-2">
                             <Checkbox id="is_active" checked={data.is_active} onCheckedChange={(checked) => setData('is_active', checked === true)} />

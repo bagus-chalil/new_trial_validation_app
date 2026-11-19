@@ -66,6 +66,7 @@ class StartupVisionEvaluator
             'label_bulk' => $this->labelBulk($batch, $raw, $entered),
             'im_document' => $this->imDocument($batch, $raw, $entered),
             'coding_print' => $this->codingPrint($batch, $raw, $entered, $tube, $tubeLlm),
+            'coding_formula' => $this->codingFormula($batch, $raw, $entered, $tube, $tubeLlm),
             default => [[], true, "Belum ada aturan pembanding untuk field_type '{$fieldType}'."],
         };
 
@@ -397,6 +398,181 @@ class StartupVisionEvaluator
         }
 
         return [$items, false, null];
+    }
+
+    /**
+     * Primary Coding read by coding formula (1 or 2 photos merged by the Vision Service). Per field:
+     * only status "OK" is trusted; CONFLICT / LOW_CONFIDENCE / NOT_FOUND / missing = REVIEW, never
+     * PASS or FAIL. EXP is compared through date + granularity (day = full date, month = month/year),
+     * never by parsing the printed value. Tube and non-tube follow the same rules, except that a tube
+     * result is still forced to REVIEW while vision.startup_ai.tube_force_review is on (old policy).
+     *
+     * @return array{0: list<array<string, mixed>>, 1: bool, 2: ?string}
+     */
+    private function codingFormula(IpcBatch $batch, array $raw, array $entered, ?VisionResult $tube, ?VisionResult $tubeLlm): array
+    {
+        $items = [];
+        $chosen = $entered['packaging_type'] ?? null;
+        if ($chosen) {
+            $items[] = $this->item('packaging', 'Jenis kemasan', $chosen === IpcBatch::PACKAGING_TUBE ? 'Tube' : 'Non-tube', null, self::INFO, null);
+        }
+
+        // Batch: 3 letters after "/" of No. Batch. A batch printed with another length (e.g. 26Y070X) is
+        // shown as info and left to a manual check, never forced to match.
+        $expectedBatch = CodingFormulaRead::batchLetters($batch->no_batch);
+        $batchField = CodingFormulaRead::field($raw, 'batch');
+        $read = $batchField['value'] ?? null;
+        $readBatch = strtoupper(trim((string) $read));
+        if ($this->formulaUnusable($batchField)) {
+            $items[] = $this->formulaFieldItem('coding_batch', 'Batch (coding)', $expectedBatch, $batchField);
+        } elseif (CodingFormulaRead::isOk($batchField) && $read !== null && strlen($readBatch) !== 3) {
+            $items[] = $this->item('coding_batch', 'Batch (coding)', $expectedBatch, $read, self::REVIEW,
+                'Batch tercetak '.strlen($readBatch).' karakter, bukan 3 huruf - tidak dibandingkan otomatis, cek manual.'.$this->photoNote($batchField));
+        } else {
+            $item = $this->compare(
+                'coding_batch', 'Batch (coding)', $expectedBatch, $read,
+                CodingFormulaRead::isOk($batchField),
+                fn () => $readBatch === $expectedBatch,
+                $expectedBatch ? null : 'Batch 3 huruf tidak bisa ditentukan dari No. Batch.',
+                $this->formulaUntrustedNote($batchField),
+            );
+            $items[] = $this->withPhotoNote($item, $batchField);
+        }
+
+        // EXP: the form's EXP (system-computed), else the batch's saved EXP, at the read's granularity.
+        $expField = CodingFormulaRead::field($raw, 'exp');
+        $granularity = $expField['granularity'] ?? null;
+        $reference = ($entered['exp_date'] ?? null) ?: $batch->exp_date?->format('Y-m-d');
+        $expectedKey = CodingFormulaRead::referenceKey($reference, $granularity);
+        $readKey = CodingFormulaRead::expKey($expField);
+        $label = $granularity === CodingFormulaRead::GRANULARITY_MONTH ? 'EXP (coding, bulan/tahun)' : 'EXP (coding)';
+        if ($this->formulaUnusable($expField)) {
+            $fallback = $reference ? date('d/m/Y', strtotime($reference)) : null;
+            $items[] = $this->formulaFieldItem('coding_exp', 'EXP (coding)', $fallback, $expField);
+        } elseif (CodingFormulaRead::isOk($expField) && $readKey === null) {
+            $items[] = $this->item('coding_exp', $label, CodingFormulaRead::displayKey($expectedKey), $expField['value'] ?? null, self::REVIEW,
+                'Tanggal EXP tidak bisa dipastikan dari bacaan AI - cek manual.'.$this->photoNote($expField));
+        } else {
+            $note = $reference ? null : 'Isi EXP Date di form dulu.';
+            if ($granularity === CodingFormulaRead::GRANULARITY_MONTH && $reference) {
+                $note = 'EXP tercetak bulan-tahun; hari tidak dibandingkan.';
+            }
+            $item = $this->compare(
+                'coding_exp', $label, CodingFormulaRead::displayKey($expectedKey), $expField['value'] ?? null,
+                CodingFormulaRead::isOk($expField),
+                fn () => $readKey === $expectedKey,
+                $note,
+                $this->formulaUntrustedNote($expField),
+            );
+            if (in_array($item['verdict'], [self::MATCH, self::MISMATCH], true) && $note !== null) {
+                $item['note'] = $note;
+            }
+            $items[] = $this->withPhotoNote($item, $expField);
+        }
+
+        // Extra fields of the formula (MFG, init, ...): no reference in IPC data, shown only. A REQUIRED
+        // one that is not OK still means REVIEW.
+        $required = is_array($raw['required_fields'] ?? null) ? $raw['required_fields'] : ['batch', 'exp'];
+        foreach ($raw['fields'] ?? [] as $key => $field) {
+            if (in_array($key, ['batch', 'exp'], true) || ! is_array($field)) {
+                continue;
+            }
+            $isRequired = in_array($key, $required, true) || ($field['required'] ?? false) === true;
+            if (! $isRequired && ($field['value'] ?? null) === null) {
+                continue; // an optional field that was not read is just noise on the card
+            }
+            $ok = CodingFormulaRead::isOk($field);
+            $items[] = $this->item('coding_'.$key, strtoupper((string) $key).' (coding, info)', null, $field['value'] ?? null,
+                $isRequired && ! $ok ? self::REVIEW : self::INFO,
+                $isRequired && ! $ok ? $this->formulaStatusNote($field) : $this->photoNote($field, leadingSpace: false));
+        }
+        foreach ($required as $key) {
+            if (! in_array($key, ['batch', 'exp'], true) && ! isset($raw['fields'][$key])) {
+                $items[] = $this->item('coding_'.$key, strtoupper((string) $key).' (coding)', null, null, self::REVIEW, 'Wajib menurut formula tapi tidak ada di hasil AI - cek manual.');
+            }
+        }
+
+        $source = $raw['formula_source'] ?? null;
+        $items[] = $source === 'auto'
+            ? $this->item('formula', 'Formula coding', null, 'Otomatis', self::INFO, 'Formula otomatis (SKU belum punya formula di Master Produk).')
+            : $this->item('formula', 'Formula coding', null, is_array($raw['formula'] ?? null) ? implode(' | ', $raw['formula']) : $source, self::INFO,
+                $source === 'catalog' ? 'Formula dari katalog (diisi di Master Produk).' : 'Formula dari Master Produk.');
+
+        // Old tube reads, only when vision.startup_ai.legacy_tube_reads is on: display only.
+        if ($tube !== null && $tube->status !== VisionResult::STATUS_ERROR) {
+            $items[] = $this->item('tube_exp', 'EXP (jalur tube lama, info)', $reference ? date('dmy', strtotime($reference)) : null, $tube->value, self::INFO, 'Jalur lama - tidak dipakai untuk keputusan.');
+        }
+        if ($tubeLlm !== null) {
+            $items[] = $this->tubeLlmItem($tubeLlm, $reference);
+        }
+
+        if ($chosen === IpcBatch::PACKAGING_TUBE && config('vision.startup_ai.tube_force_review', true)) {
+            return [$items, true, 'Kemasan tube: hasil baca AI belum dipakai untuk keputusan - cek manual.'];
+        }
+        if (! $chosen) {
+            return [$items, true, 'Jenis Kemasan Primer belum dipilih - cek manual.'];
+        }
+
+        return [$items, false, null];
+    }
+
+    /** CONFLICT, or a field the service did not return at all. */
+    private function formulaUnusable(?array $field): bool
+    {
+        return $field === null || ($field['status'] ?? null) === 'CONFLICT';
+    }
+
+    /** Row for a field that is missing or read differently on the two photos: always REVIEW. */
+    private function formulaFieldItem(string $key, string $label, ?string $expected, ?array $field): array
+    {
+        if ($field === null) {
+            return $this->item($key, $label, $expected, null, self::REVIEW, 'Tidak ada di hasil AI - cek manual.');
+        }
+
+        $perPhoto = collect($field['per_photo'] ?? [])
+            ->map(fn ($p) => 'foto '.((int) ($p['photo'] ?? 0) + 1).': '.($p['value'] ?? '-'))
+            ->implode(' / ');
+
+        return $this->item($key, $label, $expected, $perPhoto !== '' ? $perPhoto : null, self::REVIEW,
+            'Foto 1 dan foto 2 terbaca beda - cek manual.');
+    }
+
+    /** Why a read field is not trusted (LOW_CONFIDENCE / AMBIGUOUS / NOT_FOUND ...), operator words. */
+    private function formulaUntrustedNote(?array $field): string
+    {
+        return $this->formulaStatusNote($field).' Ambil ulang foto lebih dekat, tegak lurus, tanpa pantulan bila perlu.';
+    }
+
+    private function formulaStatusNote(?array $field): string
+    {
+        return match ($field['status'] ?? null) {
+            'AMBIGUOUS' => 'AI menemukan lebih dari satu kandidat - cek manual.',
+            'NOT_FOUND' => 'Tidak ditemukan sesuai formula - cek manual.',
+            'LOW_CONFIDENCE' => 'Bacaan AI belum yakin (sudut foto tidak sepakat) - cek manual.',
+            null => 'Tidak ada di hasil AI - cek manual.',
+            default => 'Status AI '.$field['status'].' - cek manual.',
+        };
+    }
+
+    private function photoNote(?array $field, bool $leadingSpace = true): ?string
+    {
+        $text = CodingFormulaRead::photosText($field);
+        if ($text === null) {
+            return $leadingSpace ? '' : null;
+        }
+
+        return ($leadingSpace ? ' ' : '').'Terbaca di '.$text.'.';
+    }
+
+    /** @param array<string, mixed> $item */
+    private function withPhotoNote(array $item, ?array $field): array
+    {
+        $photo = $this->photoNote($field, leadingSpace: false);
+        if ($photo !== null && $item['read'] !== null) {
+            $item['note'] = trim(($item['note'] ?? '').' '.$photo);
+        }
+
+        return $item;
     }
 
     /** One comparison row. $check is only called when the read is trusted and an expected value exists. */

@@ -82,7 +82,7 @@ class StartupPhotoQualityTest extends TestCase
         Http::fake();
         [$batch, $attachment, $user] = $this->batchWithPhoto($this->solid(0, 0, 0));
 
-        $log = app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', 'coding_print', $user->id);
+        $log = app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', config('vision.startup_ai.fields.coding_primary'), $user->id);
 
         Http::assertNothingSent();
         $this->assertSame('LOW_CONFIDENCE', $log->vision_status);
@@ -95,7 +95,7 @@ class StartupPhotoQualityTest extends TestCase
     {
         Http::fake();
         [$batch, $attachment, $user] = $this->batchWithPhoto($this->solid(0, 0, 0));
-        app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', 'coding_print', $user->id);
+        app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', config('vision.startup_ai.fields.coding_primary'), $user->id);
         $batch->update(['primary_packaging_type' => 'non_tube']);
 
         $status = app(StartupAiStatus::class)->handle($batch, ['packaging_type' => 'non_tube']);
@@ -119,7 +119,7 @@ class StartupPhotoQualityTest extends TestCase
         ])]);
         [$batch, $attachment, $user] = $this->batchWithPhoto($this->textured());
 
-        $log = app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', 'coding_print', $user->id);
+        $log = app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', config('vision.startup_ai.fields.coding_primary'), $user->id);
 
         Http::assertSentCount(1);
         $this->assertSame('OK', $log->vision_status);
@@ -130,7 +130,7 @@ class StartupPhotoQualityTest extends TestCase
     {
         Http::fake();
         [$batch, $attachment, $user] = $this->batchWithPhoto($this->solid(0, 0, 0));
-        app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', 'coding_print', $user->id);
+        app(ReadStartupPhoto::class)->handle($batch, $attachment, 'coding_primary', config('vision.startup_ai.fields.coding_primary'), $user->id);
 
         app(RecordStartupAiFeedback::class)->handle($batch);
 

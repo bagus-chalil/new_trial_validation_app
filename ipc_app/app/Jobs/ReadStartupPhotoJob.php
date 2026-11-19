@@ -32,20 +32,24 @@ class ReadStartupPhotoJob implements ShouldQueue
         public string $field,
         public string $fieldType,
         public ?int $userId,
+        // coding_formula: the 2nd Primary Coding photo sent as file2 in the same call.
+        public ?int $secondAttachmentId = null,
     ) {}
 
     public function handle(ReadStartupPhoto $action): void
     {
-        $key = QueueStartupAiReads::cacheKey($this->batchId, $this->attachmentId, $this->fieldType);
+        $key = QueueStartupAiReads::cacheKey($this->batchId, $this->attachmentId, $this->fieldType, $this->secondAttachmentId);
 
         try {
             Cache::put($key, 'running', QueueStartupAiReads::TTL);
 
             $batch = IpcBatch::find($this->batchId);
             $attachment = IpcAttachment::find($this->attachmentId); // gone when the photo was replaced meanwhile
+            $second = $this->secondAttachmentId !== null ? IpcAttachment::find($this->secondAttachmentId) : null;
+            $secondGone = $this->secondAttachmentId !== null && $second === null; // replaced: the page queues the new pair
 
-            if ($batch !== null && $attachment !== null) {
-                $action->handle($batch, $attachment, $this->field, $this->fieldType, $this->userId);
+            if ($batch !== null && $attachment !== null && ! $secondGone) {
+                $action->handle($batch, $attachment, $this->field, $this->fieldType, $this->userId, $second);
             }
         } finally {
             Cache::forget($key);
@@ -54,6 +58,6 @@ class ReadStartupPhotoJob implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        Cache::forget(QueueStartupAiReads::cacheKey($this->batchId, $this->attachmentId, $this->fieldType));
+        Cache::forget(QueueStartupAiReads::cacheKey($this->batchId, $this->attachmentId, $this->fieldType, $this->secondAttachmentId));
     }
 }

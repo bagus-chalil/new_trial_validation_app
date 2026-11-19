@@ -823,8 +823,8 @@ export default function StartupCheckEdit({
                                                 {tier === 'primary' && data.primary_packaging_type === 'tube' && !photoNa && (
                                                     <div className="border-border mt-2 flex flex-col gap-2 border-t pt-3">
                                                         <Label className="text-muted-foreground text-xs font-semibold">
-                                                            Foto ke-2 (opsional): foto crimp/ujung tube dari sudut lain, garis hitam bisa menutupi
-                                                            satu digit
+                                                            Foto ke-2 (opsional): sisi lain tube (crimp atau badan tube). AI mencari batch dan EXP di
+                                                            kedua foto sekaligus
                                                         </Label>
                                                         <button
                                                             type="button"
@@ -925,7 +925,9 @@ export default function StartupCheckEdit({
                                         setData((prev) => ({
                                             ...prev,
                                             [s.field]: String(s.value),
-                                            ai_applied: Array.from(new Set([...(prev.ai_applied ?? '').split(',').filter(Boolean), s.field])).join(','),
+                                            ai_applied: Array.from(new Set([...(prev.ai_applied ?? '').split(',').filter(Boolean), s.field])).join(
+                                                ',',
+                                            ),
                                         }));
                                         setErrorFields((prev) => {
                                             const n = new Set(prev);

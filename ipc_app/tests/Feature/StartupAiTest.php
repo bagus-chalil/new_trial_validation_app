@@ -28,6 +28,12 @@ class StartupAiTest extends TestCase
 
         Storage::fake('public');
         config(['vision.base_url' => 'http://vision.test', 'vision.startup_ai.enabled' => true]);
+        // These tests cover the OLD Primary Coding path (rollback via VISION_STARTUP_CODING_FIELD_TYPE=coding_print).
+        // The coding_formula path (default) is covered by StartupAiCodingFormulaTest.
+        config([
+            'vision.startup_ai.fields.coding_primary' => 'coding_print',
+            'vision.startup_ai.fields.coding_primary_2' => 'coding_print',
+        ]);
         $this->actingAs(User::factory()->create());
     }
 
