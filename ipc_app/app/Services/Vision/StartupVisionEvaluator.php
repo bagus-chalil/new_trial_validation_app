@@ -319,7 +319,10 @@ class StartupVisionEvaluator
             $items[] = $this->item('exp_formula', 'EXP = Mixing + Umur Simpan', null, null, self::REVIEW, 'Isi Mixing Date dan EXP Date di form dulu.');
         }
 
-        $items[] = $this->imFormat($raw);
+        // IM layouts differ per product, so there is no fixed IM standard to validate against
+        // (user decision 2026-11-19): no "Format foto IM" check, and no "ambil ulang" banner for IM.
+        // Values are still read and compared, but a doubtful read only needs a manual check.
+        $items = array_map(fn (array $item) => [...$item, 'retake' => false], $items);
 
         return [$items, false, null];
     }

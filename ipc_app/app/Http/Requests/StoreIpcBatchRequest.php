@@ -33,11 +33,20 @@ class StoreIpcBatchRequest extends FormRequest
                     ->where('is_active', true)
                     ->whereNull('deleted_at'),
             ],
-            'no_batch' => ['required', 'string', 'max:100'],
+            // 2 digits + 1 letter + 3 digits + "/" + 3 letters (26Y034/JLB), same as the bulk identity.
+            // Only enforced on creation: older batches (spaces, missing letters) are left as they are.
+            'no_batch' => ['required', 'string', 'max:100', 'regex:#^\d{2}[A-Z]\d{3}/[A-Z]{3}$#'],
             // Months, from the IM / WI. Required so Master Produk gets filled over time; EXP date is
             // calculated from it on Startup Check.
             'shelf_life_months' => ['required', 'integer', 'min:1', 'max:120'],
             'flow_type' => ['required', Rule::in(IpcBatch::FLOW_TYPES)],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'no_batch.regex' => 'Format No Batch FG harus 2 angka + 1 huruf + 3 angka + "/" + 3 huruf, contoh 26Y034/JLB.',
         ];
     }
 

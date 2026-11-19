@@ -350,7 +350,7 @@ export function CameraCaptureDialog({
                         playsInline
                         muted
                         onClick={() => void refocus()}
-                        className="max-h-[58vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[58dvh]"
+                        className="max-h-[40vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[40dvh]"
                     />
                 )}
                 {previewUrl && (
@@ -358,7 +358,7 @@ export function CameraCaptureDialog({
                         src={previewUrl}
                         alt="Preview foto"
                         triggerClassName="w-full"
-                        imageClassName="max-h-[58vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[58dvh]"
+                        imageClassName="max-h-[40vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[40dvh]"
                     />
                 )}
 
@@ -370,7 +370,7 @@ export function CameraCaptureDialog({
                             {resolution && <span className="ml-1 font-semibold">Resolusi kamera: {resolution}</span>}
                         </p>
 
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                             {devices.length > 1 && (
                                 <label className="flex flex-col gap-1">
                                     <span className="text-muted-foreground text-xs font-semibold">Kamera</span>
@@ -454,7 +454,7 @@ export function CameraCaptureDialog({
                     </div>
                 )}
 
-                <div className="flex justify-end gap-2.5">
+                <div className="bg-background sticky bottom-0 -mx-6 flex justify-end gap-2.5 border-t px-6 pt-3 pb-1">
                     {live && (
                         <button
                             type="button"

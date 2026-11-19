@@ -44,7 +44,7 @@ class StartupPhotoFormatTest extends TestCase
         );
     }
 
-    private function formatItem(StartupEvaluation $e): array
+    private function formatItem(StartupEvaluation $e): ?array
     {
         return collect($e->items)->firstWhere('key', 'photo_format');
     }
@@ -88,9 +88,9 @@ class StartupPhotoFormatTest extends TestCase
         $this->assertStringContainsString('No. Batch', $item['note']);
     }
 
-    public function test_cut_off_im_photo_from_the_field_is_flagged(): void
+    public function test_im_has_no_format_check_and_never_asks_for_a_retake(): void
     {
-        // Real response for the cropped IM page: IM number and shelf-life disagree between views.
+        // IM layouts differ per product, so the IM standard was dropped (2026-11-19).
         $raw = [
             'im_number' => 'IM-ABL- SCULPT CALM LILY DEODORANT 25ML',
             'shelf_life' => [], 'shelf_life_value' => null,
@@ -99,50 +99,20 @@ class StartupPhotoFormatTest extends TestCase
             'view_agreement' => ['im_number' => false, 'shelf_life' => false],
         ];
         $result = $this->evaluate('im_document', $raw);
-        $item = $this->formatItem($result);
 
-        $this->assertSame('info', $item['verdict']); // advice only, never decides
-        $this->assertTrue($item['retake']);
-        $this->assertStringContainsString('No. IM terbaca berbeda-beda', $item['note']);
-        $this->assertStringContainsString('tidak konsisten antar sudut', $item['note']);
+        $this->assertNull($this->formatItem($result));
+        foreach ($result->items as $item) {
+            $this->assertFalse($item['retake']);
+        }
         $this->assertNotSame(VisionEvaluation::FAIL, $result->decision);
     }
 
-    public function test_clear_im_photo_is_format_ok(): void
-    {
-        $ok = ['im_number' => true, 'shelf_life' => true];
-        $item = $this->formatItem($this->evaluate('im_document', [
-            'im_number' => 'IM-ABL- SCULPT CALM LILY DEODORANT 25ML V2',
-            'shelf_life_value' => ['years' => 2, 'months' => null],
-            'legible' => $ok, 'format_ok' => $ok, 'view_agreement' => $ok,
-        ]));
-
-        $this->assertSame('info', $item['verdict']);
-    }
-
-    public function test_im_photo_that_is_not_an_im_or_has_absurd_shelf_life_is_flagged(): void
-    {
-        $ok = ['im_number' => true, 'shelf_life' => true];
-        $notIm = $this->formatItem($this->evaluate('im_document', [
-            'im_number' => 'PACKING INSTRUCTION', 'shelf_life_value' => ['years' => 2, 'months' => null],
-            'legible' => $ok, 'format_ok' => $ok, 'view_agreement' => $ok,
-        ]));
-        $absurd = $this->formatItem($this->evaluate('im_document', [
-            'im_number' => 'IM-ABL- X', 'shelf_life_value' => ['years' => 0, 'months' => 2],
-            'legible' => $ok, 'format_ok' => $ok, 'view_agreement' => $ok,
-        ]));
-
-        $this->assertStringContainsString('tidak berawalan IM-XXX', $notIm['note']);
-        $this->assertStringContainsString('di luar kewajaran', $absurd['note']);
-    }
-
-    public function test_format_advice_never_changes_the_decision(): void
+    public function test_odd_im_number_or_two_year_read_does_not_block_a_pass(): void
     {
         $ok = ['im_number' => true, 'shelf_life' => true];
         $batch = $this->batch();
         $batch->update(['shelf_life_months' => 36, 'mixing_date' => '2026-10-23', 'exp_date' => '2029-10-23']);
 
-        // A trusted, correct shelf-life on an odd-looking IM number: still PASS, plus the advice banner.
         $result = app(StartupVisionEvaluator::class)->evaluate(
             $batch,
             'im_document',
@@ -155,6 +125,5 @@ class StartupPhotoFormatTest extends TestCase
         );
 
         $this->assertSame(VisionEvaluation::PASS, $result->decision);
-        $this->assertTrue($this->formatItem($result)['retake']);
     }
 }

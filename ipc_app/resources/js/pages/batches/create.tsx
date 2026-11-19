@@ -29,6 +29,8 @@ interface FlowTypeOption {
     description: string;
 }
 
+const BATCH_FORMAT = /^\d{2}[A-Z]\d{3}\/[A-Z]{3}$/;
+
 export default function BatchesCreate({ initialProduct = null, flowTypes }: { initialProduct?: ProductOption | null; flowTypes: FlowTypeOption[] }) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
@@ -72,6 +74,10 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
         if (!data.master_product_id) empty.push('FG Code / Produk');
         if (selectedProduct && !selectedCount) empty.push('Bulk Code (minimal 1)');
         if (!data.no_batch.trim()) empty.push('No Batch FG');
+        else if (!BATCH_FORMAT.test(data.no_batch.trim())) {
+            toast('Format No Batch FG harus seperti 26Y034/JLB.');
+            return;
+        }
         if (!data.shelf_life_months.trim()) empty.push('Shelf Life');
         if (empty.length) {
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
@@ -215,8 +221,19 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                         className={`min-h-11 ${!data.no_batch.trim() && message ? errorBorder : ''}`}
                                         value={data.no_batch}
                                         onChange={(e) => setData('no_batch', e.target.value.toUpperCase())}
-                                        placeholder="Masukkan no batch FG"
+                                        placeholder="26Y034/JLB"
+                                        maxLength={10}
+                                        autoComplete="off"
                                     />
+                                    {data.no_batch.trim() && !BATCH_FORMAT.test(data.no_batch.trim()) ? (
+                                        <p className="text-sm font-medium text-amber-700">
+                                            Format belum sesuai. Tulis seperti 26Y034/JLB: 2 angka, 1 huruf, 3 angka, tanda &quot;/&quot;, 3 huruf.
+                                        </p>
+                                    ) : (
+                                        <p className="text-muted-foreground text-sm">
+                                            Format: 2 angka + 1 huruf + 3 angka + &quot;/&quot; + 3 huruf, contoh 26Y034/JLB (sama dengan identitas bulk).
+                                        </p>
+                                    )}
                                     <InputError message={errors.no_batch} />
                                 </div>
 

@@ -64,7 +64,7 @@ class IpcBatchTest extends TestCase
         $response = $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
-            'no_batch' => 'BATCH-001',
+            'no_batch' => '26X001/AAA',
             'shelf_life_months' => 36,
             'flow_type' => IpcBatch::FLOW_FULL,
         ]);
@@ -72,7 +72,7 @@ class IpcBatchTest extends TestCase
         $batch = IpcBatch::firstOrFail();
         $response->assertRedirect("/batches/{$batch->id}/startup-check");
 
-        $this->assertSame('BATCH-001', $batch->no_batch);
+        $this->assertSame('26X001/AAA', $batch->no_batch);
         // Mixing Date and Line are chosen later, on the Startup Check form — see StartupCheckTest.
         $this->assertNull($batch->mixing_date);
         $this->assertNull($batch->master_line_id);
@@ -92,7 +92,7 @@ class IpcBatchTest extends TestCase
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
-            'no_batch' => 'BATCH-001',
+            'no_batch' => '26X001/AAA',
             'shelf_life_months' => 36,
         ])->assertSessionHasErrors('flow_type');
 
@@ -109,7 +109,7 @@ class IpcBatchTest extends TestCase
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
-            'no_batch' => 'BATCH-001',
+            'no_batch' => '26X001/AAA',
             'shelf_life_months' => 36,
             'flow_type' => 'bogus',
         ])->assertSessionHasErrors('flow_type');
@@ -123,18 +123,19 @@ class IpcBatchTest extends TestCase
 
         $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Product 1', 'is_active' => true]);
 
-        foreach (IpcBatch::FLOW_TYPES as $flowType) {
+        foreach (array_values(IpcBatch::FLOW_TYPES) as $i => $flowType) {
+            $noBatch = '26X002/AA'.chr(65 + $i);
             $bulkCode = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => "BULK-{$flowType}", 'is_active' => true]);
 
             $this->post('/batches', [
                 'master_product_id' => $product->id,
                 'master_product_bulk_code_ids' => [$bulkCode->id],
-                'no_batch' => "BATCH-{$flowType}",
+                'no_batch' => $noBatch,
                 'shelf_life_months' => 36,
                 'flow_type' => $flowType,
             ])->assertSessionHasNoErrors();
 
-            $this->assertSame($flowType, IpcBatch::where('no_batch', "BATCH-{$flowType}")->sole()->flow_type);
+            $this->assertSame($flowType, IpcBatch::where('no_batch', $noBatch)->sole()->flow_type);
         }
     }
 
@@ -152,12 +153,12 @@ class IpcBatchTest extends TestCase
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
-            'no_batch' => 'batch-typed-lowercase',
+            'no_batch' => '26x003/aaa',
             'shelf_life_months' => 36,
             'flow_type' => IpcBatch::FLOW_FULL,
         ]);
 
-        $this->assertSame('BATCH-TYPED-LOWERCASE', IpcBatch::firstOrFail()->no_batch);
+        $this->assertSame('26X003/AAA', IpcBatch::firstOrFail()->no_batch);
     }
 
     public function test_batch_can_be_created_with_multiple_bulk_codes(): void
@@ -172,7 +173,7 @@ class IpcBatchTest extends TestCase
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkB->id, $bulkA->id],
-            'no_batch' => 'batch-multi',
+            'no_batch' => '26X004/AAA',
             'shelf_life_months' => 36,
             'flow_type' => IpcBatch::FLOW_FULL,
         ])->assertSessionHasNoErrors();
@@ -192,7 +193,7 @@ class IpcBatchTest extends TestCase
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [],
-            'no_batch' => 'BATCH-001',
+            'no_batch' => '26X001/AAA',
             'shelf_life_months' => 36,
         ])->assertSessionHasErrors('master_product_bulk_code_ids');
 
@@ -210,7 +211,7 @@ class IpcBatchTest extends TestCase
         $this->post('/batches', [
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$active->id, $inactive->id],
-            'no_batch' => 'BATCH-001',
+            'no_batch' => '26X001/AAA',
             'shelf_life_months' => 36,
         ])->assertSessionHasErrors('master_product_bulk_code_ids.1');
 
@@ -262,7 +263,7 @@ class IpcBatchTest extends TestCase
         $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
         $batch = IpcBatch::create([
             'master_product_id' => $product->id,
-            'no_batch' => 'BATCH-001',
+            'no_batch' => '26X001/AAA',
             'shelf_life_months' => 36,
             'master_line_id' => $line->id,
             'created_by' => auth()->id(),
@@ -296,5 +297,24 @@ class IpcBatchTest extends TestCase
             'master_product_id' => $product->id,
             'master_product_bulk_code_ids' => [$bulkCode->id],
         ])->assertSessionHasErrors('master_product_id');
+    }
+
+    public function test_no_batch_must_follow_the_slash_format(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $product = MasterProduct::create(['fg_code' => 'FG-9', 'product_name' => 'Product 9', 'is_active' => true]);
+        $bulkCode = MasterProductBulkCode::create(['master_product_id' => $product->id, 'bulk_code' => 'BULK-9', 'is_active' => true]);
+
+        foreach (['26Y034 JLB', '26Y034', 'JLB', '26Y0341/JLB', '26Y034/JL'] as $bad) {
+            $this->post('/batches', [
+                'master_product_id' => $product->id,
+                'master_product_bulk_code_ids' => [$bulkCode->id],
+                'no_batch' => $bad,
+                'shelf_life_months' => 36,
+                'flow_type' => array_values(IpcBatch::FLOW_TYPES)[0],
+            ])->assertSessionHasErrors('no_batch');
+        }
+
+        $this->assertSame(0, IpcBatch::count());
     }
 }
