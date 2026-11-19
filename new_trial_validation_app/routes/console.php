@@ -12,3 +12,6 @@ Artisan::command('inspire', function () {
 Schedule::command('ai:quality-scan --apply')->dailyAt('01:30')->withoutOverlapping();
 Schedule::command('ai:learn')->dailyAt('02:00')->withoutOverlapping();
 Schedule::command('ai:bot-prune')->dailyAt('03:00')->withoutOverlapping();
+
+// Archive finished trials after a year (reversible from Admin > Archive).
+Schedule::command('trials:auto-archive')->dailyAt('03:30')->withoutOverlapping();

@@ -48,6 +48,7 @@ export type TrialRow = {
     can_edit: boolean;
     can_delete: boolean;
     can_archive: boolean;
+    is_legacy?: boolean;
 };
 
 const columnHelper = createColumnHelper<TrialRow>();
@@ -60,12 +61,24 @@ function buildColumns(
         columnHelper.accessor('trial_code', {
             header: t('trials.table.trial_code'),
             cell: (info) => (
-                <Link
-                    href={TrialReportController.show(info.row.original.id).url}
-                    className="font-medium underline underline-offset-2"
-                >
-                    {info.getValue()}
-                </Link>
+                <>
+                    <Link
+                        href={
+                            TrialReportController.show(info.row.original.id).url
+                        }
+                        className="font-medium underline underline-offset-2"
+                    >
+                        {info.getValue()}
+                    </Link>
+                    {info.row.original.is_legacy && (
+                        <Badge
+                            variant="outline"
+                            className="ml-2 border-amber-300 bg-amber-50 text-[10px] text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                        >
+                            {t('trials.legacy_badge')}
+                        </Badge>
+                    )}
+                </>
             ),
         }),
         columnHelper.accessor('product_name', {

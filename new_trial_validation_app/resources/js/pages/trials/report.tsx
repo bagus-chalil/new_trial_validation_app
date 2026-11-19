@@ -56,6 +56,7 @@ type TrialData = {
     created_by: string | null;
     progress_status: string;
     final_decision: string | null;
+    is_legacy?: boolean;
     current_step: string | null;
     estimate_qty: string | null;
     batch_number: string | null;
@@ -403,6 +404,14 @@ export default function TrialReport({
                                     FR.QSE.074.04
                                 </p>
                             </div>
+                            {trial.is_legacy && (
+                                <Badge
+                                    variant="outline"
+                                    className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                                >
+                                    {t('trials.legacy_badge')}
+                                </Badge>
+                            )}
                             <Badge
                                 variant="outline"
                                 className={trialStatusBadgeClassName(
