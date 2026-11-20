@@ -39,6 +39,8 @@ class StoreIpcBatchRequest extends FormRequest
             // Months, from the IM / WI. Required so Master Produk gets filled over time; EXP date is
             // calculated from it on Startup Check.
             'shelf_life_months' => ['required', 'integer', 'min:1', 'max:120'],
+            // Label Bulk photo scanned on this form (BatchLabelScanController); optional, operator may type everything.
+            'label_scan_id' => ['nullable', 'uuid'],
             'flow_type' => ['required', Rule::in(IpcBatch::FLOW_TYPES)],
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Vision\AttachScannedLabelBulk;
 use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
@@ -176,7 +177,7 @@ class IpcBatchController extends Controller
         ]);
     }
 
-    public function store(StoreIpcBatchRequest $request): RedirectResponse
+    public function store(StoreIpcBatchRequest $request, AttachScannedLabelBulk $attachLabel): RedirectResponse
     {
         // Sorted by code so the joined display snapshot is stable regardless of tick order.
         $bulkCodes = MasterProductBulkCode::query()
@@ -211,7 +212,16 @@ class IpcBatchController extends Controller
             return $batch;
         });
 
-        return redirect()->route('startup-check.edit', $batch)->with('success', 'Batch dibuat. Lanjutkan ke Startup Check.');
+        // Label Bulk photographed on this form becomes the Startup Check's Label Bulk photo + AI read.
+        $attached = $attachLabel->handle($batch, $request->user(), $request->validated('label_scan_id'), [
+            'no_batch' => $batch->no_batch,
+            'master_product_id' => $batch->master_product_id,
+            'bulk_codes' => $bulkCodes->pluck('bulk_code')->all(),
+        ]);
+
+        return redirect()->route('startup-check.edit', $batch)->with('success', $attached
+            ? 'Batch dibuat. Foto Label Bulk sudah tersimpan, lanjutkan ke Startup Check.'
+            : 'Batch dibuat. Lanjutkan ke Startup Check.');
     }
 
     /** Soft delete — the batch lands in the Recycle Bin (Tempat Sampah) and can be restored there. */

@@ -1,6 +1,8 @@
 import InputError from '@/components/input-error';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { FlowBadge, flowTheme } from '@/components/ipc/flow-identity';
+import { LabelScanPanel, useLabelScan, type LabelScan } from '@/components/ipc/label-scan-panel';
 import { ProductSearchSelect, type ProductOption } from '@/components/ipc/product-search-select';
 import { ShelfLifeInput } from '@/components/ipc/shelf-life-input';
 import { Toast, useToast } from '@/components/ipc/toast';
@@ -14,8 +16,8 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { withReturnTo } from '@/lib/return-to';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { TriangleAlert } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { Camera, TriangleAlert } from 'lucide-react';
+import { FormEventHandler, useRef, useState } from 'react';
 
 const errorBorder = 'border-destructive ring-1 ring-destructive';
 
@@ -36,7 +38,7 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
     const { message, toast } = useToast();
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
         master_product_id: initialProduct ? String(initialProduct.id) : '',
         master_product_bulk_code_ids: allBulkCodeIds(initialProduct),
         no_batch: '',
@@ -54,6 +56,32 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
     const bulkCodeOptions = selectedProduct?.bulk_codes ?? [];
     const missingBulkCode = selectedProduct !== null && bulkCodeOptions.length === 0;
     const selectedCount = data.master_product_bulk_code_ids.length;
+
+    // Scan Label Bulk: photo + AI read. The photo is parked server-side and attached to the batch on create.
+    const labelScan = useLabelScan();
+    const [cameraOpen, setCameraOpen] = useState(false);
+    const latest = useRef({ data, selectedProduct });
+    latest.current = { data, selectedProduct };
+
+    const chooseProduct = (product: ProductOption | null) => {
+        setSelectedProduct(product);
+        setData((prev) => ({
+            ...prev,
+            master_product_id: product ? String(product.id) : '',
+            master_product_bulk_code_ids: allBulkCodeIds(product),
+            shelf_life_months: product?.shelf_life_months ? String(product.shelf_life_months) : '',
+        }));
+    };
+
+    // Auto-fill only EMPTY fields from a read the Vision Service trusts; anything the operator already typed or
+    // picked is left alone (the panel then offers "Pakai ..." instead). The operator can always overwrite.
+    const applyRead = (scan: LabelScan | null) => {
+        const read = scan?.read;
+        if (!read) return;
+        const current = latest.current;
+        if (read.product && read.kode_bulk_trusted && !current.data.master_product_id) chooseProduct(read.product);
+        if (read.no_batch && read.no_batch_trusted && !current.data.no_batch.trim()) setData('no_batch', read.no_batch);
+    };
     const allSelected = bulkCodeOptions.length > 0 && selectedCount === bulkCodeOptions.length;
     const bulkCodeError =
         errors.master_product_bulk_code_ids ?? Object.entries(errors).find(([key]) => key.startsWith('master_product_bulk_code_ids.'))?.[1];
@@ -83,10 +111,12 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
             toast(`Field berikut wajib diisi: ${empty.join(', ')}`);
             return;
         }
+        transform((payload) => ({ ...payload, label_scan_id: labelScan.scan?.scan_id ?? '' }));
         post('/batches', {
             onSuccess: () => {
                 reset();
                 setSelectedProduct(null);
+                labelScan.forget();
             },
         });
     };
@@ -103,21 +133,25 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={submit} className="space-y-4">
+                                <LabelScanPanel
+                                    scan={labelScan.scan}
+                                    reading={labelScan.reading}
+                                    error={labelScan.error}
+                                    selectedProduct={selectedProduct}
+                                    noBatch={data.no_batch}
+                                    onOpenCamera={() => setCameraOpen(true)}
+                                    onClear={labelScan.clear}
+                                    onUseProduct={chooseProduct}
+                                    onUseNoBatch={(value) => setData('no_batch', value)}
+                                />
+
                                 <div className="grid min-w-0 gap-2">
                                     <Label htmlFor="master_product_id">FG Code</Label>
                                     <ProductSearchSelect
                                         id="master_product_id"
                                         flagMissingBulkCode
                                         value={selectedProduct}
-                                        onChange={(product) => {
-                                            setSelectedProduct(product);
-                                            setData((prev) => ({
-                                                ...prev,
-                                                master_product_id: product ? String(product.id) : '',
-                                                master_product_bulk_code_ids: allBulkCodeIds(product),
-                                                shelf_life_months: product?.shelf_life_months ? String(product.shelf_life_months) : '',
-                                            }));
-                                        }}
+                                        onChange={chooseProduct}
                                         className={!data.master_product_id && message ? errorBorder : ''}
                                     />
                                     <InputError message={errors.master_product_id} />
@@ -130,7 +164,19 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
 
                                 <div className="grid gap-2">
                                     <div className="flex items-baseline justify-between gap-2">
-                                        <Label>Bulk Code</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label>Bulk Code</Label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCameraOpen(true)}
+                                                disabled={labelScan.reading}
+                                                aria-label="Foto Label Bulk"
+                                                title="Foto Label Bulk"
+                                                className="text-primary hover:bg-primary/10 inline-flex size-8 items-center justify-center rounded-md disabled:opacity-50"
+                                            >
+                                                <Camera className="size-4" />
+                                            </button>
+                                        </div>
                                         {bulkCodeOptions.length > 0 && (
                                             <span className="text-muted-foreground text-[12.5px]">
                                                 Tersedia <span className="text-foreground font-semibold">{bulkCodeOptions.length}</span> bulk ·
@@ -231,7 +277,8 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                         </p>
                                     ) : (
                                         <p className="text-muted-foreground text-sm">
-                                            Format: 2 angka + 1 huruf + 3 angka + &quot;/&quot; + 3 huruf, contoh 26Y034/JLB (sama dengan identitas bulk).
+                                            Format: 2 angka + 1 huruf + 3 angka + &quot;/&quot; + 3 huruf, contoh 26Y034/JLB (sama dengan identitas
+                                            bulk).
                                         </p>
                                     )}
                                     <InputError message={errors.no_batch} />
@@ -290,6 +337,15 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                     </Card>
                 </div>
             </TwoPane>
+
+            <CameraCaptureDialog
+                open={cameraOpen}
+                onOpenChange={setCameraOpen}
+                title="Foto Label Bulk"
+                onCapture={(file) => {
+                    void labelScan.run(file).then(applyRead);
+                }}
+            />
         </IpcShell>
     );
 }

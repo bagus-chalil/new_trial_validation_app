@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ApprovalQueueController;
 use App\Http\Controllers\BatchArchiveController;
+use App\Http\Controllers\BatchLabelScanController;
 use App\Http\Controllers\FillingCheckController;
 use App\Http\Controllers\FinishedCheckController;
 use App\Http\Controllers\IpcBatchController;
@@ -47,6 +48,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('batches', [IpcBatchController::class, 'index'])->name('batches.index');
     // Only Staff/Admin open batches (IpcBatchPolicy::create) — not Approver.
     Route::get('batches/create', [IpcBatchController::class, 'create'])->middleware('can:create,'.IpcBatch::class)->name('batches.create');
+    Route::post('batches/label-scan', [BatchLabelScanController::class, 'scan'])->middleware('can:create,'.IpcBatch::class)->name('batches.label-scan');
+    Route::delete('batches/label-scan/{scanId}', [BatchLabelScanController::class, 'discard'])->middleware('can:create,'.IpcBatch::class)->whereUuid('scanId')->name('batches.label-scan.discard');
     Route::post('batches', [IpcBatchController::class, 'store'])->middleware('can:create,'.IpcBatch::class)->name('batches.store');
     Route::get('batches/{batch}', [IpcBatchController::class, 'show'])->middleware('can:view,batch')->name('batches.show');
 
