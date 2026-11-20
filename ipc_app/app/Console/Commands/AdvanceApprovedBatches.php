@@ -29,8 +29,9 @@ class AdvanceApprovedBatches extends Command
             ->where('current_stage', IpcBatch::STAGE_APPROVAL)
             ->with('approvals')
             ->each(function (IpcBatch $batch) use ($dryRun, &$advanced) {
+                // Both approval levels must be Approved (two-level approval, 2026-11-21).
                 $approved = $batch->approvals
-                    ->where('decision', IpcApproval::DECISION_APPROVED)
+                    ->filter(fn (IpcApproval $approval) => $approval->isFullyApproved())
                     ->pluck('stage');
 
                 if (! collect(IpcApproval::requiredStagesFor($batch))->every(fn ($s) => $approved->contains($s))) {

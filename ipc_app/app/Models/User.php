@@ -25,6 +25,8 @@ class User extends Authenticatable
 
     public const ROLE_APPROVER = 'approver';
 
+    public const ROLE_APPROVER_L2 = 'approver_l2';
+
     public const ROLE_ADMIN = 'admin';
 
     protected $fillable = [
@@ -73,10 +75,25 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
-    /** Admin bypasses every workflow-role check, matching the sibling app's own convention. */
+    /**
+     * Any approval role (Level 1 or Level 2): may open the Approval Queue and approval pages.
+     * Admin bypasses every workflow-role check, matching the sibling app's own convention.
+     */
     public function isApprover(): bool
     {
+        return $this->isApproverL1() || $this->isApproverL2();
+    }
+
+    /** Level 1 = QC Verifikator (the original `approver` role). */
+    public function isApproverL1(): bool
+    {
         return $this->role === self::ROLE_APPROVER || $this->isAdmin();
+    }
+
+    /** Level 2 = QC Team Leader / Part Leader / Supervisor. */
+    public function isApproverL2(): bool
+    {
+        return $this->role === self::ROLE_APPROVER_L2 || $this->isAdmin();
     }
 
     /** Admin bypasses every workflow-role check, matching the sibling app's own convention. */

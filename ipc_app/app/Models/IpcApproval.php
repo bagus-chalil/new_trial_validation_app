@@ -74,6 +74,22 @@ class IpcApproval extends Model
         self::DECISION_REJECTED,
     ];
 
+    /**
+     * Two-level approval (2026-11-21). Level 1 = QC Verifikator, stored in the original columns
+     * (decision / approver_user_id / remarks / approved_at). Level 2 = QC Team Leader / Part Leader /
+     * Supervisor, stored in the l2_* columns of the same row. A stage is approved only when both
+     * levels are Approved.
+     */
+    public const LEVEL_1 = 1;
+
+    public const LEVEL_2 = 2;
+
+    /** Decisions a Level 2 approver can make (sending a report back to QC for revision stays Level 1's). */
+    public const L2_DECISIONS = [
+        self::DECISION_APPROVED,
+        self::DECISION_REJECTED,
+    ];
+
     protected $fillable = [
         'ipc_batch_id',
         'stage',
@@ -81,12 +97,17 @@ class IpcApproval extends Model
         'approver_user_id',
         'remarks',
         'approved_at',
+        'l2_decision',
+        'l2_approver_user_id',
+        'l2_remarks',
+        'l2_decided_at',
     ];
 
     protected function casts(): array
     {
         return [
             'approved_at' => 'datetime',
+            'l2_decided_at' => 'datetime',
         ];
     }
 
@@ -98,6 +119,32 @@ class IpcApproval extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approver_user_id');
+    }
+
+    public function l2Approver()
+    {
+        return $this->belongsTo(User::class, 'l2_approver_user_id');
+    }
+
+    /** Both levels Approved — the only state that counts as "this stage is approved". */
+    public function isFullyApproved(): bool
+    {
+        return $this->decision === self::DECISION_APPROVED && $this->l2_decision === self::DECISION_APPROVED;
+    }
+
+    /** Level 1 Approved and Level 2 has not (or not yet positively) decided: Level 2's turn. */
+    public function awaitsLevel2(): bool
+    {
+        return $this->decision === self::DECISION_APPROVED && $this->l2_decision !== self::DECISION_APPROVED;
+    }
+
+    /**
+     * SQL twin of isFullyApproved(): constrain an ipc_approvals query (or whereHas closure) to rows
+     * whose both levels are Approved.
+     */
+    public function scopeFullyApproved($query)
+    {
+        return $query->where('decision', self::DECISION_APPROVED)->where('l2_decision', self::DECISION_APPROVED);
     }
 
     public function revisions()
@@ -187,7 +234,31 @@ class IpcApproval extends Model
     }
 
     /**
-     * Which required approval stages are ready to decide but not yet Approved for this batch.
+     * The level that must decide next on a stage: 1 until Level 1 is Approved, then 2.
+     *
+     * @param  iterable<self>  $approvals
+     */
+    public static function nextLevelFor(iterable $approvals, string $stage): int
+    {
+        $approval = collect($approvals)->firstWhere('stage', $stage);
+
+        // A Level 2 refusal sends the stage back to Level 1 to decide again.
+        return $approval && $approval->decision === self::DECISION_APPROVED && $approval->l2_decision !== self::DECISION_REJECTED
+            ? self::LEVEL_2
+            : self::LEVEL_1;
+    }
+
+    /**
+     * Queue/dashboard wording for a pending stage: "Filling (L1)" until Level 1 approves, then
+     * "Filling (L2)". Requires `approvals` to be eager-loaded on $batch.
+     */
+    public static function pendingLabel(IpcBatch $batch, string $stage): string
+    {
+        return self::STAGE_LABELS[$stage].' (L'.self::nextLevelFor($batch->approvals, $stage).')';
+    }
+
+    /**
+     * Which required approval stages are ready to decide but not yet Approved (by both levels) for this batch.
      * Requires `approvals` to already be eager-loaded on $batch to avoid N+1 queries.
      */
     public static function pendingStagesFor(IpcBatch $batch): Collection
@@ -196,7 +267,7 @@ class IpcApproval extends Model
 
         return collect(self::requiredStagesFor($batch))->filter(
             fn (string $stage) => self::stageReady($batch, $stage)
-                && optional($approvals->get($stage))->decision !== self::DECISION_APPROVED
+                && ! optional($approvals->get($stage))->isFullyApproved()
         )->values();
     }
 }

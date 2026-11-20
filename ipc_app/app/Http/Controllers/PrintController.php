@@ -52,7 +52,7 @@ class PrintController extends Controller
             'startupInspection.items',
             'startupInspection.samples',
             'startupInspection.testResults.testType',
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
         ]);
 
         return Inertia::render('print/startup', [
@@ -83,7 +83,7 @@ class PrintController extends Controller
             'masterLine',
             'startupCheck',
             ...$this->fillingPackingRelations($side),
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
         ]);
 
         return Inertia::render('print/filling-packing', [
@@ -105,7 +105,7 @@ class PrintController extends Controller
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'finishedCheck.revisions.user',
             'finishedCheck.revisions.samples',
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
         ]);
 
         return Inertia::render('print/finished', [

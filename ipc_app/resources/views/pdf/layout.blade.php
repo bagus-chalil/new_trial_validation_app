@@ -332,6 +332,7 @@
        class="role">. */
     .sign-grid--role-tight div { padding-bottom: 18px; }
     .sign-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .sign-grid--cols-4 { grid-template-columns: repeat(4, 1fr); }
 
     /* Sign-off box's actual signer value (a name, or a decision date) — distinct from the plain
        label (<span>) above it and the role caption (<small class="role">) pinned to the bottom. */

@@ -141,7 +141,7 @@ class DashboardController extends Controller
                     'no_batch' => $batch->no_batch,
                     'product_name' => $batch->masterProduct?->product_name,
                     'stage' => IpcBatch::STAGE_APPROVAL,
-                    'reason' => 'Menunggu approval: '.$pending->map(fn (string $stage) => IpcApproval::STAGE_LABELS[$stage])->join(', '),
+                    'reason' => 'Menunggu approval: '.$pending->map(fn (string $stage) => IpcApproval::pendingLabel($batch, $stage))->join(', '),
                     'href' => route('approval.edit', $batch),
                 ];
             })

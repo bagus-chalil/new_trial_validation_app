@@ -39,7 +39,7 @@ class ApprovalQueueController extends Controller
             ->through(fn (IpcBatch $batch) => [
                 'batch' => $batch,
                 'pendingStages' => IpcApproval::pendingStagesFor($batch)
-                    ->map(fn (string $stage) => IpcApproval::STAGE_LABELS[$stage])
+                    ->map(fn (string $stage) => IpcApproval::pendingLabel($batch, $stage))
                     ->values(),
             ]);
 

@@ -6,14 +6,23 @@ use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use App\Models\IpcReportDocument;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class SaveApprovalRequest extends FormRequest
 {
+    /** Which approval level this decision is for (1 = QC Verifikator, 2 = Team Leader / Supervisor). */
+    public function level(): int
+    {
+        return (int) $this->input('level') === IpcApproval::LEVEL_2 ? IpcApproval::LEVEL_2 : IpcApproval::LEVEL_1;
+    }
+
     public function authorize(): bool
     {
-        return true;
+        return $this->level() === IpcApproval::LEVEL_2
+            ? Gate::allows('approve-ipc-l2')
+            : Gate::allows('approve-ipc-l1');
     }
 
     protected function prepareForValidation(): void
@@ -30,7 +39,9 @@ class SaveApprovalRequest extends FormRequest
         $needsNote = in_array($this->input('decision'), [IpcApproval::DECISION_REJECTED, IpcApproval::DECISION_REVISION], true);
 
         return [
-            'decision' => ['required', Rule::in(IpcApproval::DECISIONS)],
+            'level' => ['nullable', Rule::in([IpcApproval::LEVEL_1, IpcApproval::LEVEL_2])],
+            // Level 2 can only Approve or Reject; "Minta Revisi" (reopening QC's checks) is Level 1's.
+            'decision' => ['required', Rule::in($this->level() === IpcApproval::LEVEL_2 ? IpcApproval::L2_DECISIONS : IpcApproval::DECISIONS)],
             'remarks' => [$needsNote ? 'required' : 'nullable', 'string'],
             // The form always sends `revise_stages: []`; only a Revision needs at least one stage,
             // so Approved / Rejected must accept the empty array.

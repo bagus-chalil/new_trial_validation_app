@@ -271,6 +271,13 @@ class ApprovalTest extends TestCase
         foreach (['filling', 'packing', 'finished'] as $stage) {
             $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => $stage, 'decision' => 'Approved']);
         }
+        // Level 1 alone is not enough any more: Level 2 still has to approve both forms.
+        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+
+        $l2 = User::factory()->approverL2()->create();
+        $this->actingAs($l2)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved', 'level' => 2])->assertRedirect();
+        $this->actingAs($l2)->put("/batches/{$batch->id}/approval/filling_packing_fg", ['decision' => 'Approved', 'level' => 2])->assertRedirect();
+
         $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 
@@ -282,6 +289,15 @@ class ApprovalTest extends TestCase
         foreach (IpcApproval::STAGES as $stage) {
             $this->actingAs($user)
                 ->put("/batches/{$batch->id}/approval/{$stage}", ['decision' => 'Approved'])
+                ->assertRedirect();
+        }
+
+        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+
+        $l2 = User::factory()->approverL2()->create();
+        foreach (IpcApproval::STAGES as $stage) {
+            $this->actingAs($l2)
+                ->put("/batches/{$batch->id}/approval/{$stage}", ['decision' => 'Approved', 'level' => 2])
                 ->assertRedirect();
         }
 
@@ -540,6 +556,11 @@ class ApprovalTest extends TestCase
         $this->actingAs($user)
             ->put("/batches/{$batch->id}/approval/filling", ['decision' => 'Approved'])
             ->assertRedirect();
+        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+
+        $this->actingAs(User::factory()->approverL2()->create())
+            ->put("/batches/{$batch->id}/approval/filling", ['decision' => 'Approved', 'level' => 2])
+            ->assertRedirect();
 
         $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
@@ -578,6 +599,11 @@ class ApprovalTest extends TestCase
             $this->assertDatabaseHas('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => $stage, 'decision' => 'Approved']);
         }
         $this->assertDatabaseMissing('ipc_approvals', ['ipc_batch_id' => $batch->id, 'stage' => 'filling']);
+        $this->assertSame(IpcBatch::STAGE_APPROVAL, $batch->fresh()->current_stage);
+
+        $l2 = User::factory()->approverL2()->create();
+        $this->actingAs($l2)->put("/batches/{$batch->id}/approval/startup", ['decision' => 'Approved', 'level' => 2])->assertRedirect();
+        $this->actingAs($l2)->put("/batches/{$batch->id}/approval/filling_packing_fg", ['decision' => 'Approved', 'level' => 2])->assertRedirect();
         $this->assertSame(IpcBatch::STAGE_COMPLETED, $batch->fresh()->current_stage);
     }
 }

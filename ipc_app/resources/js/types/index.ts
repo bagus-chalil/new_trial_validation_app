@@ -38,6 +38,8 @@ export interface SharedData {
     recentBatches: RecentBatch[];
     flash?: { success?: string; error?: string };
     canApproveIpc: boolean;
+    canApproveL1: boolean;
+    canApproveL2: boolean;
     canManageMaster: boolean;
     canUseVisionTest: boolean;
     canCreateBatch: boolean;

@@ -49,15 +49,23 @@ const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Dr
 
 function DecisionBadge({ approval }: { approval: ApprovalData | null }) {
     if (!approval?.decision) return null;
-    const approved = approval.decision === 'Approved';
+    const fully = approval.decision === 'Approved' && approval.l2_decision === 'Approved';
+    const awaitingL2 = approval.decision === 'Approved' && !approval.l2_decision;
+    const label = fully ? 'Approved' : awaitingL2 ? 'Menunggu L2' : approval.l2_decision === 'Rejected' ? 'Ditolak L2' : approval.decision;
     return (
         <span
             className={`flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-bold ${
-                approved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+                fully ? 'bg-green-100 text-green-800' : awaitingL2 ? 'bg-blue-50 text-blue-700' : 'bg-red-100 text-red-700'
             }`}
         >
-            {approved ? <CheckCircle2 className="size-3.5" strokeWidth={2.4} /> : <XCircle className="size-3.5" strokeWidth={2.4} />}
-            {approval.decision}
+            {fully ? (
+                <CheckCircle2 className="size-3.5" strokeWidth={2.4} />
+            ) : awaitingL2 ? (
+                <Clock3 className="size-3.5" strokeWidth={2.4} />
+            ) : (
+                <XCircle className="size-3.5" strokeWidth={2.4} />
+            )}
+            {label}
         </span>
     );
 }
@@ -84,7 +92,13 @@ function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
 
             {stage.approval && (
                 <p className="text-muted-foreground/70 text-[12px] font-medium">
-                    Oleh {stage.approval.approver?.name ?? '—'} · {formatDateTime(stage.approval.approved_at)}
+                    L1: {stage.approval.approver?.name ?? '—'} · {formatDateTime(stage.approval.approved_at)}
+                    {stage.approval.l2_decision && (
+                        <>
+                            <br />
+                            L2: {stage.approval.l2_approver?.name ?? '—'} · {formatDateTime(stage.approval.l2_decided_at ?? null)}
+                        </>
+                    )}
                 </p>
             )}
 

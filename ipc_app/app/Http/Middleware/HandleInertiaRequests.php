@@ -63,6 +63,8 @@ class HandleInertiaRequests extends Middleware
                     ->get(['id', 'no_batch', 'current_stage', 'flow_type', 'master_product_id', 'master_line_id'])
                 : [],
             'canApproveIpc' => fn () => (bool) $request->user()?->isApprover(),
+            'canApproveL1' => fn () => (bool) $request->user()?->isApproverL1(),
+            'canApproveL2' => fn () => (bool) $request->user()?->isApproverL2(),
             'canManageMaster' => fn () => (bool) $request->user()?->isAdmin(),
             'canUseVisionTest' => fn () => (bool) $request->user()?->can('use-vision-test'),
             'canCreateBatch' => fn () => (bool) $request->user()?->can('create', IpcBatch::class),

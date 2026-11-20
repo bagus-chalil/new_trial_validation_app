@@ -213,7 +213,7 @@
             $issuedAt = $lastRound?->created_at ?? $section['check']?->completed_at;
             $sectionApproval = $section['approval'];
         @endphp
-        <div class="sign-grid sign-grid--tight">
+        <div class="sign-grid sign-grid--tight sign-grid--cols-4">
             <div>
                 <span>Issued By (QC {{ $section['label'] }})</span>
                 @if ($issuedBy)
@@ -228,6 +228,7 @@
                     <small class="sign-date">{{ optional($sectionApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
                 @endif
             </div>
+            @include('pdf._l2-sign-box', ['approval' => $sectionApproval])
             <div class="qr-box">
                 <span>Verifikasi</span>
                 @if ($sectionApproval)

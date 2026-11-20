@@ -102,8 +102,11 @@
 <body>
     @php
         $decided = $approval !== null;
-        $approved = $decided && $approval->decision === \App\Models\IpcApproval::DECISION_APPROVED;
-        $statusClass = ! $decided ? 'pending' : ($approved ? 'ok' : 'bad');
+        $approved = $decided && $approval->isFullyApproved();
+        // Two-level approval (2026-11-21): Level 1 Approved but Level 2 still open is "in progress", not final.
+        $awaitingL2 = $decided && $approval->decision === \App\Models\IpcApproval::DECISION_APPROVED && $approval->l2_decision === null;
+        $rejectedL2 = $decided && $approval->decision === \App\Models\IpcApproval::DECISION_APPROVED && $approval->l2_decision === \App\Models\IpcApproval::DECISION_REJECTED;
+        $statusClass = ! $decided || $awaitingL2 ? 'pending' : ($approved ? 'ok' : 'bad');
     @endphp
 
     <div class="card">
@@ -111,7 +114,7 @@
 
         <div class="status {{ $statusClass }}">
             <div class="icon">
-                @if (! $decided)
+                @if (! $decided || $awaitingL2)
                     ?
                 @elseif ($approved)
                     &#10003;
@@ -122,6 +125,8 @@
             <h1>
                 @if (! $decided)
                     Belum Ada Approval
+                @elseif ($awaitingL2)
+                    Menunggu Approval Level 2
                 @elseif ($approved)
                     Dokumen Terverifikasi
                 @else
@@ -131,8 +136,12 @@
             <p>
                 @if (! $decided)
                     Stage ini belum diputuskan (Approve/Reject) di sistem IPC.
+                @elseif ($awaitingL2)
+                    Level 1 (QC Verifikator) sudah menyetujui; menunggu Level 2 (Team Leader / Supervisor).
+                @elseif ($rejectedL2)
+                    Stage ini ditolak pada approval Level 2 di sistem IPC.
                 @elseif ($approved)
-                    Stage ini telah disetujui secara resmi di sistem IPC.
+                    Stage ini telah disetujui secara resmi (Level 1 dan Level 2) di sistem IPC.
                 @else
                     Stage ini ditandai Rejected di sistem IPC.
                 @endif
@@ -149,12 +158,19 @@
             <dt>Tahap</dt><dd>{{ $stageLabel }}</dd>
             @if ($decided)
                 <dt>Keputusan</dt><dd>{{ $approval->decision }}</dd>
-                <dt>Oleh</dt><dd>{{ $approval->approver->name ?? '—' }}</dd>
-                <dt>Waktu</dt><dd>{{ optional($approval->approved_at)->translatedFormat('d M Y H:i') ?? '—' }}</dd>
+                <dt>Oleh (Level 1)</dt><dd>{{ $approval->approver->name ?? '—' }}</dd>
+                <dt>Waktu (Level 1)</dt><dd>{{ optional($approval->approved_at)->translatedFormat('d M Y H:i') ?? '—' }}</dd>
+                @if ($approval->l2_decision)
+                    <dt>Level 2</dt><dd>{{ $approval->l2_decision }}</dd>
+                    <dt>Oleh (Level 2)</dt><dd>{{ $approval->l2Approver->name ?? '—' }}</dd>
+                    <dt>Waktu (Level 2)</dt><dd>{{ optional($approval->l2_decided_at)->translatedFormat('d M Y H:i') ?? '—' }}</dd>
+                @endif
             @endif
         </dl>
 
-        @if ($decided && ! $approved && $approval->remarks)
+        @if ($rejectedL2 && $approval->l2_remarks)
+            <p class="remarks"><strong>Catatan Level 2:</strong> {{ $approval->l2_remarks }}</p>
+        @elseif ($decided && ! $approved && $approval->remarks)
             <p class="remarks"><strong>Catatan:</strong> {{ $approval->remarks }}</p>
         @endif
 

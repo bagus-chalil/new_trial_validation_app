@@ -165,7 +165,7 @@
             </table>
         @endif
 
-        <div class="sign-grid">
+        <div class="sign-grid sign-grid--cols-4">
             <div>
                 <span>QC FG Inspector</span>
                 <strong>{{ $finishedCheck->user->name ?? '—' }}</strong>
@@ -182,6 +182,7 @@
                     <small class="sign-date">{{ optional($finishedApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
                 @endif
             </div>
+            @include('pdf._l2-sign-box', ['approval' => $finishedApproval])
             <div class="qr-box">
                 <span>Verifikasi</span>
                 @if ($finishedApproval)

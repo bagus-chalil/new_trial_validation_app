@@ -486,7 +486,8 @@ class IpcBatch extends Model
      */
     public function scopePendingApproval(Builder $query): Builder
     {
-        $approvedFor = fn (string $stage) => fn ($q) => $q->where('stage', $stage)->where('decision', IpcApproval::DECISION_APPROVED);
+        // "Approved" now means both levels (QC Verifikator + Team Leader/Supervisor).
+        $approvedFor = fn (string $stage) => fn ($q) => $q->where('stage', $stage)->fullyApproved();
         $completed = fn ($q) => $q->whereNotNull('completed_at');
 
         return $query
@@ -497,7 +498,8 @@ class IpcBatch extends Model
                     ->orWhereIn('id', IpcApproval::query()
                         ->select('ipc_batch_id')
                         ->whereIn('stage', [...IpcApproval::APPROVAL_REQUIRED_STAGES, IpcApproval::STAGE_STARTUP])
-                        ->where(fn ($q) => $q->where('decision', '!=', IpcApproval::DECISION_APPROVED)->orWhereNull('decision')));
+                        ->where(fn ($q) => $q->where('decision', '!=', IpcApproval::DECISION_APPROVED)->orWhereNull('decision')
+                            ->orWhere('l2_decision', '!=', IpcApproval::DECISION_APPROVED)->orWhereNull('l2_decision')));
             })
             // The flow's last required check stage must be done before a batch is even a
             // candidate — every flow but Filling waits on Finished Check; Filling (no Packing/

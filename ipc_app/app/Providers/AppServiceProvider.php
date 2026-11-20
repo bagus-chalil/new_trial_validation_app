@@ -28,7 +28,10 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('manage-master', fn (User $user) => $user->isAdmin());
         Gate::define('manage-users', fn (User $user) => $user->isAdmin());
+        // 'approve-ipc' opens the approval pages for either level; the two below gate the decision itself.
         Gate::define('approve-ipc', fn (User $user) => $user->isApprover());
+        Gate::define('approve-ipc-l1', fn (User $user) => $user->isApproverL1());
+        Gate::define('approve-ipc-l2', fn (User $user) => $user->isApproverL2());
         Gate::define('use-vision-test', fn (User $user) => $user->isStaff());
     }
 }

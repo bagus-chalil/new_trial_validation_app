@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,7 +38,7 @@ class ApprovalController extends Controller
     {
         $this->guardFinished($batch);
 
-        $batch->load(['masterProduct', 'masterLine', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck', 'approvals.approver']);
+        $batch->load(['masterProduct', 'masterLine', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck', 'approvals.approver', 'approvals.l2Approver']);
 
         return Inertia::render('approval/index', [
             'batch' => $batch,
@@ -78,7 +79,7 @@ class ApprovalController extends Controller
             'startupInspection.items',
             'startupInspection.samples',
             'startupInspection.testResults.testType',
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -112,7 +113,7 @@ class ApprovalController extends Controller
             'masterLine',
             'startupCheck',
             ...$this->fillingPackingRelations($side),
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -137,7 +138,7 @@ class ApprovalController extends Controller
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'finishedCheck.revisions.user',
             'finishedCheck.revisions.samples',
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -156,7 +157,7 @@ class ApprovalController extends Controller
         $this->guardFinished($batch);
         abort_unless(IpcApproval::combinedStagesFor($batch) !== [], 404);
 
-        $batch->load(['masterProduct', 'masterLine', 'approvals.approver']);
+        $batch->load(['masterProduct', 'masterLine', 'approvals.approver', 'approvals.l2Approver']);
 
         return Inertia::render('approval/fillpack', [
             'batch' => $batch,
@@ -189,12 +190,18 @@ class ApprovalController extends Controller
             return redirect()->route('approvals.index')->with('success', 'Revisi diminta. Laporan dikembalikan ke QC untuk diperbaiki.');
         }
 
+        $level = $request->level();
+
         if ($stage === IpcReportDocument::KEY_FILLING_PACKING_FG) {
-            foreach (IpcApproval::combinedStagesFor($batch) as $part) {
-                $action->handle($batch, $request->user(), $part, $request->validated());
-            }
+            // One document, one decision for all its parts: all of them or none (a Level 2 refusal
+            // on one part must not leave the others already decided).
+            DB::transaction(function () use ($action, $batch, $request, $level) {
+                foreach (IpcApproval::combinedStagesFor($batch) as $part) {
+                    $action->handle($batch, $request->user(), $part, $request->validated(), $level);
+                }
+            });
         } else {
-            $action->handle($batch, $request->user(), $stage, $request->validated());
+            $action->handle($batch, $request->user(), $stage, $request->validated(), $level);
         }
 
         $route = match ($stage) {
