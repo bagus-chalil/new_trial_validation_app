@@ -6,6 +6,34 @@ Its predecessor is a Microsoft Power Apps/Dataverse app (a production quality-in
 
 ## Status
 
+### Temuan NOT OK berulang + ringkasan approver (AI lewat Vision Service) — 2026-11-20 (not committed yet)
+Dua fitur advisory; keduanya hanya membaca, **tanpa migrasi / tabel baru**, tidak mengubah keputusan apa pun.
+- **Temuan NOT OK berulang** (`App\Services\Insights\NotOkPatternAnalyzer`, tanpa LLM): satu "temuan" = satu item checklist yang
+  dijawab negatif pada sebuah batch (Startup: Not Conform / Not Available / Not Match With BOM / Bulk Not Yet Release / Not Yet
+  Complete; Start Inspection: Not OK; Filling & Packing: Not Conform + keputusan Hold/Reject, dari tabel `*_revisions` karena baris
+  live dikosongkan tiap draft; Finished: disposisi Rejected / Accepted With Remarks), dihitung sekali per batch walau berulang di banyak
+  ronde TH Progress. `forBatch()` membandingkan dengan 10 batch terakhir produk yang sama dan line yang sama (penyebut hanya batch yang
+  memang punya tahap itu); `MIN_HITS = 2` = "pola". `overview()` = item yang NOT OK di >= 2 batch dalam 30 hari (cache 10 menit).
+  Tampil di: kartu "Temuan berulang (30 hari)" di Dashboard, kartu "Temuan NOT OK & pola" di Detail Batch dan di halaman Approval.
+- **Item "tidak berlaku" sengaja dikeluarkan** (`NOT_APPLICABLE_STARTUP`): `machine_*` dan `sample_challenge_test_status` bernilai
+  Not Available di 39-95% batch nyata (756 Startup selesai, 2026-11) karena line memang tidak punya semua mesin; kalau ikut dihitung
+  semuanya jadi "pola" dan temuan sungguhan tenggelam. `product_standard_status` (0,4%) dan `wi_im_match_status` (1%) tetap dihitung.
+  Machine Balance (2,5%) ikut dikeluarkan demi konsistensi: **belum dikonfirmasi QC**, boleh ditinjau ulang.
+- **Ringkasan approver** (`BatchSummaryBuilder` + `BatchSummaryAnalyzer`): poin fakta berbasis aturan (identitas batch, ronde TH Progress,
+  temuan NOT OK, pola berulang, keputusan QC, hitungan bacaan AI Startup, catatan QC yang bukan sekadar "OK") selalu tampil di halaman
+  Approval. Tombol **"Tulis ringkasan AI"** (`POST batches/{batch}/approval/summary`, hanya `can:approve-ipc`, throttle 6/menit, kunci cache
+  karena Ollama serial, cache 30 menit per isi fakta) meminta paragraf ke Vision Service.
+- **IPC hanya consumer, AI-nya di Vision Service** (permintaan user): `App\Services\Vision\InsightClient` mengirim `kind` + `facts` ke
+  `POST /api/insights/summarize`; prompt, aturan "jangan menyarankan approve/reject", dan pemeriksaan keluaran ada di
+  `vision-service/insights.py` (vision-service `CLAUDE.md` gotcha #25). Tidak ada prompt di ipc_app. 404 = Vision Service belum diperbarui,
+  422 = jawaban ditolak karena menyarankan keputusan; keduanya jadi pesan biasa, poin berbasis aturan tetap tampil.
+- **Env:** `VISION_BATCH_SUMMARY_ENABLED` (opsional; default mengikuti `VISION_STARTUP_AI_ENABLED`, jadi server yang Vision-nya sudah aktif
+  tidak butuh variabel baru). **Deploy: Vision Service dulu, baru ipc_app.**
+- **Tes:** `NotOkPatternTest` (9) + `BatchSummaryTest` (7); vision-service `tests/test_insights.py`. Suite penuh di `ipc_system_testing`:
+  599 lulus, 14 gagal = `MasterImportTest` (ZipArchive, lama). Dicek juga terhadap DB lokal nyata (read-only): ringkasan batch 830 dan
+  overview 30 hari (mis. Vacuum Test NOT OK di 85 dari 483 batch, terkonsentrasi di Lipcream 3). Belum dicoba end-to-end ke Ollama
+  sungguhan dan belum diklik di browser/tablet.
+
 ### Nomor IM is stored and required on Startup Check — 2026-11-20 (not committed yet)
 `startup_checks.im_document_number` (migration `2026_11_20_120000`, additive; **server needs `php artisan migrate`**): the "No instruksi mutu" of the IM document, no longer only a photo. Required on Startup save (`SaveStartupCheckRequest`, whitespace tidied); older finished checks stay null and show "-". Input sits under the IM photo tile in `startup-check/edit.tsx`; it is also sent to the AI status endpoints (`entered.im_document_number`).
 - **AI:** `StartupVisionEvaluator::imNumberItem` compares the AI read with the typed number (case/space-insensitive; MATCH/MISMATCH only when a number is typed AND the read is trusted). Unreadable / untrusted read = INFO + `retake` banner "isi manual dari dokumen IM + foto ulang" (never changes PASS/REVIEW/FAIL by itself; the rest of the IM items keep `retake=false`). `suggestions()` offers "Pakai Nomor IM" only while the field is empty and the read is trusted. `RecordStartupAiFeedback` has a new `im_number` key (AI vs final) for accuracy measurement.

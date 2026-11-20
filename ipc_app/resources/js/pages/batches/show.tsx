@@ -1,4 +1,5 @@
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { BatchPatternsCard, type NotOkPattern } from '@/components/ipc/not-ok-patterns';
 import { StageStepper, type StepperStage } from '@/components/ipc/stage-stepper';
 import { StartupAiCard } from '@/components/ipc/startup-ai-card';
 import { TwoPane } from '@/components/ipc/two-pane';
@@ -32,7 +33,17 @@ function formatDate(value: string): string {
     return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batch; stages: StepperStage[]; showAiCard: boolean }) {
+export default function BatchesShow({
+    batch,
+    stages,
+    showAiCard,
+    notOkPatterns,
+}: {
+    batch: Batch;
+    stages: StepperStage[];
+    showAiCard: boolean;
+    notOkPatterns: NotOkPattern[];
+}) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
@@ -106,6 +117,7 @@ export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batc
                             </div>
                         </div>
                     )}
+                    <BatchPatternsCard patterns={notOkPatterns} />
                     {/* Stepper */}
                     <div className="border-border-soft bg-card flex flex-col gap-4 rounded-3xl border p-5 shadow-sm lg:p-6">
                         <div className="flex items-center justify-between gap-3">

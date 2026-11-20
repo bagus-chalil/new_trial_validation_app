@@ -1,3 +1,4 @@
+import { RepeatFindingsCard, type RepeatFinding } from '@/components/ipc/not-ok-patterns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useInitials } from '@/hooks/use-initials';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -36,6 +37,7 @@ interface StageBreakdownItem {
 interface DashboardProps {
     stats: DashboardStats;
     stageBreakdown: StageBreakdownItem[];
+    repeatFindings: RepeatFinding[];
 }
 
 const stageGuides: Record<string, { title: string; description: string }> = {
@@ -129,7 +131,7 @@ function StatCard({
     );
 }
 
-export default function Dashboard({ stats, stageBreakdown }: DashboardProps) {
+export default function Dashboard({ stats, stageBreakdown, repeatFindings }: DashboardProps) {
     const { props } = usePage<SharedData>();
     const getInitials = useInitials();
     const [selectedStage, setSelectedStage] = useState('startup');
@@ -384,6 +386,7 @@ export default function Dashboard({ stats, stageBreakdown }: DashboardProps) {
                                 </div>
                             </div>
                         </div>
+                        <RepeatFindingsCard findings={repeatFindings} />
                         <section className="border-border-soft bg-card rounded-2xl border p-5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <h2 className="text-base font-bold">Mulai dari mana?</h2>

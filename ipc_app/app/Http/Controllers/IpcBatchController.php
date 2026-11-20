@@ -7,6 +7,7 @@ use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
+use App\Services\Insights\NotOkPatternAnalyzer;
 use App\Support\BatchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -81,7 +82,7 @@ class IpcBatchController extends Controller
         ]);
     }
 
-    public function show(IpcBatch $batch): Response
+    public function show(IpcBatch $batch, NotOkPatternAnalyzer $patterns): Response
     {
         $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck']);
 
@@ -150,6 +151,8 @@ class IpcBatchController extends Controller
         return Inertia::render('batches/show', [
             'batch' => $batch,
             'stages' => $stages,
+            // NOT OK items of this batch and how often they came back on the same product / line.
+            'notOkPatterns' => $patterns->forBatch($batch),
             // "Rekomendasi AI" card (Startup photos); same gate as its JSON endpoints.
             'showAiCard' => (bool) config('vision.startup_ai.enabled') && Gate::allows('update', $batch),
         ]);

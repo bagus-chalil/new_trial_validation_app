@@ -1,5 +1,7 @@
 import { formatDateTime, InfoField, type ApprovalData, type StageInfo } from '@/components/ipc/approval-report';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { BatchSummaryCard, type BatchSummary } from '@/components/ipc/batch-summary-card';
+import { BatchPatternsCard, type NotOkPattern } from '@/components/ipc/not-ok-patterns';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { WorkflowIntro } from '@/components/ipc/workflow-form';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -106,7 +108,17 @@ function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
     );
 }
 
-export default function ApprovalOverview({ batch, stages }: { batch: Batch; stages: StageInfo[] }) {
+export default function ApprovalOverview({
+    batch,
+    stages,
+    summary,
+    aiSummaryEnabled,
+}: {
+    batch: Batch;
+    stages: StageInfo[];
+    summary: BatchSummary & { findings: NotOkPattern[] };
+    aiSummaryEnabled: boolean;
+}) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
@@ -126,6 +138,9 @@ export default function ApprovalOverview({ batch, stages }: { batch: Batch; stag
                         <InfoField label="Line" value={lineLabel(batch.master_line)} />
                         <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                     </div>
+
+                    <BatchSummaryCard batchId={batch.id} summary={summary} aiEnabled={aiSummaryEnabled} />
+                    <BatchPatternsCard patterns={summary.findings} className="rounded-[20px] p-[18px] shadow-none" />
 
                     <p className="text-muted-foreground/70 -mb-1 text-[12.5px] font-medium">
                         Pilih salah satu tahap untuk melihat detail lengkap, memutuskan Approve/Reject, dan preview cetak.

@@ -9,9 +9,13 @@ use App\Http\Requests\SaveApprovalRequest;
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use App\Models\IpcReportDocument;
+use App\Services\Insights\BatchSummaryAnalyzer;
+use App\Services\Insights\BatchSummaryBuilder;
 use App\Services\Pdf\PdfService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +33,7 @@ class ApprovalController extends Controller
 {
     use BuildsIpcReportPayloads;
 
-    public function edit(IpcBatch $batch): Response
+    public function edit(IpcBatch $batch, BatchSummaryBuilder $summary): Response
     {
         $this->guardFinished($batch);
 
@@ -38,7 +42,29 @@ class ApprovalController extends Controller
         return Inertia::render('approval/index', [
             'batch' => $batch,
             'stages' => $this->stagesSummary($batch),
+            // Rule-based digest for the approver (always shown) + the optional AI paragraph (button).
+            'summary' => $summary->build($batch),
+            'aiSummaryEnabled' => (bool) config('vision.batch_summary.enabled'),
         ]);
+    }
+
+    /** "Tulis ringkasan AI": advisory paragraph over the rule-based digest, via the Vision Service's Ollama route. */
+    public function summary(IpcBatch $batch, BatchSummaryAnalyzer $analyzer): JsonResponse
+    {
+        abort_unless(config('vision.batch_summary.enabled'), 404);
+        $this->guardFinished($batch);
+
+        // The Ollama server is serial, so a long summary must not be stacked by double clicks.
+        $lock = Cache::lock('ipc-batch-summary-ai', 200);
+        if (! $lock->get()) {
+            return response()->json(['ok' => false, 'error' => 'Ringkasan sebelumnya masih berjalan, tunggu sebentar.'], 429);
+        }
+
+        try {
+            return response()->json($analyzer->analyze($batch));
+        } finally {
+            $lock->release();
+        }
     }
 
     public function startup(IpcBatch $batch): Response

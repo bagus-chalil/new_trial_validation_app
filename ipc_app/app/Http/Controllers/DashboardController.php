@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
+use App\Services\Insights\NotOkPatternAnalyzer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +22,7 @@ class DashboardController extends Controller
 
     private const NEEDS_ACTION_LIMIT = 8;
 
-    public function index(Request $request): Response
+    public function index(Request $request, NotOkPatternAnalyzer $patterns): Response
     {
         $user = $request->user();
 
@@ -81,6 +82,8 @@ class DashboardController extends Controller
             ],
             'stageBreakdown' => $stageBreakdown,
             'needsAction' => $needsAction->values(),
+            // Items that keep coming back NOT OK over the last 30 days (advisory, read-only).
+            'repeatFindings' => $patterns->overview(),
         ]);
     }
 

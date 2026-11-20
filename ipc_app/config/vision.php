@@ -87,6 +87,22 @@ return [
         'enabled' => (bool) env('VISION_ISSUE_AI_ENABLED', false),
     ],
 
+    // "Tulis ringkasan AI" on the approver's batch page: the rule-based digest of one batch goes to the Vision
+    // Service text endpoint (same Ollama route) and comes back as a short paragraph. Advisory text only, the
+    // rule-based points are always shown without it. Follows VISION_STARTUP_AI_ENABLED unless set on its own,
+    // so a server whose Vision Service is already wired needs no extra variable.
+    'batch_summary' => [
+        'enabled' => (bool) env('VISION_BATCH_SUMMARY_ENABLED', env('VISION_STARTUP_AI_ENABLED', false)),
+    ],
+
+    // "Tulis ringkasan AI" on the approver's batch page: the rule-based digest of one batch goes to the Vision
+    // Service text endpoint (same Ollama route) and comes back as a short paragraph. Advisory text only, the
+    // rule-based points are always shown without it. Follows VISION_STARTUP_AI_ENABLED unless set on its own,
+    // so a server whose Vision Service is already wired needs no extra variable.
+    'batch_summary' => [
+        'enabled' => (bool) env('VISION_BATCH_SUMMARY_ENABLED', env('VISION_STARTUP_AI_ENABLED', false)),
+    ],
+
     // How each field_type's OCR value is checked against IPC data. A field_type with no rule
     // here always ends up REVIEW (never PASS) until a rule is added.
     //   batch_exp_date      : OCR'd EXP (DDMMYY) must equal ipc_batches.exp_date

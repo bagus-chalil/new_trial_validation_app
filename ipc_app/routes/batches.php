@@ -128,6 +128,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('approvals', [ApprovalQueueController::class, 'index'])->name('approvals.index');
 
         Route::get('batches/{batch}/approval', [ApprovalController::class, 'edit'])->name('approval.edit');
+        Route::post('batches/{batch}/approval/summary', [ApprovalController::class, 'summary'])->middleware('throttle:6,1')->name('approval.summary');
         Route::get('batches/{batch}/approval/startup', [ApprovalController::class, 'startup'])->name('approval.startup');
         Route::get('batches/{batch}/approval/filling', [ApprovalController::class, 'filling'])->name('approval.filling');
         Route::get('batches/{batch}/approval/packing', [ApprovalController::class, 'packing'])->name('approval.packing');
