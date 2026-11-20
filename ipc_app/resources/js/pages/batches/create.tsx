@@ -164,19 +164,7 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
 
                                 <div className="grid gap-2">
                                     <div className="flex items-baseline justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <Label>Bulk Code</Label>
-                                            <button
-                                                type="button"
-                                                onClick={() => setCameraOpen(true)}
-                                                disabled={labelScan.reading}
-                                                aria-label="Foto Label Bulk"
-                                                title="Foto Label Bulk"
-                                                className="text-primary hover:bg-primary/10 inline-flex size-8 items-center justify-center rounded-md disabled:opacity-50"
-                                            >
-                                                <Camera className="size-4" />
-                                            </button>
-                                        </div>
+                                        <Label>Bulk Code</Label>
                                         {bulkCodeOptions.length > 0 && (
                                             <span className="text-muted-foreground text-[12.5px]">
                                                 Tersedia <span className="text-foreground font-semibold">{bulkCodeOptions.length}</span> bulk ·
@@ -261,7 +249,19 @@ export default function BatchesCreate({ initialProduct = null, flowTypes }: { in
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="no_batch">No Batch FG</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="no_batch">No Batch FG</Label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCameraOpen(true)}
+                                            disabled={labelScan.reading}
+                                            aria-label="Foto Label Bulk"
+                                            title="Foto Label Bulk"
+                                            className="text-primary hover:bg-primary/10 inline-flex size-8 items-center justify-center rounded-md disabled:opacity-50"
+                                        >
+                                            <Camera className="size-4" />
+                                        </button>
+                                    </div>
                                     <Input
                                         id="no_batch"
                                         className={`min-h-11 ${!data.no_batch.trim() && message ? errorBorder : ''}`}
