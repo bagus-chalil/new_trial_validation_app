@@ -173,7 +173,7 @@ class ClientEventTest extends TestCase
     public function test_ai_analysis_sends_an_anonymised_digest_and_returns_the_answer(): void
     {
         config(['vision.issue_ai.enabled' => true, 'vision.base_url' => 'http://vision.test']);
-        Http::fake(['vision.test/api/summarize-text' => Http::response(['status' => 'OK', 'text' => 'Pola: kamera di Redmi.'])]);
+        Http::fake(['vision.test/api/insights/summarize' => Http::response(['status' => 'OK', 'kind' => 'ipc_client_issues', 'text' => 'Pola: kamera di Redmi.'])]);
 
         $admin = User::factory()->admin()->create();
         $staff = User::factory()->create(['name' => 'Budi Rahasia', 'email' => 'budi.rahasia@example.test']);
@@ -185,14 +185,19 @@ class ClientEventTest extends TestCase
             ->assertJson(['ok' => true, 'text' => 'Pola: kamera di Redmi.']);
 
         Http::assertSent(function (HttpRequest $request) {
-            $prompt = $request['prompt'];
+            $data = $request->data();
+            $facts = implode("\n", $data['facts'] ?? []);
 
-            return $request->url() === 'http://vision.test/api/summarize-text'
-                && str_contains($prompt, 'Redmi Note 11')
-                && str_contains($prompt, '/batches/{n}/packing-check')
-                && ! str_contains($prompt, 'Budi')
-                && ! str_contains($prompt, 'example.test')
-                && is_string($request['system']);
+            return $request->url() === 'http://vision.test/api/insights/summarize'
+                && $data['kind'] === 'ipc_client_issues'
+                && is_array($data['facts'])
+                // the prompt now lives in the Vision Service: only kind + facts travel
+                && array_keys($data) === ['kind', 'facts']
+                && ! isset($data['system'], $data['prompt'])
+                && str_contains($facts, 'Redmi Note 11')
+                && str_contains($facts, '/batches/{n}/packing-check')
+                && ! str_contains($facts, 'Budi')
+                && ! str_contains($facts, 'example.test');
         });
     }
 

@@ -1,10 +1,11 @@
 import { FlowBadge } from '@/components/ipc/flow-identity';
 import { Input } from '@/components/ui/input';
+import { clearBatchListFilter, readBatchListFilter } from '@/lib/batch-list-filter';
 import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
 import { cn } from '@/lib/utils';
 import { type RecentBatch } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // Every page renders its own BatchNavList, so each Inertia visit remounts it and its scroll box
@@ -14,6 +15,9 @@ let savedListScrollTop = 0;
 
 export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; activeId?: number }) {
     const [q, setQ] = useState('');
+    // The filter the user applied on the Batch list; the side list keeps showing that subset.
+    const [listFilter, setListFilter] = useState(readBatchListFilter);
+    const hasFilter = Object.keys(listFilter).length > 0;
     const [results, setResults] = useState<RecentBatch[] | null>(null);
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,34 +42,45 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
     // are findable too, without ever shipping the full table to the tablet.
     useEffect(() => {
         const needle = q.trim();
-        if (!needle) {
+        if (!needle && !hasFilter) {
             setResults(null);
             setLoading(false);
             return;
         }
         const controller = new AbortController();
-        const timer = setTimeout(async () => {
-            setLoading(true);
-            try {
-                const response = await fetch(route('lookup.batches', { q: needle }), {
-                    signal: controller.signal,
-                    credentials: 'same-origin',
-                    headers: { Accept: 'application/json' },
-                });
-                if (response.ok) setResults(await response.json());
-            } catch {
-                // aborted or offline — keep the previous results
-            } finally {
-                if (!controller.signal.aborted) setLoading(false);
-            }
-        }, 300);
+        const timer = setTimeout(
+            async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(route('lookup.batches', { ...listFilter, q: needle }), {
+                        signal: controller.signal,
+                        credentials: 'same-origin',
+                        headers: { Accept: 'application/json' },
+                    });
+                    if (response.ok) setResults(await response.json());
+                } catch {
+                    // aborted or offline — keep the previous results
+                } finally {
+                    if (!controller.signal.aborted) setLoading(false);
+                }
+            },
+            needle ? 300 : 0,
+        );
         return () => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [q]);
+    }, [q, listFilter, hasFilter]);
 
-    const filtered = results ?? batches;
+    // First arrival of the filtered list: bring the open batch into view if it is in it.
+    const scrolledToActive = useRef(false);
+    useEffect(() => {
+        if (results === null || scrolledToActive.current) return;
+        scrolledToActive.current = true;
+        scrollRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ block: 'center' });
+    }, [results]);
+
+    const filtered = results ?? (hasFilter ? [] : batches);
 
     return (
         <>
@@ -82,6 +97,22 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
                     />
                     {loading && <Loader2 className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />}
                 </div>
+                {hasFilter && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            clearBatchListFilter();
+                            setListFilter({});
+                            setResults(null);
+                        }}
+                        className="bg-primary/10 text-primary mt-2.5 flex w-full items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold"
+                    >
+                        <span className="truncate">Filter aktif: {describeFilter(listFilter)}</span>
+                        <span className="flex shrink-0 items-center gap-1">
+                            Lepas <X className="size-3.5" />
+                        </span>
+                    </button>
+                )}
             </div>
 
             <div
@@ -132,4 +163,14 @@ export function BatchNavList({ batches, activeId }: { batches: RecentBatch[]; ac
             </div>
         </>
     );
+}
+
+function describeFilter(filter: Record<string, string>): string {
+    const parts: string[] = [];
+    if (filter.stage) parts.push(stageLabel(filter.stage));
+    if (filter.flow) parts.push(filter.flow);
+    if (filter.date_from || filter.date_to) parts.push('tanggal');
+    if (filter.master_line_id) parts.push('line');
+    if (filter.created_by) parts.push('pembuat');
+    return parts.join(', ');
 }

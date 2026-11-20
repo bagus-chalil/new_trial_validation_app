@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useInitials } from '@/hooks/use-initials';
 import { IpcShell } from '@/layouts/ipc-shell';
+import { saveBatchListFilter } from '@/lib/batch-list-filter';
 import { stageBadgeStyle, stageLabel } from '@/lib/ipc-stages';
 import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowUpRight, ChevronRight, ClipboardList, Layers3, Search, X } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useEffect, useState } from 'react';
 
 interface MasterProduct {
     id: number;
@@ -237,6 +238,11 @@ export default function BatchesIndex({
     const totalAll = stages.reduce((sum, stage) => sum + (stageCounts[stage] ?? 0), 0);
     const { props } = usePage<SharedData>();
     const getInitials = useInitials();
+
+    // Remember the applied filter so the side list of a batch page can mirror it.
+    useEffect(() => {
+        saveBatchListFilter(filters);
+    }, [filters]);
 
     // Search / stage selection keep whatever the filter bar has applied (date, creator, line, flow).
     const visit = (patch: BatchFilterValues) => {

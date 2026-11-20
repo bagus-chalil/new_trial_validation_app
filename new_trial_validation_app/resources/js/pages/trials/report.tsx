@@ -15,6 +15,8 @@ import type {
 } from '@/components/trials/line-configuration-report-section';
 import { LineConfigurationReportSection } from '@/components/trials/line-configuration-report-section';
 import { ReportPdfDownloadDialog } from '@/components/trials/report-pdf-download-dialog';
+import { TrialSummaryCard } from '@/components/trials/trial-summary-card';
+import type { TrialSummary } from '@/components/trials/trial-summary-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -122,6 +124,7 @@ type EditableReview = {
 };
 
 type PageProps = {
+    aiSummary: TrialSummary | null;
     readOnlyMode: boolean;
     actionMenuKey: string | null;
     actionMenuHref: string | null;
@@ -213,6 +216,7 @@ function formatNumber(value: number | null): string {
 }
 
 export default function TrialReport({
+    aiSummary,
     readOnlyMode,
     actionMenuKey,
     actionMenuHref,
@@ -319,6 +323,10 @@ export default function TrialReport({
                             )}
                         </AlertDescription>
                     </Alert>
+                )}
+
+                {aiSummary && (
+                    <TrialSummaryCard trialId={trial.id} summary={aiSummary} />
                 )}
 
                 {approvalBlockedNote && (

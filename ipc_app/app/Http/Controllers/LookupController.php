@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
+use App\Support\BatchFilter;
 use App\Support\SearchTerm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,12 +39,20 @@ class LookupController extends Controller
     public function batches(Request $request): JsonResponse
     {
         $q = trim($request->string('q')->toString());
+        // The side list of a batch page can mirror the Batch list's filters (stage + filter bar), so
+        // opening a batch from a filtered list keeps that filter instead of showing the 20 newest.
+        $stage = $request->string('stage')->toString();
+        $stage = in_array($stage, IpcBatch::STAGES, true) ? $stage : null;
+        $filter = BatchFilter::fromRequest($request);
+        $filtered = $stage !== null || $filter->toArray() !== [];
 
         $batches = IpcBatch::query()
             ->when(! $request->user()->isStaff(), fn ($query) => $query->visibleTo($request->user()))
+            ->when($stage, fn ($query) => $query->where('current_stage', $stage))
+            ->when($filtered, fn ($query) => $filter->apply($query)->archived(false))
             // Index-driven search (see IpcBatch::searchBranches) — a plain OR query here
             // full-scanned ~1M batches whenever the search had no hits.
-            ->when($q !== '', fn ($query) => $query->whereIn('id', IpcBatch::searchIds($q, null, self::LIMIT)))
+            ->when($q !== '', fn ($query) => $query->whereIn('id', IpcBatch::searchIds($q, $stage, self::LIMIT)))
             ->with(['masterProduct:id,product_name,fg_code', 'masterLine:id,name'])
             ->latest('id')
             ->limit(self::LIMIT)
