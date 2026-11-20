@@ -6,6 +6,13 @@ Its predecessor is a Microsoft Power Apps/Dataverse app (a production quality-in
 
 ## Status
 
+### "Login sebagai" untuk Admin (impersonation) — 2026-11-21 (not committed yet)
+Sama polanya dengan `new_trial_validation_app` (`Admin\ImpersonationController`). Admin membuka **Manajemen User** dan menekan tombol ikon login pada kartu user; sesi berpindah ke akun itu tanpa password, lalu kembali lewat banner kuning "Kembali ke akun Admin" di setiap halaman.
+- `ImpersonationController` (`users.impersonate` di balik `can:manage-users`; `impersonate.leave` hanya `auth`, karena dipanggil saat login sebagai user biasa — otorisasinya = `impersonator_id` di session). Ditolak (403): akun sendiri, user nonaktif, memulai impersonation baru saat sudah ada satu. Saat leave, Admin asal diperiksa lagi (masih aktif + masih Admin).
+- Shared prop `impersonator` (`HandleInertiaRequests::impersonator()`) memunculkan banner di `IpcShell`. User yang di-impersonate hanya punya hak aksesnya sendiri (halaman Manajemen User 403).
+- **Pencatatan:** IPC tidak punya tabel activity log umum (`ipc_logs` khusus OCR), jadi awal/akhir dicatat ke `laravel.log` (`Log::notice`, berisi admin, target, IP), BUKAN ke tabel. Tombol "Kembali" tidak ikut menghapus apa pun. **Semua aksi saat impersonation tercatat atas akun target** (mis. `approver_user_id`, `user_id` pada check) — pakai hati-hati di data produksi.
+- Tes: `ImpersonationTest` (8). Belum diklik di browser.
+
 ### Approval dua level (L1 QC Verifikator + L2 Team Leader/Supervisor) — 2026-11-21 (not committed yet)
 User decision: tiap bagian approval (Startup/Filling/Packing/Finished, termasuk form gabungan Fillpack + FG) butuh **Level 1 lalu Level 2**; batch baru `completed` bila semua bagian wajib Approved oleh KEDUA level.
 - **Role:** `approver` = Level 1 (label diubah jadi "Approver L1 (QC Verifikator)"); role baru `approver_l2` (QC Team Leader / Part Leader / Supervisor, satu role untuk semuanya — jabatan dibedakan lewat nama user). Admin boleh keduanya. Gate baru `approve-ipc-l1` / `approve-ipc-l2`; `approve-ipc` + `User::isApprover()` kini = salah satu level (membuka antrean & halaman approval), jadi row-level visibility batch tidak berubah. Shared Inertia props `canApproveL1` / `canApproveL2`. Factory: `User::factory()->approverL2()`.

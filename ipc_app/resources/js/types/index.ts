@@ -40,6 +40,7 @@ export interface SharedData {
     canApproveIpc: boolean;
     canApproveL1: boolean;
     canApproveL2: boolean;
+    impersonator: { name: string; email: string } | null;
     canManageMaster: boolean;
     canUseVisionTest: boolean;
     canCreateBatch: boolean;

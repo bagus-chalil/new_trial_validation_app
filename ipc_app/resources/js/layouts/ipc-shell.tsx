@@ -6,8 +6,8 @@ import { VersionWatcher } from '@/components/ipc/version-watcher';
 import { markBackClicked, previousUrl, recordVisit } from '@/lib/nav-history';
 import { returnToFromUrl } from '@/lib/return-to';
 import { type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { ArrowLeft, UserCog } from 'lucide-react';
 import { type ReactNode, useEffect } from 'react';
 
 export function IpcShell({
@@ -46,6 +46,25 @@ export function IpcShell({
                 className={batchFlow ? 'ipc-flow flex min-h-0 min-w-0 flex-1 flex-col' : 'flex min-h-0 min-w-0 flex-1 flex-col'}
                 style={batchFlow ? flowTheme(batchFlow.flow_type) : undefined}
             >
+                {props.impersonator && (
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-300 bg-amber-100 px-5 py-2 text-[13px] text-amber-900 md:px-6">
+                        <span className="flex items-center gap-2">
+                            <UserCog className="size-4 shrink-0" />
+                            <span>
+                                Anda login sebagai <strong>{props.auth.user.name}</strong> ({props.auth.user.email}) lewat akun Admin{' '}
+                                <strong>{props.impersonator.name}</strong>.
+                            </span>
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => router.post(route('impersonate.leave'))}
+                            className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-[12.5px] font-bold text-amber-900"
+                        >
+                            Kembali ke akun Admin
+                        </button>
+                    </div>
+                )}
+
                 {header ?? (
                     <header className="border-border-soft bg-card flex shrink-0 items-center gap-3 border-b px-5 py-4 md:px-6">
                         {backTarget && (
