@@ -6,6 +6,12 @@ Its predecessor is a Microsoft Power Apps/Dataverse app (a production quality-in
 
 ## Status
 
+### Laravel 12 → 13 upgrade + Laravel AI SDK — 2026-11-20 (branch `chore/laravel-13-upgrade`, not committed, NOT merged)
+- `laravel/framework` 12.69 → **13.43**, `laravel/tinker` ^3.0; `inertiajs/inertia-laravel` deliberately stays **^2.0** (Inertia v3 is a separate frontend migration, not needed for L13). Excel v4 and Ziggy resolved fine.
+- Installed `laravel/ai` ^1.4 (`config/ai.php`, `stubs/`, migration `*_create_agent_conversations_table.php` — **not run**, additive table, only migrate if conversation history is used) and `laravel/boost` (dev only). `.env.example` gained `ANTHROPIC_API_KEY` / `OLLAMA_URL`. **No AI feature is built yet**; the SDK is only a foundation. Candidate first features: approver batch summary, QAC Q&A bot on local Ollama, structured output for Startup "Baca AI", repeated NOT OK pattern detection. Quality decisions stay advisory.
+- Local `composer` needs `--ignore-platform-req=ext-zip` (ext-zip missing on this machine; same cause as the 14 `MasterImportTest` failures). Production has the extension.
+- **Verification (2026-11-20, on `ipc_system_testing`):** full suite **567 passed, 1 skipped, 14 failed** (65 s); all 14 failures are `MasterImportTest` (`ZipArchive` missing on this machine, pre-existing, unrelated to L13). Pint passed, `npm run build` passed (only the usual >500 kB chunk warning). Gotcha: earlier "hung" test runs were simply MySQL not running (Laragon must be started) — a hang with no output after the PHPUnit header means check MySQL first.
+
 ### Startup Primary Coding via Vision Service `coding_formula` — 2026-11-19 (not committed yet)
 Vision Service contract: vision-service `CLAUDE.md` gotcha #24 (deployed to .151 on 2026-11-19, `vision:ping` shows `coding_formula`). Still advisory only; the decision is made only in `StartupVisionEvaluator`.
 - **One call per batch:** Primary Coding photo 1 + the optional `coding_primary_2` photo are sent together (`file2`) with `coding_formula` = the SKU's formula or `auto`. `coding_primary_2` no longer has a read of its own (`startup_ai.fields.coding_primary_2` is null in this mode). The log stores `comparison.image_path_2`, so a 2nd photo added/replaced later queues a fresh read of the pair (`QueueStartupAiReads::findLog()`); cache key includes the 2nd attachment id.
