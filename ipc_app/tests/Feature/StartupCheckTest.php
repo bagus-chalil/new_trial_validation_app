@@ -60,6 +60,7 @@ class StartupCheckTest extends TestCase
         return [
             ...$checklist,
             'mixing_date' => '2026-09-20',
+            'im_document_number' => 'IM-KKI-TEST PRODUCT 4.8G - V4',
             'shelf_life_months' => 24,
             'exp_date' => '2028-09-20',
             'primary_packaging_type' => 'non_tube',
@@ -100,6 +101,21 @@ class StartupCheckTest extends TestCase
             ->assertSessionHasErrors(['coding_format_primary', 'coding_format_secondary', 'photo_coding_primary']);
 
         $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
+    }
+
+    public function test_im_number_is_required_and_saved_in_the_db(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $batch = $this->makeBatch();
+
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'im_document_number' => '   '])
+            ->assertSessionHasErrors('im_document_number');
+        $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
+
+        // Extra spaces are tidied, the number itself is kept as typed.
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'im_document_number' => '  IM-ABC   V2 '])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('IM-ABC V2', StartupCheck::query()->where('ipc_batch_id', $batch->id)->value('im_document_number'));
     }
 
     public function test_exp_date_is_calculated_from_mixing_date_and_shelf_life(): void

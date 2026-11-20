@@ -163,6 +163,7 @@ class StartupCheck extends Model
         'product_standard_status',
         'sample_challenge_test_status',
         'wi_im_match_status',
+        'im_document_number',
         'pm_bom_match_status',
         'bulk_status_status',
         'machine_vision_status',

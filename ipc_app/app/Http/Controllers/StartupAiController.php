@@ -50,6 +50,7 @@ class StartupAiController extends Controller
             'exp_date' => $request->validated('exp_date'),
             'shelf_life_months' => $request->validated('shelf_life_months'),
             'packaging_type' => $request->validated('packaging_type'),
+            'im_document_number' => $request->validated('im_document_number'),
         ]);
 
         if ($out === null) {

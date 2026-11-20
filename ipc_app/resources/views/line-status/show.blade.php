@@ -38,6 +38,9 @@
             <span class="stage">{{ $b['stage_label'] }}</span>
             <div class="batch">{{ $b['no_batch'] }}</div>
             <div class="product">{{ $b['product_name'] ?? '-' }}</div>
+            @if (! empty($b['im_number']))
+                <div class="product">IM {{ $b['im_number'] }}</div>
+            @endif
             @if ($b['step'])
                 <div class="bar">
                     @for ($i = 1; $i <= $b['total_steps']; $i++)<i class="{{ $i <= $b['step'] ? 'on' : '' }}"></i>@endfor

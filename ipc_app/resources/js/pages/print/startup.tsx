@@ -111,6 +111,7 @@ export default function PrintStartup({
                         <InfoField label="FG Code" value={batch.master_product.fg_code} />
                         <InfoField label="Bulk Code" value={batch.bulk_code} />
                         <InfoField label="Line" value={lineLabel(batch.master_line)} />
+                        <InfoField label="Nomor IM" value={(startupCheck?.im_document_number as string | null) || '—'} />
                     </div>
 
                     <PhotoRow

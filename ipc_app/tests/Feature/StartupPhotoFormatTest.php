@@ -88,7 +88,7 @@ class StartupPhotoFormatTest extends TestCase
         $this->assertStringContainsString('No. Batch', $item['note']);
     }
 
-    public function test_im_has_no_format_check_and_never_asks_for_a_retake(): void
+    public function test_im_has_no_format_check_and_only_the_im_number_can_ask_for_a_retake(): void
     {
         // IM layouts differ per product, so the IM standard was dropped (2026-11-19).
         $raw = [
@@ -102,7 +102,8 @@ class StartupPhotoFormatTest extends TestCase
 
         $this->assertNull($this->formatItem($result));
         foreach ($result->items as $item) {
-            $this->assertFalse($item['retake']);
+            // Nomor IM (typed by the operator, stored in the DB) may advise a manual entry + retake; the rest never does.
+            $this->assertSame($item['key'] === 'im_number', $item['retake']);
         }
         $this->assertNotSame(VisionEvaluation::FAIL, $result->decision);
     }

@@ -22,7 +22,7 @@ interface Batch {
     master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string } | null;
     creator: { name: string };
-    startup_check: { completed_at: string | null } | null;
+    startup_check: { completed_at: string | null; im_document_number?: string | null } | null;
     filling_check: { completed_at: string | null } | null;
     packing_check: { completed_at: string | null } | null;
     finished_check: { completed_at: string | null } | null;
@@ -75,6 +75,10 @@ export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batc
                             <div>
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Line</p>
                                 <p className="mt-0.5 text-[13.5px] font-semibold">{batch.master_line?.name ?? '—'}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Nomor IM</p>
+                                <p className="mt-0.5 text-[13.5px] font-semibold">{batch.startup_check?.im_document_number || '—'}</p>
                             </div>
                             <div className="md:text-right">
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Dibuat oleh</p>

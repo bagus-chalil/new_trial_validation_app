@@ -26,6 +26,7 @@ class RecordStartupAiFeedback
         'mixing_date' => ['label_bulk', 'mixing_date'],
         'no_batch' => ['label_bulk', null],
         'shelf_life' => ['im_document', 'shelf_life_months'],
+        'im_number' => ['im_document', 'im_document_number'],
         'coding_batch' => ['coding_print', null],
         'coding_exp' => ['coding_print', null],
     ];
@@ -99,6 +100,11 @@ class RecordStartupAiFeedback
                 isset($raw['shelf_life_value']) ? (string) (((int) ($raw['shelf_life_value']['years'] ?? 0) * 12) + (int) ($raw['shelf_life_value']['months'] ?? 0)) : null,
                 $batch->shelf_life_months !== null ? (string) $batch->shelf_life_months : null,
                 $flag('shelf_life'),
+            ],
+            'im_number' => [
+                $this->normText($raw['im_number'] ?? null),
+                $this->normText($batch->startupCheck?->im_document_number),
+                $flag('im_number'),
             ],
             'coding_batch' => [
                 isset($raw['batch_raw']) ? strtoupper(trim((string) $raw['batch_raw'])) : null,
@@ -191,6 +197,13 @@ class RecordStartupAiFeedback
         );
 
         return true;
+    }
+
+    private function normText(mixed $value): ?string
+    {
+        $text = is_scalar($value) ? strtoupper((string) preg_replace('/\s+/', '', (string) $value)) : '';
+
+        return $text === '' ? null : $text;
     }
 
     private function labelDateToIso(?string $value): ?string

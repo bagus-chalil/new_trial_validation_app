@@ -27,6 +27,7 @@
                         @endif
                     </figure>
                 </div>
+                <div style="font-size: 9px; margin-top: 3px;">No. IM: <strong>{{ $startupCheck->im_document_number ?? '—' }}</strong></div>
             </div>
 
             <div class="photo-group">

@@ -111,6 +111,13 @@ class StartupVisionEvaluator
             }
         }
 
+        if ($fieldType === 'im_document' && trim((string) ($entered['im_document_number'] ?? '')) === '') {
+            $read = trim((string) ($raw['im_number'] ?? ''));
+            if ($read !== '' && $this->trusted($raw, 'im_number')) {
+                $out[] = ['field' => 'im_document_number', 'label' => 'Nomor IM', 'value' => $read, 'display' => $read];
+            }
+        }
+
         if ($fieldType === 'im_document' && empty($entered['shelf_life_months'])) {
             $value = $raw['shelf_life_value'] ?? null;
             if ($value !== null && $this->trusted($raw, 'shelf_life')) {
@@ -287,8 +294,9 @@ class StartupVisionEvaluator
     {
         $items = [];
 
-        // IM number: no reference value exists in IPC data, so it is shown, not compared.
-        $items[] = $this->item('im_number', 'IM Number', null, $raw['im_number'] ?? null, self::INFO, null);
+        // IM number: compared with the number the operator typed (startup_checks.im_document_number).
+        // An unclear / unreadable photo tells the operator to type it by hand from the IM document and retake.
+        $items[] = $this->imNumberItem($raw, $entered);
 
         $value = $raw['shelf_life_value'] ?? null;
         $trusted = $value !== null && $this->trusted($raw, 'shelf_life');
@@ -323,9 +331,38 @@ class StartupVisionEvaluator
         // IM layouts differ per product, so there is no fixed IM standard to validate against
         // (user decision 2026-11-19): no "Format foto IM" check, and no "ambil ulang" banner for IM.
         // Values are still read and compared, but a doubtful read only needs a manual check.
-        $items = array_map(fn (array $item) => [...$item, 'retake' => false], $items);
+        $items = array_map(fn (array $item) => $item['key'] === 'im_number' ? $item : [...$item, 'retake' => false], $items);
 
         return [$items, false, null];
+    }
+
+    /** @param  array{im_document_number?: ?string}  $entered */
+    private function imNumberItem(array $raw, array $entered): array
+    {
+        $read = isset($raw['im_number']) && trim((string) $raw['im_number']) !== '' ? trim((string) $raw['im_number']) : null;
+        $typed = trim((string) ($entered['im_document_number'] ?? ''));
+        $manual = 'Nomor IM tidak terbaca jelas di foto. Isi Nomor IM manual dari dokumen IM, lalu perbaiki dengan foto ulang yang lebih jelas.';
+
+        // Unreadable photo: advice only (INFO, never changes PASS/REVIEW/FAIL), the operator types it by hand.
+        if ($read === null) {
+            return $this->item('im_number', 'Nomor IM', $typed !== '' ? $typed : null, null, self::INFO, $manual, retake: true);
+        }
+
+        $trusted = $this->trusted($raw, 'im_number');
+
+        // Nothing typed yet: show what the AI read (offered as "Pakai saran"), nothing to compare with.
+        if ($typed === '') {
+            return $this->item('im_number', 'Nomor IM', null, $read, self::INFO, $trusted ? 'Isi Nomor IM di form, atau pakai saran AI.' : $manual, retake: ! $trusted);
+        }
+
+        $norm = fn (string $v): string => strtoupper((string) preg_replace('/\s+/', '', $v));
+
+        return $this->compare(
+            'im_number', 'Nomor IM', $typed, $read, $trusted,
+            fn () => $norm($read) === $norm($typed),
+            null,
+            $manual,
+        );
     }
 
     /** @return array{0: list<array<string, mixed>>, 1: bool, 2: ?string} */

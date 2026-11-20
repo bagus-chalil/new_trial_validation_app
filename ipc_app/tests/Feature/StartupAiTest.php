@@ -560,4 +560,62 @@ class StartupAiTest extends TestCase
             ->assertJsonPath('decision', 'REVIEW');
         $this->assertSame('ERROR', IpcLog::first()->vision_status);
     }
+
+    private function imRaw(array $overrides = []): array
+    {
+        return [
+            'pipeline' => 'llm', 'status' => 'OK', 'im_number' => 'IM-KKI-TEST 4.8G - V4',
+            'shelf_life_value' => ['years' => 3, 'months' => null],
+            'legible' => ['im_number' => true, 'shelf_life' => true],
+            'format_ok' => ['im_number' => true, 'shelf_life' => true],
+            'view_agreement' => ['im_number' => true, 'shelf_life' => true],
+            ...$overrides,
+        ];
+    }
+
+    public function test_im_number_read_by_ai_is_compared_with_the_typed_number(): void
+    {
+        $batch = $this->makeBatch(36);
+        $this->photo($batch, 'im_number');
+        $this->fakeVision($this->imRaw());
+
+        $items = collect($this->read($batch, 'im_number', ['im_document_number' => 'im-kki-test 4.8g - v4'])->json('items'));
+
+        $this->assertSame('match', $items->firstWhere('key', 'im_number')['verdict']);
+    }
+
+    public function test_a_different_typed_im_number_is_flagged(): void
+    {
+        $batch = $this->makeBatch(36);
+        $this->photo($batch, 'im_number');
+        $this->fakeVision($this->imRaw());
+
+        $item = collect($this->read($batch, 'im_number', ['im_document_number' => 'IM-OTHER'])->json('items'))->firstWhere('key', 'im_number');
+
+        $this->assertSame('mismatch', $item['verdict']);
+    }
+
+    public function test_unreadable_im_number_tells_the_operator_to_type_it_and_retake(): void
+    {
+        $batch = $this->makeBatch(36);
+        $this->photo($batch, 'im_number');
+        $this->fakeVision($this->imRaw(['im_number' => null, 'legible' => ['im_number' => false, 'shelf_life' => true]]));
+
+        $item = collect($this->read($batch, 'im_number', ['im_document_number' => 'IM-MANUAL'])->json('items'))->firstWhere('key', 'im_number');
+
+        $this->assertSame('info', $item['verdict']);
+        $this->assertTrue($item['retake']);
+        $this->assertStringContainsString('manual', $item['note']);
+    }
+
+    public function test_trusted_im_number_is_suggested_only_while_the_field_is_empty(): void
+    {
+        $suggestions = collect($this->suggest('im_document', $this->imRaw(), ['shelf_life_months' => 36]));
+        $this->assertSame('IM-KKI-TEST 4.8G - V4', $suggestions->firstWhere('field', 'im_document_number')['value']);
+
+        $this->assertNull(collect($this->suggest('im_document', $this->imRaw(), ['im_document_number' => 'IM-X']))->firstWhere('field', 'im_document_number'));
+
+        $untrusted = $this->imRaw(['view_agreement' => ['im_number' => false, 'shelf_life' => true]]);
+        $this->assertNull(collect($this->suggest('im_document', $untrusted))->firstWhere('field', 'im_document_number'));
+    }
 }

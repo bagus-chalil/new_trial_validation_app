@@ -21,10 +21,11 @@ class StartupAiStatusRequest extends FormRequest
             'exp_date' => ['nullable', 'date'],
             'shelf_life_months' => ['nullable', 'integer', 'min:1', 'max:120'],
             'packaging_type' => ['nullable', Rule::in(IpcBatch::PACKAGING_TYPES)],
+            'im_document_number' => ['nullable', 'string', 'max:150'],
         ];
     }
 
-    /** @return array{mixing_date: ?string, exp_date: ?string, shelf_life_months: ?int, packaging_type: ?string} */
+    /** @return array{mixing_date: ?string, exp_date: ?string, shelf_life_months: ?int, packaging_type: ?string, im_document_number: ?string} */
     public function entered(): array
     {
         return [
@@ -32,6 +33,7 @@ class StartupAiStatusRequest extends FormRequest
             'exp_date' => $this->validated('exp_date'),
             'shelf_life_months' => $this->validated('shelf_life_months'),
             'packaging_type' => $this->validated('packaging_type'),
+            'im_document_number' => $this->validated('im_document_number'),
         ];
     }
 }

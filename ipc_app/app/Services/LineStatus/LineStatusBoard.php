@@ -81,6 +81,7 @@ class LineStatusBoard
             'no_batch' => $batch->no_batch,
             'product_name' => $batch->masterProduct?->product_name,
             'fg_code' => $batch->masterProduct?->fg_code,
+            'im_number' => $batch->startupCheck?->im_document_number,
             'stage' => $batch->current_stage,
             'stage_label' => self::STAGE_LABELS[$batch->current_stage] ?? $batch->current_stage,
             'stages' => $stages,
