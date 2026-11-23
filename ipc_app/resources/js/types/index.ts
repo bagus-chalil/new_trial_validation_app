@@ -38,9 +38,14 @@ export interface SharedData {
     recentBatches: RecentBatch[];
     flash?: { success?: string; error?: string };
     canApproveIpc: boolean;
+    canApproveL1: boolean;
+    canApproveL2: boolean;
+    impersonator: { name: string; email: string } | null;
     canManageMaster: boolean;
     canUseVisionTest: boolean;
     canCreateBatch: boolean;
+    openClientIssues: number;
+    revisionRequest?: { stages: string[]; remarks: string | null; by: string | null; at: string | null } | null;
     [key: string]: unknown;
 }
 

@@ -29,8 +29,9 @@ class AdvanceApprovedBatches extends Command
             ->where('current_stage', IpcBatch::STAGE_APPROVAL)
             ->with('approvals')
             ->each(function (IpcBatch $batch) use ($dryRun, &$advanced) {
+                // Both approval levels must be Approved (two-level approval, 2026-11-21).
                 $approved = $batch->approvals
-                    ->where('decision', IpcApproval::DECISION_APPROVED)
+                    ->filter(fn (IpcApproval $approval) => $approval->isFullyApproved())
                     ->pluck('stage');
 
                 if (! collect(IpcApproval::requiredStagesFor($batch))->every(fn ($s) => $approved->contains($s))) {
@@ -40,6 +41,9 @@ class AdvanceApprovedBatches extends Command
                 $this->line(($dryRun ? '[dry-run] ' : '').'Batch #'.$batch->id.' '.$batch->no_batch.' -> completed');
 
                 if (! $dryRun) {
+                    // Keep updated_at: the dashboard's "Selesai hari ini" counts completed batches by
+                    // updated_at, so touching it would report these old batches as finished today.
+                    $batch->timestamps = false;
                     $batch->update(['current_stage' => IpcBatch::STAGE_COMPLETED]);
                 }
 

@@ -45,7 +45,10 @@ class VisionResult
             confidence: isset($data['confidence']) ? (float) $data['confidence'] : null,
             formatValid: $formatValid,
             engineUsed: $data['engine_used'] ?? null,
-            errorReason: $data['error_reason'] ?? ($status === self::STATUS_ERROR && ! isset($data['status']) ? 'UNEXPECTED_RESPONSE' : null),
+            // LLM paths report a failure as {"status":"ERROR","error":"LLM_UNAVAILABLE: ..."}.
+            errorReason: $data['error_reason'] ?? ($status === self::STATUS_ERROR
+                ? (isset($data['status']) ? (is_string($data['error'] ?? null) ? $data['error'] : null) : 'UNEXPECTED_RESPONSE')
+                : null),
             matchMethod: $data['match_method'] ?? null,
             processingTimeMs: isset($data['processing_time_ms']) ? (int) round($data['processing_time_ms']) : null,
             raw: $data,

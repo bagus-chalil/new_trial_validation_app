@@ -5,6 +5,7 @@ namespace App\Actions\Vision;
 use App\Models\IpcAiFieldFeedback;
 use App\Models\IpcBatch;
 use App\Models\IpcLog;
+use App\Services\Vision\CodingFormulaRead;
 
 /**
  * Called after a Startup Check is saved: pairs every AI read of this batch's Startup photos with the
@@ -15,11 +16,17 @@ use App\Models\IpcLog;
  */
 class RecordStartupAiFeedback
 {
-    /** field_key => [field_type, form field that "Pakai saran" fills]. */
+    /**
+     * field_key => [field_type, form field that "Pakai saran" fills]. The coding keys are read from
+     * whichever Primary Coding read is newest: coding_formula (current) or coding_print (old path).
+     */
+    private const CODING_TYPES = ['coding_formula', 'coding_print'];
+
     private const SPECS = [
         'mixing_date' => ['label_bulk', 'mixing_date'],
         'no_batch' => ['label_bulk', null],
         'shelf_life' => ['im_document', 'shelf_life_months'],
+        'im_number' => ['im_document', 'im_document_number'],
         'coding_batch' => ['coding_print', null],
         'coding_exp' => ['coding_print', null],
     ];
@@ -35,15 +42,17 @@ class RecordStartupAiFeedback
         $tubeType = config('vision.startup_ai.tube_llm_field_type');
 
         foreach (self::SPECS as $key => [$type, $formField]) {
-            $log = $this->latestLog($batch, $type);
+            $log = $this->latestLog($batch, $type === 'coding_print' ? self::CODING_TYPES : [$type]);
             if ($log === null) {
                 continue;
             }
-            [$ai, $final, $trusted] = $this->pair($key, $log, $batch);
-            $written += $this->store($batch, $log, $key, $type, $ai, $trusted, $final, $formField, $applied) ? 1 : 0;
+            [$ai, $final, $trusted] = $log->field_type === 'coding_formula'
+                ? $this->pairFormula($key, $log, $batch)
+                : $this->pair($key, $log, $batch);
+            $written += $this->store($batch, $log, $key, $log->field_type, $ai, $trusted, $final, $formField, $applied) ? 1 : 0;
         }
 
-        if ($tubeType && ($log = $this->latestLog($batch, $tubeType)) !== null) {
+        if ($tubeType && ($log = $this->latestLog($batch, [$tubeType])) !== null) {
             $raw = $log->vision_response ?? [];
             $ai = $raw['exp_raw'] ?? null;
             $final = $batch->exp_date?->format('dmy');
@@ -54,12 +63,13 @@ class RecordStartupAiFeedback
         return $written;
     }
 
-    private function latestLog(IpcBatch $batch, string $type): ?IpcLog
+    /** @param list<string> $types */
+    private function latestLog(IpcBatch $batch, array $types): ?IpcLog
     {
         return IpcLog::query()
             ->where('ipc_batch_id', $batch->id)
             ->where('stage', IpcBatch::STAGE_STARTUP)
-            ->where('field_type', $type)
+            ->whereIn('field_type', $types)
             ->whereIn('vision_status', ['OK', 'LOW_CONFIDENCE'])
             // A blank photo never reached the AI: it says nothing about AI accuracy.
             ->where(fn ($q) => $q->whereNull('engine_used')->orWhere('engine_used', '!=', ReadStartupPhoto::PRECHECK_ENGINE))
@@ -91,6 +101,11 @@ class RecordStartupAiFeedback
                 $batch->shelf_life_months !== null ? (string) $batch->shelf_life_months : null,
                 $flag('shelf_life'),
             ],
+            'im_number' => [
+                $this->normText($raw['im_number'] ?? null),
+                $this->normText($batch->startupCheck?->im_document_number),
+                $flag('im_number'),
+            ],
             'coding_batch' => [
                 isset($raw['batch_raw']) ? strtoupper(trim((string) $raw['batch_raw'])) : null,
                 $this->batchLetters($batch->no_batch),
@@ -98,6 +113,38 @@ class RecordStartupAiFeedback
             ],
             'coding_exp' => $this->codingExp($raw, $batch, $flag('exp', 'trusted')),
         };
+    }
+
+    /**
+     * coding_formula read: batch value as read (upper-cased/trimmed for the comparison only), EXP as
+     * "Y-m-d" / "Y-m" from date + granularity (the saved EXP is cut to the same granularity).
+     * Trusted = the field's own status is OK.
+     *
+     * @return array{0: ?string, 1: ?string, 2: bool}
+     */
+    private function pairFormula(string $key, IpcLog $log, IpcBatch $batch): array
+    {
+        $raw = $log->vision_response ?? [];
+
+        if ($key === 'coding_batch') {
+            $field = CodingFormulaRead::field($raw, 'batch');
+            $value = $field['value'] ?? null;
+
+            return [
+                $value !== null ? strtoupper(trim((string) $value)) : null,
+                CodingFormulaRead::batchLetters($batch->no_batch),
+                CodingFormulaRead::isOk($field),
+            ];
+        }
+
+        $field = CodingFormulaRead::field($raw, 'exp');
+        $granularity = $field['granularity'] ?? CodingFormulaRead::GRANULARITY_DAY;
+
+        return [
+            CodingFormulaRead::expKey($field),
+            CodingFormulaRead::referenceKey($batch->exp_date?->format('Y-m-d'), $granularity),
+            CodingFormulaRead::isOk($field),
+        ];
     }
 
     /** @return array{0: ?string, 1: ?string, 2: bool} */
@@ -150,6 +197,13 @@ class RecordStartupAiFeedback
         );
 
         return true;
+    }
+
+    private function normText(mixed $value): ?string
+    {
+        $text = is_scalar($value) ? strtoupper((string) preg_replace('/\s+/', '', (string) $value)) : '';
+
+        return $text === '' ? null : $text;
     }
 
     private function labelDateToIso(?string $value): ?string

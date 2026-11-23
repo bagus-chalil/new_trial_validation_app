@@ -30,6 +30,8 @@ class ReviewController extends Controller
         $reviews = TrialReview::query()
             ->join('trials_header as h', 'h.id', '=', 'trials_review.trial_id')
             ->where('h.progress_status', 'In Review')
+            // A trial moved to Trash keeps its Pending rows; opening it would 404.
+            ->whereNull('h.deleted_at')
             ->whereRaw('trials_review.review_round = h.revision_no + 1')
             // Already-submitted reviews drop out of the inbox — revising one
             // (up to TrialReview::MAX_EDITS) is still done from the trial's

@@ -6,6 +6,7 @@ use App\Exports\MasterProductsTemplateExport;
 use App\Http\Requests\StoreMasterProductRequest;
 use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
+use App\Support\SearchTerm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,13 +21,16 @@ class MasterProductController extends Controller
         // The chip counts follow the search, so they are built from the same base query.
         $searched = MasterProduct::query()
             ->when($request->string('q')->toString(), function ($query, $q) {
-                $query->where(function ($query) use ($q) {
-                    $query->where('product_name', 'like', "%{$q}%")
-                        ->orWhere('fg_code', 'like', "%{$q}%")
+                // Each word may be in the name, FG code or any of the product's bulk codes.
+                foreach (SearchTerm::tokens($q) as $token) {
+                    $like = SearchTerm::like($token);
+                    $query->where(fn ($word) => $word
+                        ->where('product_name', 'like', $like)
+                        ->orWhere('fg_code', 'like', $like)
                         ->orWhereIn('id', MasterProductBulkCode::query()
                             ->select('master_product_id')
-                            ->where('bulk_code', 'like', "%{$q}%"));
-                });
+                            ->where('bulk_code', 'like', $like)));
+                }
             });
 
         $products = (clone $searched)

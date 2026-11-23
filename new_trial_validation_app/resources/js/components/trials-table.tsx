@@ -9,12 +9,12 @@ import { useMemo } from 'react';
 import TrialArchiveController from '@/actions/App/Http/Controllers/Admin/TrialArchiveController';
 import TrialController from '@/actions/App/Http/Controllers/TrialController';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { RowActionsMenu } from '@/components/row-actions-menu';
+import type { RowAction } from '@/components/row-actions-menu';
 import { TrialProcessProgress } from '@/components/trial-process-progress';
 import { TrialStepProgress } from '@/components/trial-step-progress';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
     Table,
@@ -48,6 +48,7 @@ export type TrialRow = {
     can_edit: boolean;
     can_delete: boolean;
     can_archive: boolean;
+    is_legacy?: boolean;
 };
 
 const columnHelper = createColumnHelper<TrialRow>();
@@ -60,12 +61,24 @@ function buildColumns(
         columnHelper.accessor('trial_code', {
             header: t('trials.table.trial_code'),
             cell: (info) => (
-                <Link
-                    href={TrialReportController.show(info.row.original.id).url}
-                    className="font-medium underline underline-offset-2"
-                >
-                    {info.getValue()}
-                </Link>
+                <>
+                    <Link
+                        href={
+                            TrialReportController.show(info.row.original.id).url
+                        }
+                        className="font-medium underline underline-offset-2"
+                    >
+                        {info.getValue()}
+                    </Link>
+                    {info.row.original.is_legacy && (
+                        <Badge
+                            variant="outline"
+                            className="ml-2 border-amber-300 bg-amber-50 text-[10px] text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                        >
+                            {t('trials.legacy_badge')}
+                        </Badge>
+                    )}
+                </>
             ),
         }),
         columnHelper.accessor('product_name', {
@@ -136,70 +149,52 @@ function buildColumns(
             cell: (info) => {
                 const trial = info.row.original;
 
-                if (
-                    !trial.can_edit &&
-                    !trial.can_delete &&
-                    !trial.can_archive
-                ) {
-                    return '-';
+                const actions: RowAction[] = [];
+
+                if (trial.can_edit) {
+                    actions.push({
+                        key: 'edit',
+                        label: t('trials.table.edit'),
+                        href: editTrial(trial.id).url,
+                    });
                 }
 
-                return (
-                    <div className="flex flex-col items-start gap-1.5">
-                        {trial.can_edit && (
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={editTrial(trial.id).url}>
-                                    {t('trials.table.edit')}
-                                </Link>
-                            </Button>
-                        )}
-                        {trial.can_delete && (
-                            <ConfirmDialog
-                                trigger={
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-destructive hover:text-destructive"
-                                    >
-                                        {t('trials.table.delete')}
-                                    </Button>
-                                }
-                                title={t('trials.table.delete_title')}
-                                description={t(
-                                    'trials.table.delete_description',
-                                    {
-                                        code: trial.trial_code,
-                                    },
-                                )}
-                                confirmLabel={t('trials.table.delete')}
-                                formProps={TrialController.destroy.form(
-                                    trial.id,
-                                )}
-                            />
-                        )}
-                        {trial.can_archive && (
-                            <ConfirmDialog
-                                trigger={
-                                    <Button variant="outline" size="sm">
-                                        {t('trials.table.archive')}
-                                    </Button>
-                                }
-                                title={t('trials.table.archive_title')}
-                                description={t(
-                                    'trials.table.archive_description',
-                                    {
-                                        code: trial.trial_code,
-                                    },
-                                )}
-                                confirmLabel={t('trials.table.archive')}
-                                confirmVariant="default"
-                                formProps={TrialArchiveController.store.form(
-                                    trial.id,
-                                )}
-                            />
-                        )}
-                    </div>
-                );
+                if (trial.can_archive) {
+                    actions.push({
+                        key: 'archive',
+                        label: t('trials.table.archive'),
+                        confirm: {
+                            title: t('trials.table.archive_title'),
+                            description: t('trials.table.archive_description', {
+                                code: trial.trial_code,
+                            }),
+                            confirmLabel: t('trials.table.archive'),
+                            confirmVariant: 'default',
+                            formProps: TrialArchiveController.store.form(
+                                trial.id,
+                            ),
+                        },
+                    });
+                }
+
+                if (trial.can_delete) {
+                    actions.push({
+                        key: 'delete',
+                        label: t('trials.table.delete'),
+                        destructive: true,
+                        separator: actions.length > 0,
+                        confirm: {
+                            title: t('trials.table.delete_title'),
+                            description: t('trials.table.delete_description', {
+                                code: trial.trial_code,
+                            }),
+                            confirmLabel: t('trials.table.delete'),
+                            formProps: TrialController.destroy.form(trial.id),
+                        },
+                    });
+                }
+
+                return <RowActionsMenu actions={actions} />;
             },
         }),
     ];

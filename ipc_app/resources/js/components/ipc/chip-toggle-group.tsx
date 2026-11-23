@@ -40,12 +40,15 @@ export function ChipToggleGroup({
     onChange,
     disabled,
     name,
+    labels,
 }: {
     options: string[];
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
     name?: string;
+    /** Optional display text per option value (the stored value stays the key). */
+    labels?: Record<string, string>;
 }) {
     return (
         <div className="grid gap-1.5">
@@ -96,7 +99,7 @@ export function ChipToggleGroup({
                             ) : (
                                 <Circle className="size-3.5 shrink-0 opacity-40" />
                             )}
-                            {option}
+                            {labels?.[option] ?? option}
                         </button>
                     );
                 })}

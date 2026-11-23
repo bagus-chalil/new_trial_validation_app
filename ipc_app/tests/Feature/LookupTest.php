@@ -93,6 +93,33 @@ class LookupTest extends TestCase
             ->assertJsonPath('0.no_batch', 'NEW-001');
     }
 
+    public function test_batch_lookup_mirrors_the_stage_and_filter_bar_of_the_batch_list(): void
+    {
+        $user = User::factory()->create();
+        $product = MasterProduct::create(['fg_code' => 'FG-1', 'product_name' => 'Cushion', 'is_active' => true]);
+        $line = MasterLine::create(['category' => 'Packing', 'area' => 'Make Up', 'code' => 'MU 01', 'name' => 'Make Up 01', 'is_active' => true]);
+
+        $approval = IpcBatch::create(['master_product_id' => $product->id, 'no_batch' => 'APR-001', 'master_line_id' => $line->id, 'created_by' => $user->id]);
+        $approval->forceFill(['current_stage' => IpcBatch::STAGE_APPROVAL])->save();
+        $archived = IpcBatch::create(['master_product_id' => $product->id, 'no_batch' => 'APR-OLD', 'master_line_id' => $line->id, 'created_by' => $user->id]);
+        $archived->forceFill(['current_stage' => IpcBatch::STAGE_APPROVAL, 'archived_at' => now()])->save();
+        IpcBatch::create(['master_product_id' => $product->id, 'no_batch' => 'STU-001', 'master_line_id' => $line->id, 'created_by' => $user->id]);
+
+        // Without a filter the side list is every batch, as before.
+        $this->actingAs($user)->getJson('/lookup/batches')->assertOk()->assertJsonCount(3);
+
+        // The stage the user picked on the Batch list: only that stage, and archived ones stay hidden
+        // exactly like the list does.
+        $this->actingAs($user)->getJson('/lookup/batches?stage=approval')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.no_batch', 'APR-001');
+
+        // A filter-bar value narrows further; an unknown stage is ignored, not an error.
+        $this->actingAs($user)->getJson('/lookup/batches?stage=approval&master_line_id=999999')->assertOk()->assertJsonCount(0);
+        $this->actingAs($user)->getJson('/lookup/batches?stage=nonsense')->assertOk()->assertJsonCount(3);
+    }
+
     public function test_batch_index_search_counts_and_pages_without_double_counting(): void
     {
         $user = User::factory()->create();

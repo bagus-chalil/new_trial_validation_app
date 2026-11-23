@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesDecimalComma;
 use App\Models\IpcBatch;
 use App\Models\StartupInspectionItem;
 use App\Models\StartupInspectionSample;
@@ -11,9 +12,16 @@ use Illuminate\Validation\Validator;
 
 class SaveStartupInspectionRequest extends FormRequest
 {
+    use NormalizesDecimalComma;
+
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeDecimalCommas(['samples.*.volume_weight']);
     }
 
     public function rules(): array

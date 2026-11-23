@@ -2,7 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\ClientEventController;
+use App\Http\Controllers\ImpersonationController;
+use App\Models\IpcApproval;
 use App\Models\IpcBatch;
+use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -47,6 +51,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'openClientIssues' => fn () => $request->user()?->isAdmin() ? ClientEventController::openIssueCount() : 0,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -59,10 +64,53 @@ class HandleInertiaRequests extends Middleware
                     ->limit(20)
                     ->get(['id', 'no_batch', 'current_stage', 'flow_type', 'master_product_id', 'master_line_id'])
                 : [],
+            // Set while an Admin is "login sebagai" another user: drives the banner on every page.
+            'impersonator' => fn () => $this->impersonator($request),
             'canApproveIpc' => fn () => (bool) $request->user()?->isApprover(),
+            'canApproveL1' => fn () => (bool) $request->user()?->isApproverL1(),
+            'canApproveL2' => fn () => (bool) $request->user()?->isApproverL2(),
             'canManageMaster' => fn () => (bool) $request->user()?->isAdmin(),
             'canUseVisionTest' => fn () => (bool) $request->user()?->can('use-vision-test'),
             'canCreateBatch' => fn () => (bool) $request->user()?->can('create', IpcBatch::class),
+            // Set on any page of a batch whose report an approver sent back for correction, so
+            // QC sees the note and which stages were reopened on every stage page.
+            'revisionRequest' => function () use ($request) {
+                $batch = $request->route('batch');
+                if (! $batch instanceof IpcBatch) {
+                    return null;
+                }
+
+                $stages = $batch->openRevisionStages();
+                if ($stages === []) {
+                    return null;
+                }
+
+                $approval = $batch->approvals()
+                    ->where('decision', IpcApproval::DECISION_REVISION)
+                    ->with('approver:id,name')
+                    ->latest('updated_at')
+                    ->first();
+
+                return [
+                    'stages' => array_map(fn (string $s) => IpcApproval::STAGE_LABELS[$s] ?? $s, $stages),
+                    'remarks' => $approval?->remarks,
+                    'by' => $approval?->approver?->name,
+                    'at' => $approval?->approved_at?->toIso8601String(),
+                ];
+            },
         ]);
+    }
+
+    /**
+     * The Admin behind a "login sebagai" session, or null in a normal session (banner on every page).
+     *
+     * @return array{name: string, email: string}|null
+     */
+    private function impersonator(Request $request): ?array
+    {
+        $id = $request->hasSession() ? $request->session()->get(ImpersonationController::SESSION_KEY) : null;
+        $admin = is_int($id) ? User::find($id) : null;
+
+        return $admin ? ['name' => $admin->name, 'email' => $admin->email] : null;
     }
 }

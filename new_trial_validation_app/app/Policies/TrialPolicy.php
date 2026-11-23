@@ -146,7 +146,11 @@ class TrialPolicy
             return (int) $trial->approver_user_id === $user->id;
         }
 
-        return false;
+        // Trials migrated from the legacy app (mostly June 2026) never had an
+        // approver picked — legacy let any Manager QAC approve them. Keep that
+        // for approver-less *legacy* trials only, so they don't become
+        // admin-only; new-app trials always carry an approver.
+        return $user->role === 'Manager QAC' && $trial->cameFromLegacyApp();
     }
 
     /**

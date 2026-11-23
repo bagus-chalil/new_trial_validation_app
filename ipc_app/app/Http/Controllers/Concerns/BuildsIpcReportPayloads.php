@@ -334,7 +334,7 @@ trait BuildsIpcReportPayloads
             IpcApproval::STAGE_STARTUP => [
                 'pdf.approval-startup',
                 (function () use ($batch) {
-                    $batch->load(['startupCheck.user', 'startupInspection.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults', 'approvals.approver']);
+                    $batch->load(['startupCheck.user', 'startupInspection.user', 'startupInspection.items', 'startupInspection.samples', 'startupInspection.testResults', 'approvals.approver', 'approvals.l2Approver']);
 
                     return [
                         ...$this->startupPayload($batch, $this->photoDataUris($batch, ['startup'])),
@@ -360,7 +360,7 @@ trait BuildsIpcReportPayloads
                         // data, not a fabrication.
                         'startupInspection.samples',
                         ...$this->fillingPackingRelations($stage),
-                        'approvals.approver',
+                        'approvals.approver', 'approvals.l2Approver',
                     ]);
 
                     $isFilling = $stage === IpcApproval::STAGE_FILLING;
@@ -393,7 +393,7 @@ trait BuildsIpcReportPayloads
                         'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'finishedCheck.revisions.user',
                         'finishedCheck.revisions.samples',
-                        'approvals.approver',
+                        'approvals.approver', 'approvals.l2Approver',
                     ]);
 
                     // Finished Good has no standalone paper form of its own — it only ever appears
@@ -438,7 +438,7 @@ trait BuildsIpcReportPayloads
                         'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
                         'finishedCheck.revisions.user',
                         'finishedCheck.revisions.samples',
-                        'approvals.approver',
+                        'approvals.approver', 'approvals.l2Approver',
                     ]);
 
                     $reportDocument = IpcReportDocument::forKey(IpcReportDocument::KEY_FILLING_PACKING_FG);
@@ -481,7 +481,7 @@ trait BuildsIpcReportPayloads
             'startupInspection.items',
             'startupInspection.samples',
             ...$this->fillingPackingRelations(IpcApproval::STAGE_PACKING),
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
         ]);
 
         $isStartup = $part === IpcApproval::STAGE_STARTUP;
@@ -524,7 +524,7 @@ trait BuildsIpcReportPayloads
             'startupCheck.user',
             'startupInspection.items',
             'startupInspection.samples',
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
         ]);
 
         $reportDocument = IpcReportDocument::forKey(IpcReportDocument::KEY_STARTUP);

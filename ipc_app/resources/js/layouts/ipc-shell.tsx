@@ -1,12 +1,13 @@
 import { BottomNav } from '@/components/ipc/bottom-nav';
 import { FlowBanner, flowTheme } from '@/components/ipc/flow-identity';
 import { NavRail } from '@/components/ipc/nav-rail';
+import { ActivityIndicator, NetworkBadge, NetworkDot } from '@/components/ipc/network-badge';
 import { VersionWatcher } from '@/components/ipc/version-watcher';
 import { markBackClicked, previousUrl, recordVisit } from '@/lib/nav-history';
 import { returnToFromUrl } from '@/lib/return-to';
 import { type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { ArrowLeft, UserCog } from 'lucide-react';
 import { type ReactNode, useEffect } from 'react';
 
 export function IpcShell({
@@ -45,6 +46,25 @@ export function IpcShell({
                 className={batchFlow ? 'ipc-flow flex min-h-0 min-w-0 flex-1 flex-col' : 'flex min-h-0 min-w-0 flex-1 flex-col'}
                 style={batchFlow ? flowTheme(batchFlow.flow_type) : undefined}
             >
+                {props.impersonator && (
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-300 bg-amber-100 px-5 py-2 text-[13px] text-amber-900 md:px-6">
+                        <span className="flex items-center gap-2">
+                            <UserCog className="size-4 shrink-0" />
+                            <span>
+                                Anda login sebagai <strong>{props.auth.user.name}</strong> ({props.auth.user.email}) lewat akun Admin{' '}
+                                <strong>{props.impersonator.name}</strong>.
+                            </span>
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => router.post(route('impersonate.leave'))}
+                            className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-[12.5px] font-bold text-amber-900"
+                        >
+                            Kembali ke akun Admin
+                        </button>
+                    </div>
+                )}
+
                 {header ?? (
                     <header className="border-border-soft bg-card flex shrink-0 items-center gap-3 border-b px-5 py-4 md:px-6">
                         {backTarget && (
@@ -72,11 +92,26 @@ export function IpcShell({
                     </div>
                 )}
 
+                <NetworkBadge />
+                <ActivityIndicator />
                 <VersionWatcher />
 
                 {props.flash?.success && (
                     <div className="mx-5 mb-1 shrink-0 rounded-2xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-800 md:mx-6">
                         {props.flash.success}
+                    </div>
+                )}
+
+                {props.revisionRequest && (
+                    <div className="mx-5 mb-1 shrink-0 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-2.5 text-sm text-orange-900 md:mx-6">
+                        <p className="font-bold">
+                            Revisi diminta{props.revisionRequest.by ? ` oleh ${props.revisionRequest.by}` : ''} — perbaiki tahap:{' '}
+                            {props.revisionRequest.stages.join(', ')}
+                        </p>
+                        {props.revisionRequest.remarks && <p className="mt-0.5 font-medium">Catatan: {props.revisionRequest.remarks}</p>}
+                        <p className="mt-0.5 text-xs">
+                            Setelah semua tahap di atas diselesaikan ulang, laporan otomatis kembali ke antrean approval.
+                        </p>
                     </div>
                 )}
 
@@ -90,7 +125,10 @@ export function IpcShell({
                     <select>) inside this clip instead of stretching the document below the shell. */}
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
                 <footer className="border-border-soft bg-card text-muted-foreground mb-[calc(82px+env(safe-area-inset-bottom,0px))] flex shrink-0 flex-wrap items-center justify-center gap-x-2 border-t px-4 py-2 text-center text-[10px] md:mb-0 md:justify-between md:px-6 md:text-[11px]">
-                    <span className="font-semibold">IPC App versi 1.5.0</span>
+                    <span className="flex items-center gap-3 font-semibold">
+                        IPC App versi 1.5.0
+                        <NetworkDot />
+                    </span>
                     <span>created by IT Cosmax IDN</span>
                 </footer>
             </div>

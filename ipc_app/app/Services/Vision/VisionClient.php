@@ -10,5 +10,9 @@ namespace App\Services\Vision;
  */
 interface VisionClient
 {
-    public function analyze(string $imageContents, string $filename, string $fieldType, string $requestId): VisionResult;
+    /**
+     * @param  ?array{contents: string, filename: string}  $second  optional 2nd photo, sent as `file2` (coding_formula: tube other side)
+     * @param  array<string, string>  $extra  extra form fields, e.g. ['coding_formula' => 'auto']
+     */
+    public function analyze(string $imageContents, string $filename, string $fieldType, string $requestId, ?array $second = null, array $extra = []): VisionResult;
 }

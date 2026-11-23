@@ -84,6 +84,7 @@ return [
     ],
 
     'actions' => [
+        'row_actions' => '작업',
         'search' => '검색',
         'reset' => '초기화',
         'cancel' => '취소',

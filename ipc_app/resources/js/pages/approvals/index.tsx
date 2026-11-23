@@ -24,6 +24,8 @@ interface PaginatedQueue {
     links: { url: string | null; label: string; active: boolean }[];
     last_page: number;
     total: number;
+    from: number | null;
+    to: number | null;
 }
 
 export default function ApprovalQueueIndex({
@@ -40,6 +42,21 @@ export default function ApprovalQueueIndex({
             <Head title="Approval Queue" />
             <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-5 md:p-6">
                 <BatchFilterBar path="/approvals" filters={filters} options={filterOptions} withSearch />
+
+                <p className="text-muted-foreground px-1 text-[13px] font-medium" aria-live="polite">
+                    {queue.total === 0 ? (
+                        'Tidak ada batch menunggu keputusan.'
+                    ) : (
+                        <>
+                            Menampilkan{' '}
+                            <span className="text-foreground font-bold tabular-nums">
+                                {queue.from}&ndash;{queue.to}
+                            </span>{' '}
+                            dari <span className="text-foreground font-bold tabular-nums">{queue.total.toLocaleString('id-ID')}</span> batch menunggu
+                            keputusan Anda
+                        </>
+                    )}
+                </p>
 
                 {queue.data.map((entry) => (
                     <Link

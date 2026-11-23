@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
+use App\Services\Insights\NotOkPatternAnalyzer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,11 +22,15 @@ class DashboardController extends Controller
 
     private const NEEDS_ACTION_LIMIT = 8;
 
-    public function index(Request $request): Response
+    public function index(Request $request, NotOkPatternAnalyzer $patterns): Response
     {
         $user = $request->user();
 
-        $stageCounts = IpcBatch::query()
+        // Same population the Batch menu lists (role visibility + not archived), so the
+        // dashboard's "total batch" and stage counts equal what the user sees there.
+        $visible = fn (): Builder => IpcBatch::query()->visibleTo($user)->archived(false);
+
+        $stageCounts = $visible()
             ->selectRaw('current_stage, count(*) as total')
             ->groupBy('current_stage')
             ->pluck('total', 'current_stage');
@@ -37,7 +42,7 @@ class DashboardController extends Controller
         $activeBatches = (int) $stageCounts->except(IpcBatch::STAGE_COMPLETED)->sum();
 
         // whereBetween (not whereDate) so the (current_stage, updated_at) index is usable.
-        $completedToday = IpcBatch::query()
+        $completedToday = $visible()
             ->where('current_stage', IpcBatch::STAGE_COMPLETED)
             ->whereBetween('updated_at', [today(), today()->endOfDay()])
             ->count();
@@ -52,10 +57,14 @@ class DashboardController extends Controller
             $needsAction = $this->checkItemsNeedingAction($checkQuery->limit(self::NEEDS_ACTION_LIMIT));
         }
 
+        // The Approval Queue's own query, unchanged (ApprovalQueueController), so the dashboard
+        // "Menunggu approval" number and the queue's "N batch menunggu keputusan" can never differ.
+        $pendingApprovalCount = IpcBatch::query()->pendingApproval()->count();
+
         $approvalCount = 0;
         if ($user->isApprover()) {
-            $approvalQuery = IpcBatch::query()->where('current_stage', IpcBatch::STAGE_APPROVAL)->pendingApproval();
-            $approvalCount = (clone $approvalQuery)->count();
+            $approvalQuery = IpcBatch::query()->pendingApproval();
+            $approvalCount = $pendingApprovalCount;
             $remaining = self::NEEDS_ACTION_LIMIT - $needsAction->count();
             if ($remaining > 0) {
                 $needsAction = $needsAction->concat($this->approvalItemsNeedingAction($approvalQuery->limit($remaining)));
@@ -66,11 +75,15 @@ class DashboardController extends Controller
             'stats' => [
                 'activeBatches' => $activeBatches,
                 'needsActionCount' => $checkCount + $approvalCount,
-                'pendingApprovalBatches' => (int) ($stageCounts[IpcBatch::STAGE_APPROVAL] ?? 0),
+                'checkActionCount' => $checkCount,
+                'approvalActionCount' => $approvalCount,
+                'pendingApprovalBatches' => $pendingApprovalCount,
                 'completedToday' => $completedToday,
             ],
             'stageBreakdown' => $stageBreakdown,
             'needsAction' => $needsAction->values(),
+            // Items that keep coming back NOT OK over the last 30 days (advisory, read-only).
+            'repeatFindings' => $patterns->overview(),
         ]);
     }
 
@@ -128,7 +141,7 @@ class DashboardController extends Controller
                     'no_batch' => $batch->no_batch,
                     'product_name' => $batch->masterProduct?->product_name,
                     'stage' => IpcBatch::STAGE_APPROVAL,
-                    'reason' => 'Menunggu approval: '.$pending->map(fn (string $stage) => IpcApproval::STAGE_LABELS[$stage])->join(', '),
+                    'reason' => 'Menunggu approval: '.$pending->map(fn (string $stage) => IpcApproval::pendingLabel($batch, $stage))->join(', '),
                     'href' => route('approval.edit', $batch),
                 ];
             })

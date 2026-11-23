@@ -50,6 +50,14 @@ class UserFactory extends Factory
         ]);
     }
 
+    /** Level 2 approver (QC Team Leader / Part Leader / Supervisor). */
+    public function approverL2(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_APPROVER_L2,
+        ]);
+    }
+
     public function admin(): static
     {
         return $this->state(fn (array $attributes) => [

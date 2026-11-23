@@ -16,7 +16,10 @@ import { useTranslation } from '@/hooks/use-translation';
 type FormRenderProps = { processing: boolean; errors: Record<string, string> };
 
 type ConfirmDialogProps = {
-    trigger: ReactNode;
+    trigger?: ReactNode;
+    /** Controlled mode (e.g. opened from a dropdown menu item). */
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
     title: string;
     description: ReactNode;
     confirmLabel?: string;
@@ -28,6 +31,8 @@ type ConfirmDialogProps = {
 
 export function ConfirmDialog({
     trigger,
+    open: controlledOpen,
+    onOpenChange,
     title,
     description,
     confirmLabel,
@@ -36,11 +41,13 @@ export function ConfirmDialog({
     children,
 }: ConfirmDialogProps) {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
+    const [innerOpen, setInnerOpen] = useState(false);
+    const open = controlledOpen ?? innerOpen;
+    const setOpen = onOpenChange ?? setInnerOpen;
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{trigger}</DialogTrigger>
+            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
             <DialogContent>
                 <DialogTitle>{title}</DialogTitle>
                 <Form

@@ -62,6 +62,9 @@ class VerificationTest extends TestCase
             'decision' => IpcApproval::DECISION_APPROVED,
             'approver_user_id' => $approver->id,
             'approved_at' => now(),
+            'l2_decision' => IpcApproval::DECISION_APPROVED,
+            'l2_approver_user_id' => $approver->id,
+            'l2_decided_at' => now(),
         ]);
 
         $this->get("/verify/{$batch->id}/finished")

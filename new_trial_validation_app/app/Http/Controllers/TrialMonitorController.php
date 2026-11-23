@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Trial;
+use App\Models\TrialReview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -51,12 +52,14 @@ class TrialMonitorController extends Controller
             ->whereNull('archived_at')
             ->whereIn('progress_status', self::ACTIVE_STATUSES)
             ->with('creator:id,name,email')
-            ->get(['id', 'progress_status', 'pending_with', 'created_by', 'created_at', 'updated_at']);
+            ->get(['id', 'trial_code', 'product_name', 'revision_no', 'progress_status', 'pending_with', 'created_by', 'created_at', 'updated_at']);
 
         /** @var array<string, array{count: int, total: int, oldest: int, stale: int}> $stages */
         $stages = [];
-        /** @var array<string, array{name: string, kind: string, count: int, total: int, oldest: int, ids: list<int>}> $holders */
+        /** @var array<string, array{name: string, kind: string, count: int, total: int, oldest: int, ids: list<int>, items: list<array{id: int, trial_code: string, product_name: string, idle_days: int}>}> $holders */
         $holders = [];
+        /** @var array<int, array{round: int, days: int}> $inReview */
+        $inReview = [];
 
         foreach ($active as $trial) {
             $days = $this->idleDays($trial, $now);
@@ -78,14 +81,27 @@ class TrialMonitorController extends Controller
                     'total' => 0,
                     'oldest' => 0,
                     'ids' => [],
+                    'items' => [],
                 ];
                 $entry['count']++;
                 $entry['total'] += $days;
                 $entry['oldest'] = max($entry['oldest'], $days);
                 $entry['ids'][] = $trial->id;
+                $entry['items'][] = [
+                    'id' => $trial->id,
+                    'trial_code' => (string) $trial->trial_code,
+                    'product_name' => (string) $trial->product_name,
+                    'idle_days' => $days,
+                ];
                 $holders[$key] = $entry;
             }
+
+            if ($status === 'In Review') {
+                $inReview[$trial->id] = ['round' => $trial->currentReviewRound(), 'days' => $days];
+            }
         }
+
+        $peopleByDepartment = $this->reviewersByDepartment($inReview);
 
         $holderIds = null;
         if ($filters['holder'] !== '') {
@@ -126,18 +142,75 @@ class TrialMonitorController extends Controller
                 ];
             })->values(),
             'holders' => collect($holders)
-                ->map(fn (array $holder) => [
-                    'name' => $holder['name'],
-                    'kind' => $holder['kind'],
-                    'count' => $holder['count'],
-                    'avg_days' => round($holder['total'] / $holder['count'], 1),
-                    'oldest_days' => $holder['oldest'],
-                ])
+                ->map(function (array $holder) use ($peopleByDepartment) {
+                    $items = collect($holder['items'])->sortByDesc('idle_days')->values();
+
+                    return [
+                        'name' => $holder['name'],
+                        'kind' => $holder['kind'],
+                        'count' => $holder['count'],
+                        'avg_days' => round($holder['total'] / $holder['count'], 1),
+                        'oldest_days' => $holder['oldest'],
+                        // Who inside this party actually holds the trials.
+                        'people' => $holder['kind'] === 'team'
+                            ? ($peopleByDepartment[Str::lower($holder['name'])] ?? [])
+                            : [['name' => $holder['name'], 'count' => $holder['count'], 'oldest_days' => $holder['oldest']]],
+                        'trials' => $items->take(10)->all(),
+                    ];
+                })
                 ->sortByDesc(fn (array $holder) => [$holder['count'], $holder['oldest_days']])
                 ->take(10)
                 ->values(),
             'thresholds' => ['warn' => self::WARN_DAYS, 'critical' => self::CRITICAL_DAYS],
         ]);
+    }
+
+    /**
+     * Per reviewer department: the assigned reviewers (trials_review.reviewer_user_id)
+     * of Pending reviews in each trial's current round, most trials first.
+     * Rows with no assigned reviewer (legacy-created) are grouped as name = null.
+     *
+     * @param  array<int, array{round: int, days: int}>  $inReview  trial id => current round + idle days
+     * @return array<string, list<array{name: string|null, count: int, oldest_days: int}>>
+     */
+    private function reviewersByDepartment(array $inReview): array
+    {
+        if ($inReview === []) {
+            return [];
+        }
+
+        $reviews = TrialReview::query()
+            ->whereIn('trial_id', array_keys($inReview))
+            ->where('status', 'Pending')
+            ->with('reviewer:id,name')
+            ->get(['trial_id', 'department', 'reviewer_user_id', 'review_round']);
+
+        $groups = [];
+        foreach ($reviews as $review) {
+            $info = $inReview[$review->trial_id] ?? null;
+            if ($info === null || (int) $review->review_round !== $info['round']) {
+                continue;
+            }
+
+            $dept = Str::lower(trim((string) $review->department));
+            $personKey = $review->reviewer_user_id ? 'u'.$review->reviewer_user_id : 'none';
+            $row = $groups[$dept][$personKey] ?? [
+                'name' => $review->reviewer?->name,
+                'count' => 0,
+                'oldest_days' => 0,
+            ];
+            $row['count']++;
+            $row['oldest_days'] = max($row['oldest_days'], $info['days']);
+            $groups[$dept][$personKey] = $row;
+        }
+
+        return array_map(
+            fn (array $people) => collect($people)
+                ->sortByDesc(fn (array $p) => [$p['count'], $p['oldest_days']])
+                ->values()
+                ->all(),
+            $groups,
+        );
     }
 
     private function idleDays(Trial $trial, Carbon $now): int

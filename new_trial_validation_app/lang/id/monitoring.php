@@ -12,7 +12,15 @@ return [
     ],
     'holders' => [
         'title' => 'Trial paling banyak tertahan di',
-        'subtitle' => 'Pihak yang saat ini ditunggu. Klik baris untuk menyaring daftar di bawah.',
+        'subtitle' => 'Pihak yang saat ini ditunggu. Klik baris untuk melihat detail siapa yang memegang trial terbanyak.',
+        'detail' => [
+            'summary' => ':count trial · rata-rata :avg hari · terlama :oldest hari',
+            'people' => 'Siapa yang memegang trial',
+            'person' => 'Nama',
+            'unassigned' => 'Belum ditentukan (reviewer belum di-assign)',
+            'trials' => 'Trial tertahan terlama (:shown dari :total)',
+            'filter' => 'Saring daftar trial',
+        ],
         'name' => 'Menunggu',
         'kind' => 'Jenis',
         'count' => 'Jumlah Trial',

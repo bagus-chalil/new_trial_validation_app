@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesDecimalComma;
 use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\StartupCheck;
@@ -12,6 +13,8 @@ use Illuminate\Validation\Rule;
 
 class SaveStartupCheckRequest extends FormRequest
 {
+    use NormalizesDecimalComma;
+
     public function authorize(): bool
     {
         return true;
@@ -33,6 +36,12 @@ class SaveStartupCheckRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        if (is_string($this->input('im_document_number'))) {
+            $this->merge(['im_document_number' => trim((string) preg_replace('/\s+/', ' ', $this->input('im_document_number')))]);
+        }
+
+        $this->normalizeDecimalCommas(['filling_range_min', 'filling_range_max', 'density', 'average_of_empty_bottle_weight']);
+
         $batch = $this->route('batch');
         if (! $batch instanceof IpcBatch) {
             return;
@@ -55,6 +64,9 @@ class SaveStartupCheckRequest extends FormRequest
             'shelf_life_months' => ['required', 'integer', 'min:1', 'max:120'],
             'primary_packaging_type' => ['required', Rule::in(IpcBatch::PACKAGING_TYPES)],
             'exp_date' => ['required', 'date'],
+            // "No instruksi mutu" of the IM document: the photo alone is not enough, the number must be in the DB.
+            // When the photo is unclear the operator types it from the document.
+            'im_document_number' => ['required', 'string', 'max:150'],
             'ai_applied' => ['nullable', 'string', 'max:100'],
             'master_line_id' => ['required', Rule::exists('master_lines', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'validation_report_status' => ['required', 'in:'.implode(',', StartupCheck::VALIDATION_REPORT_OPTIONS)],

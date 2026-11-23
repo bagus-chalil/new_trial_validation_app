@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Pencil, Plus, Power, PowerOff, Users } from 'lucide-react';
+import { LogIn, Pencil, Plus, Power, PowerOff, Users } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 interface UserRow {
@@ -32,6 +32,7 @@ interface Paginated<T> {
 const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
     admin: 'default',
     approver: 'secondary',
+    approver_l2: 'secondary',
     staff: 'outline',
 };
 
@@ -259,6 +260,16 @@ function UserCard({
         router.patch(route('users.toggle-status', user.id), {}, { preserveScroll: true });
     };
 
+    const loginAs = () => {
+        if (
+            !confirm(
+                `Login sebagai "${user.name}"? Semua aksi akan tercatat atas akun tersebut. Anda bisa kembali ke akun Admin lewat banner di atas.`,
+            )
+        )
+            return;
+        router.post(route('users.impersonate', user.id));
+    };
+
     return (
         <div className="border-border-soft bg-card flex flex-wrap items-center justify-between gap-3 rounded-[20px] border p-4">
             <div className="min-w-0 flex-1">
@@ -274,6 +285,20 @@ function UserCard({
                 <p className="text-muted-foreground/70 mt-1 text-[12.5px] font-medium">{user.email}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="size-10"
+                    disabled={isSelf || !user.is_active}
+                    title={
+                        isSelf ? 'Ini akun Anda sendiri' : !user.is_active ? 'User nonaktif tidak bisa dipakai login' : `Login sebagai ${user.name}`
+                    }
+                    aria-label={`Login sebagai ${user.name}`}
+                    onClick={loginAs}
+                >
+                    <LogIn className="size-4" />
+                </Button>
                 <Button type="button" variant="outline" size="icon" className="size-10" onClick={() => onEdit(user)}>
                     <Pencil className="size-4" />
                 </Button>

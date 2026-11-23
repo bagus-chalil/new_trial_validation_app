@@ -12,7 +12,15 @@ return [
     ],
     'holders' => [
         'title' => 'Where most trials are held up',
-        'subtitle' => 'The party each trial is currently waiting on. Click a row to filter the list below.',
+        'subtitle' => 'The party each trial is currently waiting on. Click a row to see who holds the most trials.',
+        'detail' => [
+            'summary' => ':count trials · average :avg days · oldest :oldest days',
+            'people' => 'Who holds the trials',
+            'person' => 'Name',
+            'unassigned' => 'Not assigned (no reviewer picked)',
+            'trials' => 'Longest-held trials (:shown of :total)',
+            'filter' => 'Filter trial list',
+        ],
         'name' => 'Waiting on',
         'kind' => 'Type',
         'count' => 'Trials',

@@ -14,6 +14,7 @@ use App\Models\TrialReview;
 use App\Models\TrialWeighing;
 use App\Models\User;
 use App\Models\ValidationParameter;
+use App\Services\Ai\TrialSummaryBuilder;
 use App\Services\Pdf\ExportFormat;
 use App\Services\Pdf\PdfService;
 use Illuminate\Http\JsonResponse;
@@ -195,7 +196,13 @@ class TrialReportController extends Controller
             default => ['common.nav.tracking', route('trials.index', 'tracking')],
         };
 
+        // Approver / reviewer digest: the rule-based points always show; the AI button only wraps them.
+        $aiSummary = TrialSummaryBuilder::audience($user)
+            ? ['points' => (new TrialSummaryBuilder)->build($trial), 'aiEnabled' => (bool) config('ai.insights.enabled')]
+            : null;
+
         return Inertia::render('trials/report', [
+            'aiSummary' => $aiSummary,
             'readOnlyMode' => $readOnlyMode,
             'actionMenuKey' => $readOnlyMode && $hasActions ? $actionMenu[0] : null,
             'actionMenuHref' => $readOnlyMode && $hasActions ? $actionMenu[1] : null,

@@ -15,6 +15,8 @@ import type {
 } from '@/components/trials/line-configuration-report-section';
 import { LineConfigurationReportSection } from '@/components/trials/line-configuration-report-section';
 import { ReportPdfDownloadDialog } from '@/components/trials/report-pdf-download-dialog';
+import { TrialSummaryCard } from '@/components/trials/trial-summary-card';
+import type { TrialSummary } from '@/components/trials/trial-summary-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,6 +58,7 @@ type TrialData = {
     created_by: string | null;
     progress_status: string;
     final_decision: string | null;
+    is_legacy?: boolean;
     current_step: string | null;
     estimate_qty: string | null;
     batch_number: string | null;
@@ -121,6 +124,7 @@ type EditableReview = {
 };
 
 type PageProps = {
+    aiSummary: TrialSummary | null;
     readOnlyMode: boolean;
     actionMenuKey: string | null;
     actionMenuHref: string | null;
@@ -212,6 +216,7 @@ function formatNumber(value: number | null): string {
 }
 
 export default function TrialReport({
+    aiSummary,
     readOnlyMode,
     actionMenuKey,
     actionMenuHref,
@@ -320,6 +325,10 @@ export default function TrialReport({
                     </Alert>
                 )}
 
+                {aiSummary && (
+                    <TrialSummaryCard trialId={trial.id} summary={aiSummary} />
+                )}
+
                 {approvalBlockedNote && (
                     <Alert className="print:hidden">
                         <AlertTitle>
@@ -403,6 +412,14 @@ export default function TrialReport({
                                     FR.QSE.074.04
                                 </p>
                             </div>
+                            {trial.is_legacy && (
+                                <Badge
+                                    variant="outline"
+                                    className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                                >
+                                    {t('trials.legacy_badge')}
+                                </Badge>
+                            )}
                             <Badge
                                 variant="outline"
                                 className={trialStatusBadgeClassName(

@@ -1,4 +1,5 @@
-﻿import { Input } from '@/components/ui/input';
+﻿import { ReportIssueDialog } from '@/components/ipc/report-issue-dialog';
+import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { useAppearance } from '@/hooks/use-appearance';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
@@ -7,6 +8,7 @@ import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Archive,
+    Bug,
     ArrowUpRight,
     Check,
     ClipboardCheck,
@@ -14,6 +16,7 @@ import {
     FlaskConical,
     Grid2X2,
     KeyRound,
+    LifeBuoy,
     LogOut,
     MapPin,
     Monitor,
@@ -34,6 +37,7 @@ interface AppItem {
     description: string;
     icon: React.ElementType;
     href: string;
+    badge?: number;
 }
 
 function AppCard({ item, active, onClose }: { item: AppItem; active: boolean; onClose: () => void }) {
@@ -57,7 +61,10 @@ function AppCard({ item, active, onClose }: { item: AppItem; active: boolean; on
                 <Icon className="size-5" strokeWidth={1.8} />
             </span>
             <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold">{item.label}</span>
+                <span className="flex items-center gap-2 text-[13px] font-semibold">
+                    {item.label}
+                    {item.badge ? <span className="bg-destructive rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold text-white">{item.badge}</span> : null}
+                </span>
                 <span className="text-muted-foreground mt-0.5 block text-[11px] leading-relaxed">{item.description}</span>
             </span>
             {active ? (
@@ -70,7 +77,8 @@ function AppCard({ item, active, onClose }: { item: AppItem; active: boolean; on
 }
 
 export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-    const { auth, canManageMaster, canUseVisionTest } = usePage<SharedData>().props;
+    const { auth, canManageMaster, canUseVisionTest, openClientIssues } = usePage<SharedData>().props;
+    const [reportOpen, setReportOpen] = useState(false);
     const { url } = usePage();
     const cleanup = useMobileNavigation();
     const { appearance, updateAppearance } = useAppearance();
@@ -106,6 +114,7 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                           },
                           { label: 'Master Test Type', description: 'Jenis pengujian', icon: FlaskConical, href: route('master-test-types.index') },
                           { label: 'Dokumen Laporan', description: 'Referensi dokumen', icon: FileText, href: route('report-documents.index') },
+                          { label: 'Log Kendala', description: 'Masalah dari lapangan', icon: Bug, href: route('client-events.index'), badge: openClientIssues },
                           { label: 'Manajemen User', description: 'Akun & hak akses', icon: Users, href: route('users.index') },
                       ],
                   },
@@ -244,6 +253,14 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                         </div>
                         <button
                             type="button"
+                            onClick={() => setReportOpen(true)}
+                            className="text-muted-foreground hover:bg-primary/10 hover:text-primary focus-visible:ring-primary flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors focus-visible:ring-2"
+                        >
+                            <LifeBuoy className="size-4" />
+                            Lapor Kendala
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => {
                                 router.post(route('logout'));
                                 handleClose();
@@ -256,6 +273,7 @@ export function AppsDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                     </div>
                 </div>
             </SheetContent>
+            <ReportIssueDialog open={reportOpen} onOpenChange={setReportOpen} />
         </Sheet>
     );
 }

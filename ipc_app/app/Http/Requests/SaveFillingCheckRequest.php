@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesDecimalComma;
 use App\Http\Requests\Concerns\ValidatesThProgressRound;
 use App\Models\FillingCheck;
 use App\Models\IpcBatch;
@@ -10,11 +11,17 @@ use Illuminate\Validation\Validator;
 
 class SaveFillingCheckRequest extends FormRequest
 {
+    use NormalizesDecimalComma;
     use ValidatesThProgressRound;
 
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizeDecimalCommas(['samples.*.weight_value']);
     }
 
     public function rules(): array
@@ -39,6 +46,8 @@ class SaveFillingCheckRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $validator->after(fn (Validator $validator) => $this->validateOutOfRangeRemarks($validator));
+
         $validator->after(function (Validator $validator) {
             /** @var IpcBatch $batch */
             $batch = $this->route('batch');
@@ -68,6 +77,33 @@ class SaveFillingCheckRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * Weights outside the Filling Range set on Startup Check are never blocked (a real
+     * out-of-range reading has to be recordable, and the Startup standard itself may be the
+     * thing that was typed wrong — it is locked by now), but the operator must explain it in
+     * Remarks, draft or final, so the report carries the reason (QC request, 2026-11-18).
+     */
+    private function validateOutOfRangeRemarks(Validator $validator): void
+    {
+        if (filled($this->input('remarks'))) {
+            return;
+        }
+
+        /** @var IpcBatch $batch */
+        $batch = $this->route('batch');
+        $min = $batch->startupCheck?->filling_range_min;
+        $max = $batch->startupCheck?->filling_range_max;
+
+        $outOfRange = collect($this->input('samples', []))
+            ->filter(fn ($row) => is_numeric($row['weight_value'] ?? null))
+            ->contains(fn ($row) => ($min !== null && (float) $row['weight_value'] < (float) $min)
+                || ($max !== null && (float) $row['weight_value'] > (float) $max));
+
+        if ($outOfRange) {
+            $validator->errors()->add('remarks', 'Ada sampel di luar standar Filling — isi Remarks untuk menjelaskan.');
+        }
     }
 
     /**

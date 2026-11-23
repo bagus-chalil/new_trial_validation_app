@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
+use App\Support\BatchFilter;
+use App\Support\SearchTerm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,15 +25,9 @@ class LookupController extends Controller
 
         $products = MasterProduct::query()
             ->where('is_active', true)
-            ->when($q !== '', function ($query) use ($q) {
-                $like = $this->escapeLike($q);
-                $query->where(function ($query) use ($like) {
-                    // fg_code prefix match can use the unique index; name is a contains match
-                    // over a table that's small enough (~10k rows) for that to stay cheap.
-                    $query->where('fg_code', 'like', "{$like}%")
-                        ->orWhere('product_name', 'like', "%{$like}%");
-                });
-            })
+            // Every word may appear anywhere in FG code or name; a contains match over a table
+            // this small (~10k rows) stays cheap, and LIMIT caps what is sent back.
+            ->when($q !== '', fn ($query) => SearchTerm::apply($query, $q, ['fg_code', 'product_name']))
             ->with(['bulkCodes' => fn ($query) => $query->where('is_active', true)->orderBy('bulk_code')->select(['id', 'master_product_id', 'bulk_code'])])
             ->orderBy('fg_code')
             ->limit(self::LIMIT)
@@ -43,22 +39,25 @@ class LookupController extends Controller
     public function batches(Request $request): JsonResponse
     {
         $q = trim($request->string('q')->toString());
+        // The side list of a batch page can mirror the Batch list's filters (stage + filter bar), so
+        // opening a batch from a filtered list keeps that filter instead of showing the 20 newest.
+        $stage = $request->string('stage')->toString();
+        $stage = in_array($stage, IpcBatch::STAGES, true) ? $stage : null;
+        $filter = BatchFilter::fromRequest($request);
+        $filtered = $stage !== null || $filter->toArray() !== [];
 
         $batches = IpcBatch::query()
             ->when(! $request->user()->isStaff(), fn ($query) => $query->visibleTo($request->user()))
+            ->when($stage, fn ($query) => $query->where('current_stage', $stage))
+            ->when($filtered, fn ($query) => $filter->apply($query)->archived(false))
             // Index-driven search (see IpcBatch::searchBranches) — a plain OR query here
             // full-scanned ~1M batches whenever the search had no hits.
-            ->when($q !== '', fn ($query) => $query->whereIn('id', IpcBatch::searchIds($q, null, self::LIMIT)))
+            ->when($q !== '', fn ($query) => $query->whereIn('id', IpcBatch::searchIds($q, $stage, self::LIMIT)))
             ->with(['masterProduct:id,product_name,fg_code', 'masterLine:id,name'])
             ->latest('id')
             ->limit(self::LIMIT)
             ->get(['id', 'no_batch', 'current_stage', 'flow_type', 'master_product_id', 'master_line_id']);
 
         return response()->json($batches);
-    }
-
-    private function escapeLike(string $value): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }

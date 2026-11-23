@@ -35,6 +35,9 @@ class AdvanceApprovedBatchesTest extends TestCase
                 'decision' => IpcApproval::DECISION_APPROVED,
                 'approver_user_id' => $user->id,
                 'approved_at' => now(),
+                'l2_decision' => IpcApproval::DECISION_APPROVED,
+                'l2_approver_user_id' => $user->id,
+                'l2_decided_at' => now(),
             ]);
         }
 

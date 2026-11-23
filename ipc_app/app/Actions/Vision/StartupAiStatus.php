@@ -2,7 +2,6 @@
 
 namespace App\Actions\Vision;
 
-use App\Models\IpcAttachment;
 use App\Models\IpcBatch;
 use App\Models\IpcLog;
 use App\Services\Vision\StartupVisionEvaluator;
@@ -37,32 +36,30 @@ class StartupAiStatus
         $tubeExp = [];
 
         foreach (array_keys(config('vision.startup_ai.fields', [])) as $field) {
-            $attachment = IpcAttachment::query()
-                ->where('ipc_batch_id', $batch->id)
-                ->where('stage', 'startup')
-                ->where('field_label', $field)
-                ->latest('id')
-                ->first();
+            // coding_formula: the 2nd Primary Coding photo has no read of its own (it rides along as file2).
+            $reads = QueueStartupAiReads::readsFor($field, $entered['packaging_type'] ?? null);
+            if ($reads === []) {
+                continue;
+            }
+
+            $attachment = QueueStartupAiReads::latestPhoto($batch, $field);
             if ($attachment === null) {
                 continue;
             }
 
-            $reads = QueueStartupAiReads::readsFor($field, $entered['packaging_type'] ?? null);
             $logs = [];
             $markers = [];
+            $second = null;
             foreach (array_keys($reads) as $type) {
-                $log = IpcLog::query()
-                    ->where('ipc_batch_id', $batch->id)
-                    ->where('field_type', $type)
-                    ->where('image_path', $attachment->file_path)
-                    ->latest('id')
-                    ->first();
+                $pairPhoto = QueueStartupAiReads::secondPhotoFor($batch, $field, $type);
+                $second ??= $pairPhoto;
+                $log = QueueStartupAiReads::findLog($batch, $attachment, $type, $pairPhoto);
                 if ($log !== null) {
                     $logs[$type] = $log;
 
                     continue;
                 }
-                $markers[] = Cache::get(QueueStartupAiReads::cacheKey($batch->id, $attachment->id, $type));
+                $markers[] = Cache::get(QueueStartupAiReads::cacheKey($batch->id, $attachment->id, $type, $pairPhoto?->id));
             }
 
             // done = every read has its log row; otherwise running/queued while a marker exists, else
@@ -74,7 +71,11 @@ class StartupAiStatus
                 default => 'none',
             };
 
-            $row = ['field' => $field, 'label' => self::LABELS[$field] ?? $field, 'state' => $state];
+            $label = self::LABELS[$field] ?? $field;
+            if ($second !== null) {
+                $label = 'Primary Coding (foto 1 + foto 2, dibaca bersama)';
+            }
+            $row = ['field' => $field, 'label' => $label, 'state' => $state];
 
             if ($state === 'done') {
                 $fieldType = array_key_first($reads);

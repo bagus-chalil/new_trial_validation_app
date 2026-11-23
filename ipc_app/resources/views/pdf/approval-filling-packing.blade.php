@@ -99,7 +99,13 @@
                     <tr>
                         <td>Sample {{ $no }}</td>
                         @foreach ($fillingRounds as $round)
-                            <td class="center">{{ $round->samples->firstWhere('sample_no', $no)->weight_value ?? '—' }}</td>
+                            @php
+                                $wv = $round->samples->firstWhere('sample_no', $no)->weight_value ?? null;
+                                $rMin = $startupCheck->filling_range_min ?? null;
+                                $rMax = $startupCheck->filling_range_max ?? null;
+                                $outOfRange = $wv !== null && (($rMin !== null && (float) $wv < (float) $rMin) || ($rMax !== null && (float) $wv > (float) $rMax));
+                            @endphp
+                            <td class="center" @if ($outOfRange) style="background:#fde68a;font-weight:700" @endif>{{ $wv ?? '—' }}</td>
                         @endforeach
                     </tr>
                 @endforeach
@@ -411,7 +417,7 @@
             $issuedAt = $lastRound?->created_at ?? $section['check']?->completed_at;
             $sectionApproval = $section['approval'];
         @endphp
-        <div class="sign-grid sign-grid--tight" style="margin: 6px 0;">
+        <div class="sign-grid sign-grid--tight sign-grid--cols-4" style="margin: 6px 0;">
             <div>
                 <span>Issued By (QC {{ $section['label'] }})</span>
                 @if ($issuedBy)
@@ -426,6 +432,7 @@
                     <small class="sign-date">{{ optional($sectionApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—' }}</small>
                 @endif
             </div>
+            @include('pdf._l2-sign-box', ['approval' => $sectionApproval])
             <div class="qr-box">
                 <span>Verifikasi</span>
                 @if ($sectionApproval)

@@ -1,4 +1,5 @@
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { BatchPatternsCard, type NotOkPattern } from '@/components/ipc/not-ok-patterns';
 import { StageStepper, type StepperStage } from '@/components/ipc/stage-stepper';
 import { StartupAiCard } from '@/components/ipc/startup-ai-card';
 import { TwoPane } from '@/components/ipc/two-pane';
@@ -22,7 +23,7 @@ interface Batch {
     master_product: { product_name: string; fg_code: string };
     master_line: { name: string; code: string } | null;
     creator: { name: string };
-    startup_check: { completed_at: string | null } | null;
+    startup_check: { completed_at: string | null; im_document_number?: string | null } | null;
     filling_check: { completed_at: string | null } | null;
     packing_check: { completed_at: string | null } | null;
     finished_check: { completed_at: string | null } | null;
@@ -32,7 +33,17 @@ function formatDate(value: string): string {
     return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batch; stages: StepperStage[]; showAiCard: boolean }) {
+export default function BatchesShow({
+    batch,
+    stages,
+    showAiCard,
+    notOkPatterns,
+}: {
+    batch: Batch;
+    stages: StepperStage[];
+    showAiCard: boolean;
+    notOkPatterns: NotOkPattern[];
+}) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
@@ -76,6 +87,10 @@ export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batc
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Line</p>
                                 <p className="mt-0.5 text-[13.5px] font-semibold">{batch.master_line?.name ?? '—'}</p>
                             </div>
+                            <div>
+                                <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Nomor IM</p>
+                                <p className="mt-0.5 text-[13.5px] font-semibold">{batch.startup_check?.im_document_number || '—'}</p>
+                            </div>
                             <div className="md:text-right">
                                 <p className="text-muted-foreground/70 text-[11.5px] font-semibold tracking-wide uppercase">Dibuat oleh</p>
                                 <p className="mt-0.5 text-[13.5px] font-semibold">{batch.creator.name}</p>
@@ -102,6 +117,7 @@ export default function BatchesShow({ batch, stages, showAiCard }: { batch: Batc
                             </div>
                         </div>
                     )}
+                    <BatchPatternsCard patterns={notOkPatterns} />
                     {/* Stepper */}
                     <div className="border-border-soft bg-card flex flex-col gap-4 rounded-3xl border p-5 shadow-sm lg:p-6">
                         <div className="flex items-center justify-between gap-3">

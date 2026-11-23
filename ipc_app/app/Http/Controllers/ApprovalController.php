@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Approvals\RequestApprovalRevision;
 use App\Actions\Approvals\SaveApproval;
 use App\Http\Controllers\Concerns\BuildsIpcReportPayloads;
 use App\Http\Requests\SaveApprovalRequest;
 use App\Models\IpcApproval;
 use App\Models\IpcBatch;
 use App\Models\IpcReportDocument;
+use App\Services\Insights\BatchSummaryAnalyzer;
+use App\Services\Insights\BatchSummaryBuilder;
 use App\Services\Pdf\PdfService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,16 +34,38 @@ class ApprovalController extends Controller
 {
     use BuildsIpcReportPayloads;
 
-    public function edit(IpcBatch $batch): Response
+    public function edit(IpcBatch $batch, BatchSummaryBuilder $summary): Response
     {
         $this->guardFinished($batch);
 
-        $batch->load(['masterProduct', 'masterLine', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck', 'approvals.approver']);
+        $batch->load(['masterProduct', 'masterLine', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck', 'approvals.approver', 'approvals.l2Approver']);
 
         return Inertia::render('approval/index', [
             'batch' => $batch,
             'stages' => $this->stagesSummary($batch),
+            // Rule-based digest for the approver (always shown) + the optional AI paragraph (button).
+            'summary' => $summary->build($batch),
+            'aiSummaryEnabled' => (bool) config('vision.batch_summary.enabled'),
         ]);
+    }
+
+    /** "Tulis ringkasan AI": advisory paragraph over the rule-based digest, via the Vision Service's Ollama route. */
+    public function summary(IpcBatch $batch, BatchSummaryAnalyzer $analyzer): JsonResponse
+    {
+        abort_unless(config('vision.batch_summary.enabled'), 404);
+        $this->guardFinished($batch);
+
+        // The Ollama server is serial, so a long summary must not be stacked by double clicks.
+        $lock = Cache::lock('ipc-batch-summary-ai', 200);
+        if (! $lock->get()) {
+            return response()->json(['ok' => false, 'error' => 'Ringkasan sebelumnya masih berjalan, tunggu sebentar.'], 429);
+        }
+
+        try {
+            return response()->json($analyzer->analyze($batch));
+        } finally {
+            $lock->release();
+        }
     }
 
     public function startup(IpcBatch $batch): Response
@@ -51,7 +79,7 @@ class ApprovalController extends Controller
             'startupInspection.items',
             'startupInspection.samples',
             'startupInspection.testResults.testType',
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -85,7 +113,7 @@ class ApprovalController extends Controller
             'masterLine',
             'startupCheck',
             ...$this->fillingPackingRelations($side),
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -110,7 +138,7 @@ class ApprovalController extends Controller
             'finishedCheck.revisions' => fn ($query) => $query->latest('revision_no'),
             'finishedCheck.revisions.user',
             'finishedCheck.revisions.samples',
-            'approvals.approver',
+            'approvals.approver', 'approvals.l2Approver',
             'approvals.revisions' => fn ($query) => $query->latest('revision_no'),
             'approvals.revisions.user',
         ]);
@@ -129,7 +157,7 @@ class ApprovalController extends Controller
         $this->guardFinished($batch);
         abort_unless(IpcApproval::combinedStagesFor($batch) !== [], 404);
 
-        $batch->load(['masterProduct', 'masterLine', 'approvals.approver']);
+        $batch->load(['masterProduct', 'masterLine', 'approvals.approver', 'approvals.l2Approver']);
 
         return Inertia::render('approval/fillpack', [
             'batch' => $batch,
@@ -140,20 +168,40 @@ class ApprovalController extends Controller
                 'approval' => $batch->approvals->firstWhere('stage', IpcApproval::STAGE_FINISHED),
             ],
             'decisions' => IpcApproval::DECISIONS,
+            'reviseOptions' => collect(IpcApproval::combinedStagesFor($batch))
+                ->map(fn (string $part) => ['value' => $part, 'label' => IpcApproval::STAGE_LABELS[$part]])
+                ->values(),
         ]);
     }
 
-    public function update(SaveApprovalRequest $request, IpcBatch $batch, string $stage, SaveApproval $action): RedirectResponse
-    {
+    public function update(
+        SaveApprovalRequest $request,
+        IpcBatch $batch,
+        string $stage,
+        SaveApproval $action,
+        RequestApprovalRevision $revision,
+    ): RedirectResponse {
         $this->guardFinished($batch);
         abort_unless(IpcApproval::stageReady($batch, $stage), 403, 'Tahap ini belum selesai, belum bisa di-approve.');
 
+        if ($request->validated('decision') === IpcApproval::DECISION_REVISION) {
+            $revision->handle($batch, $request->user(), $stage, $request->validated('revise_stages'), $request->validated('remarks'));
+
+            return redirect()->route('approvals.index')->with('success', 'Revisi diminta. Laporan dikembalikan ke QC untuk diperbaiki.');
+        }
+
+        $level = $request->level();
+
         if ($stage === IpcReportDocument::KEY_FILLING_PACKING_FG) {
-            foreach (IpcApproval::combinedStagesFor($batch) as $part) {
-                $action->handle($batch, $request->user(), $part, $request->validated());
-            }
+            // One document, one decision for all its parts: all of them or none (a Level 2 refusal
+            // on one part must not leave the others already decided).
+            DB::transaction(function () use ($action, $batch, $request, $level) {
+                foreach (IpcApproval::combinedStagesFor($batch) as $part) {
+                    $action->handle($batch, $request->user(), $part, $request->validated(), $level);
+                }
+            });
         } else {
-            $action->handle($batch, $request->user(), $stage, $request->validated());
+            $action->handle($batch, $request->user(), $stage, $request->validated(), $level);
         }
 
         $route = match ($stage) {
@@ -234,5 +282,6 @@ class ApprovalController extends Controller
     private function guardFinished(IpcBatch $batch): void
     {
         abort_unless($batch->isReadyForApproval(), 403, 'Tahap pemeriksaan untuk batch ini belum selesai — batch belum masuk tahap Approval.');
+        abort_if($batch->hasOpenRevision(), 403, 'Laporan sedang direvisi oleh QC — tunggu sampai diselesaikan ulang.');
     }
 }

@@ -61,7 +61,6 @@ class SaveStartupCheck
                 'shelf_life_months' => $shelfLifeMonths,
                 'primary_packaging_type' => $packagingType,
                 'master_line_id' => $masterLineId,
-                ...($batch->current_stage === IpcBatch::STAGE_STARTUP ? ['current_stage' => $batch->nextStageAfter(IpcBatch::STAGE_STARTUP)] : []),
             ]);
 
             // First fill wins: never overwrite an existing Master Produk shelf-life from a batch.
@@ -69,6 +68,10 @@ class SaveStartupCheck
                 ->whereKey($batch->master_product_id)
                 ->whereNull('shelf_life_months')
                 ->update(['shelf_life_months' => $shelfLifeMonths]);
+
+            if ($batch->current_stage === IpcBatch::STAGE_STARTUP) {
+                $batch->advanceFrom(IpcBatch::STAGE_STARTUP);
+            }
 
             return $startupCheck;
         });

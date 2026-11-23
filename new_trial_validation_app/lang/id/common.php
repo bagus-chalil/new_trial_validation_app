@@ -88,6 +88,7 @@ return [
     ],
 
     'actions' => [
+        'row_actions' => 'Aksi',
         'search' => 'Cari',
         'reset' => 'Atur Ulang',
         'cancel' => 'Batal',

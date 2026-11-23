@@ -6,6 +6,7 @@ use App\Http\Controllers\TrialController;
 use App\Http\Controllers\TrialLineConfigurationReportController;
 use App\Http\Controllers\TrialReportController;
 use App\Http\Controllers\TrialReviewController;
+use App\Http\Controllers\TrialSummaryController;
 use App\Http\Controllers\TrialValidationController;
 use App\Http\Controllers\TrialWeighingController;
 use Illuminate\Support\Facades\Route;
@@ -55,6 +56,8 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
 
     Route::get('{trial}/report', [TrialReportController::class, 'show'])->whereNumber('trial')->name('report.show');
     Route::post('{trial}/report/print-log', [TrialReportController::class, 'logPrint'])->whereNumber('trial')->name('report.print-log');
+    Route::post('{trial}/ai-summary', [TrialSummaryController::class, 'store'])
+        ->whereNumber('trial')->middleware('throttle:6,1')->name('ai-summary');
     Route::get('{trial}/report/pdf', [TrialReportController::class, 'pdf'])->whereNumber('trial')->name('report.pdf');
     Route::get('{trial}/report/excel', [TrialReportController::class, 'excel'])->whereNumber('trial')->name('report.excel');
 

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Vision\AttachScannedLabelBulk;
 use App\Http\Requests\StoreIpcBatchRequest;
 use App\Models\IpcBatch;
 use App\Models\MasterProduct;
 use App\Models\MasterProductBulkCode;
+use App\Services\Insights\NotOkPatternAnalyzer;
 use App\Support\BatchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -56,7 +58,23 @@ class IpcBatchController extends Controller
             ]))->withQueryString();
         }
 
+        // Per-stage totals over the WHOLE filtered result (not just the 20 cards on this page),
+        // ignoring the stage picker itself so every tile always shows its real number. They add up
+        // to the "N batch" in the header when no stage is chosen.
+        if ($q === '') {
+            $stageCounts = $scope(IpcBatch::query()->archived(false))
+                ->selectRaw('current_stage, count(*) as total')
+                ->groupBy('current_stage')
+                ->pluck('total', 'current_stage');
+        } else {
+            $stageCounts = collect(IpcBatch::STAGES)->mapWithKeys(fn (string $s) => [
+                $s => IpcBatch::searchCount($q, $s, archived: false, scope: $scope),
+            ]);
+        }
+        $stageCounts = collect(IpcBatch::STAGES)->mapWithKeys(fn (string $s) => [$s => (int) ($stageCounts[$s] ?? 0)]);
+
         return Inertia::render('batches/index', [
+            'stageCounts' => $stageCounts,
             'batches' => $batches,
             'filters' => [...$request->only(['q', 'stage']), ...$filter->toArray()],
             'filterOptions' => BatchFilter::options(),
@@ -64,7 +82,7 @@ class IpcBatchController extends Controller
         ]);
     }
 
-    public function show(IpcBatch $batch): Response
+    public function show(IpcBatch $batch, NotOkPatternAnalyzer $patterns): Response
     {
         $batch->load(['masterProduct', 'masterLine', 'creator', 'startupCheck', 'fillingCheck', 'packingCheck', 'finishedCheck']);
 
@@ -133,6 +151,8 @@ class IpcBatchController extends Controller
         return Inertia::render('batches/show', [
             'batch' => $batch,
             'stages' => $stages,
+            // NOT OK items of this batch and how often they came back on the same product / line.
+            'notOkPatterns' => $patterns->forBatch($batch),
             // "Rekomendasi AI" card (Startup photos); same gate as its JSON endpoints.
             'showAiCard' => (bool) config('vision.startup_ai.enabled') && Gate::allows('update', $batch),
         ]);
@@ -160,7 +180,7 @@ class IpcBatchController extends Controller
         ]);
     }
 
-    public function store(StoreIpcBatchRequest $request): RedirectResponse
+    public function store(StoreIpcBatchRequest $request, AttachScannedLabelBulk $attachLabel): RedirectResponse
     {
         // Sorted by code so the joined display snapshot is stable regardless of tick order.
         $bulkCodes = MasterProductBulkCode::query()
@@ -195,7 +215,16 @@ class IpcBatchController extends Controller
             return $batch;
         });
 
-        return redirect()->route('startup-check.edit', $batch)->with('success', 'Batch dibuat. Lanjutkan ke Startup Check.');
+        // Label Bulk photographed on this form becomes the Startup Check's Label Bulk photo + AI read.
+        $attached = $attachLabel->handle($batch, $request->user(), $request->validated('label_scan_id'), [
+            'no_batch' => $batch->no_batch,
+            'master_product_id' => $batch->master_product_id,
+            'bulk_codes' => $bulkCodes->pluck('bulk_code')->all(),
+        ]);
+
+        return redirect()->route('startup-check.edit', $batch)->with('success', $attached
+            ? 'Batch dibuat. Foto Label Bulk sudah tersimpan, lanjutkan ke Startup Check.'
+            : 'Batch dibuat. Lanjutkan ke Startup Check.');
     }
 
     /** Soft delete — the batch lands in the Recycle Bin (Tempat Sampah) and can be restored there. */

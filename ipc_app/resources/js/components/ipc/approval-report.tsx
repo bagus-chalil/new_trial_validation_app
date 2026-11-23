@@ -6,7 +6,8 @@ import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from '@inertiajs/react';
+import { type SharedData } from '@/types';
+import { useForm, usePage } from '@inertiajs/react';
 import { Eye, LoaderCircle, Printer } from 'lucide-react';
 import { FormEventHandler, type ReactNode, Suspense, lazy, useState } from 'react';
 
@@ -28,6 +29,8 @@ export interface SampleGroup {
 export interface ApprovalRevisionRow {
     id: number;
     revision_no: number;
+    /** 1 = Level 1 (QC Verifikator), 2 = Level 2 (Team Leader / Supervisor). */
+    level?: number;
     decision: string;
     remarks: string | null;
     decided_at: string;
@@ -38,8 +41,19 @@ export interface ApprovalData {
     decision: string | null;
     remarks: string | null;
     approved_at: string | null;
+    approver_user_id?: number | null;
     approver?: { name: string } | null;
+    /** Level 2 (Team Leader / Supervisor) decision on the same stage. */
+    l2_decision?: string | null;
+    l2_remarks?: string | null;
+    l2_decided_at?: string | null;
+    l2_approver?: { name: string } | null;
     revisions?: ApprovalRevisionRow[];
+}
+
+/** Both approval levels are Approved. */
+export function isFullyApproved(approval: ApprovalData | null | undefined): boolean {
+    return approval?.decision === 'Approved' && approval?.l2_decision === 'Approved';
 }
 
 export interface StageInfo {
@@ -265,99 +279,130 @@ export function PrintActionCard({ batchId, info }: { batchId: number; info: Prin
     );
 }
 
-export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: number; stage: StageInfo; decisions: string[] }) {
-    const { toast, message } = useToast();
+const DECISION_LABELS: Record<string, string> = { Revision: 'Minta Revisi' };
+
+const L2_DECISIONS = ['Approved', 'Rejected'];
+
+function decisionBadgeClass(decision: string | null | undefined): string {
+    if (decision === 'Approved') return 'bg-green-100 text-green-800';
+    if (!decision) return 'bg-muted text-muted-foreground';
+    return 'bg-red-100 text-red-700';
+}
+
+function LevelSummary({
+    title,
+    decision,
+    by,
+    at,
+    remarks,
+}: {
+    title: string;
+    decision?: string | null;
+    by?: string | null;
+    at?: string | null;
+    remarks?: string | null;
+}) {
+    return (
+        <div className="border-border-soft bg-background flex flex-col gap-1 rounded-xl border p-3">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-[12.5px] font-bold">{title}</p>
+                <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${decisionBadgeClass(decision)}`}>
+                    {decision ? (DECISION_LABELS[decision] ?? decision) : 'Belum diputuskan'}
+                </span>
+            </div>
+            {decision && (
+                <p className="text-muted-foreground/70 text-[12px] font-medium">
+                    Oleh {by ?? '—'} · {formatDateTime(at ?? null)}
+                </p>
+            )}
+            {decision && decision !== 'Approved' && remarks && <p className="text-[12.5px] whitespace-pre-line">{remarks}</p>}
+        </div>
+    );
+}
+
+/**
+ * Two-level approval (2026-11-21): Level 1 = QC Verifikator, Level 2 = QC Team Leader / Part Leader /
+ * Supervisor. Both must Approve before the stage counts as approved. Level 1 can re-decide until Level 2
+ * approves (re-deciding clears Level 2); Level 2 decides once, only after Level 1 approved and never the
+ * same person as Level 1. "Minta Revisi" belongs to Level 1.
+ */
+export function ApprovalActionCard({
+    batchId,
+    stage,
+    decisions,
+    reviseOptions,
+}: {
+    batchId: number;
+    stage: StageInfo;
+    decisions: string[];
+    /** Combined reports only: the parts the approver can send back (a single-stage report sends itself back). */
+    reviseOptions?: { value: string; label: string }[];
+}) {
+    const { auth, canApproveL1, canApproveL2 } = usePage<SharedData>().props;
     const existing = stage.approval;
 
-    const { data, setData, put, processing, errors, setError, clearErrors } = useForm<{ decision: string; remarks: string }>({
-        decision: existing?.decision ?? '',
-        remarks: existing?.remarks ?? '',
-    });
+    const l1Approved = existing?.decision === 'Approved';
+    const fully = isFullyApproved(existing);
+    const sameAsL1 = !!existing?.approver_user_id && existing.approver_user_id === auth.user?.id;
 
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
-        if (!data.decision) {
-            setError('decision', 'Pilih Approved untuk menyetujui atau Rejected untuk menolak hasil pemeriksaan.');
-            toast('Pilih keputusan (Approved/Rejected) dulu.');
-            return;
-        }
-        if (data.decision === 'Rejected' && !data.remarks.trim()) {
-            setError('remarks', 'Jelaskan alasan penolakan agar petugas mengetahui hal yang perlu diperbaiki.');
-            document.getElementById(`approval-remarks-${stage.stage}`)?.focus();
-            return;
-        }
-        put(`/batches/${batchId}/approval/${stage.stage}`, { preserveScroll: true });
-    };
+    // Level 1 may (re)decide until Level 2 has approved; Level 2 decides once, after Level 1 approved.
+    const showL1Form = stage.ready && canApproveL1 && !fully;
+    const showL2Form = stage.ready && canApproveL2 && l1Approved && !existing?.l2_decision && !sameAsL1;
+
+    let waitingNote: string | null = null;
+    if (!fully && stage.ready && !showL1Form && !showL2Form) {
+        if (!l1Approved) waitingNote = 'Menunggu approval Level 1 (QC Verifikator).';
+        else if (existing?.l2_decision === 'Rejected') waitingNote = 'Ditolak pada Level 2. Menunggu Level 1 memutuskan ulang.';
+        else if (sameAsL1 && canApproveL2)
+            waitingNote = 'Anda sudah memberi approval Level 1 pada bagian ini. Level 2 harus diputuskan oleh orang lain.';
+        else waitingNote = 'Menunggu approval Level 2 (Team Leader / Supervisor).';
+    }
 
     return (
         <div className="border-primary/20 bg-card flex flex-col gap-4 rounded-3xl border p-5 shadow-sm md:p-6">
-            <Toast message={message} />
             <div className="flex items-center justify-between gap-3">
                 <p className="text-[14.5px] font-bold">Approval — {stage.label}</p>
-                {existing?.decision && (
-                    <span
-                        className={`rounded-full px-3 py-1 text-[12px] font-bold ${
-                            existing.decision === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
-                        }`}
-                    >
-                        {existing.decision}
-                    </span>
-                )}
+                {fully && <span className="rounded-full bg-green-100 px-3 py-1 text-[12px] font-bold text-green-800">Approved (L1 + L2)</span>}
             </div>
 
-            {existing && (
-                <p className="text-muted-foreground/70 -mt-2 text-[12px] font-medium">
-                    Oleh {existing.approver?.name ?? '—'} · {formatDateTime(existing.approved_at)}
-                </p>
-            )}
+            <div className="grid gap-2 sm:grid-cols-2">
+                <LevelSummary
+                    title="Level 1 · QC Verifikator"
+                    decision={existing?.decision}
+                    by={existing?.approver?.name}
+                    at={existing?.approved_at}
+                    remarks={existing?.remarks}
+                />
+                <LevelSummary
+                    title="Level 2 · Team Leader / Supervisor"
+                    decision={existing?.l2_decision}
+                    by={existing?.l2_approver?.name}
+                    at={existing?.l2_decided_at}
+                    remarks={existing?.l2_remarks}
+                />
+            </div>
 
-            {!stage.ready ? (
+            {!stage.ready && (
                 <p className="text-muted-foreground/70 text-[13px] font-medium italic">
                     Selesaikan dulu tahap {stage.label} di atas sebelum bisa diputuskan.
                 </p>
-            ) : (
-                <form onSubmit={submit} className="flex flex-col gap-3">
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                        Tinjau data pemeriksaan sebelum memilih keputusan. Jika ditolak, tuliskan alasan agar tindak lanjutnya jelas.
-                    </p>
-                    <ChipToggleGroup
-                        name="Keputusan approval"
-                        options={decisions}
-                        value={data.decision}
-                        disabled={processing}
-                        onChange={(value) => {
-                            setData('decision', value);
-                            clearErrors('decision');
-                            if (value !== 'Rejected') clearErrors('remarks');
-                        }}
-                    />
-                    <InputError message={errors.decision} />
-                    <Label htmlFor={`approval-remarks-${stage.stage}`}>Catatan {data.decision === 'Rejected' ? '(wajib diisi)' : '(opsional)'}</Label>
-                    <Textarea
-                        id={`approval-remarks-${stage.stage}`}
-                        aria-invalid={Boolean(errors.remarks)}
-                        aria-describedby={errors.remarks ? `approval-remarks-error-${stage.stage}` : undefined}
-                        placeholder="Catatan (wajib jika Rejected)"
-                        rows={2}
-                        className="border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px]"
-                        value={data.remarks}
-                        onChange={(e) => {
-                            setData('remarks', e.target.value);
-                            clearErrors('remarks');
-                        }}
-                        disabled={processing}
-                    />
-                    <InputError id={`approval-remarks-error-${stage.stage}`} message={errors.remarks} />
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="bg-primary flex h-11 w-full items-center justify-center rounded-xl text-[14px] font-bold text-white disabled:opacity-60 sm:w-auto sm:self-end sm:px-6"
-                    >
-                        {processing && <LoaderCircle className="mr-2 size-4 animate-spin" />}
-                        {processing ? 'Menyimpan...' : 'Simpan Keputusan'}
-                    </button>
-                </form>
             )}
+
+            {waitingNote && <p className="text-muted-foreground/80 text-[13px] font-medium italic">{waitingNote}</p>}
+
+            {showL1Form && (
+                <DecisionForm
+                    key={`l1-${existing?.decision ?? 'none'}-${existing?.l2_decision ?? 'none'}`}
+                    level={1}
+                    batchId={batchId}
+                    stage={stage}
+                    decisions={decisions}
+                    reviseOptions={reviseOptions}
+                    initialDecision={existing?.decision ?? ''}
+                    initialRemarks={existing?.remarks ?? ''}
+                />
+            )}
+            {showL2Form && <DecisionForm level={2} batchId={batchId} stage={stage} decisions={L2_DECISIONS} initialDecision="" initialRemarks="" />}
 
             {(existing?.revisions?.length ?? 0) > 0 && (
                 <RevisionHistoryCard
@@ -365,12 +410,163 @@ export function ApprovalActionCard({ batchId, stage, decisions }: { batchId: num
                     revisions={existing!.revisions!.map((rev) => ({ ...rev, finalize: true, created_at: rev.decided_at }))}
                     renderSummary={(rev) => (
                         <span className={rev.decision === 'Approved' ? 'font-bold text-green-700' : 'font-bold text-red-600'}>
-                            Keputusan: {rev.decision}
+                            Level {rev.level ?? 1} · Keputusan: {rev.decision}
                         </span>
                     )}
                     renderRemarks={(rev) => rev.remarks}
                 />
             )}
         </div>
+    );
+}
+
+function DecisionForm({
+    level,
+    batchId,
+    stage,
+    decisions,
+    reviseOptions,
+    initialDecision,
+    initialRemarks,
+}: {
+    level: 1 | 2;
+    batchId: number;
+    stage: StageInfo;
+    decisions: string[];
+    reviseOptions?: { value: string; label: string }[];
+    initialDecision: string;
+    initialRemarks: string;
+}) {
+    const { toast, message } = useToast();
+
+    const { data, setData, put, processing, errors, setError, clearErrors } = useForm<{
+        level: number;
+        decision: string;
+        remarks: string;
+        revise_stages: string[];
+    }>({
+        level,
+        decision: initialDecision,
+        remarks: initialRemarks,
+        revise_stages: [],
+    });
+
+    const needsNote = data.decision === 'Rejected' || data.decision === 'Revision';
+    const fieldId = `${stage.stage}-l${level}`;
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        if (!data.decision) {
+            setError(
+                'decision',
+                level === 2
+                    ? 'Pilih Approved untuk menyetujui atau Rejected untuk menolak.'
+                    : 'Pilih Approved untuk menyetujui, Minta Revisi untuk dikembalikan ke QC, atau Rejected untuk menolak.',
+            );
+            toast('Pilih keputusan dulu.');
+            return;
+        }
+        if (needsNote && !data.remarks.trim()) {
+            setError(
+                'remarks',
+                data.decision === 'Revision'
+                    ? 'Tuliskan bagian mana yang salah dan apa yang harus diperbaiki.'
+                    : 'Jelaskan alasan penolakan agar petugas mengetahui hal yang perlu diperbaiki.',
+            );
+            document.getElementById(`approval-remarks-${fieldId}`)?.focus();
+            return;
+        }
+        if (data.decision === 'Revision' && reviseOptions && data.revise_stages.length === 0) {
+            setError('revise_stages', 'Pilih minimal satu bagian laporan yang perlu direvisi.');
+            return;
+        }
+        put(`/batches/${batchId}/approval/${stage.stage}`, { preserveScroll: true });
+    };
+
+    return (
+        <form onSubmit={submit} className="border-border-soft flex flex-col gap-3 border-t pt-4">
+            <Toast message={message} />
+            <p className="text-[13.5px] font-bold">
+                {level === 1 ? 'Keputusan Level 1 (QC Verifikator)' : 'Keputusan Level 2 (Team Leader / Supervisor)'}
+            </p>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+                {level === 1
+                    ? 'Tinjau data pemeriksaan sebelum memilih keputusan. Jika Anda mengubah keputusan Level 1, keputusan Level 2 pada bagian ini dihapus dan harus diulang.'
+                    : 'Level 1 sudah menyetujui. Tinjau ulang laporan sebelum memutuskan. Jika ditolak, Level 1 yang memutuskan ulang.'}
+            </p>
+            <ChipToggleGroup
+                name="Keputusan approval"
+                options={decisions}
+                labels={DECISION_LABELS}
+                value={data.decision}
+                disabled={processing}
+                onChange={(value) => {
+                    setData('decision', value);
+                    clearErrors('decision');
+                    if (value !== 'Rejected' && value !== 'Revision') clearErrors('remarks');
+                }}
+            />
+            <InputError message={errors.decision} />
+            {data.decision === 'Revision' && (
+                <div className="flex flex-col gap-2 rounded-xl border border-orange-300 bg-orange-50 p-3">
+                    <p className="text-[12.5px] leading-relaxed font-medium text-orange-900">
+                        Laporan dikembalikan ke QC. Bagian yang dipilih dibuka kembali untuk diedit; data lama tetap tersimpan di riwayat. Setelah QC
+                        menyelesaikan ulang, laporan masuk antrean approval lagi.
+                    </p>
+                    {reviseOptions && (
+                        <fieldset className="flex flex-wrap gap-2" disabled={processing}>
+                            <legend className="mb-1 text-[12px] font-bold text-orange-900">Bagian yang direvisi</legend>
+                            {reviseOptions.map((opt) => {
+                                const checked = data.revise_stages.includes(opt.value);
+                                return (
+                                    <label
+                                        key={opt.value}
+                                        className="bg-card flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-[13px] font-bold"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => {
+                                                clearErrors('revise_stages');
+                                                setData(
+                                                    'revise_stages',
+                                                    checked ? data.revise_stages.filter((s) => s !== opt.value) : [...data.revise_stages, opt.value],
+                                                );
+                                            }}
+                                        />
+                                        {opt.label}
+                                    </label>
+                                );
+                            })}
+                        </fieldset>
+                    )}
+                    <InputError message={errors.revise_stages} />
+                </div>
+            )}
+            <Label htmlFor={`approval-remarks-${fieldId}`}>Catatan {needsNote ? '(wajib diisi)' : '(opsional)'}</Label>
+            <Textarea
+                id={`approval-remarks-${fieldId}`}
+                aria-invalid={Boolean(errors.remarks)}
+                aria-describedby={errors.remarks ? `approval-remarks-error-${fieldId}` : undefined}
+                placeholder={level === 1 ? 'Catatan (wajib jika Revisi atau Rejected)' : 'Catatan (wajib jika Rejected)'}
+                rows={2}
+                className="border-border bg-background resize-none rounded-xl border-[1.5px] text-[14px]"
+                value={data.remarks}
+                onChange={(e) => {
+                    setData('remarks', e.target.value);
+                    clearErrors('remarks');
+                }}
+                disabled={processing}
+            />
+            <InputError id={`approval-remarks-error-${fieldId}`} message={errors.remarks} />
+            <button
+                type="submit"
+                disabled={processing}
+                className="bg-primary flex h-11 w-full items-center justify-center rounded-xl text-[14px] font-bold text-white disabled:opacity-60 sm:w-auto sm:self-end sm:px-6"
+            >
+                {processing && <LoaderCircle className="mr-2 size-4 animate-spin" />}
+                {processing ? 'Menyimpan...' : level === 1 ? 'Simpan Keputusan Level 1' : 'Simpan Keputusan Level 2'}
+            </button>
+        </form>
     );
 }

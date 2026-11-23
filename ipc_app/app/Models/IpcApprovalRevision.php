@@ -11,12 +11,15 @@ use Illuminate\Database\Eloquent\Model;
  * prior decision/approver/remarks with no trace, unlike Filling/Packing/Finished Check which each
  * already had this kind of TH_PROGRESS revision history. Written on every SaveApproval call, same
  * append-only precedent as FillingCheckRevision/PackingCheckRevision/FinishedCheckRevision.
+ *
+ * `level` (2026-11-21): 1 = a Level 1 decision, 2 = a Level 2 decision (two-level approval).
  */
 class IpcApprovalRevision extends Model
 {
     protected $fillable = [
         'ipc_approval_id',
         'revision_no',
+        'level',
         'decision',
         'approver_user_id',
         'remarks',

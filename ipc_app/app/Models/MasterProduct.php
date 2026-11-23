@@ -13,8 +13,18 @@ class MasterProduct extends Model
         'fg_code',
         'product_name',
         'shelf_life_months',
+        // Vision Service coding formula (catalog key / template / JSON array). NULL = "auto".
+        'coding_formula',
         'is_active',
     ];
+
+    /** What to send as the Vision Service `coding_formula` form field: the SKU's formula, or "auto". */
+    public function codingFormulaForVision(): string
+    {
+        $formula = trim((string) $this->coding_formula);
+
+        return $formula === '' ? 'auto' : $formula;
+    }
 
     protected function casts(): array
     {

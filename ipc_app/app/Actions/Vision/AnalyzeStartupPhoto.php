@@ -45,14 +45,23 @@ class AnalyzeStartupPhoto
         $filename = basename($attachment->file_path);
         $requestId = (string) Str::uuid();
 
-        $result = $this->client->analyze($contents, $filename, $fieldType, $requestId);
+        // coding_formula: photo 1 + the optional 2nd photo in ONE call, with the SKU's formula (or "auto").
+        $second = QueueStartupAiReads::secondPhotoFor($batch, $field, $fieldType);
+        $secondFile = $second !== null && Storage::disk('public')->exists($second->file_path)
+            ? ['contents' => Storage::disk('public')->get($second->file_path), 'filename' => basename($second->file_path)]
+            : null;
+        $isFormula = $fieldType === QueueStartupAiReads::CODING_FORMULA;
+        $formula = $isFormula ? ($batch->loadMissing('masterProduct')->masterProduct?->codingFormulaForVision() ?? 'auto') : null;
+
+        $result = $this->client->analyze($contents, $filename, $fieldType, $requestId, $secondFile, $isFormula ? ['coding_formula' => $formula] : []);
 
         // Tube packaging: also read through the tube path, display only (decision is forced REVIEW).
         $tube = null;
         $isTube = ($entered['packaging_type'] ?? null)
             ? $entered['packaging_type'] === IpcBatch::PACKAGING_TUBE
             : ($result->raw['packaging_type'] ?? null) === 'tube';
-        if ($fieldType === 'coding_print' && $isTube) {
+        $legacyTube = $fieldType === 'coding_print' || ($isFormula && config('vision.startup_ai.legacy_tube_reads'));
+        if ($legacyTube && $isTube) {
             foreach (config('vision.startup_ai.tube_field_types', []) as $tubeType) {
                 $tube = $this->client->analyze($contents, $filename, $tubeType, (string) Str::uuid());
             }
@@ -63,7 +72,7 @@ class AnalyzeStartupPhoto
         $tubeLlm = null;
         $tubeLlmRequestId = (string) Str::uuid();
         $tubeLlmType = config('vision.startup_ai.tube_llm_field_type');
-        if ($fieldType === 'coding_print' && $isTube && $tubeLlmType) {
+        if ($legacyTube && $isTube && $tubeLlmType) {
             $tubeLlm = $this->client->analyze($contents, $filename, $tubeLlmType, $tubeLlmRequestId);
         }
 
@@ -88,7 +97,12 @@ class AnalyzeStartupPhoto
             'decision' => $evaluation->decision,
             'decision_reason' => $evaluation->reason,
             'expected_value' => $evaluation->expectedSummary,
-            'comparison' => ['field' => $field, 'entered' => $entered, 'items' => $evaluation->items],
+            'comparison' => [
+                'field' => $field,
+                'entered' => $entered,
+                'items' => $evaluation->items,
+                ...($isFormula ? ['image_path_2' => $second?->file_path, 'formula_sent' => $formula, 'formula_source' => $result->raw['formula_source'] ?? null] : []),
+            ],
             'created_by' => $user->id,
         ]);
 

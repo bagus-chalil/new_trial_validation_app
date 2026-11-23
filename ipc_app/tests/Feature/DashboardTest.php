@@ -95,7 +95,7 @@ class DashboardTest extends TestCase
         $approverResponse = $this->actingAs(User::factory()->approver()->create())->get('/dashboard');
         $approverResponse->assertInertia(fn ($page) => $page
             ->where('needsAction.0.no_batch', 'BATCH-001')
-            ->where('needsAction.0.reason', 'Menunggu approval: '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_STARTUP].', '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED])
+            ->where('needsAction.0.reason', 'Menunggu approval: '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_STARTUP].' (L1), '.IpcApproval::STAGE_LABELS[IpcApproval::STAGE_FINISHED].' (L1)')
             ->where('stats.needsActionCount', 1)
         );
     }
@@ -112,8 +112,10 @@ class DashboardTest extends TestCase
     public function test_stage_breakdown_and_pending_approval_count_reflect_real_distribution(): void
     {
         $this->makeBatch(IpcBatch::STAGE_STARTUP, 'B-1');
-        $this->makeBatch(IpcBatch::STAGE_APPROVAL, 'B-2');
-        $this->makeBatch(IpcBatch::STAGE_APPROVAL, 'B-3');
+        foreach (['B-2', 'B-3'] as $no) {
+            $b = $this->makeBatch(IpcBatch::STAGE_APPROVAL, $no);
+            FinishedCheck::create(['ipc_batch_id' => $b->id, 'user_id' => $b->created_by, 'completed_at' => now()]);
+        }
         $this->makeBatch(IpcBatch::STAGE_COMPLETED, 'B-4');
 
         $response = $this->actingAs(User::factory()->create())->get('/dashboard');
@@ -128,6 +130,41 @@ class DashboardTest extends TestCase
             ->where('stageBreakdown.0.count', 1)
             ->where('stageBreakdown.4.stage', IpcBatch::STAGE_APPROVAL)
             ->where('stageBreakdown.4.count', 2)
+        );
+    }
+
+    /** Trust: the dashboard, the Approval Queue and the Batch menu must quote the same numbers. */
+    public function test_dashboard_numbers_match_the_approval_queue_and_batch_menu(): void
+    {
+        $this->makeBatch(IpcBatch::STAGE_STARTUP, 'C-1');
+        $this->makeBatch(IpcBatch::STAGE_COMPLETED, 'C-2');
+        // Waiting for a decision: Finished Check done, nothing approved yet.
+        $waiting = $this->makeBatch(IpcBatch::STAGE_APPROVAL, 'C-3');
+        FinishedCheck::create(['ipc_batch_id' => $waiting->id, 'user_id' => $waiting->created_by, 'completed_at' => now()]);
+        // Archived batches are hidden from the Batch menu, so they must not inflate the dashboard either.
+        $archived = $this->makeBatch(IpcBatch::STAGE_COMPLETED, 'C-4');
+        $archived->forceFill(['archived_at' => now()])->save();
+
+        $approver = User::factory()->approver()->create();
+        $dashboard = $this->actingAs($approver)->get('/dashboard');
+        $queue = $this->actingAs($approver)->get('/approvals');
+
+        $dashboard->assertInertia(fn ($page) => $page
+            ->where('stats.pendingApprovalBatches', 1)
+            ->where('stats.approvalActionCount', 1)
+            ->where('stats.checkActionCount', 0)
+            ->where('stats.needsActionCount', 1)
+            ->where('stageBreakdown.5.count', 1)
+        );
+        $queue->assertInertia(fn ($page) => $page->where('queue.total', 1));
+
+        // Batch menu: stage tiles are whole-result totals and add up to the header count.
+        $staff = User::factory()->create();
+        $this->actingAs($staff)->get('/batches')->assertInertia(fn ($page) => $page
+            ->where('batches.total', 3)
+            ->where('stageCounts.startup', 1)
+            ->where('stageCounts.approval', 1)
+            ->where('stageCounts.completed', 1)
         );
     }
 }

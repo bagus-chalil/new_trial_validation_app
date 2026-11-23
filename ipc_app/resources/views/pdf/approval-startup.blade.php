@@ -27,6 +27,7 @@
                         @endif
                     </figure>
                 </div>
+                <div style="font-size: 9px; margin-top: 3px;">No. IM: <strong>{{ $startupCheck->im_document_number ?? '—' }}</strong></div>
             </div>
 
             <div class="photo-group">
@@ -302,7 +303,7 @@
             @endforeach
         </p>
 
-        <div class="sign-grid">
+        <div class="sign-grid sign-grid--cols-4">
             <div>
                 <span>Review By</span>
                 <strong>{{ $startupInspection->user->name ?? '—' }}</strong>
@@ -315,6 +316,7 @@
                 <small class="sign-date">{{ $startupApproval ? (optional($startupApproval->approved_at)->translatedFormat('d/m/Y H:i') ?: '—') : '—' }}</small>
                 <small class="role">QC Coordinator</small>
             </div>
+            @include('pdf._l2-sign-box', ['approval' => $startupApproval])
             <div class="qr-box">
                 <span>Verifikasi</span>
                 @if ($startupApproval)

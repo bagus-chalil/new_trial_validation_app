@@ -1,5 +1,7 @@
 import { formatDateTime, InfoField, type ApprovalData, type StageInfo } from '@/components/ipc/approval-report';
 import { BatchNavList } from '@/components/ipc/batch-nav-list';
+import { BatchSummaryCard, type BatchSummary } from '@/components/ipc/batch-summary-card';
+import { BatchPatternsCard, type NotOkPattern } from '@/components/ipc/not-ok-patterns';
 import { TwoPane } from '@/components/ipc/two-pane';
 import { WorkflowIntro } from '@/components/ipc/workflow-form';
 import { IpcShell } from '@/layouts/ipc-shell';
@@ -47,15 +49,23 @@ const STAGE_META: Record<string, { href: (id: number) => string; icon: typeof Dr
 
 function DecisionBadge({ approval }: { approval: ApprovalData | null }) {
     if (!approval?.decision) return null;
-    const approved = approval.decision === 'Approved';
+    const fully = approval.decision === 'Approved' && approval.l2_decision === 'Approved';
+    const awaitingL2 = approval.decision === 'Approved' && !approval.l2_decision;
+    const label = fully ? 'Approved' : awaitingL2 ? 'Menunggu L2' : approval.l2_decision === 'Rejected' ? 'Ditolak L2' : approval.decision;
     return (
         <span
             className={`flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-bold ${
-                approved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+                fully ? 'bg-green-100 text-green-800' : awaitingL2 ? 'bg-blue-50 text-blue-700' : 'bg-red-100 text-red-700'
             }`}
         >
-            {approved ? <CheckCircle2 className="size-3.5" strokeWidth={2.4} /> : <XCircle className="size-3.5" strokeWidth={2.4} />}
-            {approval.decision}
+            {fully ? (
+                <CheckCircle2 className="size-3.5" strokeWidth={2.4} />
+            ) : awaitingL2 ? (
+                <Clock3 className="size-3.5" strokeWidth={2.4} />
+            ) : (
+                <XCircle className="size-3.5" strokeWidth={2.4} />
+            )}
+            {label}
         </span>
     );
 }
@@ -82,7 +92,13 @@ function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
 
             {stage.approval && (
                 <p className="text-muted-foreground/70 text-[12px] font-medium">
-                    Oleh {stage.approval.approver?.name ?? '—'} · {formatDateTime(stage.approval.approved_at)}
+                    L1: {stage.approval.approver?.name ?? '—'} · {formatDateTime(stage.approval.approved_at)}
+                    {stage.approval.l2_decision && (
+                        <>
+                            <br />
+                            L2: {stage.approval.l2_approver?.name ?? '—'} · {formatDateTime(stage.approval.l2_decided_at ?? null)}
+                        </>
+                    )}
                 </p>
             )}
 
@@ -106,7 +122,17 @@ function StageCard({ batchId, stage }: { batchId: number; stage: StageInfo }) {
     );
 }
 
-export default function ApprovalOverview({ batch, stages }: { batch: Batch; stages: StageInfo[] }) {
+export default function ApprovalOverview({
+    batch,
+    stages,
+    summary,
+    aiSummaryEnabled,
+}: {
+    batch: Batch;
+    stages: StageInfo[];
+    summary: BatchSummary & { findings: NotOkPattern[] };
+    aiSummaryEnabled: boolean;
+}) {
     const { props } = usePage<SharedData>();
     const recentBatches = (props.recentBatches ?? []) as RecentBatch[];
 
@@ -126,6 +152,9 @@ export default function ApprovalOverview({ batch, stages }: { batch: Batch; stag
                         <InfoField label="Line" value={lineLabel(batch.master_line)} />
                         <InfoField label="Nama Produk" value={batch.master_product.product_name} full />
                     </div>
+
+                    <BatchSummaryCard batchId={batch.id} summary={summary} aiEnabled={aiSummaryEnabled} />
+                    <BatchPatternsCard patterns={summary.findings} className="rounded-[20px] p-[18px] shadow-none" />
 
                     <p className="text-muted-foreground/70 -mb-1 text-[12.5px] font-medium">
                         Pilih salah satu tahap untuk melihat detail lengkap, memutuskan Approve/Reject, dan preview cetak.

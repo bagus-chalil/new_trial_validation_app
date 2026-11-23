@@ -3,6 +3,7 @@
 // Trial lists (per-status + tracking), the shared trials table, and the
 // Need Review / Need Approval queues.
 return [
+    'legacy_badge' => 'Legacy data',
     'table' => [
         'trial_code' => 'Trial ID',
         'product_name' => 'Product Name',

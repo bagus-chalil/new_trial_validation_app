@@ -168,6 +168,7 @@ export default function StartupCheckEdit({
         ...initialChecklistValues,
         mixing_date: batch.mixing_date ? batch.mixing_date.slice(0, 10) : '',
         exp_date: batch.exp_date ? batch.exp_date.slice(0, 10) : '',
+        im_document_number: (startupCheck?.im_document_number as string) ?? '',
         shelf_life_months: String(batch.shelf_life_months ?? batch.master_product.shelf_life_months ?? ''),
         primary_packaging_type: batch.primary_packaging_type ?? '',
         master_line_id: batch.master_line_id ? String(batch.master_line_id) : '',
@@ -217,6 +218,7 @@ export default function StartupCheckEdit({
         exp_date: computedExp ?? undefined,
         shelf_life_months: shelfLifeMonths ?? undefined,
         packaging_type: data.primary_packaging_type || undefined,
+        im_document_number: data.im_document_number?.trim() || undefined,
     });
 
     // Packing + FG has no filling: the 4 filling parameters aren't asked and the card is "Parameter Packing".
@@ -249,6 +251,7 @@ export default function StartupCheckEdit({
         e.preventDefault();
         const empty = new Set<string>();
         if (!data.mixing_date?.trim()) empty.add('mixing_date');
+        if (!data.im_document_number?.trim()) empty.add('im_document_number');
         if (!shelfLifeMonths) empty.add('shelf_life_months');
         if (!data.primary_packaging_type) empty.add('primary_packaging_type');
         if (!data.master_line_id?.trim()) empty.add('master_line_id');
@@ -823,8 +826,8 @@ export default function StartupCheckEdit({
                                                 {tier === 'primary' && data.primary_packaging_type === 'tube' && !photoNa && (
                                                     <div className="border-border mt-2 flex flex-col gap-2 border-t pt-3">
                                                         <Label className="text-muted-foreground text-xs font-semibold">
-                                                            Foto ke-2 (opsional): foto crimp/ujung tube dari sudut lain, garis hitam bisa menutupi
-                                                            satu digit
+                                                            Foto ke-2 (opsional): sisi lain tube (crimp atau badan tube). AI mencari batch dan EXP di
+                                                            kedua foto sekaligus
                                                         </Label>
                                                         <button
                                                             type="button"
@@ -870,6 +873,38 @@ export default function StartupCheckEdit({
                                                     {multi ? 'Tambah Foto' : singleUrl ? 'Ganti Foto' : 'Ambil Foto'}
                                                 </button>
                                             </div>
+                                            {key === 'im_number' && (
+                                                <div className="flex flex-col gap-1.5">
+                                                    <Label htmlFor="im_document_number" className="text-muted-foreground text-xs font-semibold">
+                                                        Nomor IM (No instruksi mutu)
+                                                    </Label>
+                                                    <Input
+                                                        id="im_document_number"
+                                                        className={`${inputClass} ${errorFields.has('im_document_number') ? errorBorder : ''}`}
+                                                        value={data.im_document_number ?? ''}
+                                                        maxLength={150}
+                                                        placeholder="Tulis nomor IM dari dokumen"
+                                                        autoComplete="off"
+                                                        disabled={isReadOnly}
+                                                        onChange={(e) => {
+                                                            setData('im_document_number', e.target.value);
+                                                            setErrorFields((prev) => {
+                                                                const n = new Set(prev);
+                                                                n.delete('im_document_number');
+                                                                return n;
+                                                            });
+                                                        }}
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            errors.im_document_number ||
+                                                            (errorFields.has('im_document_number')
+                                                                ? 'Nomor IM wajib diisi (ketik manual bila foto tidak jelas).'
+                                                                : undefined)
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
                                             {key === 'date_bulk' && (
                                                 <InputError
                                                     message={
@@ -925,7 +960,9 @@ export default function StartupCheckEdit({
                                         setData((prev) => ({
                                             ...prev,
                                             [s.field]: String(s.value),
-                                            ai_applied: Array.from(new Set([...(prev.ai_applied ?? '').split(',').filter(Boolean), s.field])).join(','),
+                                            ai_applied: Array.from(new Set([...(prev.ai_applied ?? '').split(',').filter(Boolean), s.field])).join(
+                                                ',',
+                                            ),
                                         }));
                                         setErrorFields((prev) => {
                                             const n = new Set(prev);

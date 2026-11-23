@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -58,6 +59,9 @@ class Trial extends Model
     const UPDATED_AT = 'updated_at';
 
     const CREATED_AT = 'created_at';
+
+    /** @var list<string> */
+    protected $appends = ['is_legacy'];
 
     protected function casts(): array
     {
@@ -200,6 +204,27 @@ class Trial extends Model
     public function isArchived(): bool
     {
         return $this->archived_at !== null;
+    }
+
+    /**
+     * Trials created before the new app took over (config trials.legacy_cutoff)
+     * came from the legacy app's data transfer — flagged in the UI so users
+     * know they carry legacy-era data (old department codes, no approver, ...).
+     * Derived from created_at, so nothing is written to the shared table.
+     */
+    public function cameFromLegacyApp(): bool
+    {
+        $cutoff = config('trials.legacy_cutoff');
+
+        return $cutoff && $this->created_at !== null && $this->created_at->lt(Carbon::parse($cutoff));
+    }
+
+    /**
+     * @return Attribute<bool, never>
+     */
+    protected function isLegacy(): Attribute
+    {
+        return Attribute::get(fn () => $this->cameFromLegacyApp());
     }
 
     /**
@@ -400,7 +425,17 @@ class Trial extends Model
         // Only Admin sees every trial — TrialPolicy::approve() lets nobody else
         // act on a trial assigned to someone else, so showing it is just noise.
         if (! $user->isAdmin()) {
-            $query->where('trials_header.approver_user_id', $user->id);
+            $query->where(function (Builder $q) use ($user) {
+                $q->where('trials_header.approver_user_id', $user->id);
+
+                // Approver-less legacy trials: see TrialPolicy::approve().
+                if ($user->role === 'Manager QAC' && config('trials.legacy_cutoff')) {
+                    $q->orWhere(function (Builder $legacy) {
+                        $legacy->whereNull('trials_header.approver_user_id')
+                            ->where('trials_header.created_at', '<', Carbon::parse(config('trials.legacy_cutoff')));
+                    });
+                }
+            });
         }
 
         return $query;

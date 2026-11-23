@@ -1,5 +1,8 @@
 import { PhotoLightbox } from '@/components/ipc/photo-lightbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { reportClientEvent } from '@/lib/client-reporter';
+import { useActivity } from '@/lib/network-status';
+import { Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 // Deliberately does NOT fall back to a plain <input type="file"> picker: the whole point is to
@@ -82,9 +85,14 @@ export function CameraCaptureDialog({
     onCapture: (file: File) => void;
     title?: string;
 }) {
-    const videoRef = useRef<HTMLVideoElement>(null);
+    // A photo from a previous capture may still be uploading; opening the camera again then looks like "nothing happened".
+    const uploading = useActivity().kind === 'upload';
+    const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // Non-fatal hint (keeps the live view); `error` replaces the view, so it must not be used for "not ready yet".
+    const [notice, setNotice] = useState<string | null>(null);
+    const [ready, setReady] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
 
@@ -103,6 +111,17 @@ export function CameraCaptureDialog({
         streamRef.current = null;
     };
 
+    // The <video> can mount after the stream is already open (Radix portals render one commit late,
+    // and "Ambil Ulang" swaps the preview back to the video), so attach from the ref callback too.
+    const attachStream = (el: HTMLVideoElement | null) => {
+        videoRef.current = el;
+        const stream = streamRef.current;
+        if (el && stream && el.srcObject !== stream) {
+            el.srcObject = stream;
+            void el.play().catch(() => undefined);
+        }
+    };
+
     // Applies one advanced constraint to the live track; silently ignored when unsupported.
     const applyAdvanced = async (constraint: Record<string, unknown>) => {
         const track = streamRef.current?.getVideoTracks()[0];
@@ -116,13 +135,13 @@ export function CameraCaptureDialog({
 
     const startStream = async (nextDeviceId: string | null = deviceId, nextQuality: QualityKey = quality) => {
         setError(null);
+        setNotice(null);
+        setReady(false);
         stopStream();
         try {
             const stream = await openCameraStream(nextDeviceId, nextQuality);
             streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
+            attachStream(videoRef.current);
 
             const track = stream.getVideoTracks()[0];
             const capabilities = (track?.getCapabilities?.() ?? {}) as ExtendedCapabilities;
@@ -142,7 +161,9 @@ export function CameraCaptureDialog({
             } catch {
                 setDevices([]);
             }
-        } catch {
+        } catch (caught) {
+            const name = caught instanceof DOMException ? caught.name : 'Error';
+            reportClientEvent('camera', `Kamera tidak bisa dibuka (${name})`, `secureContext=${window.isSecureContext} quality=${nextQuality}`);
             setError('Tidak bisa mengakses kamera. Pastikan izin kamera diaktifkan di browser.');
         }
     };
@@ -153,13 +174,24 @@ export function CameraCaptureDialog({
             setPreviewUrl(null);
             setPreviewBlob(null);
             setError(null);
-            return;
+            setNotice(null);
+            setReady(false);
+            // Safety net: if Radix ever leaves `pointer-events: none` on <body> after the dialog closes
+            // (the whole page then looks frozen/unclickable), clear it once no dialog is actually open.
+            const timer = window.setTimeout(() => {
+                if (!document.querySelector('[role="dialog"][data-state="open"]')) {
+                    document.body.style.removeProperty('pointer-events');
+                }
+            }, 400);
+            return () => window.clearTimeout(timer);
         }
 
         let cancelled = false;
 
         (async () => {
+            if (uploading) return; // the dialog shows a wait notice instead of opening the camera
             if (!navigator.mediaDevices?.getUserMedia) {
+                reportClientEvent('camera', 'Kamera tidak tersedia (mediaDevices kosong)', `secureContext=${window.isSecureContext}`);
                 if (!cancelled) setError('Kamera tidak tersedia di perangkat/browser ini.');
                 return;
             }
@@ -171,7 +203,7 @@ export function CameraCaptureDialog({
             stopStream();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [open, uploading]);
 
     const changeDevice = (id: string) => {
         setDeviceId(id);
@@ -228,17 +260,36 @@ export function CameraCaptureDialog({
 
     const capture = () => {
         const video = videoRef.current;
-        if (!video || video.videoWidth === 0) return;
+        if (!video || video.videoWidth === 0) {
+            setNotice('Kamera belum siap. Tunggu sampai gambar tampil, lalu tekan Ambil Foto lagi.');
+            return;
+        }
+        setNotice(null);
 
-        const scale = Math.min(1, QUALITY[quality].maxLongSide / Math.max(video.videoWidth, video.videoHeight));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(video.videoWidth * scale);
-        canvas.height = Math.round(video.videoHeight * scale);
-        canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // A failed capture must be visible to the operator (it used to just do nothing) and reach the issue log.
+        const failCapture = (reason: string) => {
+            reportClientEvent('camera', `Foto gagal diproses (${reason})`, `video=${video.videoWidth}x${video.videoHeight} quality=${quality}`);
+            setError('Foto gagal diproses di perangkat ini. Tutup, buka lagi, lalu coba kualitas "Standar (1080p)".');
+        };
+
+        let canvas: HTMLCanvasElement;
+        try {
+            const scale = Math.min(1, QUALITY[quality].maxLongSide / Math.max(video.videoWidth, video.videoHeight));
+            canvas = document.createElement('canvas');
+            canvas.width = Math.round(video.videoWidth * scale);
+            canvas.height = Math.round(video.videoHeight * scale);
+            canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } catch (caught) {
+            failCapture(caught instanceof Error ? caught.message : 'canvas');
+            return;
+        }
 
         canvas.toBlob(
             (blob) => {
-                if (!blob) return;
+                if (!blob) {
+                    failCapture('toBlob kosong');
+                    return;
+                }
                 setPreviewBlob(blob);
                 setPreviewUrl(URL.createObjectURL(blob));
                 stopStream();
@@ -260,7 +311,7 @@ export function CameraCaptureDialog({
         onOpenChange(false);
     };
 
-    const live = !error && !previewUrl;
+    const live = !error && !previewUrl && !uploading;
     const buttonClass = 'border-border bg-background flex h-11 items-center justify-center rounded-xl border-[1.5px] px-4 text-sm font-bold';
 
     return (
@@ -273,17 +324,33 @@ export function CameraCaptureDialog({
                     <DialogTitle>{title}</DialogTitle>
                 </DialogHeader>
 
-                {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+                {uploading && (
+                    <p className="flex items-center gap-2 text-sm font-medium text-amber-700">
+                        <Loader2 className="size-4 animate-spin" />
+                        Foto sebelumnya masih diunggah. Tunggu sampai selesai, lalu buka kamera lagi.
+                    </p>
+                )}
+                {error && (
+                    <div className="flex flex-col items-start gap-3">
+                        <p className="text-sm font-medium text-red-600">{error}</p>
+                        <button type="button" onClick={() => void startStream()} className={`${buttonClass} h-12 px-6`}>
+                            Coba Lagi
+                        </button>
+                    </div>
+                )}
+                {notice && !error && <p className="text-sm font-medium text-amber-600">{notice}</p>}
 
                 {live && (
                     // object-contain (not cover) so the preview shows the WHOLE frame that will be saved.
                     <video
-                        ref={videoRef}
+                        ref={attachStream}
+                        onLoadedData={() => setReady(true)}
+                        onPlaying={() => setReady(true)}
                         autoPlay
                         playsInline
                         muted
                         onClick={() => void refocus()}
-                        className="max-h-[58vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[58dvh]"
+                        className="max-h-[40vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[40dvh]"
                     />
                 )}
                 {previewUrl && (
@@ -291,7 +358,7 @@ export function CameraCaptureDialog({
                         src={previewUrl}
                         alt="Preview foto"
                         triggerClassName="w-full"
-                        imageClassName="max-h-[58vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[58dvh]"
+                        imageClassName="max-h-[40vh] w-full rounded-xl bg-black object-contain supports-[height:100dvh]:max-h-[40dvh]"
                     />
                 )}
 
@@ -303,7 +370,7 @@ export function CameraCaptureDialog({
                             {resolution && <span className="ml-1 font-semibold">Resolusi kamera: {resolution}</span>}
                         </p>
 
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                             {devices.length > 1 && (
                                 <label className="flex flex-col gap-1">
                                     <span className="text-muted-foreground text-xs font-semibold">Kamera</span>
@@ -387,14 +454,15 @@ export function CameraCaptureDialog({
                     </div>
                 )}
 
-                <div className="flex justify-end gap-2.5">
+                <div className="bg-background sticky bottom-0 -mx-6 flex justify-end gap-2.5 border-t px-6 pt-3 pb-1">
                     {live && (
                         <button
                             type="button"
                             onClick={capture}
-                            className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-sm font-bold text-white"
+                            disabled={!ready}
+                            className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-sm font-bold text-white disabled:opacity-60"
                         >
-                            Ambil Foto
+                            {ready ? 'Ambil Foto' : 'Menyiapkan kamera…'}
                         </button>
                     )}
                     {previewUrl && (

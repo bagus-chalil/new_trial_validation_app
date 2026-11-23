@@ -25,6 +25,7 @@ interface LineBatch {
     no_batch: string;
     product_name: string | null;
     fg_code: string | null;
+    im_number: string | null;
     stage: string;
     stage_label: string;
     stages: string[];
@@ -342,6 +343,7 @@ function BatchRow({ batch, linkable }: { batch: LineBatch; linkable: boolean }) 
 
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-[11.5px]">
                 <span>FG {batch.fg_code ?? '-'}</span>
+                {batch.im_number && <span className="max-w-full truncate">IM {batch.im_number}</span>}
                 {batch.flow && <span className="bg-muted text-muted-foreground rounded-md px-1.5 py-px text-[10px] font-semibold">{batch.flow}</span>}
             </div>
 
