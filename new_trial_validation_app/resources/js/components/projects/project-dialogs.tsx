@@ -5,12 +5,15 @@ import ProjectFileController from '@/actions/App/Http/Controllers/ProjectFileCon
 import ProjectMilestoneController from '@/actions/App/Http/Controllers/ProjectMilestoneController';
 import ProjectQuotationController from '@/actions/App/Http/Controllers/ProjectQuotationController';
 import ProjectStageController from '@/actions/App/Http/Controllers/ProjectStageController';
+import ProjectStageTrialController from '@/actions/App/Http/Controllers/ProjectStageTrialController';
+import { Combobox } from '@/components/combobox';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -47,6 +50,17 @@ export type Stage = {
     status: string;
     note: string | null;
     trial_id: number | null;
+    trial?: LinkedTrial | null;
+};
+
+export type LinkedTrial = {
+    id: number;
+    trial_code: string;
+    product_name: string | null;
+    progress_status: string;
+    final_decision: string | null;
+    is_deleted: boolean;
+    can_view: boolean;
 };
 
 export type Milestone = {
@@ -298,6 +312,87 @@ export function StageDialog({
                             <DialogFooter className="md:col-span-2">
                                 <Button type="submit" disabled={processing}>
                                     {t('projects.actions.save')}
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/** Projects module Fase 4: link an existing Trial to a Validation stage. */
+export function StageTrialLinkDialog({
+    open,
+    onOpenChange,
+    projectId,
+    stage,
+    trials,
+}: {
+    readonly open: boolean;
+    readonly onOpenChange: (open: boolean) => void;
+    readonly projectId: number;
+    readonly stage: Stage | null;
+    readonly trials: { value: string; label: string }[];
+}) {
+    const { t } = useTranslation();
+    const [trialId, setTrialId] = useState('');
+
+    if (!stage) {
+        return null;
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>
+                        {t('projects.trial_link.link_title')}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {stage.name} ·{' '}
+                        {t('projects.trial_link.link_description')}
+                    </DialogDescription>
+                </DialogHeader>
+                <Form
+                    {...ProjectStageTrialController.store.form({
+                        project: projectId,
+                        stage: stage.id,
+                    })}
+                    options={{ preserveScroll: true }}
+                    onSuccess={() => onOpenChange(false)}
+                    className="grid gap-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <Field
+                                label={t('projects.trial_link.trial')}
+                                error={errors.trial_id}
+                            >
+                                <Combobox
+                                    options={trials}
+                                    value={trialId}
+                                    onChange={setTrialId}
+                                    placeholder={t(
+                                        'projects.trial_link.link_placeholder',
+                                    )}
+                                    emptyMessage={t(
+                                        'projects.trial_link.no_linkable',
+                                    )}
+                                />
+                                <input
+                                    type="hidden"
+                                    name="trial_id"
+                                    value={trialId}
+                                />
+                            </Field>
+                            <DialogFooter>
+                                <Button
+                                    type="submit"
+                                    disabled={processing || trialId === ''}
+                                >
+                                    {t('projects.trial_link.link')}
                                 </Button>
                             </DialogFooter>
                         </>

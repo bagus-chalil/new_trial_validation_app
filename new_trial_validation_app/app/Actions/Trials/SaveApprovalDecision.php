@@ -3,6 +3,7 @@
 namespace App\Actions\Trials;
 
 use App\Actions\Notifications\CreateNotification;
+use App\Actions\Projects\SyncProjectStagesFromTrial;
 use App\Models\ActivityLog;
 use App\Models\Trial;
 use App\Models\User;
@@ -78,7 +79,12 @@ class SaveApprovalDecision
 
         $this->notify($trial, $decision, $approverName);
 
-        return $trial->fresh();
+        $fresh = $trial->fresh() ?? $trial;
+
+        // Projects module: a Validation stage linked to this trial follows it.
+        SyncProjectStagesFromTrial::safely($fresh, $approver);
+
+        return $fresh;
     }
 
     /**

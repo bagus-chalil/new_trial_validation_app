@@ -36,6 +36,8 @@ type ProjectData = {
     vendor: string;
     po: string;
     has_stages: boolean;
+    machine_option_id: number | null;
+    product_id: number | null;
 };
 
 type PageProps = {
@@ -45,6 +47,8 @@ type PageProps = {
         priorities: string[];
         categories: string[];
         users: { value: string; label: string }[];
+        machines: { value: string; label: string }[];
+        products: { value: string; label: string }[];
     };
     defaults: { pic_user_id: number } | null;
 };
@@ -54,6 +58,10 @@ export default function ProjectForm({ project, options, defaults }: PageProps) {
     const [pic, setPic] = useState(
         String(project?.pic_user_id ?? defaults?.pic_user_id ?? ''),
     );
+    const [machine, setMachine] = useState(
+        String(project?.machine_option_id ?? ''),
+    );
+    const [product, setProduct] = useState(String(project?.product_id ?? ''));
     const formProps = project
         ? ProjectController.update.form(project.id)
         : ProjectController.store.form();
@@ -189,6 +197,62 @@ export default function ProjectForm({ project, options, defaults }: PageProps) {
                                         />
                                         <InputError
                                             message={errors.description}
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <h3 className="font-semibold">
+                                        {t('projects.form.section_links')}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {t('projects.form.links_hint')}
+                                    </p>
+                                </CardHeader>
+                                <CardContent className="grid gap-4 md:grid-cols-2">
+                                    <div className="grid min-w-0 gap-2">
+                                        <Label>
+                                            {t('projects.fields.machine')}
+                                        </Label>
+                                        <Combobox
+                                            options={options.machines}
+                                            value={machine}
+                                            onChange={setMachine}
+                                            placeholder={t(
+                                                'projects.form.machine_placeholder',
+                                            )}
+                                        />
+                                        <input
+                                            type="hidden"
+                                            name="machine_option_id"
+                                            value={machine}
+                                        />
+                                        <InputError
+                                            message={errors.machine_option_id}
+                                        />
+                                    </div>
+
+                                    <div className="grid min-w-0 gap-2">
+                                        <Label>
+                                            {t('projects.fields.product')}
+                                        </Label>
+                                        <Combobox
+                                            options={options.products}
+                                            value={product}
+                                            onChange={setProduct}
+                                            placeholder={t(
+                                                'projects.form.product_placeholder',
+                                            )}
+                                        />
+                                        <input
+                                            type="hidden"
+                                            name="product_id"
+                                            value={product}
+                                        />
+                                        <InputError
+                                            message={errors.product_id}
                                         />
                                     </div>
                                 </CardContent>

@@ -36,6 +36,15 @@ class SaveProject
                 'updated_by_name' => $user->name,
             ];
 
+            // Machine/product links (Fase 4). Only touched when the form sent
+            // them, so callers that build a project from other data (e.g.
+            // Improvement "To Project") never wipe an existing link.
+            foreach (['machine_option_id', 'product_id'] as $link) {
+                if (array_key_exists($link, $data)) {
+                    $attributes[$link] = $data[$link] !== null && $data[$link] !== '' ? (int) $data[$link] : null;
+                }
+            }
+
             // PIC name text: follow the chosen user, otherwise keep what was
             // there (legacy imports may only have a text name).
             if ($pic) {

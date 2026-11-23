@@ -37,6 +37,8 @@ class SaveProjectRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:5000'],
             'vendor' => ['nullable', 'string', 'max:255'],
             'po' => ['nullable', 'string', 'max:120'],
+            'machine_option_id' => ['nullable', 'integer', Rule::exists('master_options', 'id')->where('type', 'machine_used')->where('is_active', 1)->whereNull('deleted_at')],
+            'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('is_active', 1)->whereNull('deleted_at')],
         ];
     }
 
@@ -54,6 +56,8 @@ class SaveProjectRequest extends FormRequest
             'pic_user_id' => __('projects.fields.pic'),
             'start_date' => __('projects.fields.start_date'),
             'end_date' => __('projects.fields.end_date'),
+            'machine_option_id' => __('projects.fields.machine'),
+            'product_id' => __('projects.fields.product'),
         ];
     }
 }

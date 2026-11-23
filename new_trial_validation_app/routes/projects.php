@@ -8,6 +8,7 @@ use App\Http\Controllers\ProjectGanttController;
 use App\Http\Controllers\ProjectMilestoneController;
 use App\Http\Controllers\ProjectQuotationController;
 use App\Http\Controllers\ProjectStageController;
+use App\Http\Controllers\ProjectStageTrialController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->group(function () {
@@ -43,6 +44,8 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
         Route::post('{project}/stages', [ProjectStageController::class, 'store'])->name('stages.store');
         Route::put('{project}/stages/{stage}', [ProjectStageController::class, 'update'])->name('stages.update');
         Route::delete('{project}/stages/{stage}', [ProjectStageController::class, 'destroy'])->name('stages.destroy');
+        Route::post('{project}/stages/{stage}/trial', [ProjectStageTrialController::class, 'store'])->name('stages.trial.store');
+        Route::delete('{project}/stages/{stage}/trial', [ProjectStageTrialController::class, 'destroy'])->name('stages.trial.destroy');
 
         Route::post('{project}/milestones', [ProjectMilestoneController::class, 'store'])->name('milestones.store');
         Route::put('{project}/milestones/{milestone}', [ProjectMilestoneController::class, 'update'])->name('milestones.update');

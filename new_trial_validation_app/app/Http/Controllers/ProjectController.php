@@ -7,9 +7,11 @@ use App\Actions\Projects\SaveProject;
 use App\Http\Requests\Projects\SaveProjectRequest;
 use App\Models\ActivityLog;
 use App\Models\MasterOption;
+use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectStage;
+use App\Models\Trial;
 use App\Models\User;
 use App\Support\ProjectOptions;
 use Illuminate\Http\RedirectResponse;
@@ -114,7 +116,8 @@ class ProjectController extends Controller
         Gate::authorize('view', $project);
 
         $user = $request->user();
-        $project->load(['stages', 'milestones', 'quotations']);
+        $project->load(['stages.trial', 'milestones', 'quotations', 'machine', 'product']);
+        $canUpdate = $user->can('update', $project);
 
         $files = ProjectFile::where('project_id', $project->id)->orderByDesc('id')->get();
         $fileUrl = fn (ProjectFile $f) => route('projects.files.show', [$project->id, $f->id]);
@@ -168,7 +171,9 @@ class ProjectController extends Controller
                 'status' => $s->status,
                 'note' => $s->note,
                 'trial_id' => $s->trial_id,
+                'trial' => $this->linkedTrial($s, $user),
             ])->values(),
+            'linkableTrials' => $canUpdate ? $this->linkableTrials($user) : [],
             'milestones' => $project->milestones->sortBy('due_date')->map(fn ($m) => [
                 'id' => $m->id,
                 'name' => $m->name,
@@ -206,8 +211,9 @@ class ProjectController extends Controller
                 'vendors' => $this->vendors(),
             ],
             'can' => [
-                'update' => $user->can('update', $project),
+                'update' => $canUpdate,
                 'delete' => $user->can('delete', $project),
+                'createTrial' => $canUpdate && $user->can('create', Trial::class),
             ],
             'uploadLimitMb' => ProjectOptions::MAX_UPLOAD_BYTES / 1024 / 1024,
             'allowedExtensions' => array_keys(ProjectOptions::UPLOAD_MIMES),
@@ -287,7 +293,62 @@ class ProjectController extends Controller
             'created_by_name' => $p->created_by_name,
             'updated_by_name' => $p->updated_by_name,
             'updated_at' => $p->updated_at?->format('Y-m-d H:i'),
+            'machine_option_id' => $p->machine_option_id,
+            'machine_name' => $p->machine?->name,
+            'product_id' => $p->product_id,
+            'product_name' => $p->product?->product_name,
+            'finish_good_code' => $p->product?->finish_good_code,
         ];
+    }
+
+    /**
+     * The Trial linked to a Validation stage, or null. A soft-deleted trial
+     * is still shown (so the link isn't silently lost) but flagged.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function linkedTrial(ProjectStage $stage, User $user): ?array
+    {
+        $trial = $stage->trial;
+
+        if (! $trial) {
+            return null;
+        }
+
+        return [
+            'id' => $trial->id,
+            'trial_code' => $trial->trial_code,
+            'product_name' => $trial->product_name,
+            'progress_status' => $trial->progress_status,
+            'final_decision' => $trial->final_decision,
+            'is_deleted' => $trial->deleted_at !== null,
+            'can_view' => $trial->deleted_at === null && $user->can('view', $trial),
+        ];
+    }
+
+    /**
+     * Trials the user may link to a Validation stage: not deleted, visible
+     * to them, and not already linked to another stage. Newest first.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function linkableTrials(User $user): array
+    {
+        $taken = ProjectStage::query()->whereNotNull('trial_id')->pluck('trial_id');
+
+        return array_values(Trial::query()
+            ->whereNull('deleted_at')
+            ->whereNotIn('id', $taken)
+            ->orderByDesc('id')
+            ->limit(300)
+            ->with('lineConfigurationReport')
+            ->get()
+            ->filter(fn (Trial $t) => $user->can('view', $t))
+            ->map(fn (Trial $t) => [
+                'value' => (string) $t->id,
+                'label' => $t->trial_code.' · '.$t->product_name.' ('.$t->progress_status.')',
+            ])
+            ->all());
     }
 
     /**
@@ -386,6 +447,12 @@ class ProjectController extends Controller
                 ->whereIn('role', ['Staff', 'Admin', 'Super Admin'])
                 ->orderBy('name')->get(['id', 'name', 'department'])
                 ->map(fn (User $u) => ['value' => (string) $u->id, 'label' => $u->name.($u->department ? ' · '.$u->department : '')]),
+            'machines' => MasterOption::query()->where('type', 'machine_used')->where('is_active', 1)->whereNull('deleted_at')
+                ->orderBy('sort_order')->orderBy('name')->get(['id', 'name'])
+                ->map(fn (MasterOption $m) => ['value' => (string) $m->id, 'label' => $m->name]),
+            'products' => Product::query()->where('is_active', 1)->whereNull('deleted_at')
+                ->orderBy('product_name')->get(['id', 'product_name', 'finish_good_code'])
+                ->map(fn (Product $p) => ['value' => (string) $p->id, 'label' => $p->product_name.($p->finish_good_code ? ' · '.$p->finish_good_code : '')]),
         ];
     }
 }

@@ -34,6 +34,8 @@ return [
     ],
 
     'fields' => [
+        'machine' => '설비',
+        'product' => '제품',
         'name' => '프로젝트 이름',
         'code' => '코드',
         'category' => '분류',
@@ -82,6 +84,10 @@ return [
     ],
 
     'form' => [
+        'machine_placeholder' => '설비 선택 (선택 사항)',
+        'product_placeholder' => '제품 선택 (선택 사항)',
+        'section_links' => '설비 및 제품 연결',
+        'links_hint' => '검증 단계에서 생성하는 Trial 초안을 미리 채우는 데 사용됩니다.',
         'create_title' => '새 프로젝트',
         'edit_title' => '프로젝트 수정',
         'create_description' => '프로젝트의 주요 정보를 입력하십시오. 단계, 마일스톤, 견적 및 파일은 상세 페이지에서 추가합니다.',
@@ -232,6 +238,9 @@ return [
             'DELETE_QUOTATION' => '견적 삭제',
             'UPLOAD_FILE' => '파일 업로드',
             'DELETE_FILE' => '파일 삭제',
+            'LINK_TRIAL' => 'Trial이 단계에 연결됨',
+            'UNLINK_TRIAL' => 'Trial 연결 해제',
+            'SYNC_TRIAL_STAGE' => 'Trial 상태에 따라 단계 갱신',
             'LEGACY_LOG' => '이전 앱 이력',
         ],
     ],
@@ -281,7 +290,33 @@ return [
         'quotation_required' => '이 프로젝트의 견적을 선택하십시오.',
     ],
 
+    'trial_link' => [
+        'trial' => 'Trial',
+        'linked_trial' => '연결된 Trial',
+        'create_draft' => 'Trial 초안 만들기',
+        'link_existing' => 'Trial 연결',
+        'link_title' => '이 단계에 Trial 연결',
+        'link_description' => '기존 Trial을 선택하세요. 단계 상태는 Trial 상태를 따릅니다.',
+        'link_placeholder' => 'Trial 코드 또는 제품 검색',
+        'no_linkable' => '연결할 수 있는 Trial이 없습니다.',
+        'link' => '연결',
+        'unlink' => '연결 해제',
+        'unlink_title' => 'Trial 연결을 해제할까요?',
+        'unlink_description' => 'Trial :code이(가) 더 이상 ":stage" 단계와 연결되지 않습니다. Trial 자체는 변경되지 않습니다.',
+        'deleted' => '삭제된 Trial',
+        'synced_hint' => '단계 상태와 진행률은 Trial을 따릅니다.',
+        'not_validation' => '검증 유형의 단계만 Trial과 연결할 수 있습니다.',
+        'already_linked' => '이 단계에는 이미 연결된 Trial이 있습니다.',
+        'trial_taken' => '이 Trial은 이미 다른 단계에 연결되어 있습니다.',
+        'trial_not_found' => 'Trial을 찾을 수 없거나 접근 권한이 없습니다.',
+        'form_banner' => '이 Trial은 프로젝트 :project의 ":stage" 단계에 연결됩니다. 제품과 설비는 프로젝트에서 미리 채워집니다.',
+        'report_banner' => '프로젝트 소속',
+        'report_stage' => ':stage 단계',
+    ],
+
     'toast' => [
+        'trial_linked' => 'Trial이 단계에 연결되었습니다.',
+        'trial_unlinked' => 'Trial 연결이 해제되었습니다.',
         'created' => '프로젝트가 생성되었습니다.',
         'updated' => '프로젝트가 수정되었습니다.',
         'deleted' => '프로젝트가 삭제되었습니다.',

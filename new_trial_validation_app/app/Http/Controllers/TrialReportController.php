@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Actions\Trials\CheckTrialCompleteness;
 use App\Actions\Trials\RecordReportPrint;
 use App\Models\LineConfigurationLane;
+use App\Models\Project;
+use App\Models\ProjectStage;
 use App\Models\Trial;
 use App\Models\TrialAdditionalAttachment;
 use App\Models\TrialAttachmentFile;
@@ -207,6 +209,7 @@ class TrialReportController extends Controller
             'actionMenuKey' => $readOnlyMode && $hasActions ? $actionMenu[0] : null,
             'actionMenuHref' => $readOnlyMode && $hasActions ? $actionMenu[1] : null,
             'trial' => $trial,
+            'projectLinks' => $this->projectLinksFor($trial),
             'additionalAttachments' => $this->additionalAttachmentsFor($trial),
             'canUploadAdditionalAttachment' => $canUpload,
             'additionalAttachmentLimit' => TrialAdditionalAttachment::MAX_PER_TRIAL,
@@ -713,5 +716,33 @@ class TrialReportController extends Controller
             ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
             ->values()
             ->all();
+    }
+
+    /**
+     * Projects module Fase 4: the project stage(s) this trial is linked to,
+     * shown as a back-link on the Report Summary. Empty when the pm_* tables
+     * don't exist yet.
+     *
+     * @return list<array{project_id: int, project_name: string, project_code: string, stage_name: string}>
+     */
+    private function projectLinksFor(Trial $trial): array
+    {
+        try {
+            $stages = ProjectStage::query()->where('trial_id', $trial->id)->get();
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $projects = Project::query()->whereNull('deleted_at')->whereIn('id', $stages->pluck('project_id'))->get()->keyBy('id');
+
+        return array_values($stages
+            ->filter(fn (ProjectStage $s) => $projects->has($s->project_id))
+            ->map(fn (ProjectStage $s) => [
+                'project_id' => (int) $s->project_id,
+                'project_name' => (string) $projects->get($s->project_id)?->name,
+                'project_code' => (string) $projects->get($s->project_id)?->code,
+                'stage_name' => $s->name,
+            ])
+            ->all());
     }
 }

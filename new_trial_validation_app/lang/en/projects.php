@@ -34,6 +34,8 @@ return [
     ],
 
     'fields' => [
+        'machine' => 'Machine',
+        'product' => 'Product',
         'name' => 'Project Name',
         'code' => 'Code',
         'category' => 'Category',
@@ -82,6 +84,10 @@ return [
     ],
 
     'form' => [
+        'machine_placeholder' => 'Select a machine (optional)',
+        'product_placeholder' => 'Select a product (optional)',
+        'section_links' => 'Machine & Product Links',
+        'links_hint' => 'Used to pre-fill a draft Trial created from a Validation stage.',
         'create_title' => 'New Project',
         'edit_title' => 'Edit Project',
         'create_description' => 'Fill in the main project data. Stages, milestones, quotations, and files are added on the detail page.',
@@ -232,6 +238,9 @@ return [
             'DELETE_QUOTATION' => 'Quotation deleted',
             'UPLOAD_FILE' => 'File uploaded',
             'DELETE_FILE' => 'File deleted',
+            'LINK_TRIAL' => 'Trial linked to stage',
+            'UNLINK_TRIAL' => 'Trial unlinked',
+            'SYNC_TRIAL_STAGE' => 'Stage synced from trial status',
             'LEGACY_LOG' => 'Legacy app history',
         ],
     ],
@@ -281,7 +290,33 @@ return [
         'quotation_required' => 'Choose a quotation of this project.',
     ],
 
+    'trial_link' => [
+        'trial' => 'Trial',
+        'linked_trial' => 'Linked trial',
+        'create_draft' => 'Create Draft Trial',
+        'link_existing' => 'Link Trial',
+        'link_title' => 'Link a trial to this stage',
+        'link_description' => 'Choose an existing trial. The stage status will follow the trial status.',
+        'link_placeholder' => 'Search trial code or product',
+        'no_linkable' => 'No trials available to link.',
+        'link' => 'Link',
+        'unlink' => 'Unlink',
+        'unlink_title' => 'Unlink this trial?',
+        'unlink_description' => 'Trial :code will no longer be connected to stage ":stage". The trial itself is not changed.',
+        'deleted' => 'Trial has been deleted',
+        'synced_hint' => 'Stage status and progress follow the trial.',
+        'not_validation' => 'Only Validation stages can be linked to a trial.',
+        'already_linked' => 'This stage already has a linked trial.',
+        'trial_taken' => 'This trial is already linked to another stage.',
+        'trial_not_found' => 'Trial not found or you have no access to it.',
+        'form_banner' => 'This trial will be linked to stage ":stage" of project :project. Product and machine are pre-filled from the project.',
+        'report_banner' => 'Part of project',
+        'report_stage' => 'stage :stage',
+    ],
+
     'toast' => [
+        'trial_linked' => 'Trial linked to the stage.',
+        'trial_unlinked' => 'Trial unlinked from the stage.',
         'created' => 'Project created.',
         'updated' => 'Project updated.',
         'deleted' => 'Project deleted.',

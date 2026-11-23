@@ -3,6 +3,7 @@
 namespace App\Actions\Trials;
 
 use App\Actions\Notifications\CreateNotification;
+use App\Actions\Projects\SyncProjectStagesFromTrial;
 use App\Mail\TrialReviewRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Trial;
@@ -105,7 +106,12 @@ class SubmitTrialForReview
             'type' => 'info',
         ]);
 
-        return $trial->fresh();
+        $fresh = $trial->fresh() ?? $trial;
+
+        // Projects module: a Validation stage linked to this trial follows it.
+        SyncProjectStagesFromTrial::safely($fresh, $submittedBy);
+
+        return $fresh;
     }
 
     /**

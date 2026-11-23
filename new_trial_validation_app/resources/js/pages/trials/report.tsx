@@ -41,6 +41,7 @@ import {
     trialStatusLabel,
 } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
+import { show as showProject } from '@/routes/projects';
 import { edit as editTrial, index as trialsIndex } from '@/routes/trials';
 import { edit as reviewEdit } from '@/routes/trials/review';
 
@@ -129,6 +130,12 @@ type PageProps = {
     actionMenuKey: string | null;
     actionMenuHref: string | null;
     trial: TrialData;
+    projectLinks?: {
+        project_id: number;
+        project_name: string;
+        project_code: string;
+        stage_name: string;
+    }[];
     additionalAttachments: AdditionalAttachment[];
     canUploadAdditionalAttachment: boolean;
     additionalAttachmentLimit: number;
@@ -221,6 +228,7 @@ export default function TrialReport({
     actionMenuKey,
     actionMenuHref,
     trial,
+    projectLinks = [],
     additionalAttachments,
     canUploadAdditionalAttachment,
     additionalAttachmentLimit,
@@ -321,6 +329,34 @@ export default function TrialReport({
                                     </Button>
                                 </div>
                             )}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {projectLinks.length > 0 && (
+                    <Alert className="print:hidden">
+                        <AlertDescription>
+                            <span>
+                                {t('projects.trial_link.report_banner')}:{' '}
+                            </span>
+                            {projectLinks.map((link, i) => (
+                                <span key={`${link.project_id}-${i}`}>
+                                    {i > 0 && ', '}
+                                    <Link
+                                        href={showProject(link.project_id).url}
+                                        className="font-medium underline underline-offset-2"
+                                    >
+                                        {link.project_code
+                                            ? `${link.project_code} · ${link.project_name}`
+                                            : link.project_name}
+                                    </Link>{' '}
+                                    (
+                                    {t('projects.trial_link.report_stage', {
+                                        stage: link.stage_name,
+                                    })}
+                                    )
+                                </span>
+                            ))}
                         </AlertDescription>
                     </Alert>
                 )}

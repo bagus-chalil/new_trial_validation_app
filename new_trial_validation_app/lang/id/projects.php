@@ -34,6 +34,8 @@ return [
     ],
 
     'fields' => [
+        'machine' => 'Mesin',
+        'product' => 'Produk',
         'name' => 'Nama Project',
         'code' => 'Kode',
         'category' => 'Kategori',
@@ -82,6 +84,10 @@ return [
     ],
 
     'form' => [
+        'machine_placeholder' => 'Pilih mesin (opsional)',
+        'product_placeholder' => 'Pilih produk (opsional)',
+        'section_links' => 'Tautan Mesin & Produk',
+        'links_hint' => 'Dipakai untuk mengisi awal draft Trial yang dibuat dari stage Validasi.',
         'create_title' => 'Project Baru',
         'edit_title' => 'Ubah Project',
         'create_description' => 'Isi data utama project. Stage, milestone, quotation, dan file ditambahkan di halaman detail.',
@@ -232,6 +238,9 @@ return [
             'DELETE_QUOTATION' => 'Quotation dihapus',
             'UPLOAD_FILE' => 'File diunggah',
             'DELETE_FILE' => 'File dihapus',
+            'LINK_TRIAL' => 'Trial ditautkan ke stage',
+            'UNLINK_TRIAL' => 'Tautan trial dilepas',
+            'SYNC_TRIAL_STAGE' => 'Stage mengikuti status trial',
             'LEGACY_LOG' => 'Riwayat aplikasi lama',
         ],
     ],
@@ -281,7 +290,33 @@ return [
         'quotation_required' => 'Pilih quotation dari project ini.',
     ],
 
+    'trial_link' => [
+        'trial' => 'Trial',
+        'linked_trial' => 'Trial tertaut',
+        'create_draft' => 'Buat Draft Trial',
+        'link_existing' => 'Tautkan Trial',
+        'link_title' => 'Tautkan trial ke stage ini',
+        'link_description' => 'Pilih trial yang sudah ada. Status stage akan mengikuti status trial.',
+        'link_placeholder' => 'Cari kode trial atau produk',
+        'no_linkable' => 'Tidak ada trial yang bisa ditautkan.',
+        'link' => 'Tautkan',
+        'unlink' => 'Lepas Tautan',
+        'unlink_title' => 'Lepas tautan trial?',
+        'unlink_description' => 'Trial :code tidak lagi terhubung ke stage ":stage". Trial-nya sendiri tidak berubah.',
+        'deleted' => 'Trial sudah dihapus',
+        'synced_hint' => 'Status dan progres stage mengikuti trial.',
+        'not_validation' => 'Hanya stage bertipe Validasi yang bisa ditautkan ke trial.',
+        'already_linked' => 'Stage ini sudah punya trial tertaut.',
+        'trial_taken' => 'Trial ini sudah ditautkan ke stage lain.',
+        'trial_not_found' => 'Trial tidak ditemukan atau Anda tidak punya akses.',
+        'form_banner' => 'Trial ini akan ditautkan ke stage ":stage" pada project :project. Produk dan mesin diisi awal dari project.',
+        'report_banner' => 'Bagian dari project',
+        'report_stage' => 'stage :stage',
+    ],
+
     'toast' => [
+        'trial_linked' => 'Trial berhasil ditautkan ke stage.',
+        'trial_unlinked' => 'Tautan trial dilepas dari stage.',
         'created' => 'Project berhasil dibuat.',
         'updated' => 'Project berhasil diperbarui.',
         'deleted' => 'Project berhasil dihapus.',

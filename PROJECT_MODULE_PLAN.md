@@ -95,10 +95,12 @@ Setiap fase = satu sesi/chat. Jangan lompat fase. Branch kerja: `feat/integratio
 > **Fase 3 selesai 2026-11-17** (hasil lengkap di bagian 7).
 
 ### Fase 4 — Tautan ke Trial
-- [ ] Stage tipe Validation punya `trial_id`; tombol membuat draft Trial dari stage
-- [ ] Status stage ikut status Trial (Approved → stage Completed)
-- [ ] Tautan mesin dan produk (combobox), notifikasi
-- [ ] Rencana bot: intent status project (opsional, boleh ditunda)
+- [x] Stage tipe Validation punya `trial_id`; tombol membuat draft Trial dari stage
+- [x] Status stage ikut status Trial (Approved → stage Completed)
+- [x] Tautan mesin dan produk (combobox), notifikasi
+- [ ] Rencana bot: intent status project (opsional) — **ditunda**, tidak dikerjakan di Fase 4
+
+> **Fase 4 selesai 2026-11-23** (hasil lengkap di bagian 7).
 
 ### Fase 5 — Cutover
 - [ ] Impor final ke DB prod (user menyetujui eksplisit, backup DB dulu)
@@ -173,6 +175,26 @@ Temuan: asumsi Fase 2 salah. Riwayat impor (`LEGACY_LOG`) memakai `record_id = l
 
 Verifikasi: `ProjectsPhase3Test` 11 test (gantt+filter, hak ajukan, visibilitas, edit hanya saat Baru, tinjauan, konversi sekali, file + guard script/MIME, hapus Admin, My Work, riwayat legacy, paritas lang). Suite penuh 650 test: 646 lulus, 3 skip lama, 1 gagal lama (`ExportLocaleTest`/ZipArchive). Pint, ESLint (1 warning lama), tsc, `npm run build` lulus; Prettier hanya `resources/ai/trial_document.schema.json` (lama); Larastan hanya error lama migration `rename_pi_review_team_to_pie`. Live Playwright (Chromium headless, 1440 + 390px) terhadap sqlite sementara di scratchpad yang diisi `projects:import-legacy` dari `project_tracker` lokal (baca saja; DB bersama tidak disentuh): Gantt menggambar 249 bar rencana + 170 bar aktual dari data nyata, filter PIC jalan, Portofolio menyala di halaman detail, kontributor hanya melihat miliknya, alur ajukan -> tinjau -> buat project (pra-isi benar) -> tautan balik, My Work kedua kartu, tanpa error console, tanpa overflow horizontal di mobile.
 
+### Hasil Fase 4 (2026-11-23)
+
+Awal sesi: branch `feat/integration-project-tracking` tertinggal 38 commit dari `development`; `development` di-merge dulu (konflik hanya di `new_trial_validation_app/CLAUDE.md`, dua section ditambahkan di tempat yang sama, keduanya dipertahankan).
+
+Dibangun:
+- **Mesin & produk di project:** `SaveProjectRequest` + `SaveProject` menerima `machine_option_id` (master_options `machine_used`, aktif) dan `product_id` (products aktif); hanya disentuh bila dikirim form, jadi "To Project" dari Improvement tidak menghapus tautan. Relasi `Project::machine()`/`product()`. Form project punya kartu "Tautan Mesin & Produk" (2 Combobox); detail project menampilkan keduanya.
+- **Buat Draft Trial dari stage:** tombol di stage Validation membuka form Trial biasa (`trials.create?project_stage=<id>`) dengan banner dan produk/mesin terisi dari project; `TrialController::store()` memeriksa stage dulu (Validation, belum tertaut, user boleh ubah project) lalu `CreateTrial` + tautan dalam satu transaksi, jadi tidak ada draft yatim. Semua aturan validasi Trial tetap berlaku.
+- **Tautkan/lepas trial yang sudah ada:** `ProjectStageTrialController` (`projects.stages.trial.store/destroy`) + `LinkProjectStageTrial` (hanya stage Validation, satu trial per stage, satu stage per trial, user harus bisa melihat trial). Dialog Combobox berisi maks 300 trial terbaru yang terlihat user dan belum tertaut.
+- **Sinkron status:** `SyncProjectStagesFromTrial` dipanggil dari `SubmitTrialForReview`, `SaveDepartmentReview` (saat jadi Ready for Approval) dan `SaveApprovalDecision`, lewat `safely()` (try/catch + `report()`, dan cek `Schema::hasTable('pm_stages')`) sehingga alur Trial tidak pernah gagal karena modul Project. Pemetaan: Draft 20 / Need Revision 40 / In Review 60 / Ready for Approval 80 → On Progress; Approved → Completed 100; Rejected → stage tidak diubah (tampil sebagai badge trial). Actual start/end diisi dari tanggal trial hanya bila kosong. Progress project dihitung ulang, log `SYNC_TRIAL_STAGE`.
+- **Notifikasi:** PIC project (`pic_user_id`) dapat notifikasi `type=project` setiap trial tertaut berubah status (kecuali PIC sendiri pelakunya); judul memuat status agar dedup `CreateNotification` tidak menelan perubahan berikutnya.
+- **Catch-up:** `php artisan projects:sync-trial-stages [--dry-run]` untuk perubahan status yang dibuat app lama (yang menulis `trials_header` langsung). Tanpa notifikasi. Belum dijadwalkan.
+- **Tautan balik:** halaman Report Summary trial menampilkan "Bagian dari project … (stage …)".
+- String id/en/ko: `projects.trial_link.*`, `fields.machine/product`, `form.*`, `toast.trial_linked/unlinked`, label log `LINK_TRIAL`/`UNLINK_TRIAL`/`SYNC_TRIAL_STAGE`.
+
+Verifikasi: `ProjectsPhase4Test` 11 test. Suite penuh 679 test: 675 lulus, 3 skip lama, 1 gagal lama (`ExportLocaleTest`/ZipArchive). Pint, tsc, `npm run build` lulus; ESLint 1 warning lama; Prettier hanya `resources/ai/trial_document.schema.json` (lama); Larastan hanya 2 error lama (`TrialMonitorController`, migration `rename_pi_review_team_to_pie`). Live Playwright (Chromium headless, 1440 + 390px) terhadap sqlite sementara di scratchpad yang diisi `projects:import-legacy` dari `project_tracker` lokal (baca saja; DB bersama tidak disentuh): set mesin+produk lewat form → tampil di detail; "Buat Draft Trial" → banner + produk/mesin terisi; simpan → masuk wizard Validasi; stage menampilkan kode trial + status Draft, progres 20%; Report Summary menampilkan tautan balik; tanpa error console; tanpa overflow di mobile.
+
+Keputusan terbuka baru:
+- **K4:** stage Validation hasil impor yang sudah *Completed* tetap menawarkan "Buat Draft Trial"/"Tautkan Trial". Begitu ditautkan ke draft baru, stage turun ke On Progress 20% (trial jadi sumber kebenaran). Terlihat saat verifikasi live (stage "Machine Validation" project PRJ-005). Pilihan: biarkan (re-trial memang membuka ulang stage), sembunyikan tombol pada stage Completed, atau jangan pernah menurunkan stage Completed. Default sementara: biarkan.
+- Bot intent status project: ditunda.
+
 ## 8. Prompt siap pakai
 
 ### Prompt Fase 1 (tempel di chat baru)
@@ -239,6 +261,20 @@ Pakai pola Fase 2-3 (controller + Action + FormRequest, lang group projects id/e
 
 Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum user menyetujui. Verifikasi live: sqlite sementara di scratchpad (export DB_CONNECTION=sqlite DB_DATABASE=<path> SESSION_DRIVER=file CACHE_STORE=file PROJECT_FILES_PATH=<dir>, cek config('database.default') dulu; tinker --execute tanpa env itu menembak DB bersama), migrate --database=sqlite, projects:import-legacy, Playwright (playwright-core di scratchpad + chromium cache ms-playwright/chromium-1248, chrome-win64/chrome.exe). Jangan taskkill php.exe massal (matikan hanya PID di port server).
 Definisi selesai: dari stage Validation PIC bisa membuat draft Trial dan statusnya tersinkron; gate CI hijau (kegagalan lama: Larastan migration rename_pi_review_team_to_pie, ExportLocaleTest/ZipArchive, Prettier resources/ai/trial_document.schema.json); live Playwright. Di akhir ikuti ritual penutup bagian 6 dan tulis prompt Fase 5 (cutover).
+```
+
+### Prompt Fase 5 (tempel di chat baru)
+
+```
+Lanjutkan penggabungan Project Tracking PIE ke new_trial_validation_app/ (branch feat/integration-project-tracking). Baca dulu: PROJECT_MODULE_PLAN.md (bagian 1, 5 Fase 5, bagian 7 "Hasil Fase 1-4", terutama K1-K4), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (bagian "Projects module" Fase 1-4; insiden DB 2026-08-24; aturan prod additive-only), deploy/README.md. Fase 1-4 selesai dan di-push.
+
+Kerjakan HANYA Fase 5 (Cutover), dan MINTA PERSETUJUAN SAYA sebelum setiap langkah yang menulis ke DB bersama/prod:
+1. Rencana cutover tertulis: urutan deploy branch ini (migration pm_* berjalan lewat pipeline `migrate --force`), backup DB prod, freeze app lama (read-only), impor final `projects:import-legacy` (dry-run dulu, cocokkan angka bagian 2; petakan PIC Zahra/Rozy lewat --user-map; folder file asli lewat --files-path), verifikasi jumlah baris, lalu `projects:sync-trial-stages`.
+2. Putuskan bersama saya: K1 (akun departemen bersama), K3 (UI budget/actual), K4 (stage Completed yang ditautkan ulang), apakah `projects:sync-trial-stages` dijadwalkan (selama app lama masih mengubah status trial).
+3. Portal: link/redirect ke modul Projects (portal/config.js), update deploy/README.md.
+4. Arsipkan project_tracker setelah verifikasi.
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum saya menyetujui eksplisit dan backup ada.
+Definisi selesai: data Project Tracking ada di DB prod dan cocok dengan sumber, app lama dibekukan, portal mengarah ke modul baru. Di akhir ikuti ritual penutup bagian 6.
 ```
 
 ### Template prompt fase berikutnya

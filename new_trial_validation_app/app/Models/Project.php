@@ -24,6 +24,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $pic_user_id
  * @property string $pic_name
  * @property int|null $created_by_user_id
+ * @property int|null $machine_option_id
+ * @property int|null $product_id
  * @property Carbon|null $start_date
  * @property Carbon|null $end_date
  * @property int|null $deleted_by
@@ -55,6 +57,22 @@ class Project extends Model
     public function pic(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pic_user_id');
+    }
+
+    /**
+     * Machine (master_options row of type `machine_used`).
+     *
+     * @return BelongsTo<MasterOption, $this>
+     */
+    public function machine(): BelongsTo
+    {
+        return $this->belongsTo(MasterOption::class, 'machine_option_id');
+    }
+
+    /** @return BelongsTo<Product, $this> */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'product_id');
     }
 
     /** @return HasMany<ProjectStage, $this> */

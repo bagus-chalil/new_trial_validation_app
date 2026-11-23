@@ -3,6 +3,7 @@
 namespace App\Actions\Trials;
 
 use App\Actions\Notifications\CreateNotification;
+use App\Actions\Projects\SyncProjectStagesFromTrial;
 use App\Mail\TrialApprovalRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\Trial;
@@ -164,6 +165,9 @@ class SaveDepartmentReview
 
     private function notifyReadyForApproval(Trial $trial): void
     {
+        // Projects module: a Validation stage linked to this trial follows it.
+        SyncProjectStagesFromTrial::safely($trial, null);
+
         $approver = $trial->approver_user_id ? User::find($trial->approver_user_id) : null;
 
         (new CreateNotification)([

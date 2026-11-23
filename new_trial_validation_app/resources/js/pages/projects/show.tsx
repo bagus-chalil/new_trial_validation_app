@@ -1,11 +1,22 @@
 import { Head, Link } from '@inertiajs/react';
-import { Download, FileWarning, Pencil, Plus, Upload } from 'lucide-react';
+import {
+    Download,
+    FileWarning,
+    FlaskConical,
+    Link2,
+    Pencil,
+    Plus,
+    Upload,
+} from 'lucide-react';
 import { useState } from 'react';
 import ProjectController from '@/actions/App/Http/Controllers/ProjectController';
 import ProjectFileController from '@/actions/App/Http/Controllers/ProjectFileController';
 import ProjectMilestoneController from '@/actions/App/Http/Controllers/ProjectMilestoneController';
 import ProjectQuotationController from '@/actions/App/Http/Controllers/ProjectQuotationController';
 import ProjectStageController from '@/actions/App/Http/Controllers/ProjectStageController';
+import ProjectStageTrialController from '@/actions/App/Http/Controllers/ProjectStageTrialController';
+import TrialController from '@/actions/App/Http/Controllers/TrialController';
+import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProgressBar } from '@/components/projects/progress-bar';
 import {
@@ -13,6 +24,7 @@ import {
     MilestoneDialog,
     QuotationDialog,
     StageDialog,
+    StageTrialLinkDialog,
 } from '@/components/projects/project-dialogs';
 import type {
     Milestone,
@@ -44,6 +56,10 @@ import {
     quotationStatusLabel,
     stageTypeLabel,
 } from '@/lib/project';
+import {
+    trialStatusBadgeClassName,
+    trialStatusLabel,
+} from '@/lib/trial-status';
 import { edit, index as projectsIndex } from '@/routes/projects';
 
 type Project = {
@@ -65,6 +81,9 @@ type Project = {
     created_by_name: string;
     updated_by_name: string;
     updated_at: string | null;
+    machine_name: string | null;
+    product_name: string | null;
+    finish_good_code: string | null;
 };
 
 type LogItem = {
@@ -90,7 +109,8 @@ type PageProps = {
         quotationStatuses: string[];
         vendors: string[];
     };
-    can: { update: boolean; delete: boolean };
+    linkableTrials: { value: string; label: string }[];
+    can: { update: boolean; delete: boolean; createTrial: boolean };
     uploadLimitMb: number;
     allowedExtensions: string[];
 };
@@ -169,6 +189,108 @@ function FileLink({ file }: { readonly file: ProjectFileItem }) {
     );
 }
 
+/**
+ * Projects module Fase 4: the Trial behind a Validation stage (code, live
+ * status, link to its Report Summary) plus create/link/unlink actions.
+ */
+function StageTrialCell({
+    projectId,
+    stage,
+    canUpdate,
+    canCreateTrial,
+    onLink,
+}: {
+    readonly projectId: number;
+    readonly stage: Stage;
+    readonly canUpdate: boolean;
+    readonly canCreateTrial: boolean;
+    readonly onLink: () => void;
+}) {
+    const { t } = useTranslation();
+    const trial = stage.trial;
+
+    if (trial) {
+        return (
+            <div className="mt-2 space-y-1 rounded-md border border-dashed p-2">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <FlaskConical className="size-4 text-muted-foreground" />
+                    {trial.can_view ? (
+                        <Link
+                            href={TrialReportController.show(trial.id).url}
+                            className="font-medium underline-offset-2 hover:underline"
+                        >
+                            {trial.trial_code}
+                        </Link>
+                    ) : (
+                        <span className="font-medium">{trial.trial_code}</span>
+                    )}
+                    <Badge
+                        variant="outline"
+                        className={trialStatusBadgeClassName(
+                            trial.progress_status,
+                            trial.final_decision,
+                        )}
+                    >
+                        {trialStatusLabel(t, trial.progress_status)}
+                    </Badge>
+                    {trial.is_deleted && (
+                        <span className="text-xs text-muted-foreground">
+                            ({t('projects.trial_link.deleted')})
+                        </span>
+                    )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    {t('projects.trial_link.synced_hint')}
+                </p>
+                {canUpdate && (
+                    <ConfirmDialog
+                        trigger={
+                            <Button variant="ghost" size="sm">
+                                {t('projects.trial_link.unlink')}
+                            </Button>
+                        }
+                        title={t('projects.trial_link.unlink_title')}
+                        description={t(
+                            'projects.trial_link.unlink_description',
+                            { code: trial.trial_code, stage: stage.name },
+                        )}
+                        confirmLabel={t('projects.trial_link.unlink')}
+                        formProps={ProjectStageTrialController.destroy.form({
+                            project: projectId,
+                            stage: stage.id,
+                        })}
+                    />
+                )}
+            </div>
+        );
+    }
+
+    if (!canUpdate) {
+        return null;
+    }
+
+    return (
+        <div className="mt-2 flex flex-wrap gap-1">
+            {canCreateTrial && (
+                <Button size="sm" variant="outline" asChild>
+                    <Link
+                        href={TrialController.create.url({
+                            query: { project_stage: stage.id },
+                        })}
+                    >
+                        <FlaskConical />
+                        {t('projects.trial_link.create_draft')}
+                    </Link>
+                </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={onLink}>
+                <Link2 />
+                {t('projects.trial_link.link_existing')}
+            </Button>
+        </div>
+    );
+}
+
 export default function ProjectShow({
     project,
     stages,
@@ -177,6 +299,7 @@ export default function ProjectShow({
     files,
     logs,
     options,
+    linkableTrials,
     can,
     uploadLimitMb,
     allowedExtensions,
@@ -186,6 +309,10 @@ export default function ProjectShow({
         open: boolean;
         item: Stage | null;
     }>({ open: false, item: null });
+    const [linkDialog, setLinkDialog] = useState<{
+        open: boolean;
+        stage: Stage | null;
+    }>({ open: false, stage: null });
     const [milestoneDialog, setMilestoneDialog] = useState<{
         open: boolean;
         item: Milestone | null;
@@ -320,6 +447,15 @@ export default function ProjectShow({
                             <Info label={t('projects.fields.po')}>
                                 {project.po}
                             </Info>
+                            <Info label={t('projects.fields.machine')}>
+                                {project.machine_name}
+                            </Info>
+                            <Info label={t('projects.fields.product')}>
+                                {project.product_name}
+                                {project.finish_good_code
+                                    ? ` · ${project.finish_good_code}`
+                                    : ''}
+                            </Info>
                             <Info label={t('projects.show.created_by')}>
                                 {project.created_by_name}
                             </Info>
@@ -421,6 +557,22 @@ export default function ProjectShow({
                                                     </Badge>
                                                 )}
                                             </div>
+                                            {s.stage_type === 'Validation' && (
+                                                <StageTrialCell
+                                                    projectId={project.id}
+                                                    stage={s}
+                                                    canUpdate={can.update}
+                                                    canCreateTrial={
+                                                        can.createTrial
+                                                    }
+                                                    onLink={() =>
+                                                        setLinkDialog({
+                                                            open: true,
+                                                            stage: s,
+                                                        })
+                                                    }
+                                                />
+                                            )}
                                             {stageFiles(s.id).map((f) => (
                                                 <div key={f.id}>
                                                     <FileLink file={f} />
@@ -998,6 +1150,16 @@ export default function ProjectShow({
                         item={stageDialog.item}
                         statuses={options.stageStatuses}
                         types={options.stageTypes}
+                    />
+                    <StageTrialLinkDialog
+                        key={`link-${linkDialog.stage?.id ?? 'none'}-${linkDialog.open}`}
+                        open={linkDialog.open}
+                        onOpenChange={(open) =>
+                            setLinkDialog((p) => ({ ...p, open }))
+                        }
+                        projectId={project.id}
+                        stage={linkDialog.stage}
+                        trials={linkableTrials}
                     />
                     <MilestoneDialog
                         key={`milestone-${milestoneDialog.item?.id ?? 'new'}-${milestoneDialog.open}`}
