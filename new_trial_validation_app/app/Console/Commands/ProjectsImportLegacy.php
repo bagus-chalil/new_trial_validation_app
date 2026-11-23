@@ -53,7 +53,7 @@ class ProjectsImportLegacy extends Command
             return self::SUCCESS;
         }
 
-        foreach (['pm_projects', 'pm_stages', 'pm_files', 'pm_improvements', 'activity_logs'] as $table) {
+        foreach (['pm_projects', 'pm_stages', 'pm_files', 'pm_improvements', 'pm_toolings', 'activity_logs'] as $table) {
             if (! Schema::hasTable($table)) {
                 $this->error("Table {$table} does not exist; run the migrations first (never migrate:fresh).");
 
@@ -101,9 +101,14 @@ class ProjectsImportLegacy extends Command
             ['files (pm_files + pm_improvement_files)', $src['project_files'], count($plan['files']).' + '.count($plan['improvement_files']), $existing['files'] ?? 'n/a'],
             ['logs -> activity_logs', $src['project_logs'], count($plan['logs']), 'n/a'],
             ['improvements (settings blob)', '-', count($plan['improvements']), $existing['improvements'] ?? 'n/a'],
+            ['check toolings (settings blob)', '-', count($plan['toolings']), $existing['toolings'] ?? 'n/a'],
+            ['  tool rows / signatures', '-', array_sum(array_map(fn ($t) => count($t['items']), $plan['toolings'])).' / '.array_sum(array_map(fn ($t) => count(array_filter($t['approvals'], fn ($a) => $a['approved'])), $plan['toolings'])), 'n/a'],
             ['stage templates', '-', count($plan['templates']), 'n/a'],
         ]);
         $this->line('Stage types: '.json_encode($stageTypes).'  File contexts: '.json_encode($fileContexts));
+        $this->line('Tooling files linked: '.count(array_filter($plan['files'], fn ($f) => ($f['tooling_legacy_id'] ?? null) !== null))
+            .'  Improvement files before/after: '.json_encode(array_count_values(array_column($plan['improvement_files'], 'phase'))));
+        $this->line('Tooling statuses: '.json_encode(array_count_values(array_column($plan['toolings'], 'status'))));
         $this->line('Physical files vs source dir: '.json_encode($fileStates).($dryRun ? '' : ' (missing ones are imported flagged is_missing)'));
         $this->line('Master options to ensure: '.count($plan['categories']).' categories, '.count($plan['vendors']).' vendors.');
         if ($plan['unmatched_names'] !== []) {

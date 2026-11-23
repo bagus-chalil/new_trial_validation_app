@@ -9,6 +9,8 @@ use App\Http\Controllers\ProjectMilestoneController;
 use App\Http\Controllers\ProjectQuotationController;
 use App\Http\Controllers\ProjectStageController;
 use App\Http\Controllers\ProjectStageTrialController;
+use App\Http\Controllers\ToolingController;
+use App\Http\Controllers\ToolingFileController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->group(function () {
@@ -33,6 +35,25 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
         Route::post('{improvement}/files', [ImprovementFileController::class, 'store'])->name('files.store');
         Route::get('{improvement}/files/{file}', [ImprovementFileController::class, 'show'])->name('files.show');
         Route::delete('{improvement}/files/{file}', [ImprovementFileController::class, 'destroy'])->name('files.destroy');
+    });
+
+    // Check Tooling (FR.PRNI.002.00), PROJECT_MODULE_PLAN.md Fase 4b.
+    Route::prefix('toolings')->as('toolings.')->where(['tooling' => '[0-9]+', 'file' => '[0-9]+'])->group(function () {
+        Route::get('/', [ToolingController::class, 'index'])->name('index');
+        Route::get('create', [ToolingController::class, 'create'])->name('create');
+        Route::post('/', [ToolingController::class, 'store'])->name('store');
+        Route::get('{tooling}', [ToolingController::class, 'show'])->name('show');
+        Route::get('{tooling}/edit', [ToolingController::class, 'edit'])->name('edit');
+        Route::put('{tooling}', [ToolingController::class, 'update'])->name('update');
+        Route::delete('{tooling}', [ToolingController::class, 'destroy'])->name('destroy');
+        Route::post('{tooling}/steps/{step}', [ToolingController::class, 'step'])
+            ->whereIn('step', ['sign-prni', 'send-sample', 'sign-rni', 'receive-sample', 'pie-check', 'sign-production', 'hold', 'reject', 'resume'])
+            ->name('steps');
+        Route::post('{tooling}/promote', [ToolingController::class, 'promote'])->name('promote');
+
+        Route::post('{tooling}/files', [ToolingFileController::class, 'store'])->name('files.store');
+        Route::get('{tooling}/files/{file}', [ToolingFileController::class, 'show'])->name('files.show');
+        Route::delete('{tooling}/files/{file}', [ToolingFileController::class, 'destroy'])->name('files.destroy');
     });
 
     Route::where(['project' => '[0-9]+', 'stage' => '[0-9]+', 'milestone' => '[0-9]+', 'quotation' => '[0-9]+', 'file' => '[0-9]+'])->group(function () {

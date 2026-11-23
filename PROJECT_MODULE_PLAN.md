@@ -102,9 +102,20 @@ Setiap fase = satu sesi/chat. Jangan lompat fase. Branch kerja: `feat/integratio
 
 > **Fase 4 selesai 2026-11-23** (hasil lengkap di bagian 7).
 
+### Fase 4b — Check Tooling (ditambahkan 2026-11-23, syarat sebelum cutover prod)
+App lama prod mendapat modul "Check Tooling" setelah 17 Nov (tidak ada di salinan lokal yang dipakai Fase 1-4). User memutuskan: **bangun dulu di app baru, cutover ditunda**, app lama tetap jalan. Temuan lengkap di bagian 7 "Hasil Fase 5 Tahap C (sementara)".
+- [x] Tabel `pm_toolings` (+ item tools, approvals, history; file pakai `pm_files` context `tooling` yang sudah diimpor) — additive, `Schema::hasTable`
+- [x] Importer: baca `settings.tracker_state.toolings` (idempoten via `legacy_id`), tautkan file `TLG-*` ke tooling-nya; sekalian petakan `improvements[].afterAttachments` (file `IMP-AFTER-*`, sekarang jatuh ke `pm_files` tanpa project)
+- [x] Alur status sesuai app lama (`api.php` ~1130-1160): Menunggu RNI & Sampel → Menunggu Review RNI / Menunggu Sampel → Cek Tooling PI → Review Production → Approved (+ Revisi / Hold, Ditolak); approval per peran PRNI/RNI/PI/Production dengan tanda tangan; status sampel
+- [x] Peran "Kontributor" app lama (akun PRNI/RNI/Production, hanya Improvement + Check Tooling) dipetakan ke user/departemen app baru (keputusan K5, bagian 7)
+- [x] UI daftar + detail ("detail dulu baru aksi"), My Work, string id/en/ko, Pest
+- [x] Gladi ulang lokal dengan sumber prod (`project_tracker_prod` → salinan baru `trial_validation_system_fase4b`, bagian 7)
+
+> **Fase 4b selesai 2026-11-23** (hasil lengkap di bagian 7). Cutover prod (Fase 5 Tahap C) belum dijalankan.
+
 ### Fase 5 — Cutover
 Tahap A (gladi bersih MySQL lokal) dan Tahap B (runbook, disetujui user 2026-11-23) selesai; eksekusi prod menunggu perintah user. Runbook: `deploy/README.md` §14.
-- [x] Gladi bersih lokal: backup, 2 migration pm_* dengan `--path`, dry-run + impor + sync, verifikasi live, uji tautan stage-trial lalu dipulihkan
+- [x] Gladi bersih lokal: backup, 2 migration pm_* dengan `--path` (sejak Fase 4b: 3 migration), dry-run + impor + sync, verifikasi live, uji tautan stage-trial lalu dipulihkan
 - [x] Keputusan K1/K3/K4 + jadwal sync (bagian 7)
 - [x] Runbook cutover prod + rollback (`deploy/README.md` §14); `.env.example` memuat `PT_*`/`PROJECT_FILES_PATH`
 - [x] `portal/`: tidak perlu entri baru (modul ada di dalam app Trial); app lama dialihkan lewat nginx (runbook b#12)
@@ -226,6 +237,50 @@ Test baru: `ProjectsPhase3Test` +1 (normalisasi feedback lama) + 1 assertion `lo
 
 **Tahap B:** runbook cutover prod + rollback ditulis di `deploy/README.md` §14 (persiapan, 13 langkah hari H dengan hasil yang diharapkan, arsip, rollback tanpa restore penuh). Lokasi app lama di server prod, folder 131 file asli, dan kredensial `project_tracker` prod belum diketahui: diisi di §14 a#1-2 sebelum hari H.
 
+### Hasil Fase 5 Tahap C (sementara, 2026-11-23) — dihentikan sebelum menulis ke server
+
+Tidak ada yang ditulis ke server atau DB server. Pengecekan server hanya-baca (skrip discovery dijalankan user lewat SSH):
+- App baru prod/dev ada di server `100.100.160.23` (`/var/www/trial_validation_app[-development]`), **DB di host lain `100.100.160.27`** (user `cosmaxadmin`), DB terpisah: `new_trial_validation_system` (prod) dan `new_trial_validation_system_dev` (dev). `APP_TIMEZONE=Asia/Jakarta` di keduanya (§14 a#4 OK). Cron `schedule:run` ada di crontab `www-data` untuk prod (§14 a#5 OK).
+- Prod: hanya 2 migration pm_* Pending. **Dev: juga 4 migration data `2026_11_19_*` (pengalihan Ingyu Ko) masih Pending** — ikut jalan saat merge ke development; butuh akun zahra/fahrul/moonsh/jaejung di DB dev, belum dicek.
+- **App Project Tracking lama tidak berjalan di server ini** (tidak ada site nginx; folder `Project-Tracking-PIE-Team` di deploy path hanya entri gitlink kosong). Lokasi app lama yang live belum diketahui; §14 b#1/b#12 (bekukan/alihkan nginx) harus disesuaikan dengan tempat app itu sebenarnya berjalan (ada `start.bat`, kemungkinan Windows).
+- User memberi dump prod `project_tracker.sql` (HeidiSQL, 23 Nov 15:13) dan zip app prod (`Project-Tracking-PIE-Team-production.zip`, berisi `.env` dengan kredensial — jangan disebar). Salinan prod app Trial ada di MySQL lokal sebagai `trial_validation_system_production` (migration s/d `2026_11_19_000004` batch 16, 389 trial, user id Zahra 27 / Rozy 19 / Ingyu 74 / Moon 100 / Jaejung 105 — sama dengan gladi).
+
+**Sumber prod jauh lebih besar dari salinan lokal 17 Nov:** 45 project / 274 stage (Validation 53) / 31 quotation / 1 milestone / 1155 log / 4 improvement / 190 file (155 project + 6 `IMP-` + 29 `TLG-`), plus **15 Check Tooling** di `settings.tracker_state.toolings` (14 masih berjalan: 9 "Menunggu RNI & Sampel", 5 "Review Production", 1 Approved). 190 file di zip cocok 100% dengan dump (nama + ukuran).
+
+**Dry-run lokal** (disetujui user): dump dimuat ke DB lokal baru `project_tracker_prod` (nama DB di dump diganti di salinan scratchpad; `project_tracker` lokal tidak disentuh), lalu `DB_DATABASE=trial_validation_system_production PT_DB_DATABASE=project_tracker_prod PT_FILES_PATH=<folder hasil ekstrak> php artisan projects:import-legacy --dry-run --user-map=...` (override dicek dulu lewat tinker). Hasil: semua angka = sumber; files 186 + 4 improvement; konteks stage 98 / tooling 29 / project 31 / quotation 28; `Physical files vs source dir: {"ok":190}`; 4 kategori + 20 vendor; nama tanpa padanan: `PROD MU`, `PROD MU / Santo valentino`, `PROD MU/Santo Valentino`, `Validasi`. Dry-run tidak menulis apa pun.
+
+**Celah importer:** (1) data Check Tooling tidak diimpor sama sekali (file `TLG-` sudah disimpan sebagai `context=tooling`); (2) `improvements[].afterAttachments` tidak dipetakan, 2 file `IMP-AFTER-*` masuk `pm_files` tanpa project. **Keputusan user: bangun Check Tooling dulu (Fase 4b), cutover ditunda.**
+
+### Hasil Fase 4b (2026-11-23) — Check Tooling
+
+Sumber fitur: kode app lama PROD (zip 23 Nov, diekstrak ke scratchpad tanpa `.env`, tidak dijalankan): `db.php` `VALID_TOOLING_*`/`normalizeToolingPayload()`, `api.php` bagian toolings (~1022-1290), `public/app.js` `effToolingStatus()`/`toolingBottleneck()`/`saveToolingReview()`/`confirmReceiveSample()`/`createProjectFromTooling()`.
+
+**Keputusan (bersama user 2026-11-23):**
+- **K5 peran Kontributor:** ditentukan dari departemen akun (`department` atau `review_unit`): PRNI → buat request + TTD PRNI, RNI → isi formula + TTD RNI, PROD/PRD → TTD Production, PIE/PI → terima sampel, cek tooling, TTD PIE, Revisi/Hold/Tolak, jadikan project. Admin memegang semua peran; role Viewer tidak punya peran (hanya baca). Tidak ada akun departemen bersama (K1).
+- **Tanda tangan:** e-signature password akun sendiri, sama seperti Approval Trial (`messages.validation.signature_wrong`). Tanda tangan gambar dari app lama diimpor (`signature_method=legacy`, gambar `data:image/png|jpeg` saja, maks 64 KB) dan hanya ditampilkan.
+
+**Dibangun:**
+- Migration `2026_11_23_000001_create_pm_tooling_tables.php`: `pm_toolings`, `pm_tooling_items`, `pm_tooling_approvals` (unik per tooling+role); kolom baru pada tabel pm_* yang belum ada di prod: `pm_files.tooling_id`, `pm_improvements.after_condition/after_result/after_date/after_pic/after_links`, `pm_improvement_files.phase` (before/after). Semua dijaga `hasTable`/`hasColumn`, `down()` kosong.
+- Model `Tooling`, `ToolingItem`, `ToolingApproval`; vocab `App\Support\ToolingOptions` (nilai mentah sama dengan app lama); aturan `App\Services\Projects\ToolingWorkflow` (peran, status turunan dari tanda tangan + status sampel kecuali Revisi/Hold dan Ditolak yang manual, posisi/bottleneck, aksi berikut per user, SLA PIE 5 hari kerja, nomor NPD berikut, tube/cushion otomatis kritis); `ToolingPolicy`.
+- Alur: setiap langkah POST terpisah `projects.toolings.steps` (`sign-prni`, `send-sample`, `sign-rni` + formula, `receive-sample`, `pie-check` + tools/mesin/invest/risiko, `sign-production`, `hold`, `reject`, `resume`) lewat `ToolingStepRequest` + `ToolingSteps`; tiap langkah menulis `history_log` (timeline di halaman) dan `activity_logs` `module=TOOLING`. PIE hanya bisa cek setelah sampel diterima dan PRNI+RNI tanda tangan; Production terakhir. Need Invest = YES → "Buat Project Investasi" (kategori Tooling NPD, sekali).
+- UI: `toolings/index` (KPI yang bisa diklik, filter Tampilkan/Status/cari, kolom tanda tangan PRNI/RNI/PIE/PRO, lewat SLA), `toolings/show` (banner "Giliran Anda" dengan tombol aksi, 4 kotak tanda tangan, A request / sampel / B formula / C hasil cek, lampiran, riwayat lama + baru), `toolings/form` (buat/ubah request A). Sidebar Project → Check Tooling. My Work: kartu Check Tooling (langkah yang menunggu peran user). `ConfirmDialog` mendapat prop opsional `contentClassName`.
+- Improvement: status `Selesai` dan `Ditolak` (prod lama), bagian "Hasil (After)" (diisi peninjau PI di form tinjauan), file "bukti hasil" (`phase=after`, upload oleh peninjau).
+- Importer: `toolings` dari `settings.tracker_state` (status turunan kecuali Approved/Revisi/Ditolak; `Submitted`/`Draft` lama dipetakan ke status turunan, dicatat sebagai warning), item tool (diganti utuh tiap run), approval per role, tautan file `TLG-*` via `attachments[].file`, `afterAttachments` + `after*` Improvement; baris `pm_files` IMP-AFTER dari impor lama dipindahkan ke `pm_improvement_files`. Dry-run mencetak jumlah tooling, baris tool/tanda tangan, file tooling tertaut, file improvement before/after, sebaran status.
+- String id/en/ko: grup baru `toolings`, plus `improvements` (status, after) dan `common.nav.project_toolings`.
+
+**Verifikasi:**
+- Pest: `ProjectsToolingTest` 9 + `ProjectsImportLegacyTest` +2. Suite penuh 693 test: 689 lulus, 3 skip lama, 1 gagal lama (`ExportLocaleTest`/ZipArchive). Pint, tsc, `npm run build` lulus; ESLint hanya 1 warning lama; Larastan hanya 2 error lama.
+- Gladi data prod (disetujui user): `trial_validation_system_production` disalin (mysqldump) ke DB lokal **baru** `trial_validation_system_fase4b` (31 tabel, 389 trial, identik); `migrate:status` hanya 3 pm_* Pending; 3 migration dengan `--path` (31 → 42 tabel). Impor dari `project_tracker_prod` (file ke folder scratchpad lewat `PROJECT_FILES_PATH`): 45 / 274 / 31 / 1 / 184+6 file (after 2) / 1155 log / 4 improvement / **15 tooling, 72 baris tool, 37 kotak approval (28 bertanda tangan)**, 29 file TLG tertaut, `files_copy {"copied":190}`, status 9/5/1 sama dengan sumber (tanpa warning). Impor kedua: semua `updated`, `present:190`, jumlah tetap. Tabel non-pm: hanya `activity_logs` +1157 (1155 + 2 IMPORT dari dua run) dan `master_options` +24; `users`/`trials_header`/`trials_review`/`notifications`/`products` sama. `trial_validation_system_production` sendiri tidak ditulis.
+- Playwright (Chromium, 1440 + 390 px, server `:9004` ke DB salinan): daftar 14 aktif / 15 semua, detail 1138 (tanda tangan gambar lama tampil) dan 1126 (tautan project PRJ), Improvement, My Work — semua 200, tanpa error console, tanpa overflow mobile; akun PRD melihat 5 tugas "Review & tanda tangan Production". Uji tulis lewat UI di salinan: buat request → password salah ditolak → TTD PRNI → kirim sampel → RNI → PIE terima + cek → Production = **Approved** (tooling #16 "PLAYWRIGHT Fase4b Test Cushion", NPD 1154, kritis otomatis, 7 log). Perbaikan dari cek visual: kolom produk di daftar tidak membungkus (status/tanda tangan terpotong), baris tool kosong dari data lama ikut tampil, label filter cakupan.
+
+**Temuan / keputusan terbuka:**
+- **K6 (perlu keputusan sebelum cutover):** akun `prni@local.test`, `rni@local.test`, `prd@local.test`, `pi@local.test` bernama "Viewer …" tapi role-nya PRNI/RNI/PRD/PI (sama dengan staf asli), jadi menurut K5 mereka **bisa menandatangani**. Pilihan: ubah role akun itu menjadi `Viewer` di prod (perubahan data `users`, atas perintah user), nonaktifkan, atau biarkan. Default sementara: biarkan, dicatat. Password `prni@local.test` di salinan prod berbeda dari README.
+- 9 nama penanda tangan lama tidak cocok otomatis ke akun (Mella, Elvara, Sri, Gita PRNI, Adhit Widhi, Naya - RNI, Nadia Shafa, Anggi, Yuni); tetap teks (keputusan user: biarkan; bisa ditambah ke `user-map.json` sebelum cutover).
+- Belum ada notifikasi per langkah Check Tooling (app lama juga tidak punya); tugas terlihat lewat My Work + filter "Perlu aksi saya".
+- Lokal `APP_TIMEZONE=UTC`, jadi waktu tanda tangan di gladi tampil UTC; prod Asia/Jakarta.
+- App lama masih dipakai; saat cutover ambil dump + folder file terbaru (angka akan lebih besar dari 23 Nov).
+- DB lokal `trial_validation_system_fase4b` dan folder file scratchpad hanya untuk gladi; boleh dihapus (tidak ada yang bergantung).
+
 ## 8. Prompt siap pakai
 
 ### Prompt Fase 1 (tempel di chat baru)
@@ -322,12 +377,24 @@ Definisi selesai: gladi bersih lokal sukses dan terverifikasi; checklist cutover
 ```
 Lanjutkan Fase 5 penggabungan Project Tracking PIE: Tahap C, eksekusi cutover di server (development dulu, lalu production). Baca dulu: deploy/README.md §14 (runbook, wajib diikuti urutannya), PROJECT_MODULE_PLAN.md bagian 7 "Hasil Fase 5 Tahap A+B", CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only). Tahap A (gladi bersih lokal) dan B (runbook) selesai dan di-push di branch feat/integration-project-tracking.
 
-Saya tidak punya akses server; Claude menyiapkan perintah, saya yang menjalankannya lewat SSH dan menempelkan hasilnya. Sebelum mulai, minta saya mengisi §14 a#1-2: lokasi app Project Tracking lama di server (path, site nginx), host/kredensial DB project_tracker, dan folder 131 file asli. Cek juga APP_TIMEZONE prod dan cron schedule:run.
+Saya tidak punya akses server; Claude menyiapkan perintah, saya yang menjalankannya lewat SSH dan menempelkan hasilnya. Fase 4b (Check Tooling) sudah selesai: ada 3 migration pm_* (`2026_11_17_000001/2`, `2026_11_23_000001`), angka acuan dry-run ada di §14 b#6 (gladi data prod 23 Nov), dan keputusan K6 di PROJECT_MODULE_PLAN.md bagian 7 "Hasil Fase 4b" (akun "Viewer PRNI/RNI/PRD/PI" mendapat hak tanda tangan) harus diputuskan sebelum cutover. Sebelum mulai, minta saya mengisi §14 a#1-2: lokasi app Project Tracking lama yang live (catatan Tahap C: tidak berjalan di server app; kemungkinan Windows), host/kredensial DB project_tracker, dan folder file asli (190 file per 23 Nov; ambil dump + file terbaru karena app lama masih dipakai). Cek juga APP_TIMEZONE prod dan cron schedule:run.
 
 Urutan: development lengkap (merge branch ke development, backup DB dev, §14 b#1-13, verifikasi) → laporan → baru production atas perintah saya (backup DB prod SEBELUM push ke production, karena pipeline menjalankan migrate --force). MINTA PERSETUJUAN SAYA sebelum SETIAP langkah yang menulis ke DB atau mengubah nginx. Bandingkan jumlah baris sebelum/sesudah di setiap langkah tulis; berhenti bila angka dry-run tidak cocok dengan sumber atau ada file missing/size-differs.
 
 Batasan: jangan migrate:fresh/refresh/db:wipe, jangan restore backup penuh sebagai rollback (pakai §14 d), jangan hapus project_tracker atau folder file lama, jangan menyentuh/commit Project-Tracking-PIE-Team/.
 Definisi selesai: data prod terimpor dan terverifikasi (§14 b#8-11), app lama dialihkan, project_tracker diarsip; centang Fase 5 di PROJECT_MODULE_PLAN.md, update CLAUDE.md, commit + push.
+```
+
+### Prompt Fase 4b — Check Tooling (tempel di chat baru)
+
+```
+Lanjutkan penggabungan Project Tracking PIE ke new_trial_validation_app/ (branch feat/integration-project-tracking): Fase 4b Check Tooling. Baca dulu PROJECT_MODULE_PLAN.md bagian 5 "Fase 4b" dan bagian 7 "Hasil Fase 5 Tahap C (sementara)", CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), new_trial_validation_app/CLAUDE.md bagian Projects module.
+
+Sumber kebenaran fitur: kode app lama PROD (bukan folder Project-Tracking-PIE-Team/ lokal, itu versi 17 Nov tanpa Check Tooling). Saya taruh zip-nya di C:\Users\cosmax\Downloads\Project-Tracking-PIE-Team-production.zip: ekstrak ke scratchpad (hanya baca, jangan jalankan, jangan buka .env); lihat db.php (VALID_TOOLING_*, normalizeToolingPayload) dan api.php (bagian toolings, transisi status ~1130-1160, peran viewer/Kontributor), public/app.js untuk tampilan. Data sumber prod: DB lokal project_tracker_prod (dump 23 Nov); salinan prod app Trial: trial_validation_system_production. File asli: folder hasil ekstrak storage/files.
+
+Kerjakan: tabel pm_toolings (+ turunan) additive dengan guard Schema::hasTable; perluas projects:import-legacy (toolings idempoten via legacy_id, tautkan file TLG-*, petakan improvements[].afterAttachments); Policy + alur status + approval per peran PRNI/RNI/PI/Production; UI daftar + detail ("detail dulu baru aksi"), My Work, id/en/ko, Pest (sqlite). Putuskan bersama saya: pemetaan peran Kontributor app lama ke user/departemen app baru, dan tanda tangan approval (pakai e-signature password seperti Approval Trial atau cukup klik).
+
+Verifikasi: dry-run + impor ke DB lokal SALINAN (bukan trial_validation_system_production langsung tanpa backup; minta persetujuan sebelum menulis), lalu Playwright. Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate tanpa --path ke DB MySQL, jangan factory di tinker, jangan --env= tanpa file .env.<nama>, jangan menyentuh/commit Project-Tracking-PIE-Team/ atau isi zip. Di akhir ikuti ritual penutup bagian 6; setelah itu baru lanjut "Prompt Fase 5 Tahap C" (catatan server di bagian 7 masih berlaku).
 ```
 
 ### Template prompt fase berikutnya

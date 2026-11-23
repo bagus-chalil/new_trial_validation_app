@@ -12,7 +12,11 @@ use App\Models\ProjectMilestone;
 use App\Models\ProjectQuotation;
 use App\Models\ProjectStage;
 use App\Models\ProjectStageTemplate;
+use App\Models\Tooling;
+use App\Models\ToolingApproval;
+use App\Models\ToolingItem;
 use App\Models\User;
+use App\Support\ToolingOptions;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +38,11 @@ use RuntimeException;
  *   and progress. The stable, richer copy is in `projects.metadata` JSON, so
  *   stages and quotations are imported from there (the table counts are
  *   reported alongside as a cross-check).
- * - Improvements only exist inside the `settings.tracker_state` JSON blob.
+ * - Improvements and Check Tooling requests only exist inside the
+ *   `settings.tracker_state` JSON blob (`improvements`, `toolings`). Their
+ *   files are `project_files` rows with project_id NULL and a stored name
+ *   prefixed IMP- / IMP-AFTER- / TLG-, linked back through the blob's
+ *   `attachments` / `afterAttachments` lists.
  * - No cross-database JOIN is used: users/vendors are matched in PHP, so the
  *   utf8mb4_unicode_ci vs utf8mb4_0900_ai_ci collation clash (error 1267)
  *   cannot occur. Any future SQL JOIN across the two DBs needs an explicit COLLATE.
@@ -88,6 +96,7 @@ class LegacyProjectImporter
         $plan = [
             'projects' => [], 'stages' => [], 'milestones' => [], 'quotations' => [],
             'files' => [], 'improvements' => [], 'improvement_files' => [], 'logs' => [],
+            'toolings' => [],
             'templates' => [], 'categories' => [], 'vendors' => [],
             'source' => [
                 'projects' => $projectRows->count(),
@@ -244,10 +253,31 @@ class LegacyProjectImporter
                 'project_legacy_id' => (string) ($imp['projectId'] ?? ''),
                 'updated_by_name' => mb_substr((string) ($imp['updatedBy'] ?? ''), 0, 100),
                 'updated_at' => $this->ms($imp['updatedAt'] ?? null),
+                'after_condition' => $this->nullableText($imp['afterCondition'] ?? null),
+                'after_result' => $this->nullableText($imp['afterResult'] ?? null),
+                'after_date' => $this->date($imp['afterDate'] ?? null),
+                'after_pic' => mb_substr(trim((string) ($imp['afterPic'] ?? '')), 0, 100),
+                'after_links' => $this->links($imp['afterLinks'] ?? []),
             ];
-            foreach ($imp['attachments'] ?? [] as $att) {
+            foreach (['attachments' => 'before', 'afterAttachments' => 'after'] as $key => $phase) {
+                foreach ($imp[$key] ?? [] as $att) {
+                    if (is_array($att) && isset($att['file'])) {
+                        $improvementFiles[(string) $att['file']] = ['improvement' => $iid, 'att' => $att, 'phase' => $phase];
+                    }
+                }
+            }
+        }
+
+        // Check Tooling requests (blob) and their attachment index.
+        $toolingFiles = [];
+        foreach ($state['toolings'] ?? [] as $tlg) {
+            if (! is_array($tlg) || ! isset($tlg['id'])) {
+                continue;
+            }
+            $plan['toolings'][] = $this->planTooling($tlg, $plan['warnings']);
+            foreach ($tlg['attachments'] ?? [] as $att) {
                 if (is_array($att) && isset($att['file'])) {
-                    $improvementFiles[(string) $att['file']] = ['improvement' => $iid, 'att' => $att];
+                    $toolingFiles[(string) $att['file']] = ['tooling' => (string) $tlg['id'], 'att' => $att];
                 }
             }
         }
@@ -269,12 +299,14 @@ class LegacyProjectImporter
                 $plan['improvement_files'][] = $base + [
                     'improvement_legacy_id' => $improvementFiles[$stored]['improvement'],
                     'description' => $improvementFiles[$stored]['att']['description'] ?? null,
+                    'phase' => $improvementFiles[$stored]['phase'],
                 ];
 
                 continue;
             }
             $context = 'project';
             $stageLegacy = null;
+            $toolingLegacy = null;
             $description = null;
             $uploader = '';
             if (isset($stageAttachments[$stored])) {
@@ -284,14 +316,17 @@ class LegacyProjectImporter
                 $uploader = (string) ($stageAttachments[$stored]['att']['uploadedBy'] ?? '');
             } elseif (isset($quotationFiles[$stored])) {
                 $context = 'quotation';
-            } elseif (str_starts_with($stored, 'TLG-')) {
-                // Check Tooling feature of the old app: not migrated as data
-                // (out of plan scope), files are kept so nothing is lost.
+            } elseif (isset($toolingFiles[$stored]) || str_starts_with($stored, 'TLG-')) {
+                // Check Tooling attachment (Fase 4b). An orphan TLG- file whose
+                // request no longer lists it is kept unlinked so nothing is lost.
                 $context = 'tooling';
+                $toolingLegacy = $toolingFiles[$stored]['tooling'] ?? null;
+                $description = $toolingFiles[$stored]['att']['description'] ?? null;
             }
             $plan['files'][] = $base + [
                 'project_legacy_id' => $f->project_id === null ? null : (string) $f->project_id,
                 'stage_legacy_id' => $stageLegacy,
+                'tooling_legacy_id' => $toolingLegacy,
                 'context' => $context,
                 'description' => $description,
                 'uploaded_by_name' => mb_substr($uploader, 0, 100),
@@ -311,6 +346,7 @@ class LegacyProjectImporter
                 'uploaded_at' => null,
                 'improvement_legacy_id' => $info['improvement'],
                 'description' => $att['description'] ?? null,
+                'phase' => $info['phase'],
             ];
             $plan['warnings'][] = "improvement attachment {$stored} is not in project_files; imported from the JSON blob.";
         }
@@ -456,6 +492,21 @@ class LegacyProjectImporter
                 $improvementIds[$imp['legacy_id']] = $model->id;
             }
 
+            $toolingIds = [];
+            foreach ($plan['toolings'] as $t) {
+                $toolingIds[$t['legacy_id']] = $this->applyTooling($t, $projectIds, $tally);
+            }
+
+            // Files an earlier import put in pm_files (IMP-AFTER-* before
+            // afterAttachments were mapped) now belong to pm_improvement_files.
+            $movedToImprovement = array_column($plan['improvement_files'], 'legacy_id');
+            if ($movedToImprovement !== []) {
+                $removed = ProjectFile::whereIn('legacy_id', $movedToImprovement)->whereNull('project_id')->delete();
+                if ($removed > 0) {
+                    $stats['files_moved_to_improvement'] = ['removed_from_pm_files' => $removed];
+                }
+            }
+
             $quotationFile = [];
             foreach ($plan['files'] as $f) {
                 $state = $this->copyFile($disk, $f['stored_name'], $f['size_bytes']);
@@ -463,10 +514,11 @@ class LegacyProjectImporter
                 $model = ProjectFile::firstOrNew(['legacy_id' => $f['legacy_id']]);
                 $tally('files', ! $model->exists);
                 $attrs = $f;
-                unset($attrs['project_legacy_id'], $attrs['stage_legacy_id'], $attrs['source_state']);
+                unset($attrs['project_legacy_id'], $attrs['stage_legacy_id'], $attrs['tooling_legacy_id'], $attrs['source_state']);
                 $model->fill($attrs + [
                     'project_id' => $f['project_legacy_id'] !== null ? ($projectIds[$f['project_legacy_id']] ?? null) : null,
                     'stage_id' => $f['stage_legacy_id'] !== null ? ($stageIds[$f['stage_legacy_id']] ?? null) : null,
+                    'tooling_id' => $f['tooling_legacy_id'] !== null ? ($toolingIds[$f['tooling_legacy_id']] ?? null) : null,
                     'is_missing' => $state === 'missing',
                 ])->save();
                 $quotationFile[$f['stored_name']] = $model->id;
@@ -653,6 +705,187 @@ class LegacyProjectImporter
     }
 
     /**
+     * One Check Tooling request of the blob as plain arrays (items and
+     * approvals nested). The status is re-derived from the signatures and the
+     * sample status like ToolingWorkflow does, except the manual Revisi / Hold,
+     * Ditolak and an explicit Approved, which are kept.
+     *
+     * @param  array<string, mixed>  $t
+     * @param  list<string>  $warnings
+     * @return array<string, mixed>
+     */
+    private function planTooling(array $t, array &$warnings): array
+    {
+        $id = (string) $t['id'];
+        $signed = [];
+        $approvals = [];
+        foreach ($t['approvals'] ?? [] as $a) {
+            if (! is_array($a) || ! in_array($a['role'] ?? null, ToolingOptions::ROLES, true)) {
+                continue;
+            }
+            $role = (string) $a['role'];
+            $name = mb_substr(trim((string) ($a['name'] ?? '')), 0, 120);
+            $sig = (string) ($a['sig'] ?? '');
+            $signed[$role] = ! empty($a['approved']);
+            $approvals[$role] = [
+                'role' => $role,
+                'approved' => $signed[$role],
+                'signer_name' => $name,
+                'signer_user_id' => $signed[$role] ? $this->resolveUser($name) : null,
+                'sign_date' => $this->date($a['date'] ?? null),
+                'signed_at' => $this->ms($a['at'] ?? null),
+                'note' => $this->nullableText($a['note'] ?? null),
+                'signature_method' => 'legacy',
+                'signature_image' => strlen($sig) <= 65536 && preg_match('#^data:image/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$#', $sig) === 1 ? $sig : null,
+                'signed_by_account' => mb_substr(trim((string) ($a['signedBy'] ?? '')), 0, 100),
+            ];
+        }
+
+        $sampleStatus = in_array($t['sampleStatus'] ?? '', ToolingOptions::SAMPLE_STATUSES, true) ? (string) $t['sampleStatus'] : 'Menunggu Sampel';
+        $hasSample = in_array($sampleStatus, ['Sampel Diterima', 'Selesai Dicek'], true);
+        $is = fn (string $r): bool => $signed[$r] ?? false;
+        $derived = match (true) {
+            $is('prni') && $is('rni') && $is('pi') && $is('production') => ToolingOptions::STATUS_APPROVED,
+            $is('pi') => ToolingOptions::STATUS_PRODUCTION,
+            $is('rni') && $hasSample => ToolingOptions::STATUS_PIE_CHECK,
+            $is('rni') => ToolingOptions::STATUS_WAITING_SAMPLE,
+            $hasSample => ToolingOptions::STATUS_WAITING_RNI,
+            default => ToolingOptions::STATUS_WAITING_RNI_SAMPLE,
+        };
+        $legacyStatus = (string) ($t['status'] ?? '');
+        $kept = [ToolingOptions::STATUS_HOLD, ToolingOptions::STATUS_REJECTED, ToolingOptions::STATUS_APPROVED];
+        $status = in_array($legacyStatus, $kept, true) ? $legacyStatus : $derived;
+        if ($status !== $legacyStatus) {
+            $warnings[] = "tooling {$id} (".($t['npdNo'] ?? '')."): status '{$legacyStatus}' imported as '{$status}' (derived from signatures + sample).";
+        }
+
+        $items = [];
+        foreach (array_values($t['tools'] ?? []) as $i => $tool) {
+            if (! is_array($tool)) {
+                continue;
+            }
+            $items[] = [
+                'legacy_id' => isset($tool['id']) ? mb_substr((string) $tool['id'], 0, 40) : null,
+                'tool' => mb_substr(trim((string) ($tool['tool'] ?? '')), 0, 160),
+                'actual' => mb_substr(trim((string) ($tool['actual'] ?? '')), 0, 255),
+                'status' => in_array($tool['status'] ?? '', ToolingOptions::TOOL_STATUSES, true) ? (string) $tool['status'] : '',
+                'sort_order' => $i,
+            ];
+        }
+
+        $text = fn (string $key, int $max): string => mb_substr(trim((string) ($t[$key] ?? '')), 0, $max);
+
+        return [
+            'legacy_id' => $id,
+            'doc_code' => $text('docCode', 50) ?: ToolingOptions::DOC_CODE,
+            'npd_no' => $text('npdNo', 120),
+            'request_date' => $this->date($t['requestDate'] ?? null),
+            'requested_by_name' => $text('requestedBy', 100),
+            'submitted_by_name' => $text('submittedBy', 100),
+            'submitted_by_user_id' => $this->resolveUser((string) ($t['submittedBy'] ?? '')),
+            'submitted_at' => $this->ms($t['submittedAt'] ?? null),
+            'sample_status' => $sampleStatus,
+            'sample_send_date' => $this->date($t['sampleSendDate'] ?? null),
+            'sample_send_note' => $this->nullableText($t['sampleSendNote'] ?? null),
+            'sample_received_date' => $this->date($t['sampleReceivedDate'] ?? null),
+            'sample_received_note' => $this->nullableText($t['sampleReceivedNote'] ?? null),
+            'sample_received_by_name' => $text('sampleReceivedBy', 100),
+            'sample_received_by_user_id' => $this->resolveUser((string) ($t['sampleReceivedBy'] ?? '')),
+            'due_date' => $this->date($t['dueDate'] ?? null),
+            'is_critical' => ! empty($t['isCritical']),
+            'client_code' => $text('clientCode', 100),
+            'product_name' => $text('productName', 255),
+            'marketing' => $text('marketing', 120),
+            'packdev' => $text('packdev', 120),
+            'product_type' => in_array($t['productType'] ?? '', ToolingOptions::PRODUCT_TYPES, true) ? (string) $t['productType'] : 'skin_care',
+            'packaging_type' => $text('packagingType', 255),
+            'quantity_po' => $text('quantityPo', 120),
+            'launch_date' => $text('launchDate', 120),
+            'dimension_packaging' => $this->nullableText($t['dimensionPackaging'] ?? null),
+            'material_packaging' => $this->nullableText($t['materialPackaging'] ?? null),
+            'bom_primary' => $this->nullableText($t['bomPrimary'] ?? null),
+            'pm_ref_detail' => $this->nullableText($t['pmRefDetail'] ?? null),
+            'links' => $this->links($t['links'] ?? []),
+            'formula_info' => $this->nullableText($t['formulaInfo'] ?? null),
+            'volume_suggest' => $text('volumeSuggest', 255),
+            'recommended_machine' => $text('recommendedMachine', 255),
+            'need_invest' => in_array($t['needInvest'] ?? '', ToolingOptions::INVEST_VALUES, true) ? (string) $t['needInvest'] : '',
+            'need_invest_note' => $this->nullableText($t['needInvestNote'] ?? null),
+            'production_note' => $this->nullableText($t['productionNote'] ?? null),
+            'risk_level' => in_array($t['riskLevel'] ?? '', ToolingOptions::RISK_LEVELS, true) ? (string) $t['riskLevel'] : '',
+            'pi_owner_name' => $text('piOwner', 100),
+            'pi_owner_user_id' => $this->resolveUser((string) ($t['piOwner'] ?? '')),
+            'status' => $status,
+            'project_legacy_id' => (string) ($t['projectId'] ?? ''),
+            'history_log' => array_values(array_filter($t['historyLog'] ?? [], 'is_array')),
+            'updated_by_name' => $text('updatedBy', 100),
+            'updated_at' => $this->ms($t['updatedAt'] ?? null),
+            'items' => $items,
+            'approvals' => array_values($approvals),
+        ];
+    }
+
+    /**
+     * Writes one planned tooling with its items and approvals; returns its id.
+     * Items are replaced wholesale on every run; approvals are matched by role.
+     *
+     * @param  array<string, mixed>  $t
+     * @param  array<string, int>  $projectIds
+     */
+    private function applyTooling(array $t, array $projectIds, callable $tally): int
+    {
+        $model = Tooling::firstOrNew(['legacy_id' => $t['legacy_id']]);
+        $tally('toolings', ! $model->exists);
+        $attrs = $t;
+        unset($attrs['project_legacy_id'], $attrs['updated_at'], $attrs['items'], $attrs['approvals']);
+        $model->fill($attrs + ['project_id' => $projectIds[$t['project_legacy_id']] ?? null]);
+        $model->updated_at = $t['updated_at'] ?? Carbon::now();
+        if (! $model->exists) {
+            $model->created_at = $t['submitted_at'] ?? $t['updated_at'] ?? Carbon::now();
+        }
+        $model->saveQuietly();
+
+        ToolingItem::where('tooling_id', $model->id)->delete();
+        foreach ($t['items'] as $item) {
+            ToolingItem::create($item + ['tooling_id' => $model->id]);
+        }
+
+        foreach ($t['approvals'] as $a) {
+            $approval = ToolingApproval::firstOrNew(['tooling_id' => $model->id, 'role' => $a['role']]);
+            $tally('tooling_approvals', ! $approval->exists);
+            $approval->fill($a)->save();
+        }
+
+        return $model->id;
+    }
+
+    /**
+     * Legacy links are {id, title, url, description}; keep http(s) only.
+     *
+     * @return list<array{title: string, url: string}>
+     */
+    private function links(mixed $links): array
+    {
+        $out = [];
+        foreach (is_array($links) ? $links : [] as $link) {
+            $url = trim((string) (is_array($link) ? ($link['url'] ?? '') : $link));
+            if (preg_match('#^https?://#i', $url) === 1) {
+                $title = is_array($link) ? trim((string) ($link['title'] ?? '')) : '';
+                $out[] = ['title' => mb_substr($title, 0, 200), 'url' => mb_substr($url, 0, 500)];
+            }
+        }
+
+        return $out;
+    }
+
+    private function nullableText(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
+    /**
      * Rows already present in the target, for the dry-run report. Returns null
      * when the pm_* tables do not exist yet (nothing to compare against).
      *
@@ -672,6 +905,7 @@ class LegacyProjectImporter
             'quotations' => $count('pm_quotations', $plan['quotations']),
             'files' => $count('pm_files', $plan['files']),
             'improvements' => $count('pm_improvements', $plan['improvements']),
+            'toolings' => Schema::hasTable('pm_toolings') ? $count('pm_toolings', $plan['toolings']) : 0,
         ];
     }
 }

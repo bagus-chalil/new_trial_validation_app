@@ -9,7 +9,9 @@ use Illuminate\Support\Carbon;
 
 /**
  * An improvement suggestion on the Projects module's board. Status flow:
- * Baru, Review PI, Menunggu Data, Disetujui, Tidak Perlu Improvement.
+ * Baru, Review PI, Menunggu Data, Disetujui, Tidak Perlu Improvement, Selesai,
+ * Ditolak. The after_* fields hold the result after the improvement was done
+ * (condition, result, date, PIC, links; evidence files are phase=after).
  * Decision: Pending, To Project, Suggestion Only.
  *
  * @property int $id
@@ -22,12 +24,18 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $submitted_at
  * @property array<int, string>|null $links
  * @property array<int, array<string, mixed>>|null $feedback_log
+ * @property string|null $after_condition
+ * @property string|null $after_result
+ * @property Carbon|null $after_date
+ * @property string $after_pic
+ * @property array<int, mixed>|null $after_links
  * @property Carbon|null $deleted_at
  * @property int|null $deleted_by
  */
 class Improvement extends Model
 {
-    public const STATUSES = ['Baru', 'Review PI', 'Menunggu Data', 'Disetujui', 'Tidak Perlu Improvement'];
+    /** 'Selesai' and 'Ditolak' were added by the production Project Tracking app after 17 Nov. */
+    public const STATUSES = ['Baru', 'Review PI', 'Menunggu Data', 'Disetujui', 'Tidak Perlu Improvement', 'Selesai', 'Ditolak'];
 
     public const DECISIONS = ['Pending', 'To Project', 'Suggestion Only'];
 
@@ -40,6 +48,8 @@ class Improvement extends Model
         return [
             'links' => 'array',
             'feedback_log' => 'array',
+            'after_links' => 'array',
+            'after_date' => 'date',
             'submitted_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];

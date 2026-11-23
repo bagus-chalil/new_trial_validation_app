@@ -24,6 +24,8 @@ class StoreImprovementFileRequest extends FormRequest
     {
         return [
             'description' => ['nullable', 'string', 'max:1000'],
+            // "after" (result evidence) is for reviewers only, see ImprovementFileController.
+            'phase' => ['nullable', 'in:before,after'],
             'file' => ['required', 'file', 'max:'.(ProjectOptions::MAX_UPLOAD_BYTES / 1024)],
         ];
     }

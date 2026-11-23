@@ -7,6 +7,7 @@ import {
     FileEdit,
     FolderKanban,
     Lightbulb,
+    Wrench,
 } from 'lucide-react';
 import TrialController from '@/actions/App/Http/Controllers/TrialController';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
@@ -17,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from '@/hooks/use-translation';
 import { improvementStatusLabel, projectStatusLabel } from '@/lib/project';
+import { toolingActionLabel } from '@/lib/tooling';
 import {
     trialStatusBadgeClassName,
     trialStatusLabel,
@@ -27,6 +29,10 @@ import {
     index as improvementsIndex,
     show as improvementShow,
 } from '@/routes/projects/improvements';
+import {
+    index as toolingsIndex,
+    show as toolingShow,
+} from '@/routes/projects/toolings';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { edit as editTrial } from '@/routes/trials';
 
@@ -84,7 +90,18 @@ type MyImprovement = {
     status: string;
 };
 
+type MyTooling = {
+    id: number;
+    npd_no: string;
+    product_name: string;
+    status: string;
+    action: string;
+    due_date: string | null;
+};
+
 export type MyWork = {
+    myToolings: MyTooling[];
+    myToolingsTotal: number;
     myProjects: MyProject[];
     myProjectsTotal: number;
     myImprovements: MyImprovement[];
@@ -262,6 +279,7 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
     const showProjects = myWork.myProjectsTotal > 0;
     const showImprovements =
         myWork.myImprovementsTotal > 0 || myWork.improvementsToReviewTotal > 0;
+    const showToolings = myWork.myToolingsTotal > 0;
 
     if (
         !showDrafts &&
@@ -270,7 +288,8 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
         !showReviews &&
         !showApprovals &&
         !showProjects &&
-        !showImprovements
+        !showImprovements &&
+        !showToolings
     ) {
         return null;
     }
@@ -367,6 +386,64 @@ export function MyWorkSection({ myWork }: { myWork: MyWork }) {
                                 className="text-xs underline underline-offset-2"
                             >
                                 {t('projects.my_work.projects_view_all')}
+                            </Link>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {showToolings && (
+                    <Card>
+                        <CardHeader className="flex-row items-center gap-2 space-y-0">
+                            <Wrench className="size-4 text-muted-foreground" />
+                            <CardTitle className="text-sm">
+                                {t('toolings.my_work.title')} (
+                                {myWork.myToolingsTotal})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {myWork.myToolings.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="space-y-1 border-b pb-2 last:border-b-0 last:pb-0"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Link
+                                            href={toolingShow(item.id).url}
+                                            className="font-medium underline underline-offset-2"
+                                        >
+                                            {item.npd_no || `#${item.id}`}
+                                        </Link>
+                                        <Badge className="bg-brand text-white">
+                                            {toolingActionLabel(t, item.action)}
+                                        </Badge>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {item.product_name}
+                                        {item.due_date
+                                            ? ` · ${item.due_date}`
+                                            : ''}
+                                    </div>
+                                </div>
+                            ))}
+                            {myWork.myToolingsTotal >
+                                myWork.myToolings.length && (
+                                <p className="text-xs text-muted-foreground">
+                                    {t('dashboard.my_work.more', {
+                                        count:
+                                            myWork.myToolingsTotal -
+                                            myWork.myToolings.length,
+                                    })}
+                                </p>
+                            )}
+                            <Link
+                                href={
+                                    toolingsIndex({
+                                        query: { scope: 'mine' },
+                                    }).url
+                                }
+                                className="text-xs underline underline-offset-2"
+                            >
+                                {t('toolings.my_work.view_all')}
                             </Link>
                         </CardContent>
                     </Card>

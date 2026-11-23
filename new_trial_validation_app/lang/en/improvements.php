@@ -38,6 +38,11 @@ return [
         'pi_suggestion' => 'Suggestion',
         'pi_action' => 'Action',
         'pi_reason' => 'Reason',
+        'after_condition' => 'Condition after the improvement',
+        'after_result' => 'Result',
+        'after_date' => 'Result date',
+        'after_pic' => 'Result PIC',
+        'after_links' => 'Result links',
     ],
     'status' => [
         'Baru' => 'New',
@@ -45,6 +50,8 @@ return [
         'Menunggu Data' => 'Waiting for Data',
         'Disetujui' => 'Approved',
         'Tidak Perlu Improvement' => 'No Improvement Needed',
+        'Selesai' => 'Done',
+        'Ditolak' => 'Rejected',
     ],
     'decision' => [
         'Pending' => 'Pending',
@@ -75,6 +82,10 @@ return [
         'delete_title' => 'Delete improvement?',
         'delete_description' => 'Improvement ":title" will be deleted.',
         'no_review' => 'No review yet.',
+        'section_after' => 'Result (After)',
+        'after_empty' => 'No result recorded yet.',
+        'file_phase_after' => 'Result evidence',
+        'upload_as_after' => 'Upload as result evidence (after)',
     ],
     'log' => [
         'title' => 'Activity History',

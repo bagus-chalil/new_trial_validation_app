@@ -30,6 +30,15 @@ class ReviewImprovement
                 'pi_reason' => $data['pi_reason'] ?? null,
                 'updated_by_name' => $user->name,
             ]);
+            // Result after the improvement was carried out (old app: after* fields).
+            foreach (['after_condition', 'after_result', 'after_date'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $improvement->{$field} = filled($data[$field]) ? $data[$field] : null;
+                }
+            }
+            if (array_key_exists('after_pic', $data)) {
+                $improvement->after_pic = trim((string) $data['after_pic']);
+            }
 
             $log = $improvement->feedback_log ?? [];
             $log[] = [

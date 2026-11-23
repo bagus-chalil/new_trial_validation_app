@@ -212,6 +212,27 @@ export function contextualBreadcrumbs(
             ];
         }
 
+        if (segments[1] === 'toolings') {
+            const board = t('common.nav.project_toolings');
+
+            if (segments.length === 2) {
+                return [item(projects, '/projects'), item(board, '#')];
+            }
+
+            const label =
+                segments[2] === 'create'
+                    ? t('toolings.form.create_title')
+                    : segments[3] === 'edit'
+                      ? t('toolings.form.edit_title')
+                      : t('improvements.show.section_detail');
+
+            return [
+                item(projects, '/projects'),
+                item(board, '/projects/toolings'),
+                item(label, '#'),
+            ];
+        }
+
         if (segments[1] === 'improvements') {
             const board = t('common.nav.project_improvements');
 

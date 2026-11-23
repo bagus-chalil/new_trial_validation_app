@@ -7,12 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * A file attached to a project/stage/quotation. The physical file lives on the
+ * A file attached to a project/stage/quotation or a Check Tooling request
+ * (context=tooling, tooling_id). The physical file lives on the
  * `project_files` disk under `stored_name` (see config/filesystems.php).
  *
  * @property int $id
  * @property int|null $project_id
  * @property int|null $stage_id
+ * @property int|null $tooling_id
  * @property string $context
  * @property string $stored_name
  * @property bool $is_missing

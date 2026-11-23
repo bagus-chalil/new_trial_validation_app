@@ -28,6 +28,10 @@ class ReviewImprovementRequest extends FormRequest
             'pi_suggestion' => ['nullable', 'string', 'max:5000'],
             'pi_action' => ['nullable', 'string', 'max:5000'],
             'pi_reason' => ['nullable', 'string', 'max:5000'],
+            'after_condition' => ['nullable', 'string', 'max:5000'],
+            'after_result' => ['nullable', 'string', 'max:5000'],
+            'after_date' => ['nullable', 'date'],
+            'after_pic' => ['nullable', 'string', 'max:100'],
         ];
     }
 }

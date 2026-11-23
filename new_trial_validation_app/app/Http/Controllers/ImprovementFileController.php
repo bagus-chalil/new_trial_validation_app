@@ -29,6 +29,7 @@ class ImprovementFileController extends Controller
                 $request->file('file'),
                 $request->filled('description') ? (string) $request->input('description') : null,
                 $request->user(),
+                $request->input('phase') === 'after' && $request->user()->can('review', $improvement) ? 'after' : 'before',
             );
         } catch (InvalidArgumentException $e) {
             return back()->withErrors(['file' => $e->getMessage()]);

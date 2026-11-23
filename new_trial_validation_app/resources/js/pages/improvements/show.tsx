@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -62,6 +63,11 @@ type Improvement = {
     pi_action: string | null;
     pi_reason: string | null;
     feedback_log: FeedbackEntry[];
+    after_condition: string | null;
+    after_result: string | null;
+    after_date: string | null;
+    after_pic: string;
+    after_links: { title: string; url: string }[];
 };
 
 type FileItem = {
@@ -71,6 +77,7 @@ type FileItem = {
     description: string | null;
     uploaded_at: string | null;
     is_missing: boolean;
+    phase: string;
     url: string;
 };
 
@@ -444,6 +451,65 @@ export default function ImprovementShow({
                                                 </FieldBlock>
                                             ))}
                                         </div>
+                                        <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
+                                            <h3 className="text-sm font-semibold sm:col-span-2">
+                                                {t(
+                                                    'improvements.show.section_after',
+                                                )}
+                                            </h3>
+                                            {(
+                                                [
+                                                    'after_condition',
+                                                    'after_result',
+                                                ] as const
+                                            ).map((field) => (
+                                                <FieldBlock
+                                                    key={field}
+                                                    label={t(
+                                                        `improvements.fields.${field}`,
+                                                    )}
+                                                    error={errors[field]}
+                                                >
+                                                    <Textarea
+                                                        name={field}
+                                                        rows={3}
+                                                        defaultValue={
+                                                            improvement[
+                                                                field
+                                                            ] ?? ''
+                                                        }
+                                                    />
+                                                </FieldBlock>
+                                            ))}
+                                            <FieldBlock
+                                                label={t(
+                                                    'improvements.fields.after_date',
+                                                )}
+                                                error={errors.after_date}
+                                            >
+                                                <Input
+                                                    type="date"
+                                                    name="after_date"
+                                                    defaultValue={
+                                                        improvement.after_date ??
+                                                        ''
+                                                    }
+                                                />
+                                            </FieldBlock>
+                                            <FieldBlock
+                                                label={t(
+                                                    'improvements.fields.after_pic',
+                                                )}
+                                                error={errors.after_pic}
+                                            >
+                                                <Input
+                                                    name="after_pic"
+                                                    defaultValue={
+                                                        improvement.after_pic
+                                                    }
+                                                />
+                                            </FieldBlock>
+                                        </div>
                                         <div>
                                             <Button
                                                 type="submit"
@@ -533,6 +599,78 @@ export default function ImprovementShow({
                     </CardContent>
                 </Card>
 
+                {!can.review && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                {t('improvements.show.section_after')}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {improvement.after_condition ||
+                            improvement.after_result ||
+                            improvement.after_date ? (
+                                <dl className="grid gap-4 sm:grid-cols-2">
+                                    <Detail
+                                        label={t(
+                                            'improvements.fields.after_condition',
+                                        )}
+                                        value={improvement.after_condition}
+                                    />
+                                    <Detail
+                                        label={t(
+                                            'improvements.fields.after_result',
+                                        )}
+                                        value={improvement.after_result}
+                                    />
+                                    <Detail
+                                        label={t(
+                                            'improvements.fields.after_date',
+                                        )}
+                                        value={improvement.after_date}
+                                    />
+                                    <Detail
+                                        label={t(
+                                            'improvements.fields.after_pic',
+                                        )}
+                                        value={improvement.after_pic}
+                                    />
+                                </dl>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    {t('improvements.show.after_empty')}
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {improvement.after_links.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                {t('improvements.fields.after_links')}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="space-y-1 text-sm">
+                                {improvement.after_links.map((link) => (
+                                    <li key={link.url}>
+                                        <a
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="break-all underline underline-offset-2"
+                                        >
+                                            {link.title || link.url}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </CardContent>
+                    </Card>
+                )}
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-base">
@@ -568,6 +706,16 @@ export default function ImprovementShow({
                                                 </a>
                                             )}
                                             <div className="text-xs text-muted-foreground">
+                                                {f.phase === 'after' && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="mr-1.5 border-emerald-300 text-emerald-800 dark:text-emerald-200"
+                                                    >
+                                                        {t(
+                                                            'improvements.show.file_phase_after',
+                                                        )}
+                                                    </Badge>
+                                                )}
                                                 {formatBytes(f.size_bytes)}
                                                 {f.description
                                                     ? ` · ${f.description}`
@@ -637,6 +785,17 @@ export default function ImprovementShow({
                                         >
                                             <Input name="description" />
                                         </FieldBlock>
+                                        {can.review && (
+                                            <Label className="flex items-center gap-2 sm:order-last sm:col-span-3">
+                                                <Checkbox
+                                                    name="phase"
+                                                    value="after"
+                                                />
+                                                {t(
+                                                    'improvements.show.upload_as_after',
+                                                )}
+                                            </Label>
+                                        )}
                                         <Button
                                             type="submit"
                                             disabled={processing}

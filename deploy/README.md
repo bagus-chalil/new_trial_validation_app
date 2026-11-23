@@ -998,10 +998,12 @@ Tanpa token di `.env`, halaman tetap terbuka tapi menampilkan peringatan "belum 
 
 Memindahkan data app lama Project Tracking PIE (PHP polos, DB `project_tracker`) ke modul **Projects** di
 `new_trial_validation_app` (tabel `pm_*` di `trial_validation_system`). Latar belakang dan keputusan: `PROJECT_MODULE_PLAN.md`.
-Gladi bersih di MySQL lokal sudah sukses (2026-11-23, angka di bawah). **Setiap langkah yang menulis ke DB prod hanya
+Gladi bersih di MySQL lokal sudah sukses (2026-11-23), lalu diulang dengan data prod (dump 23 Nov) setelah Fase 4b
+Check Tooling, ke DB salinan `trial_validation_system_fase4b` (angka di bawah). **Setiap langkah yang menulis ke DB prod hanya
 dijalankan atas perintah eksplisit pemilik; kerjakan di development dulu dengan urutan yang sama.**
 
-Sifat perubahan: hanya menambah 8 tabel `pm_*` (kosong saat dibuat), menambah baris `activity_logs` (`module=PROJECT`)
+Sifat perubahan: hanya menambah 11 tabel `pm_*` (kosong saat dibuat; 3 migration: `2026_11_17_000001`,
+`2026_11_17_000002`, `2026_11_23_000001` Check Tooling), menambah baris `activity_logs` (`module=PROJECT`)
 dan `master_options` (`project_category`, `project_vendor`). Tidak ada tabel Trial yang diubah. Impor membaca
 `project_tracker` saja dan idempoten (kunci `legacy_id`): menjalankannya ulang memperbarui, tidak menggandakan.
 
@@ -1009,8 +1011,8 @@ dan `master_options` (`project_category`, `project_vendor`). Tidak ada tabel Tri
 
 1. Pastikan lokasi app lama di server: path, vhost/port nginx, nama DB, dan user MySQL-nya. Catat di sini:
    `PT_APP_PATH=<isi>`, `PT_NGINX_SITE=<isi>`, DB `project_tracker` di host `<isi>`.
-2. Pastikan folder upload asli app lama (`storage/files`, 131 file per 2026-11-17) dapat dibaca dari server ini;
-   catat `PT_FILES_PATH=<isi>`. Hitung: `find "$PT_FILES_PATH" -type f | wc -l` (harus 131 atau lebih).
+2. Pastikan folder upload asli app lama (`storage/files`, 190 file per dump prod 2026-11-23) dapat dibaca dari server ini;
+   catat `PT_FILES_PATH=<isi>`. Hitung: `find "$PT_FILES_PATH" -type f | wc -l` (harus 190 atau lebih).
 3. Cek padanan PIC di DB prod (harus 1 baris masing-masing, aktif):
    ```sql
    SELECT id,name,email,role,department,is_active FROM users
@@ -1032,14 +1034,14 @@ dan `master_options` (`project_category`, `project_vendor`). Tidak ada tabel Tri
 | 1 | Umumkan jendela cutover; bekukan app lama | nginx site app lama diganti halaman maintenance (atau `return 503`), `sudo nginx -t && sudo systemctl reload nginx` | App lama tidak menerima tulis. Jangan hanya mencabut hak tulis MySQL: app lama menulis sesi/login saat login dan akan error. |
 | 2 | Backup DB prod (sebelum push, karena pipeline menjalankan `migrate --force`) | `mysqldump --single-transaction --routines --triggers --events --hex-blob trial_validation_system > /root/cutover/tvs_before_pm_$(date +%F_%H%M).sql` dan `mysqldump ... project_tracker > /root/cutover/project_tracker_final.sql` | Dua file, ukuran > 0, baris terakhir `-- Dump completed`. |
 | 3 | Catat jumlah baris semua tabel `trial_validation_system` | query `UNION ALL COUNT(*)` (lihat contoh di `PROJECT_MODULE_PLAN.md` §7 Fase 5) ke `counts_before.txt` | Baseline. |
-| 4 | Deploy: merge `feat/integration-project-tracking` → `development` → `production` | Pipeline `production`: test → deploy → `build_new_trial_validation_app_production` | Job hijau; log memuat `2026_11_17_000001 ... DONE` dan `_000002 ... DONE`. Tidak ada migration lain yang Pending sebelumnya (cek `migrate:status` di development dulu). |
-| 5 | Bandingkan jumlah baris | ulangi #3 ke `counts_after_migrate.txt`, `diff` | Hanya `migrations` +2 dan 8 tabel `pm_*` = 0. |
-| 6 | Dry-run impor | `cd $DEPLOY_PATH/new_trial_validation_app && sudo -u www-data php artisan projects:import-legacy --dry-run --user-map=/root/cutover/user-map.json --files-path="$PT_FILES_PATH"` (tambahkan `PT_DB_*` ke `.env` dulu bila `project_tracker` tidak di host/kredensial yang sama) | Angka sama dengan sumber (lokal: 43 project / 249 stage / 24 quotation / 1 milestone / 130+1 file / 859 log / 1 improvement / 3 template). `Physical files vs source dir: {"ok":131}` (tidak ada `missing` / `size-differs`; kalau ada, berhenti dan cek folder dulu). "Names kept as plain text": hanya akun departemen. |
-| 7 | Impor sungguhan | perintah #6 tanpa `--dry-run` | Tabel Result: semua `created`, `files_copy {"copied":131}` (ukuran diverifikasi per file; selisih ukuran = command gagal dan transaksi DB-nya batal; perbaiki lalu ulangi). |
-| 8 | Verifikasi baris | ulangi #3 → `diff` dengan #5 | `pm_*` sesuai #6; `activity_logs` +860 (859 log lama + 1 log `IMPORT`); `master_options` bertambah paling banyak 20; tabel lain sama. `SELECT pic_name,pic_user_id,COUNT(*) FROM pm_projects GROUP BY 1,2` → Zahra/Rozy punya `pic_user_id`. |
+| 4 | Deploy: merge `feat/integration-project-tracking` → `development` → `production` | Pipeline `production`: test → deploy → `build_new_trial_validation_app_production` | Job hijau; log memuat `2026_11_17_000001 ... DONE`, `2026_11_17_000002 ... DONE` dan `2026_11_23_000001 ... DONE`. Tidak ada migration lain yang Pending sebelumnya (cek `migrate:status` di development dulu). |
+| 5 | Bandingkan jumlah baris | ulangi #3 ke `counts_after_migrate.txt`, `diff` | Hanya `migrations` +3 dan 11 tabel `pm_*` = 0. |
+| 6 | Dry-run impor | `cd $DEPLOY_PATH/new_trial_validation_app && sudo -u www-data php artisan projects:import-legacy --dry-run --user-map=/root/cutover/user-map.json --files-path="$PT_FILES_PATH"` (tambahkan `PT_DB_*` ke `.env` dulu bila `project_tracker` tidak di host/kredensial yang sama) | Angka sama dengan sumber (gladi data prod 23 Nov: 45 project / 274 stage / 31 quotation / 1 milestone / 184+6 file / 1155 log / 4 improvement / 15 check tooling, 72 baris tool, 28 tanda tangan / 4 template; `Tooling files linked: 29`, improvement file before/after 4/2; status tooling 9 Menunggu RNI & Sampel / 5 Review Production / 1 Approved). `Physical files vs source dir: {"ok":190}` (tidak ada `missing` / `size-differs`; kalau ada, berhenti dan cek folder dulu). "Names kept as plain text": hanya akun departemen. |
+| 7 | Impor sungguhan | perintah #6 tanpa `--dry-run` | Tabel Result: semua `created` (toolings 15, tooling_approvals 37 termasuk kotak yang belum ditandatangani), `files_copy {"copied":190}` (ukuran diverifikasi per file; selisih ukuran = command gagal dan transaksi DB-nya batal; perbaiki lalu ulangi). |
+| 8 | Verifikasi baris | ulangi #3 → `diff` dengan #5 | `pm_*` sesuai #6; `activity_logs` +1156 (1155 log lama + 1 log `IMPORT`); `master_options` bertambah paling banyak 24 (4 kategori + 20 vendor); tabel lain sama. `SELECT pic_name,pic_user_id,COUNT(*) FROM pm_projects GROUP BY 1,2` → Zahra/Rozy punya `pic_user_id`. |
 | 9 | Idempotensi | dry-run #6 sekali lagi | Kolom "Already in target" = jumlah sumber. |
 | 10 | Sync stage | `php artisan projects:sync-trial-stages --dry-run` lalu tanpa `--dry-run` | `Linked trials: 0` (belum ada tautan pada impor pertama). |
-| 11 | Verifikasi live | login sebagai Admin dan sebagai Zahra/Rozy: Portofolio (43 project), detail project (stage, quotation, file bisa diunduh, Riwayat Aktivitas berisi teks app lama), Gantt, Improvement (riwayat umpan balik bertanggal), Pekerjaan Saya | Tanpa 500; file terbuka (bukan "File tidak ditemukan"). |
+| 11 | Verifikasi live | login sebagai Admin dan sebagai Zahra/Rozy: Portofolio (45 project), Check Tooling (15 request; tanda tangan lama tampil sebagai gambar; satu akun PRNI/RNI/PROD/PIE melihat tugasnya di Pekerjaan Saya), detail project (stage, quotation, file bisa diunduh, Riwayat Aktivitas berisi teks app lama), Gantt, Improvement (riwayat umpan balik bertanggal), Pekerjaan Saya | Tanpa 500; file terbuka (bukan "File tidak ditemukan"). |
 | 12 | Alihkan app lama | nginx site app lama: `return 302 https://<IP>:9011/projects;` (biarkan halaman maintenance bila ingin pengumuman dulu) | Bookmark lama mendarat di modul baru. |
 | 13 | Bersihkan | hapus `PT_DB_*`/`PT_FILES_PATH` dari `.env` (bila ditambahkan), `php artisan config:clear` | `.env` tidak lagi menunjuk ke DB lama. |
 
@@ -1056,8 +1058,9 @@ dan `master_options` (`project_category`, `project_vendor`). Tidak ada tabel Tri
 Perubahan additive, jadi rollback **tidak** dengan me-restore backup penuh (itu menghapus data Trial yang masuk
 setelah backup). Urutannya:
 1. Buka lagi app lama (kembalikan site nginx-nya). Data `project_tracker` tidak pernah diubah.
-2. Bila data impor perlu dibuang: `TRUNCATE` ke-8 tabel `pm_*`, lalu
-   `DELETE FROM activity_logs WHERE module='PROJECT' AND (action IN ('LEGACY_LOG','IMPORT'))`. Tabel tetap ada (aman,
+2. Bila data impor perlu dibuang: `TRUNCATE` ke-11 tabel `pm_*`, lalu
+   `DELETE FROM activity_logs WHERE module='PROJECT' AND (action IN ('LEGACY_LOG','IMPORT'))`
+   (dan `module IN ('TOOLING','IMPROVEMENT')` bila aktivitas baru setelah cutover juga ingin dibuang). Tabel tetap ada (aman,
    modul tampil kosong). File yang tersalin ada di `new_trial_validation_app/storage/app/project-files` dan boleh dihapus.
 3. Impor bisa diulang kapan saja (idempoten).
 

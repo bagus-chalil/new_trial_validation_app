@@ -8,6 +8,9 @@ use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectQuotation;
 use App\Models\ProjectStage;
+use App\Models\Tooling;
+use App\Models\ToolingApproval;
+use App\Models\ToolingItem;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -253,4 +256,103 @@ test('an explicit user map resolves names that do not match automatically', func
     pmRunImport($dir, ['--user-map' => $mapFile]);
 
     expect(Project::where('legacy_id', 'proj-a')->value('pic_user_id'))->toBe($user->id);
+});
+
+test('the Check Tooling migration is additive and a re-run is a no-op', function () {
+    foreach (['pm_toolings', 'pm_tooling_items', 'pm_tooling_approvals'] as $table) {
+        expect(Schema::hasTable($table))->toBeTrue($table);
+    }
+    expect(Schema::hasColumn('pm_files', 'tooling_id'))->toBeTrue()
+        ->and(Schema::hasColumn('pm_improvements', 'after_result'))->toBeTrue()
+        ->and(Schema::hasColumn('pm_improvement_files', 'phase'))->toBeTrue();
+
+    Tooling::create(['npd_no' => 'keep']);
+    (require database_path('migrations/2026_11_23_000001_create_pm_tooling_tables.php'))->up();
+
+    expect(Tooling::where('npd_no', 'keep')->count())->toBe(1);
+});
+
+test('import brings Check Tooling requests with tools, legacy signatures, linked files and improvement after-results', function () {
+    $signer = User::factory()->create(['name' => 'Andra', 'email' => 'andra@example.test']);
+    $dir = pmLegacySource();
+    $sig = 'data:image/png;base64,'.base64_encode('png-bytes');
+
+    $src = DB::connection('legacy_src');
+    $state = json_decode((string) $src->table('settings')->where('key_name', 'tracker_state')->value('value_json'), true);
+    $state['improvements'][0]['afterCondition'] = 'Guide centered';
+    $state['improvements'][0]['afterResult'] = 'Trial OK';
+    $state['improvements'][0]['afterDate'] = '2026-11-17';
+    $state['improvements'][0]['afterPic'] = 'Rozy';
+    $state['improvements'][0]['afterAttachments'] = [['id' => 'aa-1', 'file' => 'IMP-AFTER-imp-1_b.jpg', 'name' => 'after.jpg', 'size' => 2, 'type' => 'image/jpeg', 'description' => 'After photo']];
+    $state['toolings'] = [
+        [
+            'id' => 'tlg-1', 'npdNo' => '1138/NPD/PKD/11/2026', 'productName' => 'Cushion SKaeLab', 'packagingType' => 'Cushion',
+            'status' => 'Review Production', 'sampleStatus' => 'Selesai Dicek', 'submittedBy' => 'PRNI', 'submittedAt' => 1794000000000,
+            'piOwner' => 'Unknown PIE', 'needInvest' => 'NO', 'riskLevel' => 'Low risk', 'productType' => 'make_up',
+            'tools' => [['id' => 't1', 'tool' => 'Turn Table Set', 'actual' => 'OK', 'status' => 'OK'], ['id' => 't2', 'tool' => '', 'actual' => '', 'status' => '']],
+            'approvals' => [
+                ['role' => 'prni', 'approved' => true, 'name' => 'Andra', 'date' => '2026-11-12', 'at' => 1794476325928, 'sig' => $sig, 'signedBy' => 'PRNI'],
+                ['role' => 'rni', 'approved' => true, 'name' => 'Naya - RNI', 'date' => '2026-11-23', 'sig' => 'javascript:alert(1)', 'signedBy' => 'RNI'],
+                ['role' => 'pi', 'approved' => true, 'name' => 'Zahra', 'date' => '2026-11-23'],
+            ],
+            'attachments' => [['id' => 'ta-1', 'file' => 'TLG-tlg-1_a.pdf', 'name' => 'drawing.pdf', 'size' => 3, 'type' => 'application/pdf', 'description' => 'Drawing']],
+            'links' => [['id' => 'l1', 'title' => 'Spec', 'url' => 'https://example.test/spec'], ['title' => 'Bad', 'url' => 'javascript:x']],
+            'historyLog' => [['by' => 'PRNI', 'at' => 1794476325928, 'status' => 'Submitted', 'action' => 'Membuat request Check Tooling baru', 'note' => '']],
+        ],
+        ['id' => 'tlg-2', 'npdNo' => '1150/NPD', 'status' => 'Submitted', 'sampleStatus' => 'Menunggu Sampel', 'approvals' => [['role' => 'prni', 'approved' => true, 'name' => 'Mella']]],
+    ];
+    $src->table('settings')->where('key_name', 'tracker_state')->update(['value_json' => json_encode($state)]);
+    // The fixture's TLG-x_a.pdf (f5) stays an orphan; add the linked one and an after file.
+    $src->table('project_files')->insert([
+        ['id' => 'f6', 'project_id' => null, 'file_name' => 'drawing.pdf', 'mime_type' => 'application/pdf', 'size_bytes' => 3, 'stored_name' => 'TLG-tlg-1_a.pdf'],
+        ['id' => 'f7', 'project_id' => null, 'file_name' => 'after.jpg', 'mime_type' => 'image/jpeg', 'size_bytes' => 2, 'stored_name' => 'IMP-AFTER-imp-1_b.jpg'],
+    ]);
+    file_put_contents($dir.'/TLG-tlg-1_a.pdf', 'pdf');
+    file_put_contents($dir.'/IMP-AFTER-imp-1_b.jpg', 'ab');
+
+    // Simulate an earlier (pre-Fase-4b) import that put the after file in pm_files.
+    ProjectFile::create(['legacy_id' => 'f7', 'context' => 'project', 'file_name' => 'after.jpg', 'mime_type' => 'image/jpeg', 'stored_name' => 'IMP-AFTER-imp-1_b.jpg']);
+
+    expect(pmRunImport($dir, ['--dry-run' => true]))->toBe(0);
+    expect(Artisan::output())->toContain('check toolings')
+        ->and(Tooling::count())->toBe(0);
+
+    expect(pmRunImport($dir))->toBe(0);
+
+    $t = Tooling::where('legacy_id', 'tlg-1')->firstOrFail();
+    expect($t->status)->toBe('Review Production')
+        ->and($t->product_type)->toBe('make_up')
+        ->and($t->pi_owner_user_id)->toBeNull()
+        ->and($t->pi_owner_name)->toBe('Unknown PIE')
+        ->and($t->items()->count())->toBe(2)
+        ->and($t->links)->toBe([['title' => 'Spec', 'url' => 'https://example.test/spec']])
+        ->and($t->history_log)->toHaveCount(1);
+    $prni = $t->approvalFor('prni');
+    expect($prni->signer_user_id)->toBe($signer->id)
+        ->and($prni->signature_method)->toBe('legacy')
+        ->and($prni->signature_image)->toBe($sig)
+        ->and($prni->signed_by_account)->toBe('PRNI')
+        ->and($t->approvalFor('rni')->signature_image)->toBeNull(); // not a data: image => dropped
+
+    // 'Submitted' is not a real status: derived from signatures + sample instead.
+    expect(Tooling::where('legacy_id', 'tlg-2')->value('status'))->toBe('Menunggu RNI & Sampel');
+
+    expect(ProjectFile::where('legacy_id', 'f6')->value('tooling_id'))->toBe($t->id)
+        ->and(ProjectFile::where('legacy_id', 'f6')->value('description'))->toBe('Drawing')
+        ->and(ProjectFile::where('legacy_id', 'f5')->value('tooling_id'))->toBeNull()
+        ->and(ProjectFile::where('legacy_id', 'f7')->exists())->toBeFalse();
+
+    $after = ImprovementFile::where('legacy_id', 'f7')->firstOrFail();
+    $imp = Improvement::where('legacy_id', 'imp-1')->firstOrFail();
+    expect($after->phase)->toBe('after')
+        ->and($after->improvement_id)->toBe($imp->id)
+        ->and($after->description)->toBe('After photo')
+        ->and($imp->after_result)->toBe('Trial OK')
+        ->and($imp->after_date->toDateString())->toBe('2026-11-17');
+
+    // Idempotent.
+    $counts = fn () => [Tooling::count(), ToolingItem::count(), ToolingApproval::count(), ProjectFile::count(), ImprovementFile::count()];
+    $before = $counts();
+    pmRunImport($dir);
+    expect($counts())->toBe($before);
 });

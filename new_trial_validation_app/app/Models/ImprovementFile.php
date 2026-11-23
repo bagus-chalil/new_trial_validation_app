@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
  * @property int $improvement_id
  * @property string $stored_name
  * @property bool $is_missing
+ * @property string $phase before (proposal attachment) or after (result evidence)
  * @property Carbon|null $uploaded_at
  */
 class ImprovementFile extends Model

@@ -38,6 +38,11 @@ return [
         'pi_suggestion' => '제안',
         'pi_action' => '조치',
         'pi_reason' => '사유',
+        'after_condition' => '개선 후 상태',
+        'after_result' => '결과',
+        'after_date' => '결과 일자',
+        'after_pic' => '결과 담당자',
+        'after_links' => '결과 링크',
     ],
     'status' => [
         'Baru' => '신규',
@@ -45,6 +50,8 @@ return [
         'Menunggu Data' => '데이터 대기',
         'Disetujui' => '승인됨',
         'Tidak Perlu Improvement' => '개선 불필요',
+        'Selesai' => '완료',
+        'Ditolak' => '반려',
     ],
     'decision' => [
         'Pending' => '대기',
@@ -75,6 +82,10 @@ return [
         'delete_title' => '개선 제안을 삭제할까요?',
         'delete_description' => '개선 제안 ":title"이(가) 삭제됩니다.',
         'no_review' => '아직 검토가 없습니다.',
+        'section_after' => '결과 (After)',
+        'after_empty' => '기록된 결과가 없습니다.',
+        'file_phase_after' => '결과 증빙',
+        'upload_as_after' => '결과 증빙(after)으로 업로드',
     ],
     'log' => [
         'title' => '활동 이력',

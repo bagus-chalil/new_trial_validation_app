@@ -16,7 +16,7 @@ class StoreImprovementFile
 {
     public function __construct(private readonly LogImprovementActivity $log) {}
 
-    public function __invoke(Improvement $improvement, UploadedFile $upload, ?string $description, User $user): ImprovementFile
+    public function __invoke(Improvement $improvement, UploadedFile $upload, ?string $description, User $user, string $phase = 'before'): ImprovementFile
     {
         $originalName = $upload->getClientOriginalName();
         ['extension' => $extension, 'mime' => $detected] = ProjectUploadGuard::check($upload);
@@ -35,6 +35,7 @@ class StoreImprovementFile
             'stored_name' => $stored,
             'description' => $description,
             'uploaded_at' => Carbon::now(),
+            'phase' => $phase === 'after' ? 'after' : 'before',
         ]);
 
         ($this->log)($user, 'UPLOAD_FILE', $improvement, null, ['file' => $file->file_name]);

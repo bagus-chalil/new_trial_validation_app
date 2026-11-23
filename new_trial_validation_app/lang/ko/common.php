@@ -37,6 +37,7 @@ return [
         'project_quotations' => '견적 및 PO',
         'project_gantt' => '간트',
         'project_improvements' => '개선 제안',
+        'project_toolings' => '금형 점검',
         'old_app' => '기존 애플리케이션',
         'open_old_app' => '기존 애플리케이션 열기',
     ],

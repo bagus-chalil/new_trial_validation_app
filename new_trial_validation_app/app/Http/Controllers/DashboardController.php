@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Improvement;
 use App\Models\MasterOption;
 use App\Models\Project;
+use App\Models\Tooling;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
+use App\Services\Projects\ToolingWorkflow;
+use App\Support\ToolingOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -247,6 +250,18 @@ class DashboardController extends Controller
         $canReviewImprovements = Gate::forUser($user)->allows('review', new Improvement);
         $improvementsToReviewTotal = $canReviewImprovements ? (clone $piReviewQuery)->count() : 0;
 
+        // Check Tooling: open requests waiting on a step this user's role can take.
+        $myToolingRows = Tooling::query()
+            ->whereNull('deleted_at')
+            ->whereNotIn('status', ToolingOptions::FINAL_STATUSES)
+            ->with('approvals')
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Tooling $t) => ['tooling' => $t, 'action' => ToolingWorkflow::pendingActionFor($t, $user)])
+            ->filter(fn (array $row) => $row['action'] !== null)
+            ->values();
+
         $trialSummary = fn (Trial $t) => [
             'id' => $t->id,
             'trial_code' => $t->trial_code,
@@ -277,6 +292,15 @@ class DashboardController extends Controller
                 'status' => $i->status,
             ])->values(),
             'myImprovementsTotal' => $myImprovementsTotal,
+            'myToolings' => $myToolingRows->take(5)->map(fn (array $row) => [
+                'id' => $row['tooling']->id,
+                'npd_no' => $row['tooling']->npd_no,
+                'product_name' => $row['tooling']->product_name,
+                'status' => $row['tooling']->status,
+                'action' => $row['action'],
+                'due_date' => $row['tooling']->due_date?->toDateString(),
+            ])->values(),
+            'myToolingsTotal' => $myToolingRows->count(),
             'canReviewImprovements' => $canReviewImprovements,
             'improvementsToReviewTotal' => $improvementsToReviewTotal,
             'draftTrials' => $draftTrials->map($draftTrialSummary)->values(),

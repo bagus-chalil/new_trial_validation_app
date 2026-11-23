@@ -107,6 +107,14 @@ class ImprovementController extends Controller
                 'pi_reason' => $improvement->pi_reason,
                 'feedback_log' => $this->feedbackLog($improvement->feedback_log),
                 'updated_by_name' => $improvement->updated_by_name,
+                'after_condition' => $improvement->after_condition,
+                'after_result' => $improvement->after_result,
+                'after_date' => $improvement->after_date?->toDateString(),
+                'after_pic' => $improvement->after_pic,
+                'after_links' => collect($improvement->after_links ?? [])
+                    ->filter(fn ($l) => is_array($l) && preg_match('#^https?://#i', (string) ($l['url'] ?? '')) === 1)
+                    ->map(fn ($l) => ['title' => (string) ($l['title'] ?? ''), 'url' => (string) $l['url']])
+                    ->values(),
             ],
             'project' => $project ? ['id' => $project->id, 'name' => $project->name, 'code' => $project->code] : null,
             'files' => $files->map(fn (ImprovementFile $f) => [
@@ -117,6 +125,7 @@ class ImprovementController extends Controller
                 'description' => $f->description,
                 'uploaded_at' => $f->uploaded_at?->format('Y-m-d H:i'),
                 'is_missing' => $f->is_missing,
+                'phase' => $f->phase,
                 'url' => route('projects.improvements.files.show', [$improvement->id, $f->id]),
             ])->values(),
             'logs' => $logs->map(fn (ActivityLog $l) => [

@@ -38,6 +38,11 @@ return [
         'pi_suggestion' => 'Saran',
         'pi_action' => 'Tindakan',
         'pi_reason' => 'Alasan',
+        'after_condition' => 'Kondisi setelah perbaikan',
+        'after_result' => 'Hasil',
+        'after_date' => 'Tanggal hasil',
+        'after_pic' => 'PIC hasil',
+        'after_links' => 'Tautan hasil',
     ],
     'status' => [
         'Baru' => 'Baru',
@@ -45,6 +50,8 @@ return [
         'Menunggu Data' => 'Menunggu Data',
         'Disetujui' => 'Disetujui',
         'Tidak Perlu Improvement' => 'Tidak Perlu Improvement',
+        'Selesai' => 'Selesai',
+        'Ditolak' => 'Ditolak',
     ],
     'decision' => [
         'Pending' => 'Menunggu',
@@ -75,6 +82,10 @@ return [
         'delete_title' => 'Hapus improvement?',
         'delete_description' => 'Improvement ":title" akan dihapus.',
         'no_review' => 'Belum ada tinjauan.',
+        'section_after' => 'Hasil (After)',
+        'after_empty' => 'Belum ada catatan hasil.',
+        'file_phase_after' => 'Bukti hasil',
+        'upload_as_after' => 'Unggah sebagai bukti hasil (after)',
     ],
     'log' => [
         'title' => 'Riwayat Aktivitas',
