@@ -18,7 +18,7 @@ import { IpcShell } from '@/layouts/ipc-shell';
 import { limitDecimals } from '@/lib/decimal';
 import { type RecentBatch, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Camera, CheckCircle2, ClipboardList, Trash2 } from 'lucide-react';
+import { Camera, CheckCircle2, ClipboardList, Lock, Trash2 } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 interface Batch {
@@ -895,20 +895,36 @@ export default function StartupCheckEdit({
                                             </div>
                                             {key === 'im_number' && (
                                                 <div className="flex flex-col gap-1.5">
-                                                    <Label htmlFor="im_document_number" className="text-muted-foreground text-xs font-semibold">
-                                                        Nomor IM (No instruksi mutu)
-                                                    </Label>
-                                                    <Input
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <Label htmlFor="im_document_number" className="text-muted-foreground text-xs font-semibold">
+                                                            Nomor IM (No instruksi mutu)
+                                                        </Label>
+                                                        {imLocked && !isReadOnly && (
+                                                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                                                <Lock className="size-3" strokeWidth={2.4} />
+                                                                Terisi dari AI
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {/* IM numbers are long product titles: a wrapping textarea (single logical line, Enter blocked)
+                                                        keeps the whole number readable in the narrow photo column instead of cutting it off. */}
+                                                    <Textarea
                                                         id="im_document_number"
-                                                        className={`${inputClass} ${errorFields.has('im_document_number') ? errorBorder : ''}`}
+                                                        rows={3}
+                                                        className={`border-border bg-background text-foreground placeholder:text-muted-foreground/50 min-h-[46px] resize-none rounded-xl border-[1.5px] px-3.5 py-2.5 text-[13.5px] leading-snug font-semibold break-words md:text-[13.5px] ${imLocked ? 'bg-muted/60 cursor-default' : ''} ${errorFields.has('im_document_number') ? errorBorder : ''}`}
                                                         value={data.im_document_number ?? ''}
                                                         maxLength={150}
                                                         placeholder="Tulis nomor IM dari dokumen"
                                                         autoComplete="off"
-                                                        disabled={isReadOnly || imLocked}
+                                                        spellCheck={false}
+                                                        disabled={isReadOnly}
                                                         readOnly={imLocked}
+                                                        title={data.im_document_number ?? undefined}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') e.preventDefault();
+                                                        }}
                                                         onChange={(e) => {
-                                                            setData('im_document_number', e.target.value);
+                                                            setData('im_document_number', e.target.value.replace(/[\r\n]+/g, ' '));
                                                             setErrorFields((prev) => {
                                                                 const n = new Set(prev);
                                                                 n.delete('im_document_number');
