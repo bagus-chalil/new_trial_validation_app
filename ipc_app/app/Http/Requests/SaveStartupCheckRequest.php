@@ -37,7 +37,8 @@ class SaveStartupCheckRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('im_document_number'))) {
-            $this->merge(['im_document_number' => trim((string) preg_replace('/\s+/', ' ', $this->input('im_document_number')))]);
+            // Stored upper case (user decision 2026-11-23), same as the IM document prints it.
+            $this->merge(['im_document_number' => mb_strtoupper(trim((string) preg_replace('/\s+/', ' ', $this->input('im_document_number'))))]);
         }
 
         $this->normalizeDecimalCommas(['filling_range_min', 'filling_range_max', 'density', 'average_of_empty_bottle_weight']);

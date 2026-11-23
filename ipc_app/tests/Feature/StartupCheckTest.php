@@ -112,8 +112,8 @@ class StartupCheckTest extends TestCase
             ->assertSessionHasErrors('im_document_number');
         $this->assertNull(StartupCheck::query()->where('ipc_batch_id', $batch->id)->first());
 
-        // Extra spaces are tidied, the number itself is kept as typed.
-        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'im_document_number' => '  IM-ABC   V2 '])
+        // Extra spaces are tidied and the number is stored upper case.
+        $this->put("/batches/{$batch->id}/startup-check", [...$this->validPayload(), 'im_document_number' => '  im-abc   v2 '])
             ->assertSessionHasNoErrors();
         $this->assertSame('IM-ABC V2', StartupCheck::query()->where('ipc_batch_id', $batch->id)->value('im_document_number'));
     }

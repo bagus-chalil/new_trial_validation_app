@@ -924,7 +924,7 @@ export default function StartupCheckEdit({
                                                             if (e.key === 'Enter') e.preventDefault();
                                                         }}
                                                         onChange={(e) => {
-                                                            setData('im_document_number', e.target.value.replace(/[\r\n]+/g, ' '));
+                                                            setData('im_document_number', e.target.value.replace(/[\r\n]+/g, ' ').toUpperCase());
                                                             setErrorFields((prev) => {
                                                                 const n = new Set(prev);
                                                                 n.delete('im_document_number');
