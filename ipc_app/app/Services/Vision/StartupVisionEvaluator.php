@@ -113,7 +113,9 @@ class StartupVisionEvaluator
 
         if ($fieldType === 'im_document' && trim((string) ($entered['im_document_number'] ?? '')) === '') {
             $read = trim((string) ($raw['im_number'] ?? ''));
-            if ($read !== '' && $this->trusted($raw, 'im_number')) {
+            // A doubtful read is still offered (the form fills it but leaves the input open, see
+            // imNumberItem 'lock'), so the operator checks it against the IM instead of typing it all.
+            if ($read !== '') {
                 $out[] = ['field' => 'im_document_number', 'label' => 'Nomor IM', 'value' => $read, 'display' => $read];
             }
         }
@@ -349,18 +351,24 @@ class StartupVisionEvaluator
         }
 
         $trusted = $this->trusted($raw, 'im_number');
+        // Read, but the AI is not sure (its reads disagreed): the photo itself is usually fine, so no retake advice.
+        $doubtful = 'AI membaca "'.$read.'" tetapi belum yakin (hasil baca antar percobaan berbeda). Cocokkan dengan No. instruksi mutu di dokumen IM dan perbaiki bila ada huruf yang salah.';
 
-        // Nothing typed yet: the form fills it from the trusted read and locks the input ('lock').
+        // Nothing typed yet: the form fills it from the read. A trusted read locks the input ('lock');
+        // a doubtful one is filled as a suggestion and the input stays open for correction.
         if ($typed === '') {
-            return [...$this->item('im_number', 'Nomor IM', null, $read, self::INFO, $trusted ? 'Terisi otomatis dari foto IM.' : $manual, retake: ! $trusted), 'lock' => $trusted];
+            return [...$this->item('im_number', 'Nomor IM', null, $read, self::INFO, $trusted ? 'Terisi otomatis dari foto IM.' : $doubtful), 'lock' => $trusted];
         }
 
         $item = $this->compare(
             'im_number', 'Nomor IM', $typed, $read, $trusted,
             fn () => $this->normIm($read) === $this->normIm($typed),
             null,
-            $manual,
+            $doubtful,
         );
+        if (! $trusted) {
+            $item['retake'] = false;
+        }
 
         // Locks the form input only while it agrees with a trusted read (never traps a wrong typed value).
         $item['lock'] = $trusted && $this->normIm($read) === $this->normIm($typed);
