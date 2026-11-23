@@ -584,6 +584,19 @@ class StartupAiTest extends TestCase
         $this->assertSame('match', $items->firstWhere('key', 'im_number')['verdict']);
     }
 
+    public function test_im_number_ignores_hyphens_and_spacing_and_locks_the_input(): void
+    {
+        $batch = $this->makeBatch(36);
+        $this->photo($batch, 'im_number');
+        $this->fakeVision($this->imRaw(['im_number' => 'IM-KKI-RRR MOSSERU CREAM CLEANSER 100ML - V2']));
+
+        $item = collect($this->read($batch, 'im_number', ['im_document_number' => 'IM - KKI - RRR - MOSSERU CREAM CLEANSER 100ML - V2'])->json('items'))
+            ->firstWhere('key', 'im_number');
+
+        $this->assertSame('match', $item['verdict']);
+        $this->assertTrue($item['lock']);
+    }
+
     public function test_a_different_typed_im_number_is_flagged(): void
     {
         $batch = $this->makeBatch(36);

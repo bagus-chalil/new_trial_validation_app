@@ -350,19 +350,22 @@ class StartupVisionEvaluator
 
         $trusted = $this->trusted($raw, 'im_number');
 
-        // Nothing typed yet: show what the AI read (offered as "Pakai saran"), nothing to compare with.
+        // Nothing typed yet: the form fills it from the trusted read and locks the input ('lock').
         if ($typed === '') {
-            return $this->item('im_number', 'Nomor IM', null, $read, self::INFO, $trusted ? 'Isi Nomor IM di form, atau pakai saran AI.' : $manual, retake: ! $trusted);
+            return [...$this->item('im_number', 'Nomor IM', null, $read, self::INFO, $trusted ? 'Terisi otomatis dari foto IM.' : $manual, retake: ! $trusted), 'lock' => $trusted];
         }
 
-        $norm = fn (string $v): string => strtoupper((string) preg_replace('/\s+/', '', $v));
-
-        return $this->compare(
+        $item = $this->compare(
             'im_number', 'Nomor IM', $typed, $read, $trusted,
-            fn () => $norm($read) === $norm($typed),
+            fn () => $this->normIm($read) === $this->normIm($typed),
             null,
             $manual,
         );
+
+        // Locks the form input only while it agrees with a trusted read (never traps a wrong typed value).
+        $item['lock'] = $trusted && $this->normIm($read) === $this->normIm($typed);
+
+        return $item;
     }
 
     /** @return array{0: list<array<string, mixed>>, 1: bool, 2: ?string} */
@@ -696,6 +699,12 @@ class StartupVisionEvaluator
         return (bool) ($raw['legible'][$key] ?? false)
             && (bool) ($raw['format_ok'][$key] ?? false)
             && (bool) ($raw['view_agreement'][$key] ?? false);
+    }
+
+    /** IM number key: letters and digits only, so "-" / " - " / spaces between the same words never count as a difference. */
+    private function normIm(?string $value): string
+    {
+        return (string) preg_replace('/[^A-Z0-9]/', '', strtoupper((string) $value));
     }
 
     private function normBatch(?string $value): string
