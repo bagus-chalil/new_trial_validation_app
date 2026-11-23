@@ -266,15 +266,24 @@ Definisi selesai: dari stage Validation PIC bisa membuat draft Trial dan statusn
 ### Prompt Fase 5 (tempel di chat baru)
 
 ```
-Lanjutkan penggabungan Project Tracking PIE ke new_trial_validation_app/ (branch feat/integration-project-tracking). Baca dulu: PROJECT_MODULE_PLAN.md (bagian 1, 5 Fase 5, bagian 7 "Hasil Fase 1-4", terutama K1-K4), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (bagian "Projects module" Fase 1-4; insiden DB 2026-08-24; aturan prod additive-only), deploy/README.md. Fase 1-4 selesai dan di-push.
+Lanjutkan penggabungan Project Tracking PIE ke new_trial_validation_app/ (branch feat/integration-project-tracking). Baca dulu: PROJECT_MODULE_PLAN.md (bagian 1, 2, 5 Fase 5, bagian 7 "Hasil Fase 1-4" termasuk K1-K4), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (bagian "Projects module" Fase 1-4; insiden DB 2026-08-24; aturan prod additive-only), deploy/README.md. Fase 1-4 selesai dan di-push.
 
-Kerjakan HANYA Fase 5 (Cutover), dan MINTA PERSETUJUAN SAYA sebelum setiap langkah yang menulis ke DB bersama/prod:
-1. Rencana cutover tertulis: urutan deploy branch ini (migration pm_* berjalan lewat pipeline `migrate --force`), backup DB prod, freeze app lama (read-only), impor final `projects:import-legacy` (dry-run dulu, cocokkan angka bagian 2; petakan PIC Zahra/Rozy lewat --user-map; folder file asli lewat --files-path), verifikasi jumlah baris, lalu `projects:sync-trial-stages`.
-2. Putuskan bersama saya: K1 (akun departemen bersama), K3 (UI budget/actual), K4 (stage Completed yang ditautkan ulang), apakah `projects:sync-trial-stages` dijadwalkan (selama app lama masih mengubah status trial).
-3. Portal: link/redirect ke modul Projects (portal/config.js), update deploy/README.md.
-4. Arsipkan project_tracker setelah verifikasi.
-Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama, jangan pakai factory di tinker, jangan menyentuh/commit Project-Tracking-PIE-Team/, tidak ada impor sungguhan sebelum saya menyetujui eksplisit dan backup ada.
-Definisi selesai: data Project Tracking ada di DB prod dan cocok dengan sumber, app lama dibekukan, portal mengarah ke modul baru. Di akhir ikuti ritual penutup bagian 6.
+Kondisi per 2026-11-23 (sudah dicek, baca saja): MySQL lokal (Laragon, root@127.0.0.1) berisi ipc_system, project_tracker, trial_validation_system, vendorhub_it. Di trial_validation_system lokal tabel pm_* BELUM ada (migration 2026_11_17_000001 dan _000002 masih Pending) dan belum ada impor apa pun; Fase 1-4 hanya diuji di sqlite sementara. project_tracker lokal terbaca lewat koneksi `project_tracker` (43 project; PT_DB_* tidak diset di .env, memakai default server yang sama). Kandidat padanan PIC: "Zahra" -> user "zahra.syahda", "Rozy" -> user "Fahrul Rozy" (konfirmasi ke saya dulu).
+
+Kerjakan HANYA Fase 5, dalam dua tahap. MINTA PERSETUJUAN SAYA sebelum SETIAP langkah yang menulis ke database (lokal maupun prod):
+
+Tahap A — gladi bersih di MySQL lokal:
+1. Backup trial_validation_system lokal (mysqldump ke folder di luar repo), tunjukkan ukuran file.
+2. Jalankan HANYA dua migration pm_* (`php artisan migrate --path=database/migrations/2026_11_17_000001_create_pm_project_tables.php` lalu _000002), setelah memastikan `migrate:status` tidak punya migration Pending lain yang ikut terbawa. Bandingkan jumlah baris tabel inti sebelum/sesudah (harus sama).
+3. `projects:import-legacy --dry-run` dengan --user-map (Zahra/Rozy), cocokkan angka bagian 2, lalu impor sungguhan, lalu `projects:sync-trial-stages`.
+4. Verifikasi live di app lokal (Playwright): portofolio, detail, Gantt, Improvement, tautan stage-trial dengan trial nyata. Catat masalah.
+
+Tahap B — rencana cutover prod (dokumen + checklist, eksekusi hanya atas perintah saya): urutan deploy branch ini (pipeline menjalankan `migrate --force`), backup DB prod, freeze app lama (read-only), impor final (dry-run dulu, --files-path ke folder 131 file asli), verifikasi baris, sync stage, portal/config.js + deploy/README.md, arsip project_tracker.
+
+Putuskan bersama saya: K1 (akun departemen bersama), K3 (UI budget/actual), K4 (stage Completed yang ditautkan ulang), dan apakah `projects:sync-trial-stages` dijadwalkan selama app lama masih aktif.
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan `migrate` tanpa --path, jangan pakai factory di tinker, jangan pakai --env= tanpa memastikan file .env.<nama> ada, jangan menyentuh/commit Project-Tracking-PIE-Team/.
+Definisi selesai: gladi bersih lokal sukses dan terverifikasi; checklist cutover prod disetujui saya. Di akhir ikuti ritual penutup bagian 6.
 ```
 
 ### Template prompt fase berikutnya
