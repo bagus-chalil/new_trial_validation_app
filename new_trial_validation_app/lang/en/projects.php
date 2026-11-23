@@ -307,6 +307,8 @@ return [
         'synced_hint' => 'Stage status and progress follow the trial.',
         'not_validation' => 'Only Validation stages can be linked to a trial.',
         'already_linked' => 'This stage already has a linked trial.',
+        'completed' => 'This stage is Completed. Change the stage status first if a re-trial is needed.',
+        'completed_hint' => 'Stage is Completed. For a re-trial, change the stage status first.',
         'trial_taken' => 'This trial is already linked to another stage.',
         'trial_not_found' => 'Trial not found or you have no access to it.',
         'form_banner' => 'This trial will be linked to stage ":stage" of project :project. Product and machine are pre-filled from the project.',

@@ -36,6 +36,12 @@ class LinkProjectStageTrial
         if ($stage->trial_id !== null && (int) $stage->trial_id !== $ignoreTrialId) {
             throw ValidationException::withMessages(['trial_id' => __('projects.trial_link.already_linked')]);
         }
+
+        // K4: linking re-drives the stage from the trial, which would silently
+        // reopen a finished stage. The PIC must change the stage status first.
+        if ($stage->status === 'Completed') {
+            throw ValidationException::withMessages(['trial_id' => __('projects.trial_link.completed')]);
+        }
     }
 
     public function link(Project $project, ProjectStage $stage, Trial $trial, User $user): ProjectStage

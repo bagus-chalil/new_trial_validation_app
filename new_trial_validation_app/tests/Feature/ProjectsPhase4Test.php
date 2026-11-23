@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectStage;
 use App\Models\Trial;
 use App\Models\User;
+use Illuminate\Console\Scheduling\Schedule;
 
 /*
  * Projects module Fase 4: Validation stages linked to Trials.
@@ -318,4 +319,30 @@ test('projects:sync-trial-stages catches up on status changes made outside this 
     $this->artisan('projects:sync-trial-stages')->assertSuccessful();
     expect($stage->fresh()->status)->toBe('Completed');
     expect(Notification::where('type', 'project')->exists())->toBeFalse();
+});
+
+test('a Completed stage cannot take a new trial until its status is changed (K4)', function () {
+    $staff = User::factory()->role('Staff')->create();
+    p4SeedOptions();
+    $product = p4Product();
+    $project = p4Project($staff);
+    $done = p4Stage($project, ['status' => 'Completed', 'progress' => 100]);
+    $trial = p4Trial(['progress_status' => 'Draft']);
+    $before = Trial::count();
+
+    $this->actingAs($staff)->post(route('projects.stages.trial.store', [$project, $done]), ['trial_id' => $trial->id])
+        ->assertSessionHasErrors('trial_id');
+    $this->actingAs($staff)->post(route('trials.store'), p4TrialPayload($product, ['project_stage_id' => $done->id]))
+        ->assertSessionHasErrors('project_stage_id');
+
+    expect(Trial::count())->toBe($before);
+    expect($done->fresh())->status->toBe('Completed')->progress->toBe(100)->trial_id->toBeNull();
+});
+
+test('the trial stage sync is scheduled hourly', function () {
+    $events = collect(app(Schedule::class)->events())
+        ->filter(fn ($e) => str_contains((string) $e->command, 'projects:sync-trial-stages'));
+
+    expect($events)->toHaveCount(1)
+        ->and($events->first()->expression)->toBe('0 * * * *');
 });

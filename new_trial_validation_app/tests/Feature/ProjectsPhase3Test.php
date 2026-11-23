@@ -227,7 +227,30 @@ test('imported legacy history shows in the project detail', function () {
     ActivityLog::create(['user_name' => 'Zahra', 'action' => 'LEGACY_LOG', 'module' => 'PROJECT', 'record_id' => 'legacy:log-2', 'record_label' => 'not mine', 'new_data' => json_encode(['scope' => 'abc-1234', 'text' => 'not mine'])]);
 
     $this->actingAs($user)->get(route('projects.show', $project))
-        ->assertInertia(fn ($page) => $page->has('logs', 1)->where('logs.0.action', 'LEGACY_LOG'));
+        ->assertInertia(fn ($page) => $page->has('logs', 1)
+            ->where('logs.0.action', 'LEGACY_LOG')
+            ->where('logs.0.detail', 'old note'));
+});
+
+test('imported legacy feedback entries are normalised for display', function () {
+    config(['app.timezone' => 'Asia/Jakarta']);
+    $improvement = Improvement::create([
+        'title' => 'Legacy', 'status' => 'Disetujui', 'decision' => 'To Project',
+        'feedback_log' => [
+            ['at' => 1794289531409, 'by' => 'Rozy', 'status' => 'Disetujui', 'decision' => 'To Project', 'feedback' => 'Try a design first', 'action' => ''],
+            ['at' => 1794289531410, 'by' => 'Rozy', 'status' => 'Disetujui', 'decision' => 'To Project', 'feedback' => 'Try a design first', 'action' => 'Project created: PRJ-046'],
+            ['at' => '2026-11-20 10:00:00', 'by' => 'Admin', 'status' => 'Disetujui', 'decision' => 'To Project', 'text' => 'Ok'],
+        ],
+    ]);
+
+    $this->actingAs(User::factory()->create(['role' => 'Admin']))
+        ->get(route('projects.improvements.show', $improvement))
+        ->assertInertia(fn ($page) => $page
+            ->where('improvement.feedback_log.0.at', '2026-11-10 12:45')
+            ->where('improvement.feedback_log.0.text', 'Try a design first')
+            ->where('improvement.feedback_log.1.text', "Try a design first\nProject created: PRJ-046")
+            ->where('improvement.feedback_log.2.at', '2026-11-20 10:00:00')
+            ->where('improvement.feedback_log.2.text', 'Ok'));
 });
 
 test('improvement lang group has id en ko parity', function () {

@@ -103,10 +103,14 @@ Setiap fase = satu sesi/chat. Jangan lompat fase. Branch kerja: `feat/integratio
 > **Fase 4 selesai 2026-11-23** (hasil lengkap di bagian 7).
 
 ### Fase 5 — Cutover
-- [ ] Impor final ke DB prod (user menyetujui eksplisit, backup DB dulu)
-- [ ] Bekukan app lama (read-only), verifikasi jumlah baris
-- [ ] Arsipkan `project_tracker`, tambahkan link/redirect dari portal
-- [ ] Update `deploy/README.md` dan `portal/`
+Tahap A (gladi bersih MySQL lokal) dan Tahap B (runbook, disetujui user 2026-11-23) selesai; eksekusi prod menunggu perintah user. Runbook: `deploy/README.md` §14.
+- [x] Gladi bersih lokal: backup, 2 migration pm_* dengan `--path`, dry-run + impor + sync, verifikasi live, uji tautan stage-trial lalu dipulihkan
+- [x] Keputusan K1/K3/K4 + jadwal sync (bagian 7)
+- [x] Runbook cutover prod + rollback (`deploy/README.md` §14); `.env.example` memuat `PT_*`/`PROJECT_FILES_PATH`
+- [x] `portal/`: tidak perlu entri baru (modul ada di dalam app Trial); app lama dialihkan lewat nginx (runbook b#12)
+- [ ] Impor final ke DB prod (user menyetujui eksplisit, backup DB dulu) — runbook §14 b#1-11
+- [ ] Bekukan app lama, verifikasi jumlah baris, alihkan ke `/projects` — runbook §14 b#1, b#8, b#12
+- [ ] Arsipkan `project_tracker` (dump + folder file offline, cabut hak tulis; jangan hapus < 1 bulan) — runbook §14 c
 
 ## 6. Ritual penutup setiap fase (wajib)
 
@@ -194,6 +198,33 @@ Verifikasi: `ProjectsPhase4Test` 11 test. Suite penuh 679 test: 675 lulus, 3 ski
 Keputusan terbuka baru:
 - **K4:** stage Validation hasil impor yang sudah *Completed* tetap menawarkan "Buat Draft Trial"/"Tautkan Trial". Begitu ditautkan ke draft baru, stage turun ke On Progress 20% (trial jadi sumber kebenaran). Terlihat saat verifikasi live (stage "Machine Validation" project PRJ-005). Pilihan: biarkan (re-trial memang membuka ulang stage), sembunyikan tombol pada stage Completed, atau jangan pernah menurunkan stage Completed. Default sementara: biarkan.
 - Bot intent status project: ditunda.
+
+### Hasil Fase 5 Tahap A+B (2026-11-23)
+
+**Gladi bersih di MySQL lokal `trial_validation_system`** (setiap langkah tulis disetujui user):
+1. Backup: `C:\Users\cosmax\db-backups\fase5-2026-11-23\trial_validation_system_before_pm_20261123_122702.sql` (11,96 MB, 31 tabel). Di folder yang sama: `counts.sh` (jumlah baris semua tabel lewat satu query `UNION ALL`), `counts_before/after_migrate/after_import/after_rehearsal.txt`, `user-map.json`, `dryrun.txt`, `import.txt`.
+2. `migrate:status` hanya punya 2 Pending (pm_*). `migrate --path=...000001` lalu `--path=...000002`: 31 tabel lama identik; hanya `migrations` +2 dan 8 tabel pm_* kosong.
+3. Dry-run dengan `--user-map` (Zahra → zahra.syahda@cosmax.com id 27, Rozy → fahrul.rozy@cosmax.com id 19; keduanya Staff/PI, aktif): 43 / 249 (Validation 48) / 24 / 1 milestone / 130+1 file / 859 log / 1 improvement / 3 template, 4 kategori + 16 vendor; teks tanpa padanan hanya "Validasi". Impor sungguhan: semua `created`; `pm_projects` Zahra 23 / Rozy 20 dengan `pic_user_id`; `activity_logs` +860 (859 `LEGACY_LOG` + 1 `IMPORT`), `master_options` +20; tabel lain tidak berubah. Dry-run ulang: "Already in target" penuh. `projects:sync-trial-stages`: dry-run 0 tautan, lalu sungguhan 0 perubahan. File fisik 131 tetap `is_missing` (folder asli tidak ada di mesin ini).
+4. Verifikasi live (`php artisan serve` :9001 + Playwright Chromium 1440/390px, admin@local.test): Portofolio (43 project, KPI 19 berjalan / 17 selesai / 7 terlambat), detail PRJ-009/PRJ-005/PRJ-003, Gantt, Improvement + detail, Quotation & PO, Dashboard → 18/18 halaman 200, tanpa error console, tanpa overflow mobile; dialog "Tautkan Trial" berisi 300 trial nyata. Uji tulis (disetujui): stage 47 "Validation Trial" (PRJ-009) ditautkan lewat UI ke trial nyata 380 (In Review) → stage On Progress 60%, actual_start 2026-11-18, log LINK_TRIAL + SYNC_TRIAL_STAGE, Report Summary trial 380 menampilkan tautan balik, trial 380 tidak berubah, tanpa notifikasi; lalu dilepas lewat UI. Pemulihan: impor ulang (idempoten; terbukti mengembalikan stage 47 ke Not Started 0% dan project ke 39%) + hapus 3 log uji. Sisa di DB lokal: 1 log `IMPORT` tambahan.
+
+**Masalah yang ditemukan dan diperbaiki** (tidak terlihat di uji sqlite karena fixture tidak memakai format data asli):
+- Riwayat Aktivitas project hanya menampilkan "Riwayat aplikasi lama · Zahra" tanpa isi: `detail` sudah dikirim (berisi seluruh `new_data`) tapi tidak dirender. Sekarang `ProjectController::logDetail()` mengirim hanya `new_data.text` untuk `LEGACY_LOG` dan halaman menampilkannya di bawah label.
+- Riwayat umpan balik Improvement menampilkan angka epoch mentah (`1794289531410`) dan teksnya kosong: format app lama `{at: epoch-ms, feedback, action}` vs format app baru `{at: 'Y-m-d H:i:s', text}`. `ImprovementController::feedbackLog()` menormalkan saat ditampilkan (epoch → `app.timezone`, `feedback` + `action` → `text`); data tersimpan tidak diubah.
+
+**Temuan lain (dicatat, tidak diubah):**
+- `.env` lokal `APP_TIMEZONE=UTC` (CLAUDE.md menyebut Asia/Jakarta). Prod wajib Asia/Jakarta; masuk runbook §14 a#4.
+- Progres project hasil impor (dari app lama) tidak sama dengan rata-rata stage (PRJ-009: 39 vs rata-rata 50). Simpan/hapus stage pertama di app baru akan menghitung ulang (39 → 50). Wajar, tapi PIC perlu tahu.
+- "Lepas Tautan" tidak mengembalikan status/progres stage (stage tetap 60%). Disengaja (riwayat), PIC bisa mengubah stage manual.
+
+**Keputusan (diputuskan bersama user 2026-11-23):**
+- **K1:** tidak membuat akun departemen bersama; tiap orang login dengan akunnya sendiri; nama lama tetap teks.
+- **K3:** UI budget/actual ditunda (semua nilai sumber 0; kolom sudah ada).
+- **K4:** stage Validation berstatus Completed tidak bisa ditautkan/dibuatkan draft trial; tombol diganti petunjuk "ubah status stage dulu". Ditegakkan juga di server (`LinkProjectStageTrial::assertLinkable`, dipakai tautan dan pembuatan draft). String `projects.trial_link.completed(_hint)` id/en/ko.
+- **Sync:** `projects:sync-trial-stages` dijadwalkan tiap jam (`routes/console.php`, `withoutOverlapping`) selama app Trial lama aktif; hapus saat app lama dimatikan. Butuh cron `schedule:run` (deploy §12).
+
+Test baru: `ProjectsPhase3Test` +1 (normalisasi feedback lama) + 1 assertion `logs.0.detail`; `ProjectsPhase4Test` +2 (K4, jadwal tiap jam). Gate: suite penuh 682 test: 678 lulus, 3 skip lama, 1 gagal lama (`ExportLocaleTest`/ZipArchive). Pint (setelah perbaikan import di test), tsc, `npm run build` lulus; ESLint 1 warning lama; Prettier hanya `resources/ai/trial_document.schema.json` (lama); Larastan hanya 2 error lama (`TrialMonitorController`, migration `rename_pi_review_team_to_pie`).
+
+**Tahap B:** runbook cutover prod + rollback ditulis di `deploy/README.md` §14 (persiapan, 13 langkah hari H dengan hasil yang diharapkan, arsip, rollback tanpa restore penuh). Lokasi app lama di server prod, folder 131 file asli, dan kredensial `project_tracker` prod belum diketahui: diisi di §14 a#1-2 sebelum hari H.
 
 ## 8. Prompt siap pakai
 
@@ -284,6 +315,19 @@ Putuskan bersama saya: K1 (akun departemen bersama), K3 (UI budget/actual), K4 (
 
 Batasan: jangan migrate:fresh/refresh/db:wipe, jangan `migrate` tanpa --path, jangan pakai factory di tinker, jangan pakai --env= tanpa memastikan file .env.<nama> ada, jangan menyentuh/commit Project-Tracking-PIE-Team/.
 Definisi selesai: gladi bersih lokal sukses dan terverifikasi; checklist cutover prod disetujui saya. Di akhir ikuti ritual penutup bagian 6.
+```
+
+### Prompt Fase 5 Tahap C — eksekusi cutover prod (tempel di chat baru, hanya saat user siap)
+
+```
+Lanjutkan Fase 5 penggabungan Project Tracking PIE: Tahap C, eksekusi cutover di server (development dulu, lalu production). Baca dulu: deploy/README.md §14 (runbook, wajib diikuti urutannya), PROJECT_MODULE_PLAN.md bagian 7 "Hasil Fase 5 Tahap A+B", CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only). Tahap A (gladi bersih lokal) dan B (runbook) selesai dan di-push di branch feat/integration-project-tracking.
+
+Saya tidak punya akses server; Claude menyiapkan perintah, saya yang menjalankannya lewat SSH dan menempelkan hasilnya. Sebelum mulai, minta saya mengisi §14 a#1-2: lokasi app Project Tracking lama di server (path, site nginx), host/kredensial DB project_tracker, dan folder 131 file asli. Cek juga APP_TIMEZONE prod dan cron schedule:run.
+
+Urutan: development lengkap (merge branch ke development, backup DB dev, §14 b#1-13, verifikasi) → laporan → baru production atas perintah saya (backup DB prod SEBELUM push ke production, karena pipeline menjalankan migrate --force). MINTA PERSETUJUAN SAYA sebelum SETIAP langkah yang menulis ke DB atau mengubah nginx. Bandingkan jumlah baris sebelum/sesudah di setiap langkah tulis; berhenti bila angka dry-run tidak cocok dengan sumber atau ada file missing/size-differs.
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan restore backup penuh sebagai rollback (pakai §14 d), jangan hapus project_tracker atau folder file lama, jangan menyentuh/commit Project-Tracking-PIE-Team/.
+Definisi selesai: data prod terimpor dan terverifikasi (§14 b#8-11), app lama dialihkan, project_tracker diarsip; centang Fase 5 di PROJECT_MODULE_PLAN.md, update CLAUDE.md, commit + push.
 ```
 
 ### Template prompt fase berikutnya

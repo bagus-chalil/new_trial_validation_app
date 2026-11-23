@@ -307,6 +307,8 @@ return [
         'synced_hint' => '단계 상태와 진행률은 Trial을 따릅니다.',
         'not_validation' => '검증 유형의 단계만 Trial과 연결할 수 있습니다.',
         'already_linked' => '이 단계에는 이미 연결된 Trial이 있습니다.',
+        'completed' => '이 단계는 완료되었습니다. 재Trial이 필요하면 먼저 단계 상태를 변경하세요.',
+        'completed_hint' => '단계가 완료되었습니다. 재Trial을 하려면 먼저 단계 상태를 변경하세요.',
         'trial_taken' => '이 Trial은 이미 다른 단계에 연결되어 있습니다.',
         'trial_not_found' => 'Trial을 찾을 수 없거나 접근 권한이 없습니다.',
         'form_banner' => '이 Trial은 프로젝트 :project의 ":stage" 단계에 연결됩니다. 제품과 설비는 프로젝트에서 미리 채워집니다.',

@@ -269,6 +269,16 @@ function StageTrialCell({
         return null;
     }
 
+    // A finished stage is not reopened by linking a trial; the PIC changes
+    // the stage status first (the server enforces the same rule).
+    if (stage.status === 'Completed') {
+        return (
+            <p className="mt-2 text-xs text-muted-foreground">
+                {t('projects.trial_link.completed_hint')}
+            </p>
+        );
+    }
+
     return (
         <div className="mt-2 flex flex-wrap gap-1">
             {canCreateTrial && (
@@ -1110,7 +1120,7 @@ export default function ProjectShow({
                                     key={l.id}
                                     className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 last:border-0"
                                 >
-                                    <span>
+                                    <span className="min-w-0 flex-1 wrap-break-word">
                                         <span className="font-medium">
                                             {(() => {
                                                 const key = `projects.log.actions.${l.action}`;
@@ -1125,6 +1135,11 @@ export default function ProjectShow({
                                             <span className="text-muted-foreground">
                                                 {' '}
                                                 · {l.user_name}
+                                            </span>
+                                        )}
+                                        {l.detail && (
+                                            <span className="mt-0.5 block text-muted-foreground">
+                                                {l.detail}
                                             </span>
                                         )}
                                     </span>

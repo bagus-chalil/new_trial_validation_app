@@ -199,7 +199,7 @@ class ProjectController extends Controller
                 'id' => $l->id,
                 'user_name' => $l->user_name,
                 'action' => $l->action,
-                'detail' => $l->new_data ?? $l->old_data,
+                'detail' => $this->logDetail($l),
                 'created_at' => $l->created_at?->format('Y-m-d H:i'),
             ]),
             'options' => [
@@ -299,6 +299,23 @@ class ProjectController extends Controller
             'product_name' => $p->product?->product_name,
             'finish_good_code' => $p->product?->finish_good_code,
         ];
+    }
+
+    /**
+     * Human-readable detail for a history row. Only imported legacy rows
+     * carry one (their original message sits in `new_data.text`); rows
+     * written by this app are described by their action label alone.
+     */
+    private function logDetail(ActivityLog $log): ?string
+    {
+        if ($log->action !== 'LEGACY_LOG') {
+            return null;
+        }
+
+        $data = json_decode((string) $log->new_data, true);
+        $text = is_array($data) && is_string($data['text'] ?? null) ? trim($data['text']) : '';
+
+        return $text !== '' ? $text : null;
     }
 
     /**

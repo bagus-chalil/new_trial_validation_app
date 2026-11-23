@@ -15,6 +15,7 @@ use App\Policies\ImprovementPolicy;
 use App\Support\ProjectOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -104,7 +105,7 @@ class ImprovementController extends Controller
                 'pi_suggestion' => $improvement->pi_suggestion,
                 'pi_action' => $improvement->pi_action,
                 'pi_reason' => $improvement->pi_reason,
-                'feedback_log' => $improvement->feedback_log ?? [],
+                'feedback_log' => $this->feedbackLog($improvement->feedback_log),
                 'updated_by_name' => $improvement->updated_by_name,
             ],
             'project' => $project ? ['id' => $project->id, 'name' => $project->name, 'code' => $project->code] : null,
@@ -207,5 +208,48 @@ class ImprovementController extends Controller
             'submitted_at' => $i->submitted_at?->format('Y-m-d'),
             'project_id' => $i->project_id,
         ];
+    }
+
+    /**
+     * Normalise feedback entries to one shape. Entries written by this app
+     * are `{at: 'Y-m-d H:i:s', by, status, decision, text}`; entries imported
+     * from Project Tracking carry `at` as epoch milliseconds and keep the
+     * message in `feedback` (plus an optional `action` note).
+     *
+     * @param  array<int, mixed>|null  $log
+     * @return list<array{at: string, by: string, status: string, decision: string, text: string}>
+     */
+    private function feedbackLog(?array $log): array
+    {
+        $out = [];
+
+        foreach ($log ?? [] as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $at = $entry['at'] ?? '';
+            if (is_int($at) || is_float($at) || (is_string($at) && ctype_digit($at))) {
+                $at = Carbon::createFromTimestampMs((int) $at)
+                    ->setTimezone((string) config('app.timezone'))
+                    ->format('Y-m-d H:i');
+            }
+
+            $text = trim((string) ($entry['text'] ?? $entry['feedback'] ?? ''));
+            $action = trim((string) ($entry['action'] ?? ''));
+            if ($action !== '' && ! array_key_exists('text', $entry)) {
+                $text = trim($text."\n".$action);
+            }
+
+            $out[] = [
+                'at' => (string) $at,
+                'by' => (string) ($entry['by'] ?? ''),
+                'status' => (string) ($entry['status'] ?? ''),
+                'decision' => (string) ($entry['decision'] ?? ''),
+                'text' => $text,
+            ];
+        }
+
+        return $out;
     }
 }

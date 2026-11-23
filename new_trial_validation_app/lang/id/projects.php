@@ -307,6 +307,8 @@ return [
         'synced_hint' => 'Status dan progres stage mengikuti trial.',
         'not_validation' => 'Hanya stage bertipe Validasi yang bisa ditautkan ke trial.',
         'already_linked' => 'Stage ini sudah punya trial tertaut.',
+        'completed' => 'Stage ini sudah Selesai. Ubah status stage dulu bila perlu trial ulang.',
+        'completed_hint' => 'Stage sudah Selesai. Untuk trial ulang, ubah status stage dulu.',
         'trial_taken' => 'Trial ini sudah ditautkan ke stage lain.',
         'trial_not_found' => 'Trial tidak ditemukan atau Anda tidak punya akses.',
         'form_banner' => 'Trial ini akan ditautkan ke stage ":stage" pada project :project. Produk dan mesin diisi awal dari project.',
