@@ -213,7 +213,14 @@ export function contextualBreadcrumbs(
         }
 
         if (segments[1] === 'toolings') {
-            const board = t('common.nav.project_toolings');
+            if (segments[2] === 'report') {
+                return [
+                    item(projects, '/projects'),
+                    item(t('common.nav.project_tooling_report'), '#'),
+                ];
+            }
+
+            const board = t('common.nav.project_tooling_queue');
 
             if (segments.length === 2) {
                 return [item(projects, '/projects'), item(board, '#')];

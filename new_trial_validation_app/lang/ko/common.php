@@ -39,6 +39,8 @@ return [
         'project_gantt' => '간트',
         'project_improvements' => '개선 제안',
         'project_toolings' => '금형 점검',
+        'project_tooling_report' => '금형 점검 리포트',
+        'project_tooling_queue' => '금형 점검 대기열',
         'old_app' => '기존 애플리케이션',
         'open_old_app' => '기존 애플리케이션 열기',
     ],

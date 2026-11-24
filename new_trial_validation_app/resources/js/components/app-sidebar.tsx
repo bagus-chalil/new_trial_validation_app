@@ -14,6 +14,7 @@ import {
     CheckCircle2,
     CircleCheckBig,
     ClipboardCheck,
+    FileCheck2,
     FlaskConical,
     History,
     Hourglass,
@@ -61,7 +62,10 @@ import { gantt as ganttIndex } from '@/routes/projects';
 import { index as improvementsIndex } from '@/routes/projects/improvements';
 import { index as purchaseOrdersIndex } from '@/routes/projects/purchase-orders';
 import { index as quotationsIndex } from '@/routes/projects/quotations';
-import { index as toolingsIndex } from '@/routes/projects/toolings';
+import {
+    index as toolingsIndex,
+    report as toolingReport,
+} from '@/routes/projects/toolings';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { index as trialsIndex } from '@/routes/trials';
@@ -173,10 +177,16 @@ export function AppSidebar() {
                     activePattern: /^\/projects\/improvements\//,
                 },
                 {
-                    title: t('common.nav.project_toolings'),
+                    title: t('common.nav.project_tooling_report'),
+                    href: toolingReport(),
+                    icon: FileCheck2,
+                    activePattern: /^\/projects\/toolings\/report/,
+                },
+                {
+                    title: t('common.nav.project_tooling_queue'),
                     href: toolingsIndex(),
                     icon: Wrench,
-                    activePattern: /^\/projects\/toolings\//,
+                    activePattern: /^\/projects\/toolings\/(?!report)/,
                 },
                 {
                     title: t('common.nav.project_quotations'),

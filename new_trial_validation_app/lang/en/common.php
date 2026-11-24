@@ -39,6 +39,8 @@ return [
         'project_gantt' => 'Gantt',
         'project_improvements' => 'Improvement',
         'project_toolings' => 'Check Tooling',
+        'project_tooling_report' => 'Check Tooling Report',
+        'project_tooling_queue' => 'Check Tooling Queue',
         'old_app' => 'Legacy Application',
         'open_old_app' => 'Open Legacy Application',
     ],

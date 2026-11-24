@@ -41,6 +41,8 @@ return [
         'project_gantt' => 'Gantt',
         'project_improvements' => 'Improvement',
         'project_toolings' => 'Check Tooling',
+        'project_tooling_report' => 'Check Tooling Report',
+        'project_tooling_queue' => 'Antrean Cek Tooling',
         'old_app' => 'Aplikasi Lama',
         'open_old_app' => 'Buka Aplikasi Lama',
     ],

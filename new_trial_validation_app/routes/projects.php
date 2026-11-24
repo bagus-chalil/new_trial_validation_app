@@ -12,6 +12,7 @@ use App\Http\Controllers\ProjectStageController;
 use App\Http\Controllers\ProjectStageTrialController;
 use App\Http\Controllers\ToolingController;
 use App\Http\Controllers\ToolingFileController;
+use App\Http\Controllers\ToolingReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->group(function () {
@@ -53,9 +54,13 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
     // Check Tooling (FR.PRNI.002.00), PROJECT_MODULE_PLAN.md Fase 4b.
     Route::prefix('toolings')->as('toolings.')->where(['tooling' => '[0-9]+', 'file' => '[0-9]+'])->group(function () {
         Route::get('/', [ToolingController::class, 'index'])->name('index');
+        Route::get('report', [ToolingReportController::class, 'index'])->name('report');
+        Route::get('report/export', [ToolingReportController::class, 'export'])->name('report.export');
         Route::get('create', [ToolingController::class, 'create'])->name('create');
         Route::post('/', [ToolingController::class, 'store'])->name('store');
         Route::get('{tooling}', [ToolingController::class, 'show'])->name('show');
+        Route::get('{tooling}/pdf', [ToolingReportController::class, 'pdf'])->name('pdf');
+        Route::get('{tooling}/word', [ToolingReportController::class, 'word'])->name('word');
         Route::get('{tooling}/edit', [ToolingController::class, 'edit'])->name('edit');
         Route::put('{tooling}', [ToolingController::class, 'update'])->name('update');
         Route::delete('{tooling}', [ToolingController::class, 'destroy'])->name('destroy');
