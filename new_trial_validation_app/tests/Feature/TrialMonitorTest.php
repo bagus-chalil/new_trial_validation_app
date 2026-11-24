@@ -3,6 +3,7 @@
 use App\Models\LineConfigurationLane;
 use App\Models\MasterOption;
 use App\Models\Trial;
+use App\Models\TrialReview;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -151,7 +152,7 @@ test('the report opened from the all trials page is view only for someone who co
             ->where('pendingReviews', [])
             ->where('editableReviews', [])
             ->where('canEditLineConfigurationReport', false)
-            ->where('actionMenuKey', 'common.nav.need_revision'));
+            ->where('actionHref', route('trials.edit', $trial->id)));
 });
 
 test('a viewer with nothing to act on gets no redirect hint in view only mode', function () {
@@ -161,5 +162,19 @@ test('a viewer with nothing to act on gets no redirect hint in view only mode', 
     $this->actingAs($viewer)->get("/trials/{$trial->id}/report?from=overview")
         ->assertInertia(fn ($page) => $page
             ->where('readOnlyMode', true)
-            ->where('actionMenuKey', null));
+            ->where('actionHref', null));
+});
+
+test('a pending department reviewer gets an action-needed banner, hidden in view only mode', function () {
+    $reviewer = User::factory()->reviewUnit('QAC')->create();
+    $trial = makeMonitorTrial(['progress_status' => 'In Review', 'pending_with' => 'QAC']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $this->actingAs($reviewer)->get("/trials/{$trial->id}/report")
+        ->assertInertia(fn ($page) => $page->where('actionNeeded', 'review'));
+
+    $this->actingAs($reviewer)->get("/trials/{$trial->id}/report?from=overview")
+        ->assertInertia(fn ($page) => $page
+            ->where('actionNeeded', null)
+            ->where('actionHref', route('trials.report.show', $trial->id)));
 });
