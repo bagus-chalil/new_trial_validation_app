@@ -356,11 +356,10 @@ class StartupAiTest extends TestCase
             'legible' => ['shelf_life' => true], 'format_ok' => ['shelf_life' => true], 'view_agreement' => ['shelf_life' => true],
         ];
 
-        $suggestions = $this->suggest('im_document', $raw);
-        $this->assertSame('shelf_life_months', $suggestions[0]['field']);
-        $this->assertSame(30, $suggestions[0]['value']);
+        $suggestions = collect($this->suggest('im_document', $raw, ['im_document_number' => 'IM-123']));
+        $this->assertSame(30, $suggestions->firstWhere('field', 'shelf_life_months')['value']);
 
-        $this->assertSame([], $this->suggest('im_document', $raw, ['shelf_life_months' => 36]));
+        $this->assertSame([], $this->suggest('im_document', $raw, ['shelf_life_months' => 36, 'im_document_number' => 'IM-123']));
         // Coding photos never suggest anything.
         $this->assertSame([], $this->suggest('coding_print', $this->coding()));
     }
@@ -584,6 +583,19 @@ class StartupAiTest extends TestCase
         $this->assertSame('match', $items->firstWhere('key', 'im_number')['verdict']);
     }
 
+    public function test_im_number_ignores_hyphens_and_spacing_and_locks_the_input(): void
+    {
+        $batch = $this->makeBatch(36);
+        $this->photo($batch, 'im_number');
+        $this->fakeVision($this->imRaw(['im_number' => 'IM-KKI-RRR MOSSERU CREAM CLEANSER 100ML - V2']));
+
+        $item = collect($this->read($batch, 'im_number', ['im_document_number' => 'IM - KKI - RRR - MOSSERU CREAM CLEANSER 100ML - V2'])->json('items'))
+            ->firstWhere('key', 'im_number');
+
+        $this->assertSame('match', $item['verdict']);
+        $this->assertTrue($item['lock']);
+    }
+
     public function test_a_different_typed_im_number_is_flagged(): void
     {
         $batch = $this->makeBatch(36);
@@ -608,14 +620,36 @@ class StartupAiTest extends TestCase
         $this->assertStringContainsString('manual', $item['note']);
     }
 
-    public function test_trusted_im_number_is_suggested_only_while_the_field_is_empty(): void
+    public function test_im_number_is_suggested_only_while_the_field_is_empty(): void
     {
         $suggestions = collect($this->suggest('im_document', $this->imRaw(), ['shelf_life_months' => 36]));
         $this->assertSame('IM-KKI-TEST 4.8G - V4', $suggestions->firstWhere('field', 'im_document_number')['value']);
 
         $this->assertNull(collect($this->suggest('im_document', $this->imRaw(), ['im_document_number' => 'IM-X']))->firstWhere('field', 'im_document_number'));
 
+        // A doubtful read (views disagree) is still offered, so the operator checks it instead of typing it all.
         $untrusted = $this->imRaw(['view_agreement' => ['im_number' => false, 'shelf_life' => true]]);
-        $this->assertNull(collect($this->suggest('im_document', $untrusted))->firstWhere('field', 'im_document_number'));
+        $this->assertSame('IM-KKI-TEST 4.8G - V4', collect($this->suggest('im_document', $untrusted))->firstWhere('field', 'im_document_number')['value']);
+
+        $this->assertNull(collect($this->suggest('im_document', $this->imRaw(['im_number' => null])))->firstWhere('field', 'im_document_number'));
+    }
+
+    public function test_doubtful_im_number_is_filled_unlocked_without_retake_advice(): void
+    {
+        $batch = $this->makeBatch(36);
+        $this->photo($batch, 'im_number');
+        $doubtful = $this->imRaw(['view_agreement' => ['im_number' => false, 'shelf_life' => true]]);
+        $this->fakeVision($doubtful, $doubtful);
+
+        $empty = collect($this->read($batch, 'im_number')->json('items'))->firstWhere('key', 'im_number');
+        $this->assertSame('info', $empty['verdict']);
+        $this->assertFalse($empty['retake']);
+        $this->assertFalse($empty['lock']);
+        $this->assertStringContainsString('belum yakin', $empty['note']);
+        $this->assertStringContainsString('IM-KKI-TEST 4.8G - V4', $empty['note']);
+
+        $typed = collect($this->read($batch, 'im_number', ['im_document_number' => 'IM-KKI-TEST 4.8G - V4'])->json('items'))->firstWhere('key', 'im_number');
+        $this->assertFalse($typed['retake']);
+        $this->assertFalse($typed['lock']);
     }
 }

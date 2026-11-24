@@ -158,6 +158,8 @@ export default function BatchesShow({
                                 exp_date: batch.exp_date?.slice(0, 10) || undefined,
                                 shelf_life_months: batch.shelf_life_months ?? undefined,
                                 packaging_type: batch.primary_packaging_type || undefined,
+                                // Same as the Startup page: compare the AI read with the saved Nomor IM.
+                                im_document_number: batch.startup_check?.im_document_number?.trim() || undefined,
                             })}
                         />
                     )}

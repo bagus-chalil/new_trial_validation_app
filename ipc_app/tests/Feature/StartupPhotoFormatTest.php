@@ -88,7 +88,7 @@ class StartupPhotoFormatTest extends TestCase
         $this->assertStringContainsString('No. Batch', $item['note']);
     }
 
-    public function test_im_has_no_format_check_and_only_the_im_number_can_ask_for_a_retake(): void
+    public function test_im_has_no_format_check_and_a_read_im_number_asks_for_no_retake(): void
     {
         // IM layouts differ per product, so the IM standard was dropped (2026-11-19).
         $raw = [
@@ -102,8 +102,9 @@ class StartupPhotoFormatTest extends TestCase
 
         $this->assertNull($this->formatItem($result));
         foreach ($result->items as $item) {
-            // Nomor IM (typed by the operator, stored in the DB) may advise a manual entry + retake; the rest never does.
-            $this->assertSame($item['key'] === 'im_number', $item['retake']);
+            // A read-but-doubtful Nomor IM is filled as an unlocked suggestion, so nothing asks for a retake here
+            // (only an unreadable Nomor IM does, see StartupAiTest).
+            $this->assertFalse($item['retake']);
         }
         $this->assertNotSame(VisionEvaluation::FAIL, $result->decision);
     }

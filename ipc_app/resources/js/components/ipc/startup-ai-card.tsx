@@ -12,12 +12,19 @@ type AiItem = {
     note: string | null;
     /** The photo itself is the problem (blurry / cut off / glare): advise taking it again. */
     retake?: boolean;
+    /** Nomor IM only: the AI read is trusted and agrees with the form, so the input is locked (read-only). */
+    lock?: boolean;
 };
 
 /** A value the AI read with confidence that can be copied into a still-empty form field (operator clicks). */
-export type AiSuggestion = { field: 'mixing_date' | 'shelf_life_months'; label: string; value: string | number; display: string };
+export type AiSuggestion = {
+    field: 'mixing_date' | 'shelf_life_months' | 'im_document_number';
+    label: string;
+    value: string | number;
+    display: string;
+};
 
-type FieldStatus = {
+export type FieldStatus = {
     field: string;
     label: string;
     state: 'none' | 'queued' | 'running' | 'done';
@@ -27,9 +34,18 @@ type FieldStatus = {
     suggestions?: AiSuggestion[];
 };
 
-type Status = { pending: boolean; fields: FieldStatus[]; notes: string[] };
+export type Status = { pending: boolean; fields: FieldStatus[]; notes: string[] };
 
-type Entered = { mixing_date?: string; exp_date?: string; shelf_life_months?: number; packaging_type?: string };
+/** Suggestions the form applies by itself (no button): the operator only types when the photo is unclear. */
+const AUTO_APPLIED: AiSuggestion['field'][] = ['im_document_number'];
+
+type Entered = {
+    mixing_date?: string;
+    exp_date?: string;
+    shelf_life_months?: number;
+    packaging_type?: string;
+    im_document_number?: string;
+};
 
 const DECISION_STYLE = {
     PASS: { label: 'Sesuai', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' },
@@ -65,8 +81,11 @@ export function StartupAiCard({
     photoKey,
     getEntered,
     onApply,
+    onStatus,
 }: {
     batchId: number;
+    /** Called with every fresh status so the form can auto-fill / lock inputs. */
+    onStatus?: (status: Status) => void;
     readOnly: boolean;
     /** Changes whenever an AI-read photo is added/replaced, so the reads get queued. */
     photoKey: string;
@@ -122,6 +141,12 @@ export function StartupAiCard({
         },
         [batchId],
     );
+
+    const onStatusRef = useRef(onStatus);
+    onStatusRef.current = onStatus;
+    useEffect(() => {
+        if (status) onStatusRef.current?.(status);
+    }, [status]);
 
     // A photo or the packaging type changed: queue whatever is missing (idempotent on the server).
     useEffect(() => {
@@ -208,22 +233,28 @@ export function StartupAiCard({
                                 )}
                                 {f.state === 'done' && f.reason && <span className="text-muted-foreground">{f.reason}</span>}
                             </div>
-                            {f.state === 'done' && !readOnly && onApply && f.suggestions && f.suggestions.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-sky-50 p-2.5 text-[12px] text-sky-900 dark:bg-sky-950 dark:text-sky-200">
-                                    <span className="font-bold">Saran isi (form masih kosong):</span>
-                                    {f.suggestions.map((s) => (
-                                        <button
-                                            key={s.field}
-                                            type="button"
-                                            onClick={() => onApply(s)}
-                                            className="rounded-full border border-sky-300 bg-white px-3 py-1 font-bold hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900 dark:hover:bg-sky-800"
-                                        >
-                                            Pakai {s.label}: {s.display}
-                                        </button>
-                                    ))}
-                                    <span className="text-[11px]">Cek dengan foto sebelum disimpan.</span>
-                                </div>
-                            )}
+                            {f.state === 'done' &&
+                                !readOnly &&
+                                onApply &&
+                                f.suggestions &&
+                                f.suggestions.some((s) => !AUTO_APPLIED.includes(s.field)) && (
+                                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-sky-50 p-2.5 text-[12px] text-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                                        <span className="font-bold">Saran isi (form masih kosong):</span>
+                                        {f.suggestions
+                                            .filter((s) => !AUTO_APPLIED.includes(s.field))
+                                            .map((s) => (
+                                                <button
+                                                    key={s.field}
+                                                    type="button"
+                                                    onClick={() => onApply(s)}
+                                                    className="rounded-full border border-sky-300 bg-white px-3 py-1 font-bold hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-900 dark:hover:bg-sky-800"
+                                                >
+                                                    Pakai {s.label}: {s.display}
+                                                </button>
+                                            ))}
+                                        <span className="text-[11px]">Cek dengan foto sebelum disimpan.</span>
+                                    </div>
+                                )}
                             {f.state === 'done' && f.items?.some((i) => i.retake) && (
                                 <div className="rounded-lg bg-amber-50 p-2.5 text-[12px] text-amber-900 dark:bg-amber-950 dark:text-amber-200">
                                     <p className="font-bold">Saran: ambil ulang foto ini</p>
