@@ -110,6 +110,14 @@ class RoundAudit
             }
         }
 
+        foreach (collect($before['photos'] ?? [])->keys()->merge(array_keys($after['photos'] ?? []))->unique() as $field) {
+            $from = $before['photos'][$field] ?? null;
+            $to = $after['photos'][$field] ?? null;
+            if ($from !== $to) {
+                $changes[] = ['field' => 'foto '.$field, 'from' => $from ? 'foto lama' : '—', 'to' => $to ? 'foto baru' : '—'];
+            }
+        }
+
         return $changes;
     }
 

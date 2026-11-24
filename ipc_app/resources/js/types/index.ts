@@ -46,11 +46,13 @@ export interface SharedData {
     canCreateBatch: boolean;
     openClientIssues: number;
     revisionRequest?: {
+        batch_id: number;
         stages: string[];
         remarks: string | null;
         by: string | null;
         at: string | null;
-        corrections?: { id: number; stage: string; label: string; url: string }[];
+        corrections?: { id: number; stage: string; no: number; label: string; url: string }[];
+        correctable?: { stage: string; no: number; label: string }[];
     } | null;
     /** Approval pages only: saved TH Progress rounds per stage + audit of corrected rounds. */
     roundAudit?: {

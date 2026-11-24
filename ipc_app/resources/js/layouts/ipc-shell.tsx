@@ -123,6 +123,32 @@ export function IpcShell({
                                 ))}
                             </div>
                         )}
+                        {(props.revisionRequest.correctable?.length ?? 0) > 0 && (
+                            <details className="mt-2">
+                                <summary className="cursor-pointer text-xs font-bold">
+                                    {(props.revisionRequest.corrections?.length ?? 0) > 0
+                                        ? 'Koreksi TH lain yang juga salah'
+                                        : 'Ada TH Progress yang salah? Pilih untuk dikoreksi (data tetap tercatat di audit)'}
+                                </summary>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {props.revisionRequest.correctable!.map((c) => (
+                                        <button
+                                            key={`${c.stage}-${c.no}`}
+                                            type="button"
+                                            onClick={() =>
+                                                router.post(`/batches/${props.revisionRequest!.batch_id}/corrections`, {
+                                                    stage: c.stage,
+                                                    revision_no: c.no,
+                                                })
+                                            }
+                                            className="flex min-h-9 items-center rounded-lg border border-orange-600 bg-white px-3 text-xs font-bold text-orange-700"
+                                        >
+                                            {c.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </details>
+                        )}
                         <p className="mt-0.5 text-xs">
                             Setelah semua tahap di atas diselesaikan ulang, laporan otomatis kembali ke antrean approval.
                         </p>

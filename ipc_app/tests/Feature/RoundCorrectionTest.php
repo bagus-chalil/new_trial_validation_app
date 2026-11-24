@@ -5,16 +5,21 @@ namespace Tests\Feature;
 use App\Models\FillingCheck;
 use App\Models\FillingCheckRevision;
 use App\Models\FinishedCheck;
+use App\Models\FinishedCheckRevision;
 use App\Models\IpcBatch;
 use App\Models\IpcRoundCorrection;
 use App\Models\MasterLine;
 use App\Models\MasterProduct;
 use App\Models\PackingCheck;
 use App\Models\PackingCheckRevision;
+use App\Models\PackingCheckRevisionPhoto;
 use App\Models\StartupCheck;
 use App\Models\StartupInspection;
 use App\Models\User;
+use App\Support\RoundAudit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /** "Minta Revisi" at TH Progress level: flag a saved round, QC corrects it in place, everything audited. */
@@ -252,5 +257,153 @@ class RoundCorrectionTest extends TestCase
         $this->assertNotNull($row->before_data['startup_check']);
         // A Startup reopen is not a TH round: it must not block finalizing anything.
         $this->assertSame(0, $batch->openRoundCorrections('startup')->count());
+    }
+
+    /** A revision requested before round-level flagging existed has no correction rows: QC adds one. */
+    public function test_qc_can_request_a_round_correction_on_an_old_open_revision(): void
+    {
+        $batch = $this->batchWithRounds();
+        // Old-style request: stage reopened + Revision decision, but no round flagged.
+        $this->requestRevision($batch, ['revise_rounds' => []]);
+        $this->assertSame(0, IpcRoundCorrection::count());
+
+        $qc = User::factory()->create();
+        $this->actingAs($qc)
+            ->post("/batches/{$batch->id}/corrections", ['stage' => 'packing', 'revision_no' => 2])
+            ->assertRedirect();
+
+        $row = IpcRoundCorrection::sole();
+        $this->assertSame($qc->id, $row->requested_by);
+        $this->assertSame(2, $row->revision_no);
+        $this->assertSame('TH 2 ditolak, perbaiki.', $row->request_note);
+
+        // Asking twice does not duplicate it; an unknown round or a closed stage is refused.
+        $this->actingAs($qc)->post("/batches/{$batch->id}/corrections", ['stage' => 'packing', 'revision_no' => 2]);
+        $this->assertSame(1, IpcRoundCorrection::count());
+        $this->actingAs($qc)->post("/batches/{$batch->id}/corrections", ['stage' => 'packing', 'revision_no' => 9])->assertNotFound();
+        $this->actingAs($qc)->post("/batches/{$batch->id}/corrections", ['stage' => 'filling', 'revision_no' => 1])->assertForbidden();
+    }
+
+    public function test_correction_cannot_be_requested_without_an_open_revision(): void
+    {
+        $batch = $this->batchWithRounds();
+
+        $this->actingAs(User::factory()->create())
+            ->post("/batches/{$batch->id}/corrections", ['stage' => 'packing', 'revision_no' => 2])
+            ->assertForbidden();
+    }
+
+    public function test_cancelling_drops_the_request_and_unblocks_finalizing(): void
+    {
+        $batch = $this->batchWithRounds();
+        $this->requestRevision($batch);
+        $correction = IpcRoundCorrection::sole();
+        $qc = User::factory()->create();
+
+        $this->actingAs($qc)->post("/batches/{$batch->id}/corrections/{$correction->id}/cancel")->assertRedirect();
+
+        $this->assertSame('cancelled', $correction->fresh()->status);
+        $this->actingAs($qc)->post("/batches/{$batch->id}/packing-check/complete")->assertSessionHasNoErrors();
+        $this->assertNotNull($batch->fresh()->packingCheck->completed_at);
+    }
+
+    public function test_replacing_a_round_photo_keeps_the_original_in_the_audit_and_cancel_restores_it(): void
+    {
+        Storage::fake('public');
+        $batch = $this->batchWithRounds();
+        $revision = PackingCheckRevision::where('revision_no', 2)->sole();
+        PackingCheckRevisionPhoto::create(['packing_check_revision_id' => $revision->id, 'field_label' => 'color', 'file_path' => 'old/color.jpg']);
+
+        $this->requestRevision($batch);
+        $correction = IpcRoundCorrection::sole();
+        $qc = User::factory()->create();
+
+        $this->actingAs($qc)
+            ->post("/batches/{$batch->id}/corrections/{$correction->id}/photo/color", ['photo' => UploadedFile::fake()->image('new.jpg')])
+            ->assertSessionHasNoErrors();
+
+        $photoPath = fn () => PackingCheckRevisionPhoto::where('packing_check_revision_id', $revision->id)->where('field_label', 'color')->value('file_path');
+        $this->assertNotSame('old/color.jpg', $photoPath());
+        $this->assertSame('old/color.jpg', $correction->fresh()->before_data['photos']['color']);
+
+        // Cancelling puts the original photo back.
+        $this->actingAs($qc)->post("/batches/{$batch->id}/corrections/{$correction->id}/cancel");
+        $this->assertSame('old/color.jpg', $photoPath());
+    }
+
+    public function test_photo_change_is_part_of_the_saved_audit(): void
+    {
+        Storage::fake('public');
+        $batch = $this->batchWithRounds();
+        $revision = PackingCheckRevision::where('revision_no', 2)->sole();
+        PackingCheckRevisionPhoto::create(['packing_check_revision_id' => $revision->id, 'field_label' => 'color', 'file_path' => 'old/color.jpg']);
+        $this->requestRevision($batch);
+        $correction = IpcRoundCorrection::sole();
+        $qc = User::factory()->create();
+
+        $this->actingAs($qc)->post("/batches/{$batch->id}/corrections/{$correction->id}/photo/color", ['photo' => UploadedFile::fake()->image('new.jpg')]);
+
+        $payload = ['correction_reason' => 'Foto warna salah.', 'sum_weight_mb' => 7002, 'decision' => 'Reject', 'remarks' => 'ronde 2'];
+        foreach (PackingCheck::checklistGroups() as $group) {
+            foreach (array_keys($group['fields']) as $key) {
+                $payload[$key] = $group['options'][0];
+            }
+        }
+        $this->actingAs($qc)->put("/batches/{$batch->id}/corrections/{$correction->id}", $payload)->assertSessionHasNoErrors();
+
+        $correction->refresh();
+        $this->assertSame('old/color.jpg', $correction->before_data['photos']['color']);
+        $this->assertNotSame('old/color.jpg', $correction->after_data['photos']['color']);
+        $changes = collect(RoundAudit::forBatch($batch->fresh())['history'][0]['changes']);
+        $this->assertTrue($changes->contains(fn ($c) => $c['field'] === 'foto color'));
+    }
+
+    public function test_finished_round_correction_fixes_the_round_and_is_audited(): void
+    {
+        $batch = $this->batchWithRounds();
+        $finished = $batch->finishedCheck;
+        $finished->update(['save_count' => 2]);
+        foreach ([1, 2] as $no) {
+            $revision = FinishedCheckRevision::create([
+                'finished_check_id' => $finished->id, 'revision_no' => $no, 'finalize' => $no === 2,
+                'quantity_wi' => 1000, 'masterbox' => '1,2', 'no_pallet_qty' => '1/1000',
+                'disposition' => 'Rejected', 'remarks' => "ronde {$no}", 'user_id' => $finished->user_id,
+            ]);
+            $revision->samples()->create(['parameter_key' => 'tersier_identity', 'ac' => 1, 'cd' => 0, 'md' => 0, 'mnd' => 0]);
+        }
+
+        $this->actingAs(User::factory()->approver()->create())
+            ->put("/batches/{$batch->id}/approval/finished", [
+                'decision' => 'Revision', 'remarks' => 'TH 1 salah.', 'revise_rounds' => ['finished' => [1]],
+            ])
+            ->assertSessionHasNoErrors();
+        $correction = IpcRoundCorrection::where('stage', 'finished')->sole();
+
+        // Finalizing Finished is blocked while the round is open.
+        $qc = User::factory()->create();
+        $this->actingAs($qc)->post("/batches/{$batch->id}/finished-check/complete")->assertSessionHasErrors('progress');
+
+        $this->actingAs($qc)
+            ->put("/batches/{$batch->id}/corrections/{$correction->id}", [
+                'correction_reason' => 'Disposisi salah pilih.',
+                'quantity_wi' => 2000, 'masterbox' => '1,2,3', 'no_pallet_qty' => '1/2000',
+                'disposition' => 'Accepted', 'remarks' => 'dikoreksi',
+                'samples' => ['tersier_identity' => ['ac' => 2, 'cd' => 0, 'md' => 0, 'mnd' => 0]],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('finished-check.edit', $batch));
+
+        $revision = FinishedCheckRevision::where('revision_no', 1)->sole();
+        $this->assertSame('Accepted', $revision->disposition);
+        $this->assertSame(2000, $revision->quantity_wi);
+        // Sampling quantities follow Quantity WI through the AQL table, as in a normal save.
+        $this->assertNotNull($revision->quantity_sampling_aql);
+        $this->assertSame(2, (int) $revision->samples()->where('parameter_key', 'tersier_identity')->value('ac'));
+        // Round 2 is untouched.
+        $this->assertSame('Rejected', FinishedCheckRevision::where('revision_no', 2)->value('disposition'));
+
+        $correction->refresh();
+        $this->assertSame('Rejected', $correction->before_data['revision']['disposition']);
+        $this->assertSame('Accepted', $correction->after_data['revision']['disposition']);
     }
 }

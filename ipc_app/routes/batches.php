@@ -125,6 +125,17 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:update,batch')
         ->name('finished-check.photo.delete');
 
+    Route::post('batches/{batch}/corrections', [RoundCorrectionController::class, 'store'])
+        ->middleware('can:update,batch')
+        ->name('corrections.store');
+    Route::post('batches/{batch}/corrections/{correction}/photo/{field}', [RoundCorrectionController::class, 'photo'])
+        ->whereNumber('correction')
+        ->whereIn('field', PackingCheckController::PHOTO_FIELDS)
+        ->middleware('can:update,batch')
+        ->name('corrections.photo');
+    Route::post('batches/{batch}/corrections/{correction}/cancel', [RoundCorrectionController::class, 'cancel'])
+        ->whereNumber('correction')
+        ->name('corrections.cancel');
     Route::get('batches/{batch}/corrections/{correction}', [RoundCorrectionController::class, 'edit'])
         ->whereNumber('correction')
         ->middleware('can:update,batch')

@@ -51,7 +51,12 @@ class CorrectCheckRound
             default => [],
         };
 
-        return ['revision' => $header, 'samples' => $samples];
+        // Packing keeps one photo per field per round (a replaced photo is part of the audit too).
+        $photos = $stage === IpcBatch::STAGE_PACKING
+            ? $revision->photos()->orderBy('field_label')->pluck('file_path', 'field_label')->all()
+            : [];
+
+        return ['revision' => $header, 'samples' => $samples, 'photos' => $photos];
     }
 
     public static function revision(IpcBatch $batch, string $stage, int $revisionNo): FillingCheckRevision|PackingCheckRevision|FinishedCheckRevision|null
@@ -74,7 +79,8 @@ class CorrectCheckRound
         DB::transaction(function () use ($batch, $user, $correction, $data, $reason) {
             $stage = $correction->stage;
             $no = (int) $correction->revision_no;
-            $before = self::snapshot($batch, $stage, $no);
+            // A photo replaced earlier on the correction page already stored the true "before".
+            $before = $correction->before_data ?? self::snapshot($batch, $stage, $no);
 
             match ($stage) {
                 IpcBatch::STAGE_FILLING => $this->correctFilling($batch, $no, $data),

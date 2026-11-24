@@ -14,6 +14,8 @@ class IpcRoundCorrection extends Model
 
     public const STATUS_DONE = 'done';
 
+    public const STATUS_CANCELLED = 'cancelled';
+
     protected $fillable = [
         'ipc_batch_id',
         'stage',

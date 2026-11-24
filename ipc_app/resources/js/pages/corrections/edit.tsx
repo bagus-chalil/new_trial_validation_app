@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { AccordionCard } from '@/components/ipc/accordion-card';
+import { CameraCaptureDialog } from '@/components/ipc/camera-capture-dialog';
 import { ChipToggleGroup } from '@/components/ipc/chip-toggle-group';
 import { Toast, useToast } from '@/components/ipc/toast';
 import { Input } from '@/components/ui/input';
@@ -7,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { IpcShell } from '@/layouts/ipc-shell';
 import { type FormDataConvertible } from '@inertiajs/core';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useState } from 'react';
 
 interface ChecklistGroup {
     key: string;
@@ -34,6 +35,8 @@ interface Props {
     sampleGroups: SampleGroup[];
     decisions: string[];
     dispositions: string[];
+    photos: Record<string, string>;
+    photoFields: string[];
 }
 
 const GROUP_TITLES: Record<string, string> = { primary: 'Primary', secondary: 'Secondary', tersier: 'Tersier' };
@@ -55,8 +58,25 @@ export default function RoundCorrectionEdit({
     sampleGroups,
     decisions,
     dispositions,
+    photos,
+    photoFields,
 }: Props) {
     const { message, toast } = useToast();
+    const [cameraField, setCameraField] = useState<string | null>(null);
+
+    const uploadPhoto = (fieldKey: string, file: File) => {
+        router.post(
+            `/batches/${batch.id}/corrections/${correction.id}/photo/${fieldKey}`,
+            { photo: file },
+            { forceFormData: true, preserveScroll: true, preserveState: true },
+        );
+    };
+
+    const cancelCorrection = () => {
+        if (window.confirm('Batalkan permintaan koreksi ini? Foto yang sudah diganti dikembalikan seperti semula.')) {
+            router.post(`/batches/${batch.id}/corrections/${correction.id}/cancel`);
+        }
+    };
 
     const sampleSlots = Math.max(10, ...samples.map((row) => Number(row.sample_no ?? 0)));
     const initialFillingSamples = Array.from({ length: sampleSlots }, (_, i) => {
@@ -231,6 +251,35 @@ export default function RoundCorrectionEdit({
                                 </div>
                             </AccordionCard>
                         ))}
+                        {photoFields.length > 0 && (
+                            <AccordionCard title="Foto ronde ini" defaultOpen={false}>
+                                <p className="text-muted-foreground mb-3 text-xs">
+                                    Hanya foto milik TH #{correction.revision_no} yang diganti, lewat kamera langsung. Foto lama tetap tercatat di
+                                    audit.
+                                </p>
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                    {photoFields.map((key) => (
+                                        <div key={key} className="border-border-soft flex flex-col gap-2 rounded-xl border p-2">
+                                            <p className="text-xs font-bold">{key.replaceAll('_', ' ')}</p>
+                                            {photos[key] ? (
+                                                <img src={photos[key]} alt={key} className="h-24 w-full rounded-lg object-cover" />
+                                            ) : (
+                                                <div className="text-muted-foreground bg-muted flex h-24 items-center justify-center rounded-lg text-xs">
+                                                    Belum ada foto
+                                                </div>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => setCameraField(key)}
+                                                className="border-border flex min-h-10 items-center justify-center rounded-lg border text-xs font-bold"
+                                            >
+                                                {photos[key] ? 'Ganti foto' : 'Ambil foto'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </AccordionCard>
+                        )}
                         <AccordionCard title="Weight of MB &amp; Keputusan">
                             <div className="flex flex-col gap-4">
                                 {field('sum_weight_mb', 'Weight of MB (gram, bilangan bulat)', { inputMode: 'numeric' })}
@@ -312,15 +361,35 @@ export default function RoundCorrectionEdit({
                     <InputError message={err.correction_reason} />
                 </div>
 
-                <button
-                    type="submit"
-                    disabled={processing}
-                    className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white disabled:opacity-60 sm:self-end"
-                >
-                    {processing && <LoaderCircle className="mr-2 size-4 animate-spin" />}
-                    {processing ? 'Menyimpan...' : `Simpan Koreksi TH #${correction.revision_no}`}
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                        type="button"
+                        onClick={cancelCorrection}
+                        disabled={processing}
+                        className="border-border text-muted-foreground flex h-12 items-center justify-center rounded-xl border px-5 text-[13px] font-bold"
+                    >
+                        Batalkan permintaan koreksi ini
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white disabled:opacity-60 sm:self-end"
+                    >
+                        {processing && <LoaderCircle className="mr-2 size-4 animate-spin" />}
+                        {processing ? 'Menyimpan...' : `Simpan Koreksi TH #${correction.revision_no}`}
+                    </button>
+                </div>
             </form>
+            <CameraCaptureDialog
+                open={cameraField !== null}
+                onOpenChange={(open) => {
+                    if (!open) setCameraField(null);
+                }}
+                onCapture={(file) => {
+                    if (cameraField) uploadPhoto(cameraField, file);
+                }}
+                title={`Ambil Foto ${cameraField?.replaceAll('_', ' ') ?? ''}`}
+            />
         </IpcShell>
     );
 }

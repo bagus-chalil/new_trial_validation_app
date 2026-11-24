@@ -112,12 +112,32 @@ class HandleInertiaRequests extends Middleware
                     ->map(fn (IpcRoundCorrection $c) => [
                         'id' => $c->id,
                         'stage' => $c->stage,
+                        'no' => (int) $c->revision_no,
                         'label' => (IpcApproval::STAGE_LABELS[$c->stage] ?? $c->stage).' TH #'.$c->revision_no,
                         'url' => route('corrections.edit', [$batch, $c]),
                     ])
                     ->all();
 
+                // Saved rounds of the reopened stages that QC can still ask to correct — also
+                // covers a revision requested before round-level flagging existed.
+                $open = collect($corrections)->map(fn ($c) => $c['stage'].':'.$c['no'])->all();
+                $correctable = [];
+                foreach (array_intersect($stages, [IpcBatch::STAGE_FILLING, IpcBatch::STAGE_PACKING, IpcBatch::STAGE_FINISHED]) as $stage) {
+                    $check = match ($stage) {
+                        IpcBatch::STAGE_FILLING => $batch->fillingCheck,
+                        IpcBatch::STAGE_PACKING => $batch->packingCheck,
+                        default => $batch->finishedCheck,
+                    };
+                    foreach ($check?->revisions()->orderBy('revision_no')->pluck('revision_no') ?? [] as $no) {
+                        if (! in_array($stage.':'.$no, $open, true)) {
+                            $correctable[] = ['stage' => $stage, 'no' => (int) $no, 'label' => (IpcApproval::STAGE_LABELS[$stage] ?? $stage).' TH #'.$no];
+                        }
+                    }
+                }
+
                 return [
+                    'batch_id' => $batch->id,
+                    'correctable' => $correctable,
                     'corrections' => $corrections,
                     'stages' => array_map(fn (string $s) => IpcApproval::STAGE_LABELS[$s] ?? $s, $stages),
                     'remarks' => $approval?->remarks,
