@@ -1,7 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { Plus, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ToolingController from '@/actions/App/Http/Controllers/ToolingController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -20,6 +20,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslation } from '@/hooks/use-translation';
 import { toolingProductTypeLabel } from '@/lib/tooling';
+import { cn } from '@/lib/utils';
 import { index as toolingsIndex, show } from '@/routes/projects/toolings';
 
 type LinkItem = { title: string; url: string };
@@ -54,7 +55,102 @@ type PageProps = {
         packdev: string;
     } | null;
     options: { product_types: string[] };
+    uploadLimitMb?: number;
 };
+
+const STEP_1_FIELDS = [
+    'npd_no',
+    'request_date',
+    'requested_by_name',
+    'product_name',
+    'client_code',
+    'product_type',
+    'marketing',
+    'packdev',
+    'quantity_po',
+    'launch_date',
+];
+const STEP_2_FIELDS = [
+    'packaging_type',
+    'is_critical',
+    'dimension_packaging',
+    'material_packaging',
+    'bom_primary',
+    'pm_ref_detail',
+];
+
+/** After a failed save, jump to the first step that holds an invalid field. */
+function StepJump({
+    errors,
+    onJump,
+}: {
+    errors: Record<string, string>;
+    onJump: (step: number) => void;
+}) {
+    const keys = Object.keys(errors).join('|');
+
+    useEffect(() => {
+        if (keys === '') {
+            return;
+        }
+
+        const list = keys.split('|');
+        const has = (fields: string[]) => list.some((k) => fields.includes(k));
+
+        onJump(has(STEP_1_FIELDS) ? 1 : has(STEP_2_FIELDS) ? 2 : 3);
+    }, [keys, onJump]);
+
+    return null;
+}
+
+function Stepper({
+    step,
+    labels,
+    onSelect,
+}: {
+    step: number;
+    labels: string[];
+    onSelect: (step: number) => void;
+}) {
+    return (
+        <ol className="grid grid-cols-3 gap-2">
+            {labels.map((label, i) => {
+                const n = i + 1;
+                const done = n < step;
+                const active = n === step;
+
+                return (
+                    <li key={label}>
+                        <button
+                            type="button"
+                            onClick={() => onSelect(n)}
+                            aria-current={active ? 'step' : undefined}
+                            className={cn(
+                                'flex w-full items-center gap-2 rounded-lg border p-2 text-left text-sm transition-colors sm:p-3',
+                                active
+                                    ? 'border-brand bg-brand/5 font-medium'
+                                    : 'hover:bg-muted/50',
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    'flex size-6 shrink-0 items-center justify-center rounded-full border text-xs',
+                                    active &&
+                                        'border-brand bg-brand text-white',
+                                    done &&
+                                        'border-emerald-500 bg-emerald-500 text-white',
+                                )}
+                            >
+                                {done ? <Check className="size-3.5" /> : n}
+                            </span>
+                            <span className="min-w-0 truncate">{label}</span>
+                        </button>
+                    </li>
+                );
+            })}
+        </ol>
+    );
+}
 
 function Field({
     label,
@@ -76,10 +172,16 @@ function Field({
     );
 }
 
-export default function ToolingForm({ tooling, defaults, options }: PageProps) {
+export default function ToolingForm({
+    tooling,
+    defaults,
+    options,
+    uploadLimitMb = 100,
+}: PageProps) {
     const { t } = useTranslation();
     const isEdit = tooling !== null;
     const [links, setLinks] = useState<LinkItem[]>(tooling?.links ?? []);
+    const [step, setStep] = useState(1);
 
     const value = (key: keyof ToolingData): string => {
         const v = tooling?.[key];
@@ -130,240 +232,286 @@ export default function ToolingForm({ tooling, defaults, options }: PageProps) {
                     }
                 />
 
-                <Form {...formProps} className="space-y-6">
+                <Form
+                    {...formProps}
+                    noValidate
+                    className="space-y-6"
+                    onKeyDown={(e) => {
+                        if (
+                            e.key === 'Enter' &&
+                            (e.target as HTMLElement).tagName === 'INPUT'
+                        ) {
+                            e.preventDefault();
+                        }
+                    }}
+                >
                     {({ processing, errors }) => (
                         <>
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {t('toolings.form.section_request')}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    <Field
-                                        label={t('toolings.fields.npd_no')}
-                                        error={errors.npd_no}
-                                    >
-                                        <Input
-                                            name="npd_no"
-                                            defaultValue={value('npd_no')}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={`${t('toolings.fields.request_date')} *`}
-                                        error={errors.request_date}
-                                    >
-                                        <Input
-                                            type="date"
-                                            name="request_date"
-                                            required
-                                            defaultValue={value('request_date')}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={t(
-                                            'toolings.fields.requested_by_name',
-                                        )}
-                                        error={errors.requested_by_name}
-                                    >
-                                        <Input
-                                            name="requested_by_name"
-                                            defaultValue={value(
-                                                'requested_by_name',
-                                            )}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={`${t('toolings.fields.product_name')} *`}
-                                        error={errors.product_name}
-                                        className="sm:col-span-2"
-                                    >
-                                        <Input
-                                            name="product_name"
-                                            required
-                                            defaultValue={value('product_name')}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={t('toolings.fields.client_code')}
-                                        error={errors.client_code}
-                                    >
-                                        <Input
-                                            name="client_code"
-                                            defaultValue={value('client_code')}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={`${t('toolings.fields.product_type')} *`}
-                                        error={errors.product_type}
-                                    >
-                                        <Select
-                                            name="product_type"
-                                            defaultValue={
-                                                value('product_type') ||
-                                                'skin_care'
-                                            }
-                                        >
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {options.product_types.map(
-                                                    (type) => (
-                                                        <SelectItem
-                                                            key={type}
-                                                            value={type}
-                                                        >
-                                                            {toolingProductTypeLabel(
-                                                                t,
-                                                                type,
-                                                            )}
-                                                        </SelectItem>
-                                                    ),
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                    </Field>
-                                    <Field
-                                        label={t('toolings.fields.marketing')}
-                                        error={errors.marketing}
-                                    >
-                                        <Input
-                                            name="marketing"
-                                            defaultValue={value('marketing')}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={t('toolings.fields.packdev')}
-                                        error={errors.packdev}
-                                    >
-                                        <Input
-                                            name="packdev"
-                                            defaultValue={value('packdev')}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={t('toolings.fields.quantity_po')}
-                                        error={errors.quantity_po}
-                                    >
-                                        <Input
-                                            name="quantity_po"
-                                            defaultValue={value('quantity_po')}
-                                        />
-                                    </Field>
-                                    <Field
-                                        label={t('toolings.fields.launch_date')}
-                                        error={errors.launch_date}
-                                    >
-                                        <Input
-                                            name="launch_date"
-                                            defaultValue={value('launch_date')}
-                                        />
-                                    </Field>
-                                </CardContent>
-                            </Card>
+                            <StepJump errors={errors} onJump={setStep} />
+                            <Stepper
+                                step={step}
+                                onSelect={setStep}
+                                labels={[
+                                    t('toolings.form.step_request'),
+                                    t('toolings.form.step_packaging'),
+                                    t('toolings.form.step_attachments'),
+                                ]}
+                            />
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {t('toolings.form.section_packaging')}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid gap-4 sm:grid-cols-2">
-                                    <Field
-                                        label={`${t('toolings.fields.packaging_type')} *`}
-                                        error={errors.packaging_type}
-                                    >
-                                        <Input
-                                            name="packaging_type"
-                                            required
-                                            defaultValue={value(
-                                                'packaging_type',
-                                            )}
-                                        />
-                                    </Field>
-                                    <div className="grid content-start gap-2">
-                                        <Label className="flex items-center gap-2">
-                                            <Checkbox
-                                                name="is_critical"
-                                                value="1"
-                                                defaultChecked={
-                                                    tooling?.is_critical ??
-                                                    false
-                                                }
-                                            />
-                                            {t('toolings.fields.is_critical')}
-                                        </Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            {t(
-                                                'toolings.fields.is_critical_hint',
-                                            )}
-                                        </p>
-                                    </div>
-                                    {textFields.map((field) => (
+                            <div
+                                className={cn(
+                                    'space-y-6',
+                                    step !== 1 && 'hidden',
+                                )}
+                            >
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">
+                                            {t('toolings.form.section_request')}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                         <Field
-                                            key={field}
-                                            label={t(
-                                                `toolings.fields.${field}`,
-                                            )}
-                                            error={errors[field]}
-                                        >
-                                            <Textarea
-                                                name={field}
-                                                rows={3}
-                                                defaultValue={value(field)}
-                                            />
-                                        </Field>
-                                    ))}
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        {t('toolings.form.section_refs')}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    {links.map((link, i) => (
-                                        <div
-                                            key={i}
-                                            className="grid gap-2 sm:grid-cols-[1fr_2fr_auto] sm:items-start"
+                                            label={t('toolings.fields.npd_no')}
+                                            error={errors.npd_no}
                                         >
                                             <Input
-                                                name={`links[${i}][title]`}
-                                                placeholder={t(
-                                                    'toolings.fields.link_title',
-                                                )}
-                                                value={link.title}
-                                                onChange={(e) =>
-                                                    setLinks((prev) =>
-                                                        prev.map((l, j) =>
-                                                            j === i
-                                                                ? {
-                                                                      ...l,
-                                                                      title: e
-                                                                          .target
-                                                                          .value,
-                                                                  }
-                                                                : l,
-                                                        ),
-                                                    )
-                                                }
+                                                name="npd_no"
+                                                defaultValue={value('npd_no')}
                                             />
-                                            <div className="grid gap-1">
+                                        </Field>
+                                        <Field
+                                            label={`${t('toolings.fields.request_date')} *`}
+                                            error={errors.request_date}
+                                        >
+                                            <Input
+                                                type="date"
+                                                name="request_date"
+                                                required
+                                                defaultValue={value(
+                                                    'request_date',
+                                                )}
+                                            />
+                                        </Field>
+                                        <Field
+                                            label={t(
+                                                'toolings.fields.requested_by_name',
+                                            )}
+                                            error={errors.requested_by_name}
+                                        >
+                                            <Input
+                                                name="requested_by_name"
+                                                defaultValue={value(
+                                                    'requested_by_name',
+                                                )}
+                                            />
+                                        </Field>
+                                        <Field
+                                            label={`${t('toolings.fields.product_name')} *`}
+                                            error={errors.product_name}
+                                            className="sm:col-span-2"
+                                        >
+                                            <Input
+                                                name="product_name"
+                                                required
+                                                defaultValue={value(
+                                                    'product_name',
+                                                )}
+                                            />
+                                        </Field>
+                                        <Field
+                                            label={t(
+                                                'toolings.fields.client_code',
+                                            )}
+                                            error={errors.client_code}
+                                        >
+                                            <Input
+                                                name="client_code"
+                                                defaultValue={value(
+                                                    'client_code',
+                                                )}
+                                            />
+                                        </Field>
+                                        <Field
+                                            label={`${t('toolings.fields.product_type')} *`}
+                                            error={errors.product_type}
+                                        >
+                                            <Select
+                                                name="product_type"
+                                                defaultValue={
+                                                    value('product_type') ||
+                                                    'skin_care'
+                                                }
+                                            >
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {options.product_types.map(
+                                                        (type) => (
+                                                            <SelectItem
+                                                                key={type}
+                                                                value={type}
+                                                            >
+                                                                {toolingProductTypeLabel(
+                                                                    t,
+                                                                    type,
+                                                                )}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </Field>
+                                        <Field
+                                            label={t(
+                                                'toolings.fields.marketing',
+                                            )}
+                                            error={errors.marketing}
+                                        >
+                                            <Input
+                                                name="marketing"
+                                                defaultValue={value(
+                                                    'marketing',
+                                                )}
+                                            />
+                                        </Field>
+                                        <Field
+                                            label={t('toolings.fields.packdev')}
+                                            error={errors.packdev}
+                                        >
+                                            <Input
+                                                name="packdev"
+                                                defaultValue={value('packdev')}
+                                            />
+                                        </Field>
+                                        <Field
+                                            label={t(
+                                                'toolings.fields.quantity_po',
+                                            )}
+                                            error={errors.quantity_po}
+                                        >
+                                            <Input
+                                                name="quantity_po"
+                                                defaultValue={value(
+                                                    'quantity_po',
+                                                )}
+                                            />
+                                        </Field>
+                                        <Field
+                                            label={t(
+                                                'toolings.fields.launch_date',
+                                            )}
+                                            error={errors.launch_date}
+                                        >
+                                            <Input
+                                                name="launch_date"
+                                                defaultValue={value(
+                                                    'launch_date',
+                                                )}
+                                            />
+                                        </Field>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            <div
+                                className={cn(
+                                    'space-y-6',
+                                    step !== 2 && 'hidden',
+                                )}
+                            >
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">
+                                            {t(
+                                                'toolings.form.section_packaging',
+                                            )}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4 sm:grid-cols-2">
+                                        <Field
+                                            label={`${t('toolings.fields.packaging_type')} *`}
+                                            error={errors.packaging_type}
+                                        >
+                                            <Input
+                                                name="packaging_type"
+                                                required
+                                                defaultValue={value(
+                                                    'packaging_type',
+                                                )}
+                                            />
+                                        </Field>
+                                        <div className="grid content-start gap-2">
+                                            <Label className="flex items-center gap-2">
+                                                <Checkbox
+                                                    name="is_critical"
+                                                    value="1"
+                                                    defaultChecked={
+                                                        tooling?.is_critical ??
+                                                        false
+                                                    }
+                                                />
+                                                {t(
+                                                    'toolings.fields.is_critical',
+                                                )}
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                {t(
+                                                    'toolings.fields.is_critical_hint',
+                                                )}
+                                            </p>
+                                        </div>
+                                        {textFields.map((field) => (
+                                            <Field
+                                                key={field}
+                                                label={t(
+                                                    `toolings.fields.${field}`,
+                                                )}
+                                                error={errors[field]}
+                                            >
+                                                <Textarea
+                                                    name={field}
+                                                    rows={3}
+                                                    defaultValue={value(field)}
+                                                />
+                                            </Field>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            <div
+                                className={cn(
+                                    'space-y-6',
+                                    step !== 3 && 'hidden',
+                                )}
+                            >
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">
+                                            {t('toolings.form.section_refs')}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        {links.map((link, i) => (
+                                            <div
+                                                key={i}
+                                                className="grid gap-2 sm:grid-cols-[1fr_2fr_auto] sm:items-start"
+                                            >
                                                 <Input
-                                                    name={`links[${i}][url]`}
-                                                    type="url"
-                                                    placeholder="https://"
-                                                    value={link.url}
+                                                    name={`links[${i}][title]`}
+                                                    placeholder={t(
+                                                        'toolings.fields.link_title',
+                                                    )}
+                                                    value={link.title}
                                                     onChange={(e) =>
                                                         setLinks((prev) =>
                                                             prev.map((l, j) =>
                                                                 j === i
                                                                     ? {
                                                                           ...l,
-                                                                          url: e
+                                                                          title: e
                                                                               .target
                                                                               .value,
                                                                       }
@@ -372,51 +520,108 @@ export default function ToolingForm({ tooling, defaults, options }: PageProps) {
                                                         )
                                                     }
                                                 />
-                                                <InputError
-                                                    message={
-                                                        errors[
-                                                            `links.${i}.url` as keyof typeof errors
-                                                        ]
+                                                <div className="grid gap-1">
+                                                    <Input
+                                                        name={`links[${i}][url]`}
+                                                        type="url"
+                                                        placeholder="https://"
+                                                        value={link.url}
+                                                        onChange={(e) =>
+                                                            setLinks((prev) =>
+                                                                prev.map(
+                                                                    (l, j) =>
+                                                                        j === i
+                                                                            ? {
+                                                                                  ...l,
+                                                                                  url: e
+                                                                                      .target
+                                                                                      .value,
+                                                                              }
+                                                                            : l,
+                                                                ),
+                                                            )
+                                                        }
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            errors[
+                                                                `links.${i}.url` as keyof typeof errors
+                                                            ]
+                                                        }
+                                                    />
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    aria-label={t(
+                                                        'toolings.form.remove_link',
+                                                    )}
+                                                    onClick={() =>
+                                                        setLinks((prev) =>
+                                                            prev.filter(
+                                                                (_, j) =>
+                                                                    j !== i,
+                                                            ),
+                                                        )
                                                     }
-                                                />
+                                                >
+                                                    <X />
+                                                </Button>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={t(
-                                                    'toolings.form.remove_link',
-                                                )}
-                                                onClick={() =>
-                                                    setLinks((prev) =>
-                                                        prev.filter(
-                                                            (_, j) => j !== i,
-                                                        ),
-                                                    )
-                                                }
-                                            >
-                                                <X />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            setLinks((prev) => [
-                                                ...prev,
-                                                { title: '', url: '' },
-                                            ])
-                                        }
-                                    >
-                                        <Plus />
-                                        {t('toolings.form.add_link')}
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                                        ))}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                setLinks((prev) => [
+                                                    ...prev,
+                                                    { title: '', url: '' },
+                                                ])
+                                            }
+                                        >
+                                            <Plus />
+                                            {t('toolings.form.add_link')}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
 
-                            <div className="flex flex-wrap justify-end gap-2">
+                                {!isEdit && (
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">
+                                                {t(
+                                                    'toolings.form.section_drawings',
+                                                )}
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
+                                            <p className="text-sm text-muted-foreground">
+                                                {t(
+                                                    'toolings.form.drawings_hint',
+                                                    {
+                                                        max: uploadLimitMb,
+                                                    },
+                                                )}
+                                            </p>
+                                            <Input
+                                                type="file"
+                                                name="drawings[]"
+                                                multiple
+                                            />
+                                            <InputError
+                                                message={
+                                                    errors.drawings ??
+                                                    errors['drawings.0']
+                                                }
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-2">
                                 <Button variant="outline" asChild>
                                     <Link
                                         href={
@@ -428,9 +633,34 @@ export default function ToolingForm({ tooling, defaults, options }: PageProps) {
                                         {t('toolings.cancel')}
                                     </Link>
                                 </Button>
-                                <Button type="submit" disabled={processing}>
-                                    {t('toolings.form.submit')}
-                                </Button>
+                                <div className="flex gap-2">
+                                    {step > 1 && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setStep(step - 1)}
+                                        >
+                                            <ChevronLeft />
+                                            {t('toolings.form.back')}
+                                        </Button>
+                                    )}
+                                    {step < 3 ? (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setStep(step + 1)}
+                                        >
+                                            {t('toolings.form.next')}
+                                            <ChevronRight />
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            {t('toolings.form.submit')}
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                         </>
                     )}

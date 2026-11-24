@@ -41,14 +41,14 @@ function toolingStep(Tooling $tooling, string $step): string
     return route('projects.toolings.steps', ['tooling' => $tooling->id, 'step' => $step]);
 }
 
-test('tooling roles come from the department or review unit; admin has all, viewer none', function () {
+test('tooling roles come from the department or review unit; admin and viewer hold none', function () {
     expect(ToolingWorkflow::rolesFor(toolingUser('PRNI')))->toBe(['prni'])
         ->and(ToolingWorkflow::rolesFor(toolingUser('RNI', 'RNI')))->toBe(['rni'])
         ->and(ToolingWorkflow::rolesFor(toolingUser('PRD')))->toBe(['production'])
         ->and(ToolingWorkflow::rolesFor(User::factory()->create(['role' => 'Staff', 'department' => 'QA', 'review_unit' => 'PROD'])))->toBe(['production'])
         ->and(ToolingWorkflow::rolesFor(toolingUser('PI')))->toBe(['pi'])
         ->and(ToolingWorkflow::rolesFor(toolingUser('PIE')))->toBe(['pi'])
-        ->and(ToolingWorkflow::rolesFor(toolingUser('IT', 'Admin')))->toBe(ToolingOptions::ROLES)
+        ->and(ToolingWorkflow::rolesFor(toolingUser('IT', 'Admin')))->toBe([])
         ->and(ToolingWorkflow::rolesFor(toolingUser('PRNI', 'Viewer')))->toBe([])
         ->and(ToolingWorkflow::rolesFor(toolingUser('QA')))->toBe([]);
 });
@@ -246,4 +246,54 @@ test('the improvement reviewer records the after result and after evidence files
         'file' => UploadedFile::fake()->createWithContent('after.pdf', "%PDF-1.4\n%x\n"), 'phase' => 'after',
     ])->assertRedirect();
     expect(ImprovementFile::firstOrFail()->phase)->toBe('after');
+});
+
+test('drawings attached while creating a request are stored, and a bad one only warns', function () {
+    $prni = toolingUser('PRNI');
+
+    $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload([
+        'drawings' => [
+            UploadedFile::fake()->createWithContent('drawing.pdf', "%PDF-1.4\n%test\n"),
+            UploadedFile::fake()->createWithContent('run.php', '<?php echo 1;'),
+        ],
+    ]))->assertRedirect();
+
+    $tooling = Tooling::firstOrFail(); // the request itself is always created
+    $files = ProjectFile::where('tooling_id', $tooling->id)->get();
+
+    expect($files)->toHaveCount(1)
+        ->and($files->first()->file_name)->toBe('drawing.pdf');
+});
+
+test('an admin manages requests but can never sign any box', function () {
+    $prni = toolingUser('PRNI');
+    $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload());
+    $tooling = Tooling::firstOrFail();
+    $admin = User::factory()->create(['role' => 'Admin', 'department' => 'PRNI']);
+
+    foreach (['sign-prni', 'sign-rni', 'pie-check', 'sign-production'] as $step) {
+        $this->actingAs($admin)->post(toolingStep($tooling, $step), ['signature_password' => 'password'])->assertForbidden();
+    }
+
+    expect($admin->can('signPrni', $tooling))->toBeFalse()
+        ->and($admin->can('update', $tooling))->toBeTrue()
+        ->and($admin->can('reject', $tooling))->toBeTrue()
+        ->and($admin->can('delete', $tooling))->toBeTrue()
+        ->and($tooling->fresh()->isSigned('prni'))->toBeFalse();
+});
+
+test('one person cannot sign two boxes on the same request', function () {
+    $both = User::factory()->create(['role' => 'Staff', 'department' => 'PRNI', 'review_unit' => 'RNI']);
+    $this->actingAs($both)->post(route('projects.toolings.store'), toolingRequestPayload());
+    $tooling = Tooling::firstOrFail();
+
+    $this->actingAs($both)->post(toolingStep($tooling, 'sign-prni'), ['signature_password' => 'password'])->assertRedirect();
+    expect($tooling->fresh()->isSigned('prni'))->toBeTrue();
+
+    $this->actingAs($both)->post(toolingStep($tooling, 'sign-rni'), ['signature_password' => 'password', 'formula_info' => 'x'])->assertForbidden();
+    expect($tooling->fresh()->isSigned('rni'))->toBeFalse();
+
+    // A different RNI person can still sign.
+    $rni = toolingUser('RNI');
+    expect($rni->can('signRni', $tooling))->toBeTrue();
 });

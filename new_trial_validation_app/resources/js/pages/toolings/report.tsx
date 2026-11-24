@@ -16,6 +16,13 @@ import { SignaturePills } from '@/components/toolings/signature-pills';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/use-translation';
 import {
@@ -77,6 +84,63 @@ type PageProps = {
     filters: { q: string; filter: FilterKey };
     can: { create: boolean };
 };
+
+function RowSummary({ row }: { row: Row }) {
+    const { t } = useTranslation();
+    const fields: [string, string | null][] = [
+        ['npd_no', row.npd_no],
+        ['client_code', row.client_code],
+        ['product_name', row.product_name],
+        ['packdev', row.packdev],
+        ['packaging_type', row.packaging_type],
+        ['quantity_po', row.quantity_po],
+        ['bom_primary', row.bom_primary],
+        ['recommended_machine', row.recommended_machine],
+        ['risk_level', row.risk_level],
+        ['need_invest', row.need_invest],
+    ];
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    {t('toolings.report.summary')}
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+                <DialogTitle>{row.npd_no}</DialogTitle>
+                <DialogDescription>
+                    {toolingStatusLabel(t, row.status)}
+                    {row.finished_at ? ` · ${row.finished_at}` : ''}
+                </DialogDescription>
+                <SignaturePills signed={row.signed} />
+                <dl className="grid gap-3 sm:grid-cols-2">
+                    {fields.map(([key, value]) => (
+                        <div key={key} className="min-w-0">
+                            <dt className="text-xs text-muted-foreground">
+                                {t(`toolings.fields.${key}`)}
+                            </dt>
+                            <dd className="text-sm font-medium break-words">
+                                {value || '-'}
+                            </dd>
+                        </div>
+                    ))}
+                </dl>
+                {row.project && (
+                    <Link
+                        href={projectShow(row.project.id).url}
+                        className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                        {t('toolings.report.project_progress', {
+                            code: row.project.code,
+                            pct: row.project.progress,
+                        })}
+                    </Link>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 const FILTER_KEYS: FilterKey[] = [
     'all',
@@ -461,6 +525,7 @@ export default function ToolingReport({
                                         </div>
 
                                         <div className="flex flex-wrap gap-1.5">
+                                            <RowSummary row={row} />
                                             <Button
                                                 size="sm"
                                                 variant="outline"

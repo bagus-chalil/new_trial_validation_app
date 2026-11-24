@@ -25,8 +25,11 @@ use Illuminate\Support\Carbon;
  * Admin) and override the derived value until released.
  *
  * Roles come from the user's department / review unit (decision 2026-11-23):
- * PRNI -> prni, RNI -> rni, PROD/PRD -> production, PIE/PI -> pi. Admins hold
- * every role; Viewers hold none.
+ * PRNI -> prni, RNI -> rni, PROD/PRD -> production, PIE/PI -> pi. Viewers hold
+ * none. Like Trial Approval (decision 2026-11-24), no single account can sign
+ * everything: Admins hold NO signing role (they only manage: create, edit,
+ * hold/reject/resume, attach, promote, delete), and one person can sign at
+ * most one box on the same request (separation of duties).
  */
 class ToolingWorkflow
 {
@@ -43,11 +46,7 @@ class ToolingWorkflow
     /** @return list<string> tooling roles (prni/rni/pi/production) the user acts as */
     public static function rolesFor(User $user): array
     {
-        if ($user->isAdmin()) {
-            return ToolingOptions::ROLES;
-        }
-
-        if ($user->isViewer()) {
+        if ($user->isAdmin() || $user->isViewer()) {
             return [];
         }
 
@@ -65,6 +64,28 @@ class ToolingWorkflow
     public static function hasRole(User $user, string $role): bool
     {
         return in_array($role, self::rolesFor($user), true);
+    }
+
+    /** Admins manage requests (but never sign): used by the policy for the non-signing steps. */
+    public static function canManage(User $user): bool
+    {
+        return $user->isAdmin();
+    }
+
+    /** True when this user already signed a different box on the same request. */
+    public static function signedAnotherRole(User $user, Tooling $tooling, string $role): bool
+    {
+        return $tooling->approvals()
+            ->where('signer_user_id', $user->id)
+            ->where('approved', true)
+            ->where('role', '!=', $role)
+            ->exists();
+    }
+
+    /** Department role + has not already signed another box on this request. */
+    public static function canSign(User $user, Tooling $tooling, string $role): bool
+    {
+        return self::hasRole($user, $role) && ! self::signedAnotherRole($user, $tooling, $role);
     }
 
     /** The status implied by the signatures and sample status (a manual hold/reject is kept). */
@@ -136,14 +157,13 @@ class ToolingWorkflow
             return null;
         }
 
-        $roles = self::rolesFor($user);
-        $is = fn (string $role): bool => in_array($role, $roles, true);
+        $is = fn (string $role): bool => self::canSign($user, $tooling, $role);
 
         return match (true) {
             $is('prni') && ! $tooling->isSigned('prni') => 'sign_prni',
             $is('rni') && ! $tooling->isSigned('rni') => 'sign_rni',
-            $is('prni') && $tooling->sample_status === 'Menunggu Sampel' => 'send_sample',
-            $is('pi') && $tooling->sample_status === 'Sampel Sedang Dikirim' => 'receive_sample',
+            self::hasRole($user, 'prni') && $tooling->sample_status === 'Menunggu Sampel' => 'send_sample',
+            self::hasRole($user, 'pi') && $tooling->sample_status === 'Sampel Sedang Dikirim' => 'receive_sample',
             $is('pi') && self::canPieCheck($tooling) => 'pie_check',
             $is('production') && self::canProductionSign($tooling) => 'sign_production',
             default => null,

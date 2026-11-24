@@ -32,6 +32,8 @@ class SaveToolingRequest extends FormRequest
         $text = ['nullable', 'string', 'max:5000'];
 
         return [
+            'drawings' => ['nullable', 'array', 'max:10'],
+            'drawings.*' => ['file'],
             'npd_no' => ['nullable', 'string', 'max:120'],
             'request_date' => ['required', 'date'],
             'requested_by_name' => ['nullable', 'string', 'max:100'],

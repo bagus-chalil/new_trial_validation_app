@@ -17,6 +17,7 @@ use App\Support\ProjectOptions;
 use App\Support\ToolingOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -94,15 +95,27 @@ class ToolingController extends Controller
                 'requested_by_name' => $user->name,
                 'packdev' => $user->name,
             ],
+            'uploadLimitMb' => ProjectOptions::MAX_UPLOAD_BYTES / 1024 / 1024,
             'options' => $this->options(),
         ]);
     }
 
-    public function store(SaveToolingRequest $request, SaveTooling $action): RedirectResponse
+    public function store(SaveToolingRequest $request, SaveTooling $action, ToolingFiles $files): RedirectResponse
     {
-        $tooling = $action(null, $request->validated(), $request->user());
+        $tooling = $action(null, Arr::except($request->validated(), 'drawings'), $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('toolings.toast.created')]);
+        $failed = [];
+        foreach ($request->file('drawings', []) as $upload) {
+            try {
+                $files->store($tooling, $upload, null, $request->user());
+            } catch (InvalidArgumentException $e) {
+                $failed[] = $e->getMessage();
+            }
+        }
+
+        Inertia::flash('toast', $failed === []
+            ? ['type' => 'success', 'message' => __('toolings.toast.created')]
+            : ['type' => 'warning', 'message' => __('toolings.toast.drawings_failed', ['errors' => implode(' ', $failed)])]);
 
         return to_route('projects.toolings.show', $tooling);
     }
