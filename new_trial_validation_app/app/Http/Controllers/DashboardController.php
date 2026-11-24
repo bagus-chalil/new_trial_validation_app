@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Improvement;
 use App\Models\MasterOption;
+use App\Models\Project;
+use App\Models\Tooling;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
+use App\Services\Projects\ToolingWorkflow;
+use App\Support\ToolingOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -222,6 +227,41 @@ class DashboardController extends Controller
                 ->get(['id', 'trial_code', 'product_name', 'final_decision', 'updated_at']);
         }
 
+        // Projects module: own active projects and own/pending improvements.
+        $ownProjectQuery = Project::query()
+            ->whereNull('deleted_at')
+            ->where('status', '!=', 'Completed')
+            ->where(fn ($q) => $q->where('pic_user_id', $user->id)->orWhere('created_by_user_id', $user->id));
+        $myProjectsTotal = (clone $ownProjectQuery)->count();
+        $myProjects = (clone $ownProjectQuery)->orderBy('end_date')->orderBy('id')->limit(5)
+            ->get(['id', 'name', 'code', 'status', 'progress', 'end_date']);
+
+        $ownImprovementQuery = Improvement::query()
+            ->whereNull('deleted_at')
+            ->where('submitted_by_user_id', $user->id)
+            ->whereIn('status', ['Baru', 'Review PI', 'Menunggu Data']);
+        $myImprovementsTotal = (clone $ownImprovementQuery)->count();
+        $myImprovements = (clone $ownImprovementQuery)->orderByDesc('id')->limit(5)
+            ->get(['id', 'title', 'status']);
+
+        $piReviewQuery = Improvement::query()
+            ->whereNull('deleted_at')
+            ->whereIn('status', ['Baru', 'Review PI']);
+        $canReviewImprovements = Gate::forUser($user)->allows('review', new Improvement);
+        $improvementsToReviewTotal = $canReviewImprovements ? (clone $piReviewQuery)->count() : 0;
+
+        // Check Tooling: open requests waiting on a step this user's role can take.
+        $myToolingRows = Tooling::query()
+            ->whereNull('deleted_at')
+            ->whereNotIn('status', ToolingOptions::FINAL_STATUSES)
+            ->with('approvals')
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Tooling $t) => ['tooling' => $t, 'action' => ToolingWorkflow::pendingActionFor($t, $user)])
+            ->filter(fn (array $row) => $row['action'] !== null)
+            ->values();
+
         $trialSummary = fn (Trial $t) => [
             'id' => $t->id,
             'trial_code' => $t->trial_code,
@@ -237,6 +277,32 @@ class DashboardController extends Controller
         ];
 
         return [
+            'myProjects' => $myProjects->map(fn (Project $p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'code' => $p->code,
+                'status' => $p->status,
+                'progress' => $p->progress,
+                'end_date' => $p->end_date?->format('Y-m-d'),
+            ])->values(),
+            'myProjectsTotal' => $myProjectsTotal,
+            'myImprovements' => $myImprovements->map(fn (Improvement $i) => [
+                'id' => $i->id,
+                'title' => $i->title,
+                'status' => $i->status,
+            ])->values(),
+            'myImprovementsTotal' => $myImprovementsTotal,
+            'myToolings' => $myToolingRows->take(5)->map(fn (array $row) => [
+                'id' => $row['tooling']->id,
+                'npd_no' => $row['tooling']->npd_no,
+                'product_name' => $row['tooling']->product_name,
+                'status' => $row['tooling']->status,
+                'action' => $row['action'],
+                'due_date' => $row['tooling']->due_date?->toDateString(),
+            ])->values(),
+            'myToolingsTotal' => $myToolingRows->count(),
+            'canReviewImprovements' => $canReviewImprovements,
+            'improvementsToReviewTotal' => $improvementsToReviewTotal,
             'draftTrials' => $draftTrials->map($draftTrialSummary)->values(),
             'draftTrialsTotal' => $draftTrialsTotal,
             'needsRevisionTrials' => $needsRevisionTrials->map($trialSummary)->values(),

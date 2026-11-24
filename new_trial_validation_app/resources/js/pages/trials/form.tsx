@@ -7,6 +7,7 @@ import InputError from '@/components/input-error';
 import { MultiSelect } from '@/components/multi-select';
 import { StickyActionBar } from '@/components/sticky-action-bar';
 import { TrialWizardSteps } from '@/components/trial-wizard-steps';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +68,15 @@ type PageProps = {
         machine_used: string[];
     };
     riskLevels: string[];
+    // Projects module Fase 4: set when the form was opened from a Validation stage.
+    projectStage?: {
+        id: number;
+        name: string;
+        project_id: number;
+        project_name: string;
+        project_code: string;
+    } | null;
+    prefill?: { product_id: number | null; machine_used: string[] } | null;
 };
 
 export default function TrialForm({
@@ -75,6 +85,8 @@ export default function TrialForm({
     products,
     masterOptions,
     riskLevels,
+    projectStage = null,
+    prefill = null,
 }: PageProps) {
     const { t } = useTranslation();
     const title =
@@ -82,13 +94,17 @@ export default function TrialForm({
             ? t('wizard.form.title_edit', { code: trial?.trial_code ?? '' })
             : t('wizard.form.title_new');
     const [productId, setProductId] = useState(
-        trial?.product_id ? String(trial.product_id) : '',
+        trial?.product_id
+            ? String(trial.product_id)
+            : prefill?.product_id
+              ? String(prefill.product_id)
+              : '',
     );
     const [validationScope, setValidationScope] = useState<string[]>(
         trial?.validation_scope ?? [],
     );
     const [machineUsed, setMachineUsed] = useState<string[]>(
-        trial?.machine_used ?? [],
+        trial?.machine_used ?? prefill?.machine_used ?? [],
     );
 
     const selectedProduct = products.find((p) => String(p.id) === productId);
@@ -123,6 +139,19 @@ export default function TrialForm({
 
                 <TrialWizardSteps currentStep={1} trial={trial} />
 
+                {projectStage && (
+                    <Alert>
+                        <AlertDescription>
+                            {t('projects.trial_link.form_banner', {
+                                stage: projectStage.name,
+                                project: projectStage.project_code
+                                    ? `${projectStage.project_code} · ${projectStage.project_name}`
+                                    : projectStage.project_name,
+                            })}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <Form
                     {...formProps}
                     options={{ preserveScroll: true }}
@@ -135,6 +164,16 @@ export default function TrialForm({
                                 name="product_id"
                                 value={productId}
                             />
+                            {projectStage && (
+                                <input
+                                    type="hidden"
+                                    name="project_stage_id"
+                                    value={projectStage.id}
+                                />
+                            )}
+                            {errors.project_stage_id && (
+                                <InputError message={errors.project_stage_id} />
+                            )}
                             {validationScope.map((value) => (
                                 <input
                                     key={value}

@@ -18,6 +18,11 @@ class StoreTrialRequest extends FormRequest
      */
     public function rules(): array
     {
-        return TrialRequestRules::rules();
+        return [
+            ...TrialRequestRules::rules(),
+            // Projects module Fase 4: link the new trial to this Validation
+            // stage (checked in TrialController::store()).
+            'project_stage_id' => ['nullable', 'integer'],
+        ];
     }
 }

@@ -91,6 +91,10 @@ class AppServiceProvider extends ServiceProvider
         // Deliberately not tied to a specific Trial instance or its status:
         // the report has no lock of any kind, see
         // TrialLineConfigurationReport's doc comment.
+        // Projects module admin override (delete, any-project edit, master data
+        // such as stage templates). Per-project/improvement rules live in
+        // ProjectPolicy / ImprovementPolicy.
+        Gate::define('manage-projects', fn (User $user) => $user->isAdmin());
         Gate::define('manage-line-configuration-report', fn (User $user) => $user->isAdmin()
             || LineConfigurationLane::userEligibleForStage($user, 'approved_pie'));
     }

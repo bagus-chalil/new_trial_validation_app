@@ -61,6 +61,16 @@ return [
             'report' => false,
         ],
 
+        // Projects module attachments (copied from the standalone Project
+        // Tracking app by `projects:import-legacy`). Served only through
+        // authorized routes, never as a public path.
+        'project_files' => [
+            'driver' => 'local',
+            'root' => env('PROJECT_FILES_PATH', storage_path('app/project-files')),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

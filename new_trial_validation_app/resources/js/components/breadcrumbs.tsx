@@ -190,6 +190,77 @@ export function contextualBreadcrumbs(
         }
     }
 
+    if (segments[0] === 'projects') {
+        const projects = t('common.nav.projects');
+        const portfolio = t('common.nav.project_portfolio');
+
+        if (segments.length === 1) {
+            return [item(projects, '/projects'), item(portfolio, '#')];
+        }
+
+        if (segments[1] === 'quotations') {
+            return [
+                item(projects, '/projects'),
+                item(t('common.nav.project_quotations'), '#'),
+            ];
+        }
+
+        if (segments[1] === 'gantt') {
+            return [
+                item(projects, '/projects'),
+                item(t('common.nav.project_gantt'), '#'),
+            ];
+        }
+
+        if (segments[1] === 'toolings') {
+            const board = t('common.nav.project_toolings');
+
+            if (segments.length === 2) {
+                return [item(projects, '/projects'), item(board, '#')];
+            }
+
+            const label =
+                segments[2] === 'create'
+                    ? t('toolings.form.create_title')
+                    : segments[3] === 'edit'
+                      ? t('toolings.form.edit_title')
+                      : t('improvements.show.section_detail');
+
+            return [
+                item(projects, '/projects'),
+                item(board, '/projects/toolings'),
+                item(label, '#'),
+            ];
+        }
+
+        if (segments[1] === 'improvements') {
+            const board = t('common.nav.project_improvements');
+
+            if (segments.length === 2) {
+                return [item(projects, '/projects'), item(board, '#')];
+            }
+
+            return [
+                item(projects, '/projects'),
+                item(board, '/projects/improvements'),
+                item(t('improvements.show.section_detail'), '#'),
+            ];
+        }
+
+        const detailLabel =
+            segments[1] === 'create'
+                ? t('projects.new')
+                : segments[2] === 'edit'
+                  ? t('projects.form.edit_title')
+                  : t('projects.show.head_title');
+
+        return [
+            item(projects, '/projects'),
+            item(portfolio, '/projects'),
+            item(detailLabel, '#'),
+        ];
+    }
+
     if (singlePages[pathname]) {
         return [item(t(singlePages[pathname]), pathname)];
     }

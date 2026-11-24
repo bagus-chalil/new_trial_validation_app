@@ -6,6 +6,10 @@ import {
     Bell,
     Bot,
     BriefcaseBusiness,
+    FolderKanban,
+    GanttChartSquare,
+    Lightbulb,
+    Receipt,
     CheckCircle2,
     CircleCheckBig,
     ClipboardCheck,
@@ -21,6 +25,7 @@ import {
     Search,
     Trash2,
     Users,
+    Wrench,
     XCircle,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -50,6 +55,11 @@ import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
 import { index as approvalsIndex } from '@/routes/approvals';
 import { index as monitoringIndex } from '@/routes/monitoring';
+import { index as projectsIndex } from '@/routes/projects';
+import { gantt as ganttIndex } from '@/routes/projects';
+import { index as improvementsIndex } from '@/routes/projects/improvements';
+import { index as quotationsIndex } from '@/routes/projects/quotations';
+import { index as toolingsIndex } from '@/routes/projects/toolings';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { index as trialsIndex } from '@/routes/trials';
@@ -135,6 +145,41 @@ export function AppSidebar() {
                     href: trialsIndex('rejected'),
                     trialStatuses: ['Rejected'],
                     icon: XCircle,
+                },
+            ],
+        },
+        {
+            // Everyone can read projects; create/edit buttons are gated per
+            // project by ProjectPolicy on the pages themselves.
+            label: t('common.nav.projects'),
+            items: [
+                {
+                    title: t('common.nav.project_portfolio'),
+                    href: projectsIndex(),
+                    icon: FolderKanban,
+                    activePattern: /^\/projects\/(\d+|create)(\/|$)/,
+                },
+                {
+                    title: t('common.nav.project_gantt'),
+                    href: ganttIndex(),
+                    icon: GanttChartSquare,
+                },
+                {
+                    title: t('common.nav.project_improvements'),
+                    href: improvementsIndex(),
+                    icon: Lightbulb,
+                    activePattern: /^\/projects\/improvements\//,
+                },
+                {
+                    title: t('common.nav.project_toolings'),
+                    href: toolingsIndex(),
+                    icon: Wrench,
+                    activePattern: /^\/projects\/toolings\//,
+                },
+                {
+                    title: t('common.nav.project_quotations'),
+                    href: quotationsIndex(),
+                    icon: Receipt,
                 },
             ],
         },

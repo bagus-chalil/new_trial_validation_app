@@ -2,17 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Projects\LinkProjectStageTrial;
 use App\Actions\Trials\CreateTrial;
 use App\Actions\Trials\UpdateTrial;
 use App\Http\Requests\Trials\StoreTrialRequest;
 use App\Http\Requests\Trials\UpdateTrialRequest;
 use App\Models\MasterOption;
 use App\Models\Product;
+use App\Models\Project;
+use App\Models\ProjectStage;
 use App\Models\Trial;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -81,24 +87,96 @@ class TrialController extends Controller
         ];
     }
 
-    public function create(): Response
+    public function create(Request $request): Response|RedirectResponse
     {
         Gate::authorize('create', Trial::class);
+
+        // Projects module Fase 4: "Buat Draft Trial" from a Validation stage
+        // opens this same form, pre-filled from the project, and links the
+        // new trial to the stage on save.
+        $projectStage = null;
+        $prefill = null;
+        if ($request->filled('project_stage')) {
+            try {
+                [$project, $stage] = $this->linkableStage((int) $request->query('project_stage'), $request->user());
+            } catch (ValidationException $e) {
+                Inertia::flash('toast', ['type' => 'error', 'message' => (string) collect($e->errors())->flatten()->first()]);
+
+                return back();
+            }
+
+            $project->loadMissing(['machine', 'product']);
+            $product = $project->product;
+            $machine = $project->machine;
+            $projectStage = [
+                'id' => $stage->id,
+                'name' => $stage->name,
+                'project_id' => $project->id,
+                'project_name' => $project->name,
+                'project_code' => $project->code,
+            ];
+            $prefill = [
+                'product_id' => $product && $product->is_active && $product->deleted_at === null ? $product->id : null,
+                'machine_used' => $machine && $machine->is_active && $machine->deleted_at === null ? [$machine->name] : [],
+            ];
+        }
 
         return Inertia::render('trials/form', [
             'mode' => 'create',
             'trial' => null,
+            'projectStage' => $projectStage,
+            'prefill' => $prefill,
             ...$this->formOptions(),
         ]);
     }
 
-    public function store(StoreTrialRequest $request, CreateTrial $action): RedirectResponse
+    public function store(StoreTrialRequest $request, CreateTrial $action, LinkProjectStageTrial $linker): RedirectResponse
     {
-        $trial = $action($request->validated(), $request->user());
+        $data = $request->validated();
+        $stageId = $data['project_stage_id'] ?? null;
+        unset($data['project_stage_id']);
+        $user = $request->user();
+
+        if ($stageId === null) {
+            $trial = $action($data, $user);
+        } else {
+            // Check the stage first so a stage that can't take a trial never
+            // leaves an orphan draft behind.
+            [$project, $stage] = $this->linkableStage((int) $stageId, $user, 'project_stage_id');
+
+            $trial = DB::transaction(function () use ($action, $linker, $data, $user, $project, $stage) {
+                $trial = $action($data, $user);
+                $linker->link($project, $stage, $trial, $user);
+
+                return $trial;
+            });
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.trial_created')]);
 
         return to_route('trials.validation.edit', $trial);
+    }
+
+    /**
+     * A Validation stage (of a live project the user may change) that has no
+     * trial yet.
+     *
+     * @return array{0: Project, 1: ProjectStage}
+     */
+    private function linkableStage(int $stageId, User $user, string $errorKey = 'trial_id'): array
+    {
+        $stage = ProjectStage::query()->findOrFail($stageId);
+        $project = Project::query()->whereNull('deleted_at')->findOrFail($stage->project_id);
+
+        Gate::forUser($user)->authorize('update', $project);
+
+        try {
+            LinkProjectStageTrial::assertLinkable($stage);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages([$errorKey => collect($e->errors())->flatten()->all()]);
+        }
+
+        return [$project, $stage];
     }
 
     public function edit(int $trial): Response

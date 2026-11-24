@@ -27,6 +27,8 @@ type ConfirmDialogProps = {
     formProps: Omit<ComponentProps<typeof Form>, 'children'>;
     /** Extra fields rendered inside the <Form>, between the description and the footer buttons. */
     children?: (bag: FormRenderProps) => ReactNode;
+    /** Extra classes for the dialog box, e.g. a wider scrolling form. */
+    contentClassName?: string;
 };
 
 export function ConfirmDialog({
@@ -39,6 +41,7 @@ export function ConfirmDialog({
     confirmVariant = 'destructive',
     formProps,
     children,
+    contentClassName,
 }: ConfirmDialogProps) {
     const { t } = useTranslation();
     const [innerOpen, setInnerOpen] = useState(false);
@@ -48,7 +51,7 @@ export function ConfirmDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-            <DialogContent>
+            <DialogContent className={contentClassName}>
                 <DialogTitle>{title}</DialogTitle>
                 <Form
                     options={{ preserveScroll: true }}
