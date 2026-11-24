@@ -254,6 +254,7 @@ class ToolingReportController extends Controller
             'finished_at' => $t->updated_at?->format('Y-m-d H:i'),
             'need_invest_pending' => $t->status === ToolingOptions::STATUS_APPROVED && $this->isNeedInvestPending($t),
             'project' => $project ? ['id' => $project->id, 'code' => $project->code, 'progress' => (int) $project->progress] : null,
+            'can_delete' => Gate::allows('delete', $t),
         ];
     }
 }

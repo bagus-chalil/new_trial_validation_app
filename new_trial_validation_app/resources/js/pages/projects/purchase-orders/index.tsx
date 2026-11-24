@@ -125,10 +125,10 @@ export default function PurchaseOrderIndex({
                                     <TableHead>
                                         {t('purchase_orders.columns.project')}
                                     </TableHead>
-                                    <TableHead>
+                                    <TableHead className="hidden md:table-cell">
                                         {t('purchase_orders.columns.vendor')}
                                     </TableHead>
-                                    <TableHead>
+                                    <TableHead className="hidden lg:table-cell">
                                         {t('purchase_orders.columns.subject')}
                                     </TableHead>
                                     <TableHead className="text-right">
@@ -146,6 +146,9 @@ export default function PurchaseOrderIndex({
                                             >
                                                 {po.po_no}
                                             </Link>
+                                            <div className="text-xs font-normal text-muted-foreground md:hidden">
+                                                {po.vendor_name}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             {po.po_date
@@ -163,8 +166,10 @@ export default function PurchaseOrderIndex({
                                                 {po.project_name}
                                             </Link>
                                         </TableCell>
-                                        <TableCell>{po.vendor_name}</TableCell>
-                                        <TableCell className="max-w-xs truncate">
+                                        <TableCell className="hidden md:table-cell">
+                                            {po.vendor_name}
+                                        </TableCell>
+                                        <TableCell className="hidden max-w-xs truncate lg:table-cell">
                                             {po.subject || '-'}
                                         </TableCell>
                                         <TableCell className="text-right">

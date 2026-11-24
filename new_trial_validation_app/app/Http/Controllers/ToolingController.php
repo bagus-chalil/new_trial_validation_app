@@ -280,7 +280,9 @@ class ToolingController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('toolings.toast.deleted')]);
 
-        return to_route('projects.toolings.index');
+        return $request->input('from') === 'report'
+            ? to_route('projects.toolings.report')
+            : to_route('projects.toolings.index');
     }
 
     private function find(int $id): Tooling

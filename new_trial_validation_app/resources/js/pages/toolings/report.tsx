@@ -5,9 +5,12 @@ import {
     FileSpreadsheet,
     Plus,
     Search,
+    Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import ToolingController from '@/actions/App/Http/Controllers/ToolingController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { SignaturePills } from '@/components/toolings/signature-pills';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +37,7 @@ import { exportMethod } from '@/routes/projects/toolings/report';
 
 type Row = {
     id: number;
+    can_delete: boolean;
     npd_no: string;
     product_name: string;
     client_code: string;
@@ -207,7 +211,7 @@ export default function ToolingReport({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                     {kpiCards.map((card) => {
                         const body = (
                             <>
@@ -223,7 +227,7 @@ export default function ToolingReport({
                             </>
                         );
                         const cls = cn(
-                            'rounded-xl border border-l-4 bg-card p-4 shadow-xs',
+                            'rounded-xl border border-l-4 bg-card p-3 shadow-xs sm:p-4',
                             card.tone,
                         );
 
@@ -488,6 +492,43 @@ export default function ToolingReport({
                                                     {t('toolings.report.word')}
                                                 </a>
                                             </Button>
+                                            {row.can_delete && (
+                                                <ConfirmDialog
+                                                    trigger={
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="text-destructive"
+                                                        >
+                                                            <Trash2 />
+                                                            {t(
+                                                                'toolings.delete',
+                                                            )}
+                                                        </Button>
+                                                    }
+                                                    title={t(
+                                                        'toolings.show.delete_title',
+                                                    )}
+                                                    description={t(
+                                                        'toolings.show.delete_description',
+                                                        { npd: row.npd_no },
+                                                    )}
+                                                    confirmLabel={t(
+                                                        'toolings.delete',
+                                                    )}
+                                                    formProps={ToolingController.destroy.form(
+                                                        row.id,
+                                                    )}
+                                                >
+                                                    {() => (
+                                                        <input
+                                                            type="hidden"
+                                                            name="from"
+                                                            value="report"
+                                                        />
+                                                    )}
+                                                </ConfirmDialog>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

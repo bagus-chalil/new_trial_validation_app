@@ -64,3 +64,19 @@ test('the CSV export, PDF and Word forms are available to every signed-in user',
         ->and($word->getContent())->toContain('Micellar Refill');
 
 });
+
+test('only an admin gets the delete button on the report and deleting returns to the report', function () {
+    $tooling = reportTooling(['npd_no' => 'DEL-1']);
+
+    $staff = $this->actingAs(reportUser())->get(route('projects.toolings.report'))->assertOk();
+    expect($staff->inertiaProps('items.0.can_delete'))->toBeFalse();
+
+    $admin = User::factory()->create(['role' => 'Admin']);
+    $page = $this->actingAs($admin)->get(route('projects.toolings.report'))->assertOk();
+    expect($page->inertiaProps('items.0.can_delete'))->toBeTrue();
+
+    $this->actingAs($admin)->delete(route('projects.toolings.destroy', $tooling), ['from' => 'report'])
+        ->assertRedirect(route('projects.toolings.report'));
+
+    expect(Tooling::whereNull('deleted_at')->where('id', $tooling->id)->exists())->toBeFalse();
+});

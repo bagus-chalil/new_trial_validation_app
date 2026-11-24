@@ -4,6 +4,8 @@ import {
     CheckCircle2,
     Circle,
     Download,
+    FileDown,
+    FileText,
     FolderPlus,
     Pause,
     Pencil,
@@ -53,7 +55,12 @@ import {
 } from '@/lib/tooling';
 import { cn } from '@/lib/utils';
 import { show as projectShow } from '@/routes/projects';
-import { edit, index as toolingsIndex } from '@/routes/projects/toolings';
+import {
+    edit,
+    index as toolingsIndex,
+    pdf,
+    word,
+} from '@/routes/projects/toolings';
 
 type Approval = {
     role: string;
@@ -503,6 +510,22 @@ export default function ToolingShow({
                             <Link href={toolingsIndex().url}>
                                 {t('toolings.back')}
                             </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a
+                                href={pdf(tooling.id).url}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <FileDown />
+                                {t('toolings.report.pdf')}
+                            </a>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a href={word(tooling.id).url}>
+                                <FileText />
+                                {t('toolings.report.word')}
+                            </a>
                         </Button>
                         {can.update && (
                             <Button variant="outline" asChild>
