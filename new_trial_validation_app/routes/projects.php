@@ -6,6 +6,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFileController;
 use App\Http\Controllers\ProjectGanttController;
 use App\Http\Controllers\ProjectMilestoneController;
+use App\Http\Controllers\ProjectPurchaseOrderController;
 use App\Http\Controllers\ProjectQuotationController;
 use App\Http\Controllers\ProjectStageController;
 use App\Http\Controllers\ProjectStageTrialController;
@@ -20,6 +21,18 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
 
     // Cross-project Quotation & PO list; declared before {project} routes.
     Route::get('quotations', [ProjectQuotationController::class, 'index'])->name('quotations.index');
+
+    // Purchase Order documents (FR.PRC.001.00); literal paths, declared before {project} routes.
+    Route::prefix('purchase-orders')->as('purchase-orders.')->where(['purchaseOrder' => '[0-9]+'])->group(function () {
+        Route::get('/', [ProjectPurchaseOrderController::class, 'index'])->name('index');
+        Route::get('template', [ProjectPurchaseOrderController::class, 'template'])->name('template');
+        Route::put('template', [ProjectPurchaseOrderController::class, 'updateTemplate'])->name('template.update');
+        Route::get('{purchaseOrder}', [ProjectPurchaseOrderController::class, 'show'])->name('show');
+        Route::get('{purchaseOrder}/pdf', [ProjectPurchaseOrderController::class, 'pdf'])->name('pdf');
+        Route::get('{purchaseOrder}/edit', [ProjectPurchaseOrderController::class, 'edit'])->name('edit');
+        Route::put('{purchaseOrder}', [ProjectPurchaseOrderController::class, 'update'])->name('update');
+        Route::delete('{purchaseOrder}', [ProjectPurchaseOrderController::class, 'destroy'])->name('destroy');
+    });
 
     Route::get('gantt', [ProjectGanttController::class, 'index'])->name('gantt');
 
@@ -75,6 +88,9 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
         Route::post('{project}/quotations', [ProjectQuotationController::class, 'store'])->name('quotations.store');
         Route::put('{project}/quotations/{quotation}', [ProjectQuotationController::class, 'update'])->name('quotations.update');
         Route::delete('{project}/quotations/{quotation}', [ProjectQuotationController::class, 'destroy'])->name('quotations.destroy');
+
+        Route::get('{project}/purchase-orders/create', [ProjectPurchaseOrderController::class, 'create'])->name('purchase-orders.create');
+        Route::post('{project}/purchase-orders', [ProjectPurchaseOrderController::class, 'store'])->name('purchase-orders.store');
 
         Route::post('{project}/files', [ProjectFileController::class, 'store'])->name('files.store');
         Route::get('{project}/files/{file}', [ProjectFileController::class, 'show'])->name('files.show');

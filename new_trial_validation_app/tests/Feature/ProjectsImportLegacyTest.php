@@ -8,10 +8,13 @@ use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectQuotation;
 use App\Models\ProjectStage;
+use App\Models\PurchaseOrder;
 use App\Models\Tooling;
 use App\Models\ToolingApproval;
 use App\Models\ToolingItem;
 use App\Models\User;
+use App\Models\VendorContact;
+use App\Support\PurchaseOrderSettings;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -85,7 +88,11 @@ function pmLegacySource(): string
             'metadata' => json_encode([
                 'createdBy' => 'Unknown Person',
                 'log' => [['t' => 1, 'by' => 'x', 'items' => ['a']]],
-                'pos' => [],
+                'pos' => [[
+                    'id' => 'po-1', 'no' => '001/PO/PI/XI/2026', 'date' => '2026-11-18', 'qid' => 'quo-1', 'qno' => 'Q-1', 'vendor' => 'PT Vendor Satu',
+                    'addr' => 'Jl. A', 'attn' => 'Mr. A', 'tax' => 11, 'leadTime' => '2 weeks', 'shipName' => 'PT COSMAX', 'useSig' => true, 'by' => 'Zahra Pic', 'at' => 1794915637121,
+                    'items' => [['id' => 'i1', 'desc' => 'Nozzle', 'qty' => 2, 'unit' => 'Unit', 'price' => 1000, 'due' => '2026-12-01']],
+                ]],
                 'stages' => [
                     ['id' => 'stg-1', 'name' => 'Instalasi', 'ps' => '2026-01-01', 'pf' => '2026-01-10', 'as' => '2026-01-02', 'af' => '', 'prog' => 40, 'par' => false, 'status' => 'On Progress', 'note' => ''],
                     ['id' => 'stg-2', 'name' => 'Trial New Tooling', 'ps' => '2026-02-01', 'pf' => '2026-02-02', 'prog' => 100, 'status' => 'Completed',
@@ -121,7 +128,9 @@ function pmLegacySource(): string
         ]]])],
         ['key_name' => 'tracker', 'value_json' => json_encode([
             'categories' => [['name' => 'Machine'], ['name' => 'Quality']],
-            'vendors' => [['name' => 'PT Vendor Satu'], ['name' => 'PT Vendor Dua']],
+            'vendors' => [['name' => 'PT Vendor Satu', 'contact' => 'Ms. Satu', 'phone' => '021-1', 'email' => 'satu@example.test', 'address' => 'Jl. Satu'], ['name' => 'PT Vendor Dua']],
+            'po' => ['company' => 'PT COSMAX INDONESIA', 'docCode' => 'FR.PRC.001.00', 'pattern' => '{NNN}/PO/PI/{RM}/{YYYY}', 'dateFmt' => 'dd-Mmm-yy', 'lang' => 'id', 'tax' => 11, 'logo' => '/cosmax-logo.png',
+                'sign' => [['label' => 'Approved', 'name' => 'Budi', 'title' => 'Mgr', 'img' => 'data:image/png;base64,'.base64_encode('sig')], ['label' => '', 'img' => 'javascript:x']]],
             'templates' => [['id' => 'tpl_1', 'name' => 'New Machine', 'category' => 'Machine', 'stages' => [['name' => 'URS', 'days' => 14]]]],
         ])],
     ]);
@@ -355,4 +364,36 @@ test('import brings Check Tooling requests with tools, legacy signatures, linked
     $before = $counts();
     pmRunImport($dir);
     expect($counts())->toBe($before);
+});
+
+test('import brings Purchase Orders with items, the vendor contact book and seeds the template only once', function () {
+    $dir = pmLegacySource();
+
+    expect(pmRunImport($dir))->toBe(0);
+
+    $po = PurchaseOrder::where('legacy_id', 'po-1')->firstOrFail();
+    expect($po->po_no)->toBe('001/PO/PI/XI/2026')
+        ->and($po->po_date->toDateString())->toBe('2026-11-18')
+        ->and($po->project_id)->toBe(Project::where('legacy_id', 'proj-a')->value('id'))
+        ->and($po->quotation_id)->toBe(ProjectQuotation::where('legacy_id', 'quo-1')->value('id'))
+        ->and($po->use_signature)->toBeTrue()
+        ->and($po->items)->toHaveCount(1)
+        ->and($po->totals())->toBe(['sub' => 2000.0, 'tax' => 220.0, 'total' => 2220.0]);
+
+    expect(VendorContact::where('name', 'PT Vendor Satu')->value('contact'))->toBe('Ms. Satu')
+        ->and(VendorContact::where('name', 'PT Vendor Dua')->exists())->toBeTrue();
+
+    $template = PurchaseOrderSettings::get();
+    expect($template['lang'])->toBe('id')
+        ->and($template['logo'])->toBe('')                        // a path is not an inline image
+        ->and($template['signers'][0]['name'])->toBe('Budi')
+        ->and($template['signers'][0]['image'])->toStartWith('data:image/png')
+        ->and($template['signers'][1]['image'])->toBe('');
+
+    // re-run: no duplicates, and an admin-edited template is not overwritten
+    PurchaseOrderSettings::save(['company' => 'Edited Co']);
+    expect(pmRunImport($dir))->toBe(0);
+    expect(PurchaseOrder::count())->toBe(1)
+        ->and(PurchaseOrder::first()->items()->count())->toBe(1)
+        ->and(PurchaseOrderSettings::get()['company'])->toBe('Edited Co');
 });

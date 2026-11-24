@@ -103,6 +103,8 @@ class ProjectsImportLegacy extends Command
             ['improvements (settings blob)', '-', count($plan['improvements']), $existing['improvements'] ?? 'n/a'],
             ['check toolings (settings blob)', '-', count($plan['toolings']), $existing['toolings'] ?? 'n/a'],
             ['  tool rows / signatures', '-', array_sum(array_map(fn ($t) => count($t['items']), $plan['toolings'])).' / '.array_sum(array_map(fn ($t) => count(array_filter($t['approvals'], fn ($a) => $a['approved'])), $plan['toolings'])), 'n/a'],
+            ['purchase orders (project metadata)', '-', count($plan['purchase_orders']).' ('.array_sum(array_map(fn ($p) => count($p['items']), $plan['purchase_orders'])).' items)', $existing['purchase_orders'] ?? 'n/a'],
+            ['vendor contacts / PO template', '-', count($plan['vendor_contacts']).' / '.($plan['po_template'] !== null ? '1' : '0'), 'n/a'],
             ['stage templates', '-', count($plan['templates']), 'n/a'],
         ]);
         $this->line('Stage types: '.json_encode($stageTypes).'  File contexts: '.json_encode($fileContexts));

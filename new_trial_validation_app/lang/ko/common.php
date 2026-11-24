@@ -35,6 +35,7 @@ return [
         'projects' => '프로젝트',
         'project_portfolio' => '포트폴리오',
         'project_quotations' => '견적 및 PO',
+        'project_purchase_orders' => '구매 주문서',
         'project_gantt' => '간트',
         'project_improvements' => '개선 제안',
         'project_toolings' => '금형 점검',

@@ -10,12 +10,16 @@ use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectMilestone;
 use App\Models\ProjectQuotation;
+use App\Models\ProjectSetting;
 use App\Models\ProjectStage;
 use App\Models\ProjectStageTemplate;
+use App\Models\PurchaseOrder;
 use App\Models\Tooling;
 use App\Models\ToolingApproval;
 use App\Models\ToolingItem;
 use App\Models\User;
+use App\Models\VendorContact;
+use App\Support\PurchaseOrderSettings;
 use App\Support\ToolingOptions;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
@@ -98,6 +102,7 @@ class LegacyProjectImporter
             'files' => [], 'improvements' => [], 'improvement_files' => [], 'logs' => [],
             'toolings' => [],
             'templates' => [], 'categories' => [], 'vendors' => [],
+            'purchase_orders' => [], 'vendor_contacts' => [], 'po_template' => null,
             'source' => [
                 'projects' => $projectRows->count(),
                 'project_stages' => $src->table('project_stages')->count(),
@@ -203,6 +208,63 @@ class LegacyProjectImporter
                 if (! empty($q['file'])) {
                     $quotationFiles[(string) $q['file']] = $qid;
                 }
+            }
+        }
+
+        $seenPoNos = [];
+        foreach ($projectRows as $row) {
+            $meta = $this->decode($row->metadata);
+            foreach (array_values($meta['pos'] ?? []) as $i => $po) {
+                if (! is_array($po)) {
+                    continue;
+                }
+                $no = trim((string) ($po['no'] ?? ''));
+                if ($no === '') {
+                    $plan['warnings'][] = 'Purchase order without a number skipped (project '.$row->code.')';
+
+                    continue;
+                }
+                if (isset($seenPoNos[$no])) {
+                    $plan['warnings'][] = 'Duplicate PO number "'.$no.'" in the source (project '.$row->code.'); imported as "'.$no.' (dup)"';
+                    $no .= ' (dup)';
+                }
+                $seenPoNos[$no] = true;
+                $createdBy = trim((string) ($po['by'] ?? ''));
+                $plan['purchase_orders'][] = [
+                    'legacy_id' => (string) ($po['id'] ?? ((string) $row->id.'-po-'.($i + 1))),
+                    'project_legacy_id' => (string) $row->id,
+                    'quotation_legacy_id' => ($po['qid'] ?? '') !== '' ? (string) $po['qid'] : null,
+                    'po_no' => mb_substr($no, 0, 120),
+                    'po_date' => $this->date($po['date'] ?? null),
+                    'vendor_name' => mb_substr(trim((string) ($po['vendor'] ?? '')), 0, 255),
+                    'currency' => mb_substr(trim((string) ($po['currency'] ?? '')) ?: 'IDR', 0, 8),
+                    'vendor_address' => $this->nullableText($po['addr'] ?? null),
+                    'attn' => mb_substr(trim((string) ($po['attn'] ?? '')), 0, 150),
+                    'tel' => mb_substr(trim((string) ($po['tel'] ?? '')), 0, 80),
+                    'email' => mb_substr(trim((string) ($po['email'] ?? '')), 0, 190),
+                    'quotation_no' => mb_substr(trim((string) ($po['qno'] ?? '')), 0, 120),
+                    'subject' => mb_substr(trim((string) ($po['subject'] ?? '')), 0, 255),
+                    'tax_percent' => max(0, min(100, (float) ($po['tax'] ?? 0))),
+                    'terms' => $this->nullableText($po['terms'] ?? null),
+                    'delivery' => mb_substr(trim((string) ($po['delivery'] ?? '')), 0, 255),
+                    'lead_time' => mb_substr(trim((string) ($po['leadTime'] ?? '')), 0, 255),
+                    'note' => $this->nullableText($po['note'] ?? null),
+                    'ship_name' => mb_substr(trim((string) ($po['shipName'] ?? '')), 0, 190),
+                    'ship_address' => $this->nullableText($po['shipAddr'] ?? null),
+                    'ship_tel' => mb_substr(trim((string) ($po['shipTel'] ?? '')), 0, 80),
+                    'ship_attn' => mb_substr(trim((string) ($po['shipAttn'] ?? '')), 0, 150),
+                    'use_signature' => (bool) ($po['useSig'] ?? false),
+                    'created_by_name' => mb_substr($createdBy, 0, 100),
+                    'created_by_user_id' => $this->resolveUser($createdBy),
+                    'created_at' => $this->ms($po['at'] ?? null),
+                    'items' => array_values(array_map(fn ($it) => [
+                        'description' => (string) ($it['desc'] ?? ''),
+                        'qty' => max(0.0, (float) ($it['qty'] ?? 0)),
+                        'unit' => mb_substr(trim((string) ($it['unit'] ?? '')) ?: 'Unit', 0, 30),
+                        'unit_price' => max(0.0, (float) ($it['price'] ?? 0)),
+                        'due_date' => $this->date($it['due'] ?? null),
+                    ], array_filter($po['items'] ?? [], 'is_array'))),
+                ];
             }
         }
 
@@ -381,6 +443,49 @@ class LegacyProjectImporter
             }
         }
 
+        foreach ($tracker['vendors'] ?? [] as $v) {
+            if (is_array($v) && trim((string) ($v['name'] ?? '')) !== '') {
+                $plan['vendor_contacts'][] = [
+                    'name' => mb_substr(trim((string) $v['name']), 0, 255),
+                    'contact' => mb_substr(trim((string) ($v['contact'] ?? '')), 0, 150),
+                    'phone' => mb_substr(trim((string) ($v['phone'] ?? '')), 0, 80),
+                    'email' => mb_substr(trim((string) ($v['email'] ?? '')), 0, 190),
+                    'address' => $this->nullableText($v['address'] ?? null),
+                ];
+            }
+        }
+        foreach ($plan['purchase_orders'] as $po) {
+            if ($po['vendor_name'] !== '') {
+                $plan['vendor_contacts'][] = ['name' => $po['vendor_name'], 'contact' => $po['attn'], 'phone' => $po['tel'], 'email' => $po['email'], 'address' => $po['vendor_address']];
+            }
+        }
+
+        if (is_array($tracker['po'] ?? null)) {
+            $t = $tracker['po'];
+            $plan['po_template'] = [
+                'company' => (string) ($t['company'] ?? ''),
+                'doc_code' => (string) ($t['docCode'] ?? ''),
+                'logo' => (string) ($t['logo'] ?? ''),
+                'address' => (string) ($t['address'] ?? ''),
+                'contact' => (string) ($t['contact'] ?? ''),
+                'title' => (string) ($t['title'] ?? ''),
+                'pattern' => (string) ($t['pattern'] ?? ''),
+                'date_format' => (string) ($t['dateFmt'] ?? ''),
+                'lang' => (string) ($t['lang'] ?? ''),
+                'tax' => (float) ($t['tax'] ?? 0),
+                'terms' => (string) ($t['terms'] ?? ''),
+                'lead_time' => (string) ($t['leadTime'] ?? ''),
+                'delivery' => (string) ($t['delivery'] ?? ''),
+                'ship_name' => (string) ($t['shipName'] ?? ''),
+                'ship_address' => (string) ($t['shipAddr'] ?? ''),
+                'ship_tel' => (string) ($t['shipTel'] ?? ''),
+                'ship_attn' => (string) ($t['shipAttn'] ?? ''),
+                'billing' => (string) ($t['billing'] ?? ''),
+                'notice' => (string) ($t['notice'] ?? ''),
+                'signers' => is_array($t['sign'] ?? null) ? $t['sign'] : [],
+            ];
+        }
+
         $categories = array_column(array_filter($tracker['categories'] ?? [], 'is_array'), 'name');
         foreach ($plan['projects'] as $p) {
             $categories[] = $p['category'];
@@ -475,6 +580,43 @@ class LegacyProjectImporter
                     'vendor_option_id' => $vendorIds[mb_strtolower($q['vendor_name'])] ?? null,
                 ])->save();
                 $quotationIds[$q['legacy_id']] = $model->id;
+            }
+
+            foreach ($plan['purchase_orders'] as $po) {
+                if (! isset($projectIds[$po['project_legacy_id']])) {
+                    continue;
+                }
+                $model = PurchaseOrder::firstOrNew(['legacy_id' => $po['legacy_id']]);
+                $tally('purchase_orders', ! $model->exists);
+                $attrs = $po;
+                unset($attrs['project_legacy_id'], $attrs['quotation_legacy_id'], $attrs['items'], $attrs['created_at']);
+                $model->fill($attrs + [
+                    'project_id' => $projectIds[$po['project_legacy_id']],
+                    'quotation_id' => $po['quotation_legacy_id'] !== null ? ($quotationIds[$po['quotation_legacy_id']] ?? null) : null,
+                ]);
+                if (! $model->exists && $po['created_at']) {
+                    $model->created_at = $po['created_at'];
+                }
+                $model->save();
+                $model->items()->delete();
+                foreach ($po['items'] as $n => $item) {
+                    $model->items()->create($item + ['sort_order' => $n]);
+                }
+            }
+
+            foreach ($plan['vendor_contacts'] as $vc) {
+                $known = VendorContact::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($vc['name'])])->exists();
+                if ($known) {
+                    continue;
+                }
+                $tally('vendor_contacts', true);
+                VendorContact::create($vc);
+            }
+
+            // The PO template is only seeded: once an admin saved one in this app a re-import must not overwrite it.
+            if ($plan['po_template'] !== null && ProjectSetting::read(PurchaseOrderSettings::KEY) === []) {
+                PurchaseOrderSettings::save(array_filter($plan['po_template'], fn ($v) => $v !== '' && $v !== []));
+                $tally('po_template', true);
             }
 
             $improvementIds = [];
@@ -906,6 +1048,7 @@ class LegacyProjectImporter
             'files' => $count('pm_files', $plan['files']),
             'improvements' => $count('pm_improvements', $plan['improvements']),
             'toolings' => Schema::hasTable('pm_toolings') ? $count('pm_toolings', $plan['toolings']) : 0,
+            'purchase_orders' => Schema::hasTable('pm_purchase_orders') ? $count('pm_purchase_orders', $plan['purchase_orders']) : 0,
         ];
     }
 }

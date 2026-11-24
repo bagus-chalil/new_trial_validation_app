@@ -10,6 +10,7 @@ import {
     GanttChartSquare,
     Lightbulb,
     Receipt,
+    ShoppingCart,
     CheckCircle2,
     CircleCheckBig,
     ClipboardCheck,
@@ -58,6 +59,7 @@ import { index as monitoringIndex } from '@/routes/monitoring';
 import { index as projectsIndex } from '@/routes/projects';
 import { gantt as ganttIndex } from '@/routes/projects';
 import { index as improvementsIndex } from '@/routes/projects/improvements';
+import { index as purchaseOrdersIndex } from '@/routes/projects/purchase-orders';
 import { index as quotationsIndex } from '@/routes/projects/quotations';
 import { index as toolingsIndex } from '@/routes/projects/toolings';
 import { index as reportsIndex } from '@/routes/reports';
@@ -180,6 +182,12 @@ export function AppSidebar() {
                     title: t('common.nav.project_quotations'),
                     href: quotationsIndex(),
                     icon: Receipt,
+                },
+                {
+                    title: t('common.nav.project_purchase_orders'),
+                    href: purchaseOrdersIndex(),
+                    icon: ShoppingCart,
+                    activePattern: /^\/projects\/purchase-orders(\/|$)/,
                 },
             ],
         },

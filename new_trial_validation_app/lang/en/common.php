@@ -35,6 +35,7 @@ return [
         'projects' => 'Projects',
         'project_portfolio' => 'Portfolio',
         'project_quotations' => 'Quotation & PO',
+        'project_purchase_orders' => 'Purchase Order',
         'project_gantt' => 'Gantt',
         'project_improvements' => 'Improvement',
         'project_toolings' => 'Check Tooling',

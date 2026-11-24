@@ -61,6 +61,11 @@ import {
     trialStatusLabel,
 } from '@/lib/trial-status';
 import { edit, index as projectsIndex } from '@/routes/projects';
+import {
+    create as poCreate,
+    index as poIndex,
+    show as poShow,
+} from '@/routes/projects/purchase-orders';
 
 type Project = {
     id: number;
@@ -99,6 +104,15 @@ type PageProps = {
     stages: Stage[];
     milestones: Milestone[];
     quotations: Quotation[];
+    purchaseOrders: {
+        id: number;
+        po_no: string;
+        po_date: string | null;
+        vendor_name: string;
+        subject: string;
+        currency: string;
+        total: number;
+    }[];
     files: ProjectFileItem[];
     logs: LogItem[];
     options: {
@@ -110,7 +124,12 @@ type PageProps = {
         vendors: string[];
     };
     linkableTrials: { value: string; label: string }[];
-    can: { update: boolean; delete: boolean; createTrial: boolean };
+    can: {
+        update: boolean;
+        delete: boolean;
+        createTrial: boolean;
+        purchaseOrder: boolean;
+    };
     uploadLimitMb: number;
     allowedExtensions: string[];
 };
@@ -306,6 +325,7 @@ export default function ProjectShow({
     stages,
     milestones,
     quotations,
+    purchaseOrders,
     files,
     logs,
     options,
@@ -996,6 +1016,79 @@ export default function ProjectShow({
                                                 </div>
                                             </TableCell>
                                         )}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </SectionCard>
+
+                <SectionCard
+                    title={t('purchase_orders.project_card.title')}
+                    action={
+                        <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" asChild>
+                                <Link href={poIndex()}>
+                                    {t(
+                                        'purchase_orders.project_card.open_list',
+                                    )}
+                                </Link>
+                            </Button>
+                            {can.purchaseOrder && (
+                                <Button size="sm" asChild>
+                                    <Link href={poCreate(project.id)}>
+                                        <Plus />
+                                        {t('purchase_orders.project_card.new')}
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
+                    }
+                >
+                    {purchaseOrders.length === 0 ? (
+                        <Empty text={t('purchase_orders.project_card.empty')} />
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>
+                                        {t('purchase_orders.columns.po_no')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('purchase_orders.columns.date')}
+                                    </TableHead>
+                                    <TableHead>
+                                        {t('purchase_orders.columns.vendor')}
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        {t('purchase_orders.columns.total')}
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {purchaseOrders.map((po) => (
+                                    <TableRow key={po.id}>
+                                        <TableCell className="font-medium">
+                                            <Link
+                                                href={poShow(po.id)}
+                                                className="hover:underline"
+                                            >
+                                                {po.po_no}
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell>
+                                            {po.po_date
+                                                ? formatDateOnly(po.po_date)
+                                                : '-'}
+                                        </TableCell>
+                                        <TableCell>{po.vendor_name}</TableCell>
+                                        <TableCell className="text-right">
+                                            {formatMoney(
+                                                po.total,
+                                                po.currency,
+                                                intlLocale,
+                                            )}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

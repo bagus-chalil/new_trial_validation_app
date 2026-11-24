@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectStage;
+use App\Models\PurchaseOrder;
 use App\Models\Trial;
 use App\Models\User;
 use App\Support\ProjectOptions;
@@ -194,6 +195,15 @@ class ProjectController extends Controller
                 'link' => $q->link,
                 'file' => ($f = $q->file_id ? $filesById->get($q->file_id) : null) ? $mapFile($f) : null,
             ])->values(),
+            'purchaseOrders' => PurchaseOrder::query()->where('project_id', $project->id)->with('items')->orderByDesc('po_date')->orderByDesc('id')->get()->map(fn (PurchaseOrder $po) => [
+                'id' => $po->id,
+                'po_no' => $po->po_no,
+                'po_date' => $po->po_date?->format('Y-m-d'),
+                'vendor_name' => $po->vendor_name,
+                'subject' => $po->subject,
+                'currency' => $po->currency,
+                'total' => $po->totals()['total'],
+            ])->values(),
             'files' => $files->where('context', '!=', 'quotation')->map($mapFile)->values(),
             'logs' => $logs->map(fn (ActivityLog $l) => [
                 'id' => $l->id,
@@ -214,6 +224,7 @@ class ProjectController extends Controller
                 'update' => $canUpdate,
                 'delete' => $user->can('delete', $project),
                 'createTrial' => $canUpdate && $user->can('create', Trial::class),
+                'purchaseOrder' => $user->can('create', PurchaseOrder::class),
             ],
             'uploadLimitMb' => ProjectOptions::MAX_UPLOAD_BYTES / 1024 / 1024,
             'allowedExtensions' => array_keys(ProjectOptions::UPLOAD_MIMES),
