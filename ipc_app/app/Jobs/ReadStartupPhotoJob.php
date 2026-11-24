@@ -34,11 +34,21 @@ class ReadStartupPhotoJob implements ShouldQueue
         public ?int $userId,
         // coding_formula: the 2nd Primary Coding photo sent as file2 in the same call.
         public ?int $secondAttachmentId = null,
+        // Operator feedback: short text on where/how to read; set only for a re-read ("Beri masukan ke AI").
+        public ?string $hint = null,
     ) {}
+
+    /** A hinted re-read tracks its state under the per-field re-read marker, a normal read under the per-photo one. */
+    private function markerKey(): string
+    {
+        return $this->hint !== null
+            ? QueueStartupAiReads::rereadKey($this->batchId, $this->field)
+            : QueueStartupAiReads::cacheKey($this->batchId, $this->attachmentId, $this->fieldType, $this->secondAttachmentId);
+    }
 
     public function handle(ReadStartupPhoto $action): void
     {
-        $key = QueueStartupAiReads::cacheKey($this->batchId, $this->attachmentId, $this->fieldType, $this->secondAttachmentId);
+        $key = $this->markerKey();
 
         try {
             Cache::put($key, 'running', QueueStartupAiReads::TTL);
@@ -49,7 +59,7 @@ class ReadStartupPhotoJob implements ShouldQueue
             $secondGone = $this->secondAttachmentId !== null && $second === null; // replaced: the page queues the new pair
 
             if ($batch !== null && $attachment !== null && ! $secondGone) {
-                $action->handle($batch, $attachment, $this->field, $this->fieldType, $this->userId, $second);
+                $action->handle($batch, $attachment, $this->field, $this->fieldType, $this->userId, $second, $this->hint);
             }
         } finally {
             Cache::forget($key);
@@ -58,6 +68,6 @@ class ReadStartupPhotoJob implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        Cache::forget(QueueStartupAiReads::cacheKey($this->batchId, $this->attachmentId, $this->fieldType, $this->secondAttachmentId));
+        Cache::forget($this->markerKey());
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Vision\AnalyzeStartupPhoto;
 use App\Actions\Vision\QueueStartupAiReads;
 use App\Actions\Vision\StartupAiStatus;
+use App\Http\Requests\StartupAiHintRequest;
 use App\Http\Requests\StartupAiReadRequest;
 use App\Http\Requests\StartupAiStatusRequest;
 use App\Models\IpcBatch;
@@ -36,6 +37,25 @@ class StartupAiController extends Controller
         abort_unless(config('vision.startup_ai.enabled'), 404);
 
         return response()->json($status->handle($batch, $request->entered()));
+    }
+
+    /**
+     * "Beri masukan ke AI": read the field's already-saved photo again with a short operator hint (no new
+     * photo). Advisory like everything here; refused once Startup is finished (read-only). Returns the
+     * current status so the card shows the re-read as running straight away.
+     */
+    public function hint(StartupAiHintRequest $request, IpcBatch $batch, QueueStartupAiReads $queue, StartupAiStatus $status): JsonResponse
+    {
+        abort_unless(config('vision.startup_ai.enabled'), 404);
+        $batch->loadMissing('startupCheck');
+        abort_if($batch->startupCheck?->completed_at !== null, 403, 'Startup sudah selesai, masukan ke AI tidak bisa diberikan lagi.');
+
+        $queued = $queue->rereadWithHint($batch, $request->user(), $request->validated('field'), $request->validated('hint'));
+
+        return response()->json([
+            ...$status->handle($batch, $request->entered()),
+            'queued' => $queued,
+        ]);
     }
 
     public function read(StartupAiReadRequest $request, IpcBatch $batch, AnalyzeStartupPhoto $action): JsonResponse

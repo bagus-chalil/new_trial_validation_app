@@ -72,6 +72,9 @@ class FillingCheckController extends Controller
         abort_if($batch->fillingCheck?->completed_at, 403, 'Filling Check untuk batch ini sudah selesai dan bersifat read-only.');
 
         $data = $request->validated();
+        if ($data['finalize'] ?? false) {
+            $batch->assertNoOpenRoundCorrections(IpcBatch::STAGE_FILLING);
+        }
         $action->handle($batch, $request->user(), $data);
 
         if ($data['finalize']) {
@@ -99,6 +102,7 @@ class FillingCheckController extends Controller
             return back()->withErrors(['progress' => 'Belum ada riwayat simpan untuk diselesaikan.']);
         }
 
+        $batch->assertNoOpenRoundCorrections(IpcBatch::STAGE_FILLING);
         $action->handle($batch, $batch->fillingCheck);
 
         return redirect()->route('batches.show', $batch)->with('success', 'Filling Check diselesaikan dengan data riwayat terakhir.');

@@ -109,6 +109,46 @@ export function IpcShell({
                             {props.revisionRequest.stages.join(', ')}
                         </p>
                         {props.revisionRequest.remarks && <p className="mt-0.5 font-medium">Catatan: {props.revisionRequest.remarks}</p>}
+                        {(props.revisionRequest.corrections?.length ?? 0) > 0 && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-bold">TH Progress yang harus dikoreksi:</span>
+                                {props.revisionRequest.corrections!.map((c) => (
+                                    <Link
+                                        key={c.id}
+                                        href={c.url}
+                                        className="flex min-h-9 items-center rounded-lg bg-orange-600 px-3 text-xs font-bold text-white"
+                                    >
+                                        Koreksi {c.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                        {(props.revisionRequest.correctable?.length ?? 0) > 0 && (
+                            <details className="mt-2">
+                                <summary className="cursor-pointer text-xs font-bold">
+                                    {(props.revisionRequest.corrections?.length ?? 0) > 0
+                                        ? 'Koreksi TH lain yang juga salah'
+                                        : 'Ada TH Progress yang salah? Pilih untuk dikoreksi (data tetap tercatat di audit)'}
+                                </summary>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {props.revisionRequest.correctable!.map((c) => (
+                                        <button
+                                            key={`${c.stage}-${c.no}`}
+                                            type="button"
+                                            onClick={() =>
+                                                router.post(`/batches/${props.revisionRequest!.batch_id}/corrections`, {
+                                                    stage: c.stage,
+                                                    revision_no: c.no,
+                                                })
+                                            }
+                                            className="flex min-h-9 items-center rounded-lg border border-orange-600 bg-white px-3 text-xs font-bold text-orange-700"
+                                        >
+                                            {c.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </details>
+                        )}
                         <p className="mt-0.5 text-xs">
                             Setelah semua tahap di atas diselesaikan ulang, laporan otomatis kembali ke antrean approval.
                         </p>

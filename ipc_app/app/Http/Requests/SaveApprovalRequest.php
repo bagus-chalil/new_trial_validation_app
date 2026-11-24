@@ -47,6 +47,10 @@ class SaveApprovalRequest extends FormRequest
             // so Approved / Rejected must accept the empty array.
             'revise_stages' => $this->isRevision() ? ['required', 'array', 'min:1'] : ['nullable', 'array'],
             'revise_stages.*' => ['string', Rule::in($this->revisableStages())],
+            // Optional: stage => TH Progress round numbers that are wrong (see RequestApprovalRevision).
+            'revise_rounds' => ['nullable', 'array'],
+            'revise_rounds.*' => ['array'],
+            'revise_rounds.*.*' => ['integer', 'min:1'],
         ];
     }
 
@@ -69,7 +73,38 @@ class SaveApprovalRequest extends FormRequest
             if ($this->isRevision() && $batch instanceof IpcBatch && $batch->current_stage !== IpcBatch::STAGE_APPROVAL) {
                 $validator->errors()->add('decision', 'Revisi hanya bisa diminta selama batch masih di tahap Approval.');
             }
+
+            if ($this->isRevision() && $batch instanceof IpcBatch) {
+                $this->validateRevisionRounds($validator, $batch);
+            }
         });
+    }
+
+    /** A flagged round must belong to a stage that is being sent back and must really exist. */
+    private function validateRevisionRounds(Validator $validator, IpcBatch $batch): void
+    {
+        $stages = (array) $this->input('revise_stages', []);
+
+        foreach ((array) $this->input('revise_rounds', []) as $stage => $rounds) {
+            if (! in_array($stage, [IpcBatch::STAGE_FILLING, IpcBatch::STAGE_PACKING, IpcBatch::STAGE_FINISHED], true) || ! in_array($stage, $stages, true)) {
+                $validator->errors()->add('revise_rounds', 'TH Progress hanya bisa dipilih untuk bagian yang ikut direvisi.');
+
+                continue;
+            }
+
+            $check = match ($stage) {
+                IpcBatch::STAGE_FILLING => $batch->fillingCheck,
+                IpcBatch::STAGE_PACKING => $batch->packingCheck,
+                default => $batch->finishedCheck,
+            };
+            $existing = $check?->revisions()->pluck('revision_no')->map(fn ($n) => (int) $n)->all() ?? [];
+
+            foreach ((array) $rounds as $no) {
+                if (! in_array((int) $no, $existing, true)) {
+                    $validator->errors()->add('revise_rounds', "TH Progress #{$no} tidak ditemukan pada tahap {$stage}.");
+                }
+            }
+        }
     }
 
     private function isRevision(): bool

@@ -183,6 +183,17 @@ class TrialReportController extends Controller
         // to act on is pointed to the menu where that work is done. This is a
         // UI mode only; the POST endpoints keep enforcing their own policies.
         $readOnlyMode = $request->query('from') === 'overview';
+
+        // Banner at the very top telling the user what this trial needs from
+        // them (computed before view-only mode switches the actions off).
+        // Review wins over approval only because a user holding both would
+        // see the review block first on the page.
+        $actionNeeded = null;
+        if ($pendingReviews->isNotEmpty()) {
+            $actionNeeded = 'review';
+        } elseif ($canApprove) {
+            $actionNeeded = 'approve';
+        }
         $hasActions = $canEdit || $canApprove || $pendingReviews->isNotEmpty() || $editableReviews->isNotEmpty()
             || $canUpload || $canEditLine || $canApprovePie || $canCheckProd || $canReturn;
         if ($readOnlyMode) {
@@ -192,10 +203,12 @@ class TrialReportController extends Controller
             $approvalBlockedNote = null;
             $reviewCompletedNote = null;
         }
-        $actionMenu = match ($trial->progress_status) {
-            'Draft' => ['common.nav.my_work', route('my-work')],
-            'Need Revision' => ['common.nav.need_revision', route('trials.index', 'need-revision')],
-            default => ['common.nav.tracking', route('trials.index', 'tracking')],
+        // Jump straight to this very trial (not to a list): the editable
+        // form for Draft / Need Revision, the same report page without the
+        // view-only flag (so the review / approval blocks show) otherwise.
+        $actionHref = match ($trial->progress_status) {
+            'Draft', 'Need Revision' => route('trials.edit', $trial->id),
+            default => route('trials.report.show', $trial->id),
         };
 
         // Approver / reviewer digest: the rule-based points always show; the AI button only wraps them.
@@ -206,8 +219,8 @@ class TrialReportController extends Controller
         return Inertia::render('trials/report', [
             'aiSummary' => $aiSummary,
             'readOnlyMode' => $readOnlyMode,
-            'actionMenuKey' => $readOnlyMode && $hasActions ? $actionMenu[0] : null,
-            'actionMenuHref' => $readOnlyMode && $hasActions ? $actionMenu[1] : null,
+            'actionHref' => $readOnlyMode && $hasActions ? $actionHref : null,
+            'actionNeeded' => $readOnlyMode ? null : $actionNeeded,
             'trial' => $trial,
             'projectLinks' => $this->projectLinksFor($trial),
             'additionalAttachments' => $this->additionalAttachmentsFor($trial),

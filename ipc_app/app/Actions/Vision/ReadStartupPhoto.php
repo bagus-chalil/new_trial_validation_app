@@ -30,11 +30,17 @@ class ReadStartupPhoto
 
     public function __construct(private readonly VisionClient $client) {}
 
-    public function handle(IpcBatch $batch, IpcAttachment $attachment, string $field, string $fieldType, ?int $userId, ?IpcAttachment $second = null): ?IpcLog
+    /**
+     * @param  ?string  $hint  operator feedback ("Beri masukan ke AI"): where/how to look in this same photo. It only
+     *                         steers the Vision Service's reading; it is never taken as the value itself.
+     */
+    public function handle(IpcBatch $batch, IpcAttachment $attachment, string $field, string $fieldType, ?int $userId, ?IpcAttachment $second = null, ?string $hint = null): ?IpcLog
     {
         if (! Storage::disk('public')->exists($attachment->file_path)) {
             return null;
         }
+
+        $hint = $hint !== null ? (Str::of($hint)->squish()->limit(300, '')->toString() ?: null) : null;
 
         $isFormula = $fieldType === QueueStartupAiReads::CODING_FORMULA;
         // A 2nd photo whose file is gone is simply not sent (the read still records which pair it was for).
@@ -69,17 +75,28 @@ class ReadStartupPhoto
             ]);
         }
 
+        // The read we already have for this photo (pair): a hinted re-read must not make things worse than that.
+        $previous = $hint !== null ? QueueStartupAiReads::findLog($batch, $attachment, $fieldType, $second) : null;
+
         $result = $this->client->analyze(
             $bytes,
             basename($attachment->file_path),
             $fieldType,
             $requestId,
             $secondFile,
-            $isFormula ? ['coding_formula' => $formula] : [],
+            [
+                ...($isFormula ? ['coding_formula' => $formula] : []),
+                ...($hint !== null ? ['user_hint' => $hint] : []),
+            ],
         );
 
         $elapsed = $result->raw['elapsed_sec'] ?? null;
         $comparison = ['field' => $field, 'queued' => true, ...$pair];
+
+        if ($hint !== null) {
+            $comparison['user_hint'] = $hint;
+            $comparison['hint_discarded'] = $this->score($result) < ($previous !== null ? $this->score($this->resultOf($previous)) : 0);
+        }
 
         if ($isFormula) {
             $comparison += $this->formulaComparison($batch, $result);
@@ -118,6 +135,32 @@ class ReadStartupPhoto
             'comparison' => $comparison,
             'created_by' => $userId,
         ]);
+    }
+
+    /**
+     * How much of the photo the Vision Service could read with confidence: the number of fields it trusts
+     * (coding_formula), else 1 for an OK read. An ERROR scores -1, so a failed hinted re-read (service down)
+     * never replaces a read that worked. Used only to decide whether a hinted re-read replaces the old read.
+     */
+    private function score(VisionResult $result): int
+    {
+        if ($result->status === VisionResult::STATUS_ERROR) {
+            return -1;
+        }
+
+        $fields = $result->raw['fields'] ?? null;
+        if (is_array($fields)) {
+            return collect($fields)->filter(fn ($f) => is_array($f) && ($f['status'] ?? null) === 'OK')->count();
+        }
+
+        return $result->status === VisionResult::STATUS_OK ? 1 : 0;
+    }
+
+    private function resultOf(IpcLog $log): VisionResult
+    {
+        $raw = $log->vision_response;
+
+        return is_array($raw) && $raw !== [] ? VisionResult::fromResponse($raw) : VisionResult::error($log->error_reason ?? 'ERROR');
     }
 
     /**

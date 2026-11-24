@@ -15,6 +15,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('batches/{batch}/startup-check/ai-queue', [StartupAiController::class, 'queue'])
         ->middleware('can:update,batch')
         ->name('startup-check.ai-queue');
+    Route::post('batches/{batch}/startup-check/ai-hint', [StartupAiController::class, 'hint'])
+        ->middleware(['can:update,batch', 'throttle:20,1'])
+        ->name('startup-check.ai-hint');
     Route::get('batches/{batch}/startup-check/ai-status', [StartupAiController::class, 'status'])
         ->middleware('can:update,batch')
         ->name('startup-check.ai-status');

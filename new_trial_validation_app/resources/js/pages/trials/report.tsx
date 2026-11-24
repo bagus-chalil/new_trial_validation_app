@@ -127,8 +127,8 @@ type EditableReview = {
 type PageProps = {
     aiSummary: TrialSummary | null;
     readOnlyMode: boolean;
-    actionMenuKey: string | null;
-    actionMenuHref: string | null;
+    actionHref: string | null;
+    actionNeeded: 'review' | 'approve' | null;
     trial: TrialData;
     projectLinks?: {
         project_id: number;
@@ -225,8 +225,8 @@ function formatNumber(value: number | null): string {
 export default function TrialReport({
     aiSummary,
     readOnlyMode,
-    actionMenuKey,
-    actionMenuHref,
+    actionHref,
+    actionNeeded,
     trial,
     projectLinks = [],
     additionalAttachments,
@@ -308,6 +308,42 @@ export default function TrialReport({
                     </div>
                 </div>
 
+                {actionNeeded && (
+                    <Alert className="border-brand/40 bg-brand/5 print:hidden">
+                        <AlertTitle>
+                            {t(
+                                `report.notes.action_needed_${actionNeeded}_title`,
+                            )}
+                        </AlertTitle>
+                        <AlertDescription>
+                            <div className="mt-1 flex flex-wrap items-center gap-3">
+                                <span>
+                                    {t(
+                                        `report.notes.action_needed_${actionNeeded}`,
+                                    )}
+                                </span>
+                                <Button
+                                    size="sm"
+                                    onClick={() =>
+                                        document
+                                            .getElementById(
+                                                actionNeeded === 'review'
+                                                    ? 'section-review'
+                                                    : 'section-approval',
+                                            )
+                                            ?.scrollIntoView({
+                                                behavior: 'smooth',
+                                                block: 'start',
+                                            })
+                                    }
+                                >
+                                    {t('report.notes.action_needed_go')}
+                                </Button>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {readOnlyMode && (
                     <Alert className="print:hidden">
                         <AlertTitle>
@@ -315,16 +351,14 @@ export default function TrialReport({
                         </AlertTitle>
                         <AlertDescription>
                             <p>{t('report.notes.view_only')}</p>
-                            {actionMenuKey && actionMenuHref && (
+                            {actionHref && (
                                 <div className="mt-2 flex flex-wrap items-center gap-3">
                                     <span>
-                                        {t('report.notes.view_only_go', {
-                                            menu: t(actionMenuKey),
-                                        })}
+                                        {t('report.notes.view_only_go')}
                                     </span>
                                     <Button asChild size="sm">
-                                        <Link href={actionMenuHref}>
-                                            {t(actionMenuKey)}
+                                        <Link href={actionHref}>
+                                            {t('report.notes.view_only_open')}
                                         </Link>
                                     </Button>
                                 </div>
@@ -949,7 +983,10 @@ export default function TrialReport({
                         </div>
 
                         {pendingReviews.length > 0 && (
-                            <div className="print:hidden">
+                            <div
+                                id="section-review"
+                                className="scroll-mt-24 print:hidden"
+                            >
                                 <h3 className="mb-2 text-base font-semibold">
                                     {t('report.review.my_review_title')}
                                 </h3>
@@ -1092,7 +1129,10 @@ export default function TrialReport({
                         )}
 
                         {canApprove && (
-                            <div className="print:hidden">
+                            <div
+                                id="section-approval"
+                                className="scroll-mt-24 print:hidden"
+                            >
                                 <h3 className="mb-2 text-base font-semibold">
                                     {t('report.approval.title')}
                                 </h3>

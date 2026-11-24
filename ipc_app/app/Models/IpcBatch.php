@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class IpcBatch extends Model
 {
@@ -260,6 +261,36 @@ class IpcBatch extends Model
             array_intersect(self::CHECK_STAGES, $this->activeStages()),
             fn (string $stage) => ! $this->stageIsCompleted($stage),
         ));
+    }
+
+    public function roundCorrections()
+    {
+        return $this->hasMany(IpcRoundCorrection::class, 'ipc_batch_id');
+    }
+
+    /** Corrections an approver asked for on `$stage` that QC has not done yet. */
+    public function openRoundCorrections(string $stage)
+    {
+        return $this->roundCorrections()
+            ->where('stage', $stage)
+            ->where('status', IpcRoundCorrection::STATUS_OPEN)
+            ->whereNotNull('revision_no');
+    }
+
+    /**
+     * Finalizing a stage must wait until every TH Progress round the approver flagged is
+     * corrected — otherwise the revised report would go back to approval with the flagged
+     * round still wrong.
+     */
+    public function assertNoOpenRoundCorrections(string $stage): void
+    {
+        $open = $this->openRoundCorrections($stage)->orderBy('revision_no')->pluck('revision_no');
+
+        if ($open->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'progress' => 'Koreksi TH Progress #'.$open->implode(', #').' yang diminta approver belum selesai. Selesaikan koreksinya dulu.',
+            ]);
+        }
     }
 
     public function hasFillingStage(): bool

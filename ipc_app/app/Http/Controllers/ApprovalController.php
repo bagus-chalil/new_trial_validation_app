@@ -185,7 +185,7 @@ class ApprovalController extends Controller
         abort_unless(IpcApproval::stageReady($batch, $stage), 403, 'Tahap ini belum selesai, belum bisa di-approve.');
 
         if ($request->validated('decision') === IpcApproval::DECISION_REVISION) {
-            $revision->handle($batch, $request->user(), $stage, $request->validated('revise_stages'), $request->validated('remarks'));
+            $revision->handle($batch, $request->user(), $stage, $request->validated('revise_stages'), $request->validated('remarks'), $request->validated('revise_rounds') ?? []);
 
             return redirect()->route('approvals.index')->with('success', 'Revisi diminta. Laporan dikembalikan ke QC untuk diperbaiki.');
         }

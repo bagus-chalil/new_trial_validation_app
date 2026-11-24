@@ -62,9 +62,13 @@ class StartupAiStatus
                 $markers[] = Cache::get(QueueStartupAiReads::cacheKey($batch->id, $attachment->id, $type, $pairPhoto?->id));
             }
 
+            // An operator-hinted re-read in progress wins over the existing log (the old result is replaced or kept when it ends).
+            $rereading = Cache::get(QueueStartupAiReads::rereadKey($batch->id, $field));
+
             // done = every read has its log row; otherwise running/queued while a marker exists, else
             // 'none' (never queued, or the job died) and the page offers a retry.
             $state = match (true) {
+                in_array($rereading, ['queued', 'running'], true) => $rereading,
                 $markers === [] => 'done',
                 in_array('running', $markers, true) => 'running',
                 in_array('queued', $markers, true) => 'queued',
@@ -101,6 +105,16 @@ class StartupAiStatus
                 ];
                 if ($llmType && isset($logs[$llmType])) {
                     $tubeExp[$field] = $logs[$llmType]->vision_response['exp_raw'] ?? null;
+                }
+
+                // Operator feedback note: was the newest read made with a hint, and did it help? A hinted read that
+                // came out worse was dropped (findLog skips it), so the card still shows the earlier, better read.
+                $latest = QueueStartupAiReads::findLog($batch, $attachment, $fieldType, $second, includeDiscarded: true);
+                if ($latest !== null && ! empty($latest->comparison['user_hint'])) {
+                    $row['hint'] = [
+                        'text' => (string) $latest->comparison['user_hint'],
+                        'discarded' => (bool) ($latest->comparison['hint_discarded'] ?? false),
+                    ];
                 }
             }
 

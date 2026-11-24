@@ -32,7 +32,23 @@ export type FieldStatus = {
     reason?: string;
     items?: AiItem[];
     suggestions?: AiSuggestion[];
+    /** The newest read was made with the operator's feedback; `discarded` = it was worse, so the earlier read is shown. */
+    hint?: { text: string; discarded: boolean };
 };
+
+/** One-tap hints per photo: only where/how to look, never the value itself. */
+const HINT_PRESETS: Record<string, string[]> = {
+    date_bulk: ['Fokus ke stiker kuning Label Bulk', 'Tanggal mixing ada di baris Mixing Date'],
+    im_number: ['Fokus ke judul / nomor di bagian atas dokumen IM', 'Umur simpan ada di tabel di bagian bawah dokumen'],
+    coding_primary: [
+        'Kode cetak ada di ujung tube (bagian crimp)',
+        'Kode cetak kecil ada di sisi bawah kemasan',
+        'Kode cetak ada di tutup / cap',
+        'Kode cetak ada di label kecil di sisi kanan',
+    ],
+};
+
+const HINT_MAX = 300;
 
 export type Status = { pending: boolean; fields: FieldStatus[]; notes: string[] };
 
@@ -141,6 +157,42 @@ export function StartupAiCard({
         },
         [batchId],
     );
+
+    // "Beri masukan ke AI": which photo's feedback box is open, its text, and whether it is being sent.
+    const [hintFor, setHintFor] = useState<string | null>(null);
+    const [hintText, setHintText] = useState('');
+    const [hintBusy, setHintBusy] = useState(false);
+    const [hintError, setHintError] = useState<string | null>(null);
+
+    const sendHint = async (field: string) => {
+        const text = hintText.trim();
+        if (text.length < 3) {
+            setHintError('Tulis masukan dulu (minimal 3 huruf).');
+            return;
+        }
+        setHintBusy(true);
+        setHintError(null);
+        try {
+            const response = await fetch(`/batches/${batchId}/startup-check/ai-hint`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrfToken() },
+                body: JSON.stringify({ ...enteredRef.current, field, hint: text }),
+            });
+            const json = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                setHintError(json?.errors?.hint?.[0] ?? json?.message ?? 'Masukan belum bisa dikirim. Coba lagi.');
+                return;
+            }
+            setStatus(json as Status);
+            setHintFor(null);
+            setHintText('');
+        } catch {
+            setHintError('Masukan belum bisa dikirim. Coba lagi.');
+        } finally {
+            setHintBusy(false);
+        }
+    };
 
     const onStatusRef = useRef(onStatus);
     onStatusRef.current = onStatus;
@@ -293,6 +345,81 @@ export function StartupAiCard({
                                         ))}
                                     </tbody>
                                 </table>
+                            )}
+                            {f.state === 'done' && f.hint && (
+                                <p
+                                    className={`rounded-lg p-2 text-[11.5px] ${
+                                        f.hint.discarded
+                                            ? 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+                                            : 'bg-sky-50 text-sky-900 dark:bg-sky-950 dark:text-sky-200'
+                                    }`}
+                                >
+                                    {f.hint.discarded
+                                        ? `Masukan Anda ("${f.hint.text}") belum membantu AI, hasil sebelumnya dipertahankan. Isi manual dari foto, atau coba masukan lain.`
+                                        : `AI membaca ulang dengan masukan Anda: "${f.hint.text}". Tetap cek dengan foto.`}
+                                </p>
+                            )}
+                            {!readOnly && (f.state === 'done' || f.state === 'none') && HINT_PRESETS[f.field] && (
+                                <div className="flex flex-col gap-2">
+                                    {hintFor !== f.field ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setHintFor(f.field);
+                                                setHintText('');
+                                                setHintError(null);
+                                            }}
+                                            className="text-muted-foreground w-fit text-[12px] font-semibold underline"
+                                        >
+                                            Hasil belum pas? Beri masukan ke AI (tanpa foto ulang)
+                                        </button>
+                                    ) : (
+                                        <div className="border-border flex flex-col gap-2 rounded-lg border p-2.5">
+                                            <p className="text-[12px] font-semibold">Beri tahu AI di mana / bagaimana membaca foto yang sama:</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {HINT_PRESETS[f.field].map((preset) => (
+                                                    <button
+                                                        key={preset}
+                                                        type="button"
+                                                        onClick={() => setHintText(preset)}
+                                                        className="border-border hover:bg-muted rounded-full border px-2.5 py-1 text-[11.5px]"
+                                                    >
+                                                        {preset}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <textarea
+                                                value={hintText}
+                                                onChange={(e) => setHintText(e.target.value.replace(/\s+/g, ' ').slice(0, HINT_MAX))}
+                                                rows={2}
+                                                placeholder="Contoh: kode cetak ada di ujung tube, baris paling bawah"
+                                                className="border-input bg-background w-full resize-none rounded-md border p-2 text-[12.5px]"
+                                            />
+                                            <p className="text-muted-foreground text-[11px]">
+                                                Cukup petunjuk letak/cara baca. Jangan menulis nilainya: AI hanya menyalin yang benar-benar tercetak
+                                                di foto, dan Anda tetap harus mengecek hasilnya.
+                                            </p>
+                                            {hintError && <p className="text-[12px] font-semibold text-red-600">{hintError}</p>}
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    disabled={hintBusy}
+                                                    onClick={() => void sendHint(f.field)}
+                                                    className="bg-primary text-primary-foreground rounded-full px-3.5 py-1.5 text-[12px] font-bold disabled:opacity-60"
+                                                >
+                                                    {hintBusy ? 'Mengirim...' : 'Baca ulang dengan masukan ini'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setHintFor(null)}
+                                                    className="px-2 text-[12px] font-semibold underline"
+                                                >
+                                                    Batal
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     ))}
