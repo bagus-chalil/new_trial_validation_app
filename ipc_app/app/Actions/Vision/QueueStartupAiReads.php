@@ -88,22 +88,62 @@ class QueueStartupAiReads
         return self::latestPhoto($batch, 'coding_primary_2');
     }
 
-    /** The log of this read for exactly this photo (pair), or null when it still has to be read. */
-    public static function findLog(IpcBatch $batch, IpcAttachment $attachment, string $fieldType, ?IpcAttachment $second = null): ?IpcLog
+    /**
+     * The log of this read for exactly this photo (pair), or null when it still has to be read.
+     * A re-read made with an operator hint that came out worse than what we already had is kept in
+     * the log (`comparison.hint_discarded`) for the accuracy data but is skipped here, so the earlier,
+     * better read stays the one the card shows; `$includeDiscarded` returns it anyway (for the note).
+     */
+    public static function findLog(IpcBatch $batch, IpcAttachment $attachment, string $fieldType, ?IpcAttachment $second = null, bool $includeDiscarded = false): ?IpcLog
     {
-        $logs = IpcLog::query()
+        $candidates = IpcLog::query()
             ->where('ipc_batch_id', $batch->id)
             ->where('field_type', $fieldType)
             ->where('image_path', $attachment->file_path)
-            ->latest('id');
+            ->latest('id')
+            ->limit(20)
+            ->get();
+
+        if (! $includeDiscarded) {
+            $candidates = $candidates->reject(fn (IpcLog $log) => (bool) ($log->comparison['hint_discarded'] ?? false));
+        }
 
         if ($fieldType !== self::CODING_FORMULA) {
-            return $logs->first();
+            return $candidates->first();
         }
 
         $wanted = $second?->file_path;
 
-        return $logs->limit(20)->get()->first(fn (IpcLog $log) => ($log->comparison['image_path_2'] ?? null) === $wanted);
+        return $candidates->first(fn (IpcLog $log) => ($log->comparison['image_path_2'] ?? null) === $wanted);
+    }
+
+    /** Marker of an operator-hinted re-read of a field's photo ("queued" / "running"); wins over an existing log. */
+    public static function rereadKey(int $batchId, string $field): string
+    {
+        return "startup_ai_reread:{$batchId}:{$field}";
+    }
+
+    /**
+     * Operator feedback: read this field's already-saved photo again with a short hint (where/how to
+     * look), no new photo needed. Only the main read is repeated. Returns false when there is no
+     * photo / no read for the field, or a re-read of it is already waiting.
+     */
+    public function rereadWithHint(IpcBatch $batch, User $user, string $field, string $hint): bool
+    {
+        $fieldType = array_key_first(self::readsFor($field, null));
+        $attachment = $fieldType !== null ? self::latestPhoto($batch, $field) : null;
+        if ($attachment === null) {
+            return false;
+        }
+
+        if (! Cache::add(self::rereadKey($batch->id, $field), 'queued', self::TTL)) {
+            return false;
+        }
+
+        $second = self::secondPhotoFor($batch, $field, $fieldType);
+        ReadStartupPhotoJob::dispatch($batch->id, $attachment->id, $field, $fieldType, $user->id, $second?->id, $hint)->onQueue(self::QUEUE);
+
+        return true;
     }
 
     public function handle(IpcBatch $batch, User $user, ?string $packagingType): int
