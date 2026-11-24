@@ -404,6 +404,8 @@ export function ApprovalActionCard({
             )}
             {showL2Form && <DecisionForm level={2} batchId={batchId} stage={stage} decisions={L2_DECISIONS} initialDecision="" initialRemarks="" />}
 
+            <RoundCorrectionHistory stages={reviseOptions ? reviseOptions.map((opt) => opt.value) : [stage.stage]} />
+
             {(existing?.revisions?.length ?? 0) > 0 && (
                 <RevisionHistoryCard
                     title="Riwayat Keputusan"
@@ -417,6 +419,48 @@ export function ApprovalActionCard({
                 />
             )}
         </div>
+    );
+}
+
+/** Audit of TH Progress rounds QC corrected after an approver's "Minta Revisi" (who, when, why, what changed). */
+function RoundCorrectionHistory({ stages }: { stages: string[] }) {
+    const { roundAudit } = usePage<SharedData>().props;
+    const rows = (roundAudit?.history ?? []).filter((row) => stages.includes(row.stage));
+
+    if (rows.length === 0) return null;
+
+    return (
+        <AccordionCard title="Riwayat Koreksi TH Progress" progress={`${rows.length} koreksi tercatat`} defaultOpen={false}>
+            <div className="flex flex-col gap-3">
+                {rows.map((row) => (
+                    <div key={row.id} className="border-border-soft rounded-xl border p-3 text-[13px]">
+                        <p className="font-bold">{row.label}</p>
+                        <p className="text-muted-foreground text-xs">
+                            Diminta oleh {row.requested_by ?? '—'}
+                            {row.request_note ? ` — "${row.request_note}"` : ''}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                            Dikoreksi oleh {row.corrected_by ?? '—'}
+                            {row.corrected_at ? `, ${formatDateTime(row.corrected_at)}` : ''}
+                            {row.reason ? ` — "${row.reason}"` : ''}
+                        </p>
+                        {row.changes.length > 0 ? (
+                            <ul className="mt-1.5 flex flex-col gap-0.5 text-xs">
+                                {row.changes.map((change, i) => (
+                                    <li key={i}>
+                                        <span className="font-bold">{change.field}</span>:{' '}
+                                        <span className="text-red-600 line-through">{change.from}</span> →{' '}
+                                        <span className="font-bold text-green-700">{change.to}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="mt-1.5 text-xs italic">Tidak ada nilai yang berubah.</p>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </AccordionCard>
     );
 }
 
@@ -439,17 +483,33 @@ function DecisionForm({
 }) {
     const { toast, message } = useToast();
 
-    const { data, setData, put, processing, errors, setError, clearErrors } = useForm<{
+    const { data, setData, put, transform, processing, errors, setError, clearErrors } = useForm<{
         level: number;
         decision: string;
         remarks: string;
         revise_stages: string[];
+        revise_rounds: Record<string, number[]>;
     }>({
         level,
         decision: initialDecision,
         remarks: initialRemarks,
         revise_stages: [],
+        revise_rounds: {},
     });
+    const { roundAudit } = usePage<SharedData>().props;
+    // Stages this report can send back; a single-stage report sends itself back.
+    const reviseStageValues = reviseOptions ? reviseOptions.map((opt) => opt.value) : [stage.stage];
+    const stageLabelFor = (value: string) => reviseOptions?.find((opt) => opt.value === value)?.label ?? stage.label;
+    const selectedStages = reviseOptions ? data.revise_stages : [stage.stage];
+
+    const toggleRound = (stageValue: string, no: number) => {
+        clearErrors('revise_rounds' as keyof typeof data);
+        const current = data.revise_rounds[stageValue] ?? [];
+        setData('revise_rounds', {
+            ...data.revise_rounds,
+            [stageValue]: current.includes(no) ? current.filter((n) => n !== no) : [...current, no].sort((a, b) => a - b),
+        });
+    };
 
     const needsNote = data.decision === 'Rejected' || data.decision === 'Revision';
     const fieldId = `${stage.stage}-l${level}`;
@@ -479,6 +539,12 @@ function DecisionForm({
         if (data.decision === 'Revision' && reviseOptions && data.revise_stages.length === 0) {
             setError('revise_stages', 'Pilih minimal satu bagian laporan yang perlu direvisi.');
             return;
+        }
+        if (data.decision === 'Revision') {
+            const kept = Object.fromEntries(
+                Object.entries(data.revise_rounds).filter(([value, rounds]) => selectedStages.includes(value) && rounds.length > 0),
+            );
+            transform((current) => ({ ...current, revise_rounds: kept }));
         }
         put(`/batches/${batchId}/approval/${stage.stage}`, { preserveScroll: true });
     };
@@ -541,6 +607,39 @@ function DecisionForm({
                         </fieldset>
                     )}
                     <InputError message={errors.revise_stages} />
+                    {reviseStageValues
+                        .filter((value) => selectedStages.includes(value) && (roundAudit?.rounds[value]?.length ?? 0) > 0)
+                        .map((value) => (
+                            <fieldset key={value} className="flex flex-col gap-1.5" disabled={processing}>
+                                <legend className="mb-1 text-[12px] font-bold text-orange-900">
+                                    TH Progress {stageLabelFor(value)} yang salah (opsional)
+                                </legend>
+                                <p className="text-[11.5px] leading-snug text-orange-900/80">
+                                    Pilih ronde yang datanya keliru supaya QC memperbaiki ronde itu langsung, bukan menambah ronde baru. Kosongkan
+                                    bila QC cukup menambah ronde.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {roundAudit!.rounds[value].map((round) => {
+                                        const checked = (data.revise_rounds[value] ?? []).includes(round.no);
+                                        return (
+                                            <label
+                                                key={round.no}
+                                                className="bg-card flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-[13px] font-bold"
+                                            >
+                                                <input type="checkbox" checked={checked} onChange={() => toggleRound(value, round.no)} />
+                                                <span>
+                                                    TH #{round.no}
+                                                    {round.decision && (
+                                                        <span className="text-muted-foreground ml-1 font-medium">· {round.decision}</span>
+                                                    )}
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </fieldset>
+                        ))}
+                    <InputError message={(errors as Record<string, string>).revise_rounds} />
                 </div>
             )}
             <Label htmlFor={`approval-remarks-${fieldId}`}>Catatan {needsNote ? '(wajib diisi)' : '(opsional)'}</Label>

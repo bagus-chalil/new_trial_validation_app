@@ -10,6 +10,7 @@ use App\Http\Controllers\IpcBatchController;
 use App\Http\Controllers\LineStatusController;
 use App\Http\Controllers\PackingCheckController;
 use App\Http\Controllers\PrintController;
+use App\Http\Controllers\RoundCorrectionController;
 use App\Http\Controllers\StartupCheckController;
 use App\Http\Controllers\StartupInspectionController;
 use App\Http\Controllers\VerificationController;
@@ -123,6 +124,15 @@ Route::middleware(['auth'])->group(function () {
         ->whereNumber('attachment')
         ->middleware('can:update,batch')
         ->name('finished-check.photo.delete');
+
+    Route::get('batches/{batch}/corrections/{correction}', [RoundCorrectionController::class, 'edit'])
+        ->whereNumber('correction')
+        ->middleware('can:update,batch')
+        ->name('corrections.edit');
+    Route::put('batches/{batch}/corrections/{correction}', [RoundCorrectionController::class, 'update'])
+        ->whereNumber('correction')
+        ->middleware('can:update,batch')
+        ->name('corrections.update');
 
     Route::middleware('can:approve-ipc')->group(function () {
         Route::get('approvals', [ApprovalQueueController::class, 'index'])->name('approvals.index');

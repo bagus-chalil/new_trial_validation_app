@@ -45,7 +45,28 @@ export interface SharedData {
     canUseVisionTest: boolean;
     canCreateBatch: boolean;
     openClientIssues: number;
-    revisionRequest?: { stages: string[]; remarks: string | null; by: string | null; at: string | null } | null;
+    revisionRequest?: {
+        stages: string[];
+        remarks: string | null;
+        by: string | null;
+        at: string | null;
+        corrections?: { id: number; stage: string; label: string; url: string }[];
+    } | null;
+    /** Approval pages only: saved TH Progress rounds per stage + audit of corrected rounds. */
+    roundAudit?: {
+        rounds: Record<string, { no: number; decision: string | null; by: string | null; at: string | null }[]>;
+        history: {
+            id: number;
+            stage: string;
+            label: string;
+            requested_by: string | null;
+            request_note: string | null;
+            corrected_by: string | null;
+            corrected_at: string | null;
+            reason: string | null;
+            changes: { field: string; from: string; to: string }[];
+        }[];
+    } | null;
     [key: string]: unknown;
 }
 

@@ -109,6 +109,20 @@ export function IpcShell({
                             {props.revisionRequest.stages.join(', ')}
                         </p>
                         {props.revisionRequest.remarks && <p className="mt-0.5 font-medium">Catatan: {props.revisionRequest.remarks}</p>}
+                        {(props.revisionRequest.corrections?.length ?? 0) > 0 && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-bold">TH Progress yang harus dikoreksi:</span>
+                                {props.revisionRequest.corrections!.map((c) => (
+                                    <Link
+                                        key={c.id}
+                                        href={c.url}
+                                        className="flex min-h-9 items-center rounded-lg bg-orange-600 px-3 text-xs font-bold text-white"
+                                    >
+                                        Koreksi {c.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
                         <p className="mt-0.5 text-xs">
                             Setelah semua tahap di atas diselesaikan ulang, laporan otomatis kembali ke antrean approval.
                         </p>

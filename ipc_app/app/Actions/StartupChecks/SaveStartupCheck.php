@@ -2,8 +2,10 @@
 
 namespace App\Actions\StartupChecks;
 
+use App\Actions\Approvals\RequestApprovalRevision;
 use App\Actions\Vision\RecordStartupAiFeedback;
 use App\Models\IpcBatch;
+use App\Models\IpcRoundCorrection;
 use App\Models\MasterProduct;
 use App\Models\StartupCheck;
 use App\Models\User;
@@ -75,6 +77,21 @@ class SaveStartupCheck
 
             return $startupCheck;
         });
+
+        // Startup was reopened by an approver's "Minta Revisi": close its audit row with the
+        // state QC re-finalized (the "before" snapshot was stored when it was reopened).
+        IpcRoundCorrection::query()
+            ->where('ipc_batch_id', $batch->id)
+            ->where('stage', IpcBatch::STAGE_STARTUP)
+            ->whereNull('revision_no')
+            ->where('status', IpcRoundCorrection::STATUS_OPEN)
+            ->get()
+            ->each(fn ($row) => $row->update([
+                'status' => IpcRoundCorrection::STATUS_DONE,
+                'corrected_by' => $user->id,
+                'corrected_at' => now(),
+                'after_data' => RequestApprovalRevision::startupSnapshot($batch->fresh()),
+            ]));
 
         // Measurement only (AI read vs final value). Must never break or delay the operator's save.
         try {

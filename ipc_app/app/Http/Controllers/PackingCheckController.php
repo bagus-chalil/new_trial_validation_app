@@ -105,6 +105,9 @@ class PackingCheckController extends Controller
         abort_if($batch->packingCheck?->completed_at, 403, 'Packing Check untuk batch ini sudah selesai dan bersifat read-only.');
 
         $data = $request->validated();
+        if ($data['finalize'] ?? false) {
+            $batch->assertNoOpenRoundCorrections(IpcBatch::STAGE_PACKING);
+        }
         $action->handle($batch, $request->user(), $data);
 
         if ($data['finalize']) {
@@ -137,6 +140,7 @@ class PackingCheckController extends Controller
             return back()->withErrors(['progress' => 'Selesaikan Filling Check terlebih dahulu.']);
         }
 
+        $batch->assertNoOpenRoundCorrections(IpcBatch::STAGE_PACKING);
         $action->handle($batch, $batch->packingCheck);
 
         return redirect()->route('finished-check.edit', $batch)->with('success', 'Packing Check diselesaikan dengan data riwayat terakhir.');
