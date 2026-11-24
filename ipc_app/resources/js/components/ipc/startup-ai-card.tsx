@@ -39,7 +39,13 @@ export type Status = { pending: boolean; fields: FieldStatus[]; notes: string[] 
 /** Suggestions the form applies by itself (no button): the operator only types when the photo is unclear. */
 const AUTO_APPLIED: AiSuggestion['field'][] = ['im_document_number'];
 
-type Entered = { mixing_date?: string; exp_date?: string; shelf_life_months?: number; packaging_type?: string };
+type Entered = {
+    mixing_date?: string;
+    exp_date?: string;
+    shelf_life_months?: number;
+    packaging_type?: string;
+    im_document_number?: string;
+};
 
 const DECISION_STYLE = {
     PASS: { label: 'Sesuai', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' },
