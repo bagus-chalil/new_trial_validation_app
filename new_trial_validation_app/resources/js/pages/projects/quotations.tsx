@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FilterBar, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { SectionTabs } from '@/components/projects/section-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -77,7 +78,9 @@ export default function ProjectQuotations({
             <Head title={t('projects.quotation.page.head_title')} />
 
             <div className="space-y-6 p-4">
+                <SectionTabs section="finance" active="quotations" />
                 <Heading
+                    className="space-y-0.5"
                     title={t('projects.quotation.page.title')}
                     description={t('projects.quotation.page.description')}
                 />

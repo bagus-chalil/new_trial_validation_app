@@ -10,8 +10,9 @@ import {
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import ToolingController from '@/actions/App/Http/Controllers/ToolingController';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import { SectionTabs } from '@/components/projects/section-tabs';
+import { RowActionsMenu } from '@/components/row-actions-menu';
 import { SignaturePills } from '@/components/toolings/signature-pills';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -244,8 +245,10 @@ export default function ToolingReport({
             <Head title={t('toolings.report.head_title')} />
 
             <div className="space-y-6 p-4">
+                <SectionTabs section="tooling" active="report" />
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <Heading
+                        className="space-y-0.5"
                         title={t('toolings.report.title')}
                         description={t('toolings.report.description')}
                     />
@@ -255,14 +258,6 @@ export default function ToolingReport({
                                 <FileSpreadsheet />
                                 {t('toolings.report.export')}
                             </a>
-                        </Button>
-                        <Button asChild>
-                            <Link href={queueIndex().url}>
-                                {t('toolings.report.queue_button', {
-                                    count: kpi.queue,
-                                })}{' '}
-                                →
-                            </Link>
                         </Button>
                         {can.create && (
                             <Button variant="outline" asChild>
@@ -526,74 +521,96 @@ export default function ToolingReport({
 
                                         <div className="flex flex-wrap gap-1.5">
                                             <RowSummary row={row} />
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                asChild
-                                            >
+                                            <Button size="sm" asChild>
                                                 <Link href={show(row.id).url}>
                                                     {t(
                                                         'toolings.report.detail',
                                                     )}
                                                 </Link>
                                             </Button>
-                                            <Button size="sm" asChild>
-                                                <a
-                                                    href={pdf(row.id).url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    <FileDown />
-                                                    {t('toolings.report.pdf')}
-                                                </a>
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                asChild
-                                            >
-                                                <a href={word(row.id).url}>
-                                                    <FileText />
-                                                    {t('toolings.report.word')}
-                                                </a>
-                                            </Button>
-                                            {row.can_delete && (
-                                                <ConfirmDialog
-                                                    trigger={
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="text-destructive"
-                                                        >
-                                                            <Trash2 />
-                                                            {t(
-                                                                'toolings.delete',
-                                                            )}
-                                                        </Button>
-                                                    }
-                                                    title={t(
-                                                        'toolings.show.delete_title',
-                                                    )}
-                                                    description={t(
-                                                        'toolings.show.delete_description',
-                                                        { npd: row.npd_no },
-                                                    )}
-                                                    confirmLabel={t(
-                                                        'toolings.delete',
-                                                    )}
-                                                    formProps={ToolingController.destroy.form(
-                                                        row.id,
-                                                    )}
-                                                >
-                                                    {() => (
-                                                        <input
-                                                            type="hidden"
-                                                            name="from"
-                                                            value="report"
-                                                        />
-                                                    )}
-                                                </ConfirmDialog>
-                                            )}
+                                            <RowActionsMenu
+                                                actions={[
+                                                    {
+                                                        key: 'pdf',
+                                                        label: (
+                                                            <span className="flex items-center gap-2">
+                                                                <FileDown className="size-4" />
+                                                                {t(
+                                                                    'toolings.report.pdf',
+                                                                )}
+                                                            </span>
+                                                        ),
+                                                        onSelect: () =>
+                                                            window.open(
+                                                                pdf(row.id).url,
+                                                                '_blank',
+                                                                'noopener',
+                                                            ),
+                                                    },
+                                                    {
+                                                        key: 'word',
+                                                        label: (
+                                                            <span className="flex items-center gap-2">
+                                                                <FileText className="size-4" />
+                                                                {t(
+                                                                    'toolings.report.word',
+                                                                )}
+                                                            </span>
+                                                        ),
+                                                        onSelect: () => {
+                                                            window.location.href =
+                                                                word(
+                                                                    row.id,
+                                                                ).url;
+                                                        },
+                                                    },
+                                                    ...(row.can_delete
+                                                        ? [
+                                                              {
+                                                                  key: 'delete',
+                                                                  separator: true,
+                                                                  destructive: true,
+                                                                  label: (
+                                                                      <span className="flex items-center gap-2">
+                                                                          <Trash2 className="size-4" />
+                                                                          {t(
+                                                                              'toolings.delete',
+                                                                          )}
+                                                                      </span>
+                                                                  ),
+                                                                  confirm: {
+                                                                      title: t(
+                                                                          'toolings.show.delete_title',
+                                                                      ),
+                                                                      description:
+                                                                          t(
+                                                                              'toolings.show.delete_description',
+                                                                              {
+                                                                                  npd: row.npd_no,
+                                                                              },
+                                                                          ),
+                                                                      confirmLabel:
+                                                                          t(
+                                                                              'toolings.delete',
+                                                                          ),
+                                                                      formProps:
+                                                                          ToolingController.destroy.form(
+                                                                              row.id,
+                                                                          ),
+                                                                      children:
+                                                                          () => (
+                                                                              <input
+                                                                                  type="hidden"
+                                                                                  name="from"
+                                                                                  value="report"
+                                                                              />
+                                                                          ),
+                                                                  },
+                                                              },
+                                                          ]
+                                                        : []),
+                                                ]}
+                                            />
                                         </div>
                                     </div>
                                 ))}

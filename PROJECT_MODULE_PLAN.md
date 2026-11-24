@@ -256,7 +256,7 @@ Tidak ada yang ditulis ke server atau DB server. Pengecekan server hanya-baca (s
 Sumber fitur: kode app lama PROD (zip 23 Nov, diekstrak ke scratchpad tanpa `.env`, tidak dijalankan): `db.php` `VALID_TOOLING_*`/`normalizeToolingPayload()`, `api.php` bagian toolings (~1022-1290), `public/app.js` `effToolingStatus()`/`toolingBottleneck()`/`saveToolingReview()`/`confirmReceiveSample()`/`createProjectFromTooling()`.
 
 **Keputusan (bersama user 2026-11-23):**
-- **K5 peran Kontributor:** ditentukan dari departemen akun (`department` atau `review_unit`): PRNI → buat request + TTD PRNI, RNI → isi formula + TTD RNI, PROD/PRD → TTD Production, PIE/PI → terima sampel, cek tooling, TTD PIE, Revisi/Hold/Tolak, jadikan project. Admin memegang semua peran; role Viewer tidak punya peran (hanya baca). Tidak ada akun departemen bersama (K1).
+- **K5 peran Kontributor:** ditentukan dari departemen akun (`department` atau `review_unit`): PRNI → buat request + TTD PRNI, RNI → isi formula + TTD RNI, PROD/PRD → TTD Production, PIE/PI → terima sampel, cek tooling, TTD PIE, Revisi/Hold/Tolak, jadikan project. Admin tidak memegang peran tanda tangan (K6: Admin hanya mengelola, tidak bisa tanda tangan; satu orang maksimal satu kotak tanda tangan per request, lihat `ToolingWorkflow::canManage/canSign`); role Viewer tidak punya peran (hanya baca). Tidak ada akun departemen bersama (K1).
 - **Tanda tangan:** e-signature password akun sendiri, sama seperti Approval Trial (`messages.validation.signature_wrong`). Tanda tangan gambar dari app lama diimpor (`signature_method=legacy`, gambar `data:image/png|jpeg` saja, maks 64 KB) dan hanya ditampilkan.
 
 **Dibangun:**

@@ -43,10 +43,16 @@ test('gantt renders stages and milestones and filters by project and status', fu
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('projects/gantt')
-            ->has('projects', 2)
+            ->has('projects', 1)
+            ->where('showCompleted', false)
+            ->where('completedCount', 1)
             ->where('projects.0.name', 'Alpha')
             ->where('projects.0.stages.0.is_parallel', true)
             ->where('projects.0.milestones.0.name', 'FAT'));
+
+    // Finished projects are hidden by default and only appear on request.
+    $this->actingAs($user)->get(route('projects.gantt', ['show_completed' => 1]))
+        ->assertInertia(fn ($page) => $page->has('projects', 2)->where('showCompleted', true));
 
     $this->actingAs($user)->get(route('projects.gantt', ['status' => 'Completed']))
         ->assertInertia(fn ($page) => $page->has('projects', 1)->where('projects.0.id', $b->id));
@@ -54,8 +60,23 @@ test('gantt renders stages and milestones and filters by project and status', fu
     $this->actingAs($user)->get(route('projects.gantt', ['project' => $a->id]))
         ->assertInertia(fn ($page) => $page->has('projects', 1)->where('projects.0.id', $a->id));
 
-    $this->actingAs($user)->get(route('projects.gantt', ['pic' => 'Rozy']))
+    $this->actingAs($user)->get(route('projects.gantt', ['pic' => 'Rozy', 'show_completed' => 1]))
         ->assertInertia(fn ($page) => $page->has('projects', 1)->where('projects.0.id', $b->id));
+});
+
+test('gantt can group projects by category and lists the categories', function () {
+    $user = User::factory()->create(['role' => 'Viewer']);
+    Project::create(['name' => 'P1', 'status' => 'On Progress', 'category' => 'Quality', 'start_date' => '2026-01-01']);
+    Project::create(['name' => 'P2', 'status' => 'On Progress', 'category' => 'Improvement', 'start_date' => '2026-02-01']);
+    Project::create(['name' => 'P3', 'status' => 'On Progress', 'category' => 'Quality', 'start_date' => '2026-03-01']);
+
+    $this->actingAs($user)->get(route('projects.gantt', ['group' => 1]))
+        ->assertInertia(fn ($page) => $page
+            ->where('grouped', true)
+            ->where('categories', ['Improvement', 'Quality'])
+            ->where('projects.0.category', 'Improvement')
+            ->where('projects.1.category', 'Quality')
+            ->where('projects.2.category', 'Quality'));
 });
 
 test('any non-viewer submits an improvement and a viewer cannot', function () {

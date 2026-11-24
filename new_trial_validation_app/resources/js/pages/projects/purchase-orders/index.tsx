@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FilterBar, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { SectionTabs } from '@/components/projects/section-tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -77,8 +78,10 @@ export default function PurchaseOrderIndex({
             <Head title={t('purchase_orders.head_title')} />
 
             <div className="space-y-6 p-4">
+                <SectionTabs section="finance" active="purchase-orders" />
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <Heading
+                        className="space-y-0.5"
                         title={t('purchase_orders.title')}
                         description={t('purchase_orders.description')}
                     />

@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { FilterBar, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
+import { SectionTabs } from '@/components/projects/section-tabs';
 import { SignaturePills } from '@/components/toolings/signature-pills';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -138,9 +139,11 @@ export default function ToolingIndex({
             <Head title={t('toolings.head_title')} />
 
             <div className="space-y-6 p-4">
+                <SectionTabs section="tooling" active="queue" />
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
                         <Heading
+                            className="space-y-0.5"
                             title={t('toolings.title')}
                             description={t('toolings.description')}
                         />

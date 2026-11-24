@@ -14,7 +14,7 @@ use Inertia\Response;
 /** Gantt view of stages (plan vs actual, parallel flag) and milestones, read-only. */
 class ProjectGanttController extends Controller
 {
-    private const MAX_PROJECTS = 60;
+    private const PER_PAGE = 10;
 
     public function index(Request $request): Response
     {
@@ -28,16 +28,26 @@ class ProjectGanttController extends Controller
 
         $base = Project::query()->whereNull('deleted_at');
 
-        $projects = (clone $base)
+        // The board is for work still in flight: finished projects only appear
+        // on request, or when the status filter explicitly asks for them.
+        $showCompleted = $request->boolean('show_completed') || $filters['status'] === 'Completed';
+        $grouped = $request->boolean('group');
+        $completedCount = (clone $base)->where('status', 'Completed')->count();
+
+        $paginator = (clone $base)
             ->when($filters['project'] !== '', fn ($q) => $q->whereKey((int) $filters['project']))
             ->when($filters['pic'] !== '', fn ($q) => $q->where('pic_name', $filters['pic']))
             ->when($filters['status'] !== '', fn ($q) => $q->where('status', $filters['status']))
+            ->when(! $showCompleted, fn ($q) => $q->where('status', '!=', 'Completed'))
             ->with(['stages' => fn ($q) => $q->orderBy('id'), 'milestones'])
+            ->when($grouped, fn ($q) => $q->orderByRaw("CASE WHEN category IS NULL OR category = '' THEN 1 ELSE 0 END")->orderBy('category'))
             ->orderByRaw("CASE status WHEN 'Completed' THEN 1 ELSE 0 END")
             ->orderBy('start_date')
             ->orderBy('id')
-            ->limit(self::MAX_PROJECTS)
-            ->get();
+            ->paginate(self::PER_PAGE)
+            ->withQueryString();
+
+        $projects = $paginator->getCollection();
 
         return Inertia::render('projects/gantt', [
             'projects' => $projects->map(fn (Project $p) => [
@@ -45,6 +55,7 @@ class ProjectGanttController extends Controller
                 'name' => $p->name,
                 'code' => $p->code,
                 'status' => $p->status,
+                'category' => $p->category,
                 'pic_name' => $p->pic_name,
                 'progress' => $p->progress,
                 'start_date' => $p->start_date?->format('Y-m-d'),
@@ -74,7 +85,15 @@ class ProjectGanttController extends Controller
                 'pics' => (clone $base)->where('pic_name', '!=', '')->distinct()->orderBy('pic_name')->pluck('pic_name'),
                 'statuses' => ProjectOptions::PROJECT_STATUSES,
             ],
-            'truncated' => (clone $base)->count() > self::MAX_PROJECTS && $filters['project'] === '',
+            'grouped' => $grouped,
+            'categories' => (clone $base)->whereNotNull('category')->where('category', '!=', '')->distinct()->orderBy('category')->pluck('category')->values(),
+            'showCompleted' => $showCompleted,
+            'completedCount' => $completedCount,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+            ],
         ]);
     }
 }

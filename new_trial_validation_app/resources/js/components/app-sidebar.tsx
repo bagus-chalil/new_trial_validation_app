@@ -7,14 +7,11 @@ import {
     Bot,
     BriefcaseBusiness,
     FolderKanban,
-    GanttChartSquare,
     Lightbulb,
     Receipt,
-    ShoppingCart,
     CheckCircle2,
     CircleCheckBig,
     ClipboardCheck,
-    FileCheck2,
     FlaskConical,
     History,
     Hourglass,
@@ -58,14 +55,9 @@ import { index as usersIndex } from '@/routes/admin/users';
 import { index as approvalsIndex } from '@/routes/approvals';
 import { index as monitoringIndex } from '@/routes/monitoring';
 import { index as projectsIndex } from '@/routes/projects';
-import { gantt as ganttIndex } from '@/routes/projects';
 import { index as improvementsIndex } from '@/routes/projects/improvements';
-import { index as purchaseOrdersIndex } from '@/routes/projects/purchase-orders';
 import { index as quotationsIndex } from '@/routes/projects/quotations';
-import {
-    index as toolingsIndex,
-    report as toolingReport,
-} from '@/routes/projects/toolings';
+import { index as toolingsIndex } from '@/routes/projects/toolings';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { index as trialsIndex } from '@/routes/trials';
@@ -163,12 +155,7 @@ export function AppSidebar() {
                     title: t('common.nav.project_portfolio'),
                     href: projectsIndex(),
                     icon: FolderKanban,
-                    activePattern: /^\/projects\/(\d+|create)(\/|$)/,
-                },
-                {
-                    title: t('common.nav.project_gantt'),
-                    href: ganttIndex(),
-                    icon: GanttChartSquare,
+                    activePattern: /^\/projects(\/(\d+|create|gantt)(\/|$)|$)/,
                 },
                 {
                     title: t('common.nav.project_improvements'),
@@ -177,27 +164,17 @@ export function AppSidebar() {
                     activePattern: /^\/projects\/improvements\//,
                 },
                 {
-                    title: t('common.nav.project_tooling_report'),
-                    href: toolingReport(),
-                    icon: FileCheck2,
-                    activePattern: /^\/projects\/toolings\/report/,
-                },
-                {
-                    title: t('common.nav.project_tooling_queue'),
+                    title: t('common.nav.project_toolings_menu'),
                     href: toolingsIndex(),
                     icon: Wrench,
-                    activePattern: /^\/projects\/toolings\/(?!report)/,
+                    activePattern: /^\/projects\/toolings(\/|$)/,
                 },
                 {
                     title: t('common.nav.project_quotations'),
                     href: quotationsIndex(),
                     icon: Receipt,
-                },
-                {
-                    title: t('common.nav.project_purchase_orders'),
-                    href: purchaseOrdersIndex(),
-                    icon: ShoppingCart,
-                    activePattern: /^\/projects\/purchase-orders(\/|$)/,
+                    activePattern:
+                        /^\/projects\/(quotations|purchase-orders)(\/|$)/,
                 },
             ],
         },
