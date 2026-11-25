@@ -11,8 +11,8 @@ use App\Support\ToolingOptions;
  * Check Tooling access. Every logged-in user may read every request (the old
  * app showed all of them to contributors too, to track progress). Each step
  * belongs to one department role from ToolingWorkflow::rolesFor(); Viewer holds
- * none and Admin holds no signing role (Admin only manages, see
- * ToolingWorkflow::canManage()). Signatures additionally need the user's password
+ * none; a box may be assigned to one person (Admin can always sign, see
+ * ToolingWorkflow::canSign()). Signatures additionally need the user's password
  * (checked in the FormRequest), see PROJECT_MODULE_PLAN.md Fase 4b.
  */
 class ToolingPolicy
@@ -76,6 +76,12 @@ class ToolingPolicy
     public function signProduction(User $user, Tooling $tooling): bool
     {
         return ToolingWorkflow::canSign($user, $tooling, 'production') && ToolingWorkflow::canProductionSign($tooling);
+    }
+
+    /** Choose who signs each box (PRNI or Admin), see ToolingWorkflow::canSign(). */
+    public function assign(User $user, Tooling $tooling): bool
+    {
+        return ToolingWorkflow::canAssign($user, $tooling);
     }
 
     /** Put on "Revisi / Hold" (back to PRNI) or reject; PIE or Admin, like the old app's status select. */

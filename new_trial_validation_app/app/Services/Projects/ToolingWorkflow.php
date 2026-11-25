@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\ToolingOptions;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Rules of the Check Tooling flow, ported from the production Project
@@ -26,9 +27,9 @@ use Illuminate\Support\Carbon;
  *
  * Roles come from the user's department / review unit (decision 2026-11-23):
  * PRNI -> prni, RNI -> rni, PROD/PRD -> production, PIE/PI -> pi. Viewers hold
- * none. Like Trial Approval (decision 2026-11-24), no single account can sign
- * everything: Admins hold NO signing role (they only manage: create, edit,
- * hold/reject/resume, attach, promote, delete), and one person can sign at
+ * none. Since 2026-11-25 each box can also be assigned to one specific person
+ * (pm_toolings.assignees): then only that person or an Admin signs it; with no
+ * assignee anyone in the department group may. One person can still sign at
  * most one box on the same request (separation of duties).
  */
 class ToolingWorkflow
@@ -82,10 +83,58 @@ class ToolingWorkflow
             ->exists();
     }
 
-    /** Department role + has not already signed another box on this request. */
-    public static function canSign(User $user, Tooling $tooling, string $role): bool
+    /**
+     * Who may sign one box (decision 2026-11-25, like Trial Approval's
+     * approver_user_id): when PRNI/Admin assigned a person to the box, only
+     * that person (plus Admin); with nobody assigned, anyone in the matching
+     * department group. One person still signs at most one box per request.
+     * $includeAdmin is false for "your action" hints so Admins aren't nagged
+     * on every request they merely could sign.
+     */
+    public static function canSign(User $user, Tooling $tooling, string $role, bool $includeAdmin = true): bool
     {
-        return self::hasRole($user, $role) && ! self::signedAnotherRole($user, $tooling, $role);
+        if (self::signedAnotherRole($user, $tooling, $role)) {
+            return false;
+        }
+
+        if ($includeAdmin && $user->isAdmin()) {
+            return true;
+        }
+
+        $assignee = $tooling->assigneeFor($role);
+
+        return $assignee !== null ? $assignee === $user->id : self::hasRole($user, $role);
+    }
+
+    /** PRNI or Admin set who signs each box, until the box is signed or the request is final. */
+    public static function canAssign(User $user, Tooling $tooling): bool
+    {
+        return (self::hasRole($user, 'prni') || self::canManage($user)) && ! self::isFinal($tooling);
+    }
+
+    /**
+     * Active users who hold a tooling role through their department / review
+     * unit: the pick list of the assignment dialog.
+     *
+     * @return array<int, array{id: int, name: string, department: string}>
+     */
+    public static function candidatesFor(string $role): array
+    {
+        $codes = array_keys(array_filter(self::DEPARTMENT_ROLES, fn (string $r) => $r === $role));
+
+        return User::query()
+            ->where('is_active', 1)
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($codes) {
+                $q->whereIn(DB::raw('UPPER(TRIM(department))'), $codes)
+                    ->orWhereIn(DB::raw('UPPER(TRIM(review_unit))'), $codes);
+            })
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (User $u) => self::hasRole($u, $role))
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'department' => (string) $u->department])
+            ->values()
+            ->all();
     }
 
     /** The status implied by the signatures and sample status (a manual hold/reject is kept). */
@@ -157,7 +206,7 @@ class ToolingWorkflow
             return null;
         }
 
-        $is = fn (string $role): bool => self::canSign($user, $tooling, $role);
+        $is = fn (string $role): bool => self::canSign($user, $tooling, $role, false);
 
         return match (true) {
             $is('prni') && ! $tooling->isSigned('prni') => 'sign_prni',

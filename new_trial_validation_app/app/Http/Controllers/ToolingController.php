@@ -133,7 +133,7 @@ class ToolingController extends Controller
             ? $tooling->project()->whereNull('deleted_at')->first(['id', 'name', 'code'])
             : null;
 
-        $abilities = ['update', 'signPrni', 'sendSample', 'signRni', 'receiveSample', 'pieCheck', 'signProduction', 'hold', 'reject', 'resume', 'attach', 'deleteFile', 'promote', 'delete'];
+        $abilities = ['update', 'signPrni', 'sendSample', 'signRni', 'receiveSample', 'pieCheck', 'signProduction', 'hold', 'reject', 'resume', 'assign', 'attach', 'deleteFile', 'promote', 'delete'];
 
         return Inertia::render('toolings/show', [
             'tooling' => [
@@ -172,7 +172,7 @@ class ToolingController extends Controller
                     ->filter(fn ($i) => $i->tool !== '' || $i->actual !== '' || $i->status !== '')
                     ->map(fn ($i) => ['tool' => $i->tool, 'actual' => $i->actual, 'status' => $i->status])
                     ->values(),
-                'approvals' => collect(ToolingOptions::ROLES)->map(fn (string $role) => $this->approval($role, $tooling->approvalFor($role)))->values(),
+                'approvals' => collect(ToolingOptions::ROLES)->map(fn (string $role) => $this->approval($role, $tooling->approvalFor($role), $tooling))->values(),
                 'history' => $this->history($tooling->history_log),
             ],
             'project' => $project ? ['id' => $project->id, 'name' => $project->name, 'code' => $project->code] : null,
@@ -187,6 +187,9 @@ class ToolingController extends Controller
                 'url' => route('projects.toolings.files.show', [$tooling->id, $f->id]),
             ])->values(),
             'can' => collect($abilities)->mapWithKeys(fn (string $a) => [$a => $user->can($a, $tooling)])->all(),
+            'candidates' => $user->can('assign', $tooling)
+                ? collect(ToolingOptions::ROLES)->mapWithKeys(fn (string $r) => [$r => ToolingWorkflow::candidatesFor($r)])->all()
+                : null,
             'defaultTools' => ToolingOptions::DEFAULT_TOOLS,
             'options' => $this->options(),
             'uploadLimitMb' => ProjectOptions::MAX_UPLOAD_BYTES / 1024 / 1024,
@@ -260,6 +263,7 @@ class ToolingController extends Controller
             'hold' => $steps->hold($model, $user, trim((string) $data['reason'])),
             'reject' => $steps->reject($model, $user, trim((string) $data['reason'])),
             'resume' => $steps->resume($model, $user, $note),
+            'assign' => $steps->assign($model, $user, (array) ($data['assignees'] ?? [])),
             default => abort(404),
         };
 
@@ -333,7 +337,7 @@ class ToolingController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function approval(string $role, ?ToolingApproval $a): array
+    private function approval(string $role, ?ToolingApproval $a, Tooling $tooling): array
     {
         $image = $a?->signature_image;
         if (! is_string($image) || preg_match('#^data:image/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$#', $image) !== 1) {
@@ -342,6 +346,8 @@ class ToolingController extends Controller
 
         return [
             'role' => $role,
+            'assignee_id' => $tooling->assigneeFor($role),
+            'assignee_name' => $this->assigneeName($tooling->assigneeFor($role)),
             'approved' => (bool) $a?->approved,
             'signer_name' => $a->signer_name ?? '',
             'sign_date' => $a?->sign_date?->toDateString(),
@@ -351,6 +357,11 @@ class ToolingController extends Controller
             'signed_by_account' => $a->signed_by_account ?? '',
             'signature_image' => $image,
         ];
+    }
+
+    private function assigneeName(?int $id): ?string
+    {
+        return $id === null ? null : User::query()->whereKey($id)->value('name');
     }
 
     /**

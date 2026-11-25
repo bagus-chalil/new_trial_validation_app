@@ -20,6 +20,10 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import {
+    AssignSignersFields,
+    type SignerCandidates,
+} from '@/components/toolings/assign-signers-fields';
+import {
     NoteField,
     PieCheckFields,
     SignaturePasswordField,
@@ -64,6 +68,8 @@ import {
 
 type Approval = {
     role: string;
+    assignee_id: number | null;
+    assignee_name: string | null;
     approved: boolean;
     signer_name: string;
     sign_date: string | null;
@@ -152,6 +158,7 @@ type Can = Record<
     | 'hold'
     | 'reject'
     | 'resume'
+    | 'assign'
     | 'attach'
     | 'deleteFile'
     | 'promote'
@@ -164,6 +171,7 @@ type PageProps = {
     project: { id: number; name: string; code: string } | null;
     files: FileItem[];
     can: Can;
+    candidates: SignerCandidates | null;
     defaultTools: string[];
     options: {
         tool_statuses: string[];
@@ -206,6 +214,7 @@ export default function ToolingShow({
     project,
     files,
     can,
+    candidates,
     defaultTools,
     options,
     uploadLimitMb,
@@ -646,10 +655,44 @@ export default function ToolingShow({
                 )}
 
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
                         <CardTitle className="text-base">
                             {t('toolings.show.section_approvals')}
                         </CardTitle>
+                        {can.assign && candidates && (
+                            <ConfirmDialog
+                                trigger={
+                                    <Button variant="outline" size="sm">
+                                        {t('toolings.assign.button')}
+                                    </Button>
+                                }
+                                title={t('toolings.assign.title')}
+                                description={t('toolings.assign.button')}
+                                confirmLabel={t('toolings.assign.save')}
+                                confirmVariant="default"
+                                formProps={stepForm('assign')}
+                            >
+                                {({ errors }) => (
+                                    <AssignSignersFields
+                                        roles={TOOLING_ROLES}
+                                        candidates={candidates}
+                                        assigned={Object.fromEntries(
+                                            tooling.approvals.map((x) => [
+                                                x.role,
+                                                x.assignee_id,
+                                            ]),
+                                        )}
+                                        signed={Object.fromEntries(
+                                            tooling.approvals.map((x) => [
+                                                x.role,
+                                                x.approved,
+                                            ]),
+                                        )}
+                                        errors={errors}
+                                    />
+                                )}
+                            </ConfirmDialog>
+                        )}
                     </CardHeader>
                     <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         {TOOLING_ROLES.map((role) => {
@@ -713,6 +756,18 @@ export default function ToolingShow({
                                         <div className="space-y-2">
                                             <p className="text-xs text-muted-foreground">
                                                 {t('toolings.show.not_signed')}
+                                            </p>
+                                            <p className="text-xs">
+                                                {a?.assignee_name
+                                                    ? t(
+                                                          'toolings.assign.assigned',
+                                                          {
+                                                              name: a.assignee_name,
+                                                          },
+                                                      )
+                                                    : t(
+                                                          'toolings.assign.anyone_short',
+                                                      )}
                                             </p>
                                             {stepButton(
                                                 roleAction[role],

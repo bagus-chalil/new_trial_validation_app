@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Toolings;
 
 use App\Models\Tooling;
+use App\Models\User;
+use App\Services\Projects\ToolingWorkflow;
 use App\Support\ToolingOptions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +30,7 @@ class ToolingStepRequest extends FormRequest
         'hold' => ['hold', false],
         'reject' => ['reject', false],
         'resume' => ['resume', false],
+        'assign' => ['assign', false],
     ];
 
     private ?Tooling $tooling = null;
@@ -77,6 +80,10 @@ class ToolingStepRequest extends FormRequest
                 'note' => $note,
             ],
             'hold', 'reject' => ['reason' => ['required', 'string', 'max:2000']],
+            'assign' => [
+                'assignees' => ['nullable', 'array'],
+                'assignees.*' => ['nullable', 'integer'],
+            ],
             default => [],
         };
 
@@ -90,6 +97,12 @@ class ToolingStepRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            if ($this->step() === 'assign') {
+                $this->validateAssignees($validator);
+
+                return;
+            }
+
             if (! (self::STEPS[$this->step()][1] ?? false)) {
                 return;
             }
@@ -104,6 +117,25 @@ class ToolingStepRequest extends FormRequest
                 $validator->errors()->add('signature_password', __('messages.validation.signature_wrong'));
             }
         });
+    }
+
+    /** Each picked person must be an active user of that box's department group. */
+    private function validateAssignees(Validator $validator): void
+    {
+        foreach ((array) $this->input('assignees', []) as $role => $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            if (! in_array($role, ToolingOptions::ROLES, true)) {
+                $validator->errors()->add('assignees', __('toolings.assign.invalid'));
+
+                continue;
+            }
+            $picked = User::query()->where('id', (int) $id)->where('is_active', 1)->whereNull('deleted_at')->first();
+            if ($picked === null || ! ToolingWorkflow::hasRole($picked, (string) $role)) {
+                $validator->errors()->add('assignees', __('toolings.assign.invalid'));
+            }
+        }
     }
 
     /**

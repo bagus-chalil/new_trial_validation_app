@@ -277,21 +277,76 @@ test('drawings attached while creating a request are stored, and a bad one only 
         ->and($files->first()->file_name)->toBe('drawing.pdf');
 });
 
-test('an admin manages requests but can never sign any box', function () {
+test('an admin manages requests and may sign a box, but is not nagged in "your action"', function () {
     $prni = toolingUser('PRNI');
     $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload());
     $tooling = Tooling::firstOrFail();
     $admin = User::factory()->create(['role' => 'Admin', 'department' => 'PRNI']);
 
-    foreach (['sign-prni', 'sign-rni', 'pie-check', 'sign-production'] as $step) {
-        $this->actingAs($admin)->post(toolingStep($tooling, $step), ['signature_password' => 'password'])->assertForbidden();
-    }
-
-    expect($admin->can('signPrni', $tooling))->toBeFalse()
+    expect($admin->can('signPrni', $tooling))->toBeTrue()
         ->and($admin->can('update', $tooling))->toBeTrue()
-        ->and($admin->can('reject', $tooling))->toBeTrue()
+        ->and($admin->can('assign', $tooling))->toBeTrue()
         ->and($admin->can('delete', $tooling))->toBeTrue()
-        ->and($tooling->fresh()->isSigned('prni'))->toBeFalse();
+        ->and(ToolingWorkflow::pendingActionFor($tooling, $admin))->toBeNull();
+
+    $this->actingAs($admin)->post(toolingStep($tooling, 'sign-prni'), ['signature_password' => 'password'])->assertRedirect();
+    expect($tooling->fresh()->isSigned('prni'))->toBeTrue();
+});
+
+test('a box assigned to one person is signed only by that person or an admin', function () {
+    $prni = toolingUser('PRNI');
+    $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload());
+    $tooling = Tooling::firstOrFail();
+    $rniA = toolingUser('RNI');
+    $rniB = toolingUser('RNI');
+
+    $this->actingAs($prni)->post(toolingStep($tooling, 'assign'), ['assignees' => ['rni' => $rniA->id]])->assertRedirect();
+    expect($tooling->fresh()->assigneeFor('rni'))->toBe($rniA->id);
+
+    $payload = ['formula_info' => 'F', 'volume_suggest' => '100', 'signature_password' => 'password'];
+    $this->actingAs($rniB)->post(toolingStep($tooling, 'sign-rni'), $payload)->assertForbidden();
+    $this->actingAs($rniA)->post(toolingStep($tooling, 'sign-rni'), $payload)->assertRedirect();
+    expect($tooling->fresh()->isSigned('rni'))->toBeTrue();
+});
+
+test('with nobody assigned anyone in the department group may sign', function () {
+    $prni = toolingUser('PRNI');
+    $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload());
+    $tooling = Tooling::firstOrFail();
+    $rni = toolingUser('RNI');
+
+    expect($rni->can('signRni', $tooling))->toBeTrue();
+
+    $this->actingAs($prni)->post(toolingStep($tooling, 'assign'), ['assignees' => ['rni' => $rni->id]]);
+    $this->actingAs($prni)->post(toolingStep($tooling, 'assign'), ['assignees' => ['rni' => '']]);
+    expect($tooling->fresh()->assigneeFor('rni'))->toBeNull()
+        ->and(toolingUser('RNI')->can('signRni', $tooling->fresh()))->toBeTrue();
+});
+
+test('assignment is limited to PRNI or admin and to users of that box department', function () {
+    $prni = toolingUser('PRNI');
+    $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload());
+    $tooling = Tooling::firstOrFail();
+    $rni = toolingUser('RNI');
+    $pie = toolingUser('PIE');
+
+    $this->actingAs($rni)->post(toolingStep($tooling, 'assign'), ['assignees' => ['rni' => $rni->id]])->assertForbidden();
+
+    // a PIE user cannot be put on the RNI box
+    $this->actingAs($prni)->post(toolingStep($tooling, 'assign'), ['assignees' => ['rni' => $pie->id]])->assertSessionHasErrors('assignees');
+    expect($tooling->fresh()->assigneeFor('rni'))->toBeNull();
+});
+
+test('a signed box keeps its signer when assignments change', function () {
+    $prni = toolingUser('PRNI');
+    $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload());
+    $tooling = Tooling::firstOrFail();
+    $otherPrni = toolingUser('PRNI');
+
+    $this->actingAs($prni)->post(toolingStep($tooling, 'sign-prni'), ['signature_password' => 'password'])->assertRedirect();
+    $this->actingAs($prni)->post(toolingStep($tooling, 'assign'), ['assignees' => ['prni' => $otherPrni->id]])->assertRedirect();
+
+    expect($tooling->fresh()->assigneeFor('prni'))->toBeNull();
 });
 
 test('one person cannot sign two boxes on the same request', function () {

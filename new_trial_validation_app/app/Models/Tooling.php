@@ -58,6 +58,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $status_reason
  * @property int|null $project_id
  * @property array<int, array<string, mixed>>|null $history_log
+ * @property array<string, int|null>|null $assignees
  * @property string $updated_by_name
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -81,8 +82,17 @@ class Tooling extends Model
             'is_critical' => 'boolean',
             'links' => 'array',
             'history_log' => 'array',
+            'assignees' => 'array',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /** The user id assigned to sign this role's box, or null = anyone in the department group. */
+    public function assigneeFor(string $role): ?int
+    {
+        $id = ($this->assignees ?? [])[$role] ?? null;
+
+        return is_numeric($id) && (int) $id > 0 ? (int) $id : null;
     }
 
     /** @return HasMany<ToolingItem, $this> */

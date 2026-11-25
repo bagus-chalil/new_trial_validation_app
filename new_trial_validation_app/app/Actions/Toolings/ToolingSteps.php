@@ -136,6 +136,27 @@ class ToolingSteps
     }
 
     /**
+     * Choose who signs each box. Signed boxes keep their signer; an empty value
+     * clears the assignment (anyone in the department group may sign again).
+     *
+     * @param  array<string, int|string|null>  $assignees  role => user id
+     */
+    public function assign(Tooling $tooling, User $user, array $assignees): Tooling
+    {
+        return $this->step($tooling, $user, 'ASSIGN', null, function (Tooling $t) use ($assignees) {
+            $current = $t->assignees ?? [];
+            foreach (ToolingOptions::ROLES as $role) {
+                if (! array_key_exists($role, $assignees) || $t->isSigned($role)) {
+                    continue;
+                }
+                $id = (int) $assignees[$role];
+                $current[$role] = $id > 0 ? $id : null;
+            }
+            $t->assignees = array_filter($current, fn ($v) => $v !== null);
+        }, derive: false);
+    }
+
+    /**
      * @param  callable(Tooling): void  $change
      */
     private function step(Tooling $tooling, User $user, string $action, ?string $note, callable $change, bool $derive = true): Tooling

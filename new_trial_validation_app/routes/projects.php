@@ -65,7 +65,7 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
         Route::put('{tooling}', [ToolingController::class, 'update'])->name('update');
         Route::delete('{tooling}', [ToolingController::class, 'destroy'])->name('destroy');
         Route::post('{tooling}/steps/{step}', [ToolingController::class, 'step'])
-            ->whereIn('step', ['sign-prni', 'send-sample', 'sign-rni', 'receive-sample', 'pie-check', 'sign-production', 'hold', 'reject', 'resume'])
+            ->whereIn('step', ['sign-prni', 'send-sample', 'sign-rni', 'receive-sample', 'pie-check', 'sign-production', 'hold', 'reject', 'resume', 'assign'])
             ->name('steps');
         Route::post('{tooling}/promote', [ToolingController::class, 'promote'])->name('promote');
 

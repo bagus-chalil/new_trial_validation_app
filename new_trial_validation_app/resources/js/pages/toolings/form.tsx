@@ -722,6 +722,7 @@ export default function ToolingForm({
                                     )}
                                     {step < 3 ? (
                                         <Button
+                                            key="next"
                                             type="button"
                                             disabled={!stepComplete(step)}
                                             onClick={() => setStep(step + 1)}
@@ -731,6 +732,7 @@ export default function ToolingForm({
                                         </Button>
                                     ) : (
                                         <Button
+                                            key="submit"
                                             type="submit"
                                             disabled={
                                                 processing || !canReach(3)
