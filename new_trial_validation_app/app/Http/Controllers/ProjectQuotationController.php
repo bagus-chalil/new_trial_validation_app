@@ -24,6 +24,7 @@ class ProjectQuotationController extends Controller
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', Project::class);
+        Gate::authorize('access-finance');
 
         $filters = [
             'q' => trim((string) $request->query('q', '')),
@@ -74,6 +75,7 @@ class ProjectQuotationController extends Controller
 
     public function store(SaveProjectQuotationRequest $request, int $project, SaveProjectQuotation $action): RedirectResponse
     {
+        Gate::authorize('access-finance');
         $project = Project::whereNull('deleted_at')->findOrFail($project);
 
         $action($project, null, $request->validated(), $request->user());
@@ -85,6 +87,7 @@ class ProjectQuotationController extends Controller
 
     public function update(SaveProjectQuotationRequest $request, int $project, int $quotation, SaveProjectQuotation $action): RedirectResponse
     {
+        Gate::authorize('access-finance');
         $project = Project::whereNull('deleted_at')->findOrFail($project);
         $quotation = ProjectQuotation::where('project_id', $project->id)->findOrFail($quotation);
 
@@ -97,6 +100,7 @@ class ProjectQuotationController extends Controller
 
     public function destroy(Request $request, int $project, int $quotation, DeleteProjectQuotation $action): RedirectResponse
     {
+        Gate::authorize('access-finance');
         $project = Project::whereNull('deleted_at')->findOrFail($project);
         $quotation = ProjectQuotation::where('project_id', $project->id)->findOrFail($quotation);
 

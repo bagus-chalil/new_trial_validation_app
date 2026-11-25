@@ -27,6 +27,10 @@ class ProjectFileController extends Controller
     {
         $project = Project::whereNull('deleted_at')->findOrFail($project);
 
+        if ((string) $request->input('context') === 'quotation') {
+            Gate::authorize('access-finance');
+        }
+
         try {
             $action(
                 $project,
@@ -53,6 +57,11 @@ class ProjectFileController extends Controller
         Gate::authorize('view', $project);
 
         $file = ProjectFile::where('project_id', $project->id)->findOrFail($file);
+
+        if ($file->context === 'quotation') {
+            Gate::authorize('access-finance');
+        }
+
         $stored = basename($file->stored_name);
         $disk = Storage::disk('project_files');
 

@@ -65,6 +65,7 @@ class HandleInertiaRequests extends Middleware
             'impersonator' => fn () => $this->impersonator($request),
             'canReviewTrials' => $request->user()?->isReviewer() ?? false,
             'canApproveTrials' => $request->user()?->canApproveTrials() ?? false,
+            'canAccessFinance' => $request->user()?->can('access-finance') ?? false,
             'canViewToolings' => $request->user() !== null && ToolingWorkflow::canSeeAll($request->user()),
             'locale' => app()->getLocale(),
             'translations' => fn () => Locales::frontendStrings(app()->getLocale()),

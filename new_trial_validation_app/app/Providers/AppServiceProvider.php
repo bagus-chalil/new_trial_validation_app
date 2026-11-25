@@ -6,6 +6,7 @@ use App\Models\LineConfigurationLane;
 use App\Models\User;
 use App\Services\Pdf\BrowsershotPdfRenderer;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Projects\ToolingWorkflow;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -95,6 +96,8 @@ class AppServiceProvider extends ServiceProvider
         // such as stage templates). Per-project/improvement rules live in
         // ProjectPolicy / ImprovementPolicy.
         Gate::define('manage-projects', fn (User $user) => $user->isAdmin());
+        // Finance (Quotation & PO): Admin and PIE/PI only (decision 2026-11-25).
+        Gate::define('access-finance', fn (User $user) => $user->isAdmin() || ToolingWorkflow::hasRole($user, 'pi'));
         Gate::define('manage-line-configuration-report', fn (User $user) => $user->isAdmin()
             || LineConfigurationLane::userEligibleForStage($user, 'approved_pie'));
     }

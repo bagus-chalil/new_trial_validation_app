@@ -125,6 +125,7 @@ type PageProps = {
     };
     linkableTrials: { value: string; label: string }[];
     can: {
+        finance: boolean;
         update: boolean;
         delete: boolean;
         createTrial: boolean;
@@ -840,261 +841,294 @@ export default function ProjectShow({
                     )}
                 </SectionCard>
 
-                <SectionCard
-                    title={t('projects.quotation.title')}
-                    description={t('projects.quotation.description')}
-                    action={
-                        can.update && (
-                            <Button
-                                size="sm"
-                                onClick={() =>
-                                    setQuotationDialog({
-                                        open: true,
-                                        item: null,
-                                    })
-                                }
-                            >
-                                <Plus />
-                                {t('projects.quotation.add')}
-                            </Button>
-                        )
-                    }
-                >
-                    {quotations.length === 0 ? (
-                        <Empty text={t('projects.quotation.empty')} />
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>
-                                        {t('projects.quotation.vendor')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('projects.quotation.number')}
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        {t('projects.quotation.amount')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('projects.quotation.valid_until')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('projects.fields.status')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('projects.quotation.file')}
-                                    </TableHead>
-                                    {can.update && (
-                                        <TableHead>
-                                            <span className="sr-only">
-                                                {t('projects.actions.edit')}
-                                            </span>
-                                        </TableHead>
-                                    )}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {quotations.map((q) => (
-                                    <TableRow key={q.id}>
-                                        <TableCell>
-                                            <div className="font-medium">
-                                                {q.vendor_name}
-                                            </div>
-                                            {q.link && (
-                                                <a
-                                                    href={q.link}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-xs underline"
-                                                >
-                                                    {t(
-                                                        'projects.quotation.link',
-                                                    )}
-                                                </a>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {q.quotation_no || '-'}
-                                        </TableCell>
-                                        <TableCell className="text-right tabular-nums">
-                                            {formatMoney(
-                                                q.amount,
-                                                q.currency,
-                                                intlLocale,
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDateOnly(q.valid_until)}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant="outline"
-                                                className={quotationStatusClassName(
-                                                    q.status,
+                {can.finance && (
+                    <>
+                        <SectionCard
+                            title={t('projects.quotation.title')}
+                            description={t('projects.quotation.description')}
+                            action={
+                                can.update && (
+                                    <Button
+                                        size="sm"
+                                        onClick={() =>
+                                            setQuotationDialog({
+                                                open: true,
+                                                item: null,
+                                            })
+                                        }
+                                    >
+                                        <Plus />
+                                        {t('projects.quotation.add')}
+                                    </Button>
+                                )
+                            }
+                        >
+                            {quotations.length === 0 ? (
+                                <Empty text={t('projects.quotation.empty')} />
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>
+                                                {t('projects.quotation.vendor')}
+                                            </TableHead>
+                                            <TableHead>
+                                                {t('projects.quotation.number')}
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                {t('projects.quotation.amount')}
+                                            </TableHead>
+                                            <TableHead>
+                                                {t(
+                                                    'projects.quotation.valid_until',
                                                 )}
-                                            >
-                                                {quotationStatusLabel(
-                                                    t,
-                                                    q.status,
-                                                )}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {q.file ? (
-                                                <FileLink file={q.file} />
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">
-                                                    {t(
-                                                        'projects.quotation.no_file',
-                                                    )}
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        {can.update && (
-                                            <TableCell>
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            openUpload(
-                                                                'quotation',
-                                                                q.id,
-                                                            )
-                                                        }
-                                                        aria-label={t(
-                                                            'projects.files.add',
-                                                        )}
-                                                    >
-                                                        <Upload />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setQuotationDialog({
-                                                                open: true,
-                                                                item: q,
-                                                            })
-                                                        }
-                                                    >
+                                            </TableHead>
+                                            <TableHead>
+                                                {t('projects.fields.status')}
+                                            </TableHead>
+                                            <TableHead>
+                                                {t('projects.quotation.file')}
+                                            </TableHead>
+                                            {can.update && (
+                                                <TableHead>
+                                                    <span className="sr-only">
                                                         {t(
                                                             'projects.actions.edit',
                                                         )}
-                                                    </Button>
-                                                    <ConfirmDialog
-                                                        trigger={
+                                                    </span>
+                                                </TableHead>
+                                            )}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {quotations.map((q) => (
+                                            <TableRow key={q.id}>
+                                                <TableCell>
+                                                    <div className="font-medium">
+                                                        {q.vendor_name}
+                                                    </div>
+                                                    {q.link && (
+                                                        <a
+                                                            href={q.link}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-xs underline"
+                                                        >
+                                                            {t(
+                                                                'projects.quotation.link',
+                                                            )}
+                                                        </a>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {q.quotation_no || '-'}
+                                                </TableCell>
+                                                <TableCell className="text-right tabular-nums">
+                                                    {formatMoney(
+                                                        q.amount,
+                                                        q.currency,
+                                                        intlLocale,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatDateOnly(
+                                                        q.valid_until,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={quotationStatusClassName(
+                                                            q.status,
+                                                        )}
+                                                    >
+                                                        {quotationStatusLabel(
+                                                            t,
+                                                            q.status,
+                                                        )}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {q.file ? (
+                                                        <FileLink
+                                                            file={q.file}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {t(
+                                                                'projects.quotation.no_file',
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                {can.update && (
+                                                    <TableCell>
+                                                        <div className="flex justify-end gap-1">
                                                             <Button
-                                                                variant="destructive"
+                                                                variant="outline"
                                                                 size="sm"
+                                                                onClick={() =>
+                                                                    openUpload(
+                                                                        'quotation',
+                                                                        q.id,
+                                                                    )
+                                                                }
+                                                                aria-label={t(
+                                                                    'projects.files.add',
+                                                                )}
+                                                            >
+                                                                <Upload />
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    setQuotationDialog(
+                                                                        {
+                                                                            open: true,
+                                                                            item: q,
+                                                                        },
+                                                                    )
+                                                                }
                                                             >
                                                                 {t(
-                                                                    'projects.actions.delete',
+                                                                    'projects.actions.edit',
                                                                 )}
                                                             </Button>
-                                                        }
-                                                        title={t(
-                                                            'projects.quotation.delete_title',
-                                                        )}
-                                                        description={t(
-                                                            'projects.quotation.delete_description',
-                                                            {
-                                                                name: q.vendor_name,
-                                                            },
-                                                        )}
-                                                        confirmLabel={t(
-                                                            'projects.actions.delete',
-                                                        )}
-                                                        formProps={ProjectQuotationController.destroy.form(
-                                                            {
-                                                                project:
-                                                                    project.id,
-                                                                quotation: q.id,
-                                                            },
-                                                        )}
-                                                    />
-                                                </div>
-                                            </TableCell>
-                                        )}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </SectionCard>
-
-                <SectionCard
-                    title={t('purchase_orders.project_card.title')}
-                    action={
-                        <div className="flex flex-wrap gap-2">
-                            <Button size="sm" variant="outline" asChild>
-                                <Link href={poIndex()}>
-                                    {t(
-                                        'purchase_orders.project_card.open_list',
-                                    )}
-                                </Link>
-                            </Button>
-                            {can.purchaseOrder && (
-                                <Button size="sm" asChild>
-                                    <Link href={poCreate(project.id)}>
-                                        <Plus />
-                                        {t('purchase_orders.project_card.new')}
-                                    </Link>
-                                </Button>
+                                                            <ConfirmDialog
+                                                                trigger={
+                                                                    <Button
+                                                                        variant="destructive"
+                                                                        size="sm"
+                                                                    >
+                                                                        {t(
+                                                                            'projects.actions.delete',
+                                                                        )}
+                                                                    </Button>
+                                                                }
+                                                                title={t(
+                                                                    'projects.quotation.delete_title',
+                                                                )}
+                                                                description={t(
+                                                                    'projects.quotation.delete_description',
+                                                                    {
+                                                                        name: q.vendor_name,
+                                                                    },
+                                                                )}
+                                                                confirmLabel={t(
+                                                                    'projects.actions.delete',
+                                                                )}
+                                                                formProps={ProjectQuotationController.destroy.form(
+                                                                    {
+                                                                        project:
+                                                                            project.id,
+                                                                        quotation:
+                                                                            q.id,
+                                                                    },
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             )}
-                        </div>
-                    }
-                >
-                    {purchaseOrders.length === 0 ? (
-                        <Empty text={t('purchase_orders.project_card.empty')} />
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>
-                                        {t('purchase_orders.columns.po_no')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('purchase_orders.columns.date')}
-                                    </TableHead>
-                                    <TableHead>
-                                        {t('purchase_orders.columns.vendor')}
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                        {t('purchase_orders.columns.total')}
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {purchaseOrders.map((po) => (
-                                    <TableRow key={po.id}>
-                                        <TableCell className="font-medium">
-                                            <Link
-                                                href={poShow(po.id)}
-                                                className="hover:underline"
-                                            >
-                                                {po.po_no}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            {po.po_date
-                                                ? formatDateOnly(po.po_date)
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell>{po.vendor_name}</TableCell>
-                                        <TableCell className="text-right">
-                                            {formatMoney(
-                                                po.total,
-                                                po.currency,
-                                                intlLocale,
+                        </SectionCard>
+
+                        <SectionCard
+                            title={t('purchase_orders.project_card.title')}
+                            action={
+                                <div className="flex flex-wrap gap-2">
+                                    <Button size="sm" variant="outline" asChild>
+                                        <Link href={poIndex()}>
+                                            {t(
+                                                'purchase_orders.project_card.open_list',
                                             )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </SectionCard>
+                                        </Link>
+                                    </Button>
+                                    {can.purchaseOrder && (
+                                        <Button size="sm" asChild>
+                                            <Link href={poCreate(project.id)}>
+                                                <Plus />
+                                                {t(
+                                                    'purchase_orders.project_card.new',
+                                                )}
+                                            </Link>
+                                        </Button>
+                                    )}
+                                </div>
+                            }
+                        >
+                            {purchaseOrders.length === 0 ? (
+                                <Empty
+                                    text={t(
+                                        'purchase_orders.project_card.empty',
+                                    )}
+                                />
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>
+                                                {t(
+                                                    'purchase_orders.columns.po_no',
+                                                )}
+                                            </TableHead>
+                                            <TableHead>
+                                                {t(
+                                                    'purchase_orders.columns.date',
+                                                )}
+                                            </TableHead>
+                                            <TableHead>
+                                                {t(
+                                                    'purchase_orders.columns.vendor',
+                                                )}
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                {t(
+                                                    'purchase_orders.columns.total',
+                                                )}
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {purchaseOrders.map((po) => (
+                                            <TableRow key={po.id}>
+                                                <TableCell className="font-medium">
+                                                    <Link
+                                                        href={poShow(po.id)}
+                                                        className="hover:underline"
+                                                    >
+                                                        {po.po_no}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {po.po_date
+                                                        ? formatDateOnly(
+                                                              po.po_date,
+                                                          )
+                                                        : '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {po.vendor_name}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {formatMoney(
+                                                        po.total,
+                                                        po.currency,
+                                                        intlLocale,
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </SectionCard>
+                    </>
+                )}
 
                 <SectionCard
                     title={t('projects.files.title')}

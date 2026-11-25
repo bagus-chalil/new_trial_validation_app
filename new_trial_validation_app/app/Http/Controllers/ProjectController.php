@@ -118,6 +118,7 @@ class ProjectController extends Controller
 
         $user = $request->user();
         $project->load(['stages.trial', 'milestones', 'quotations', 'machine', 'product']);
+        $canFinance = Gate::forUser($request->user())->allows('access-finance');
         $canUpdate = $user->can('update', $project);
 
         $files = ProjectFile::where('project_id', $project->id)->orderByDesc('id')->get();
@@ -182,7 +183,7 @@ class ProjectController extends Controller
                 'status' => $m->status,
                 'note' => $m->note,
             ])->values(),
-            'quotations' => $project->quotations->map(fn ($q) => [
+            'quotations' => ! $canFinance ? [] : $project->quotations->map(fn ($q) => [
                 'id' => $q->id,
                 'vendor_name' => $q->vendor_name,
                 'quotation_no' => $q->quotation_no,
@@ -195,7 +196,7 @@ class ProjectController extends Controller
                 'link' => $q->link,
                 'file' => ($f = $q->file_id ? $filesById->get($q->file_id) : null) ? $mapFile($f) : null,
             ])->values(),
-            'purchaseOrders' => PurchaseOrder::query()->where('project_id', $project->id)->with('items')->orderByDesc('po_date')->orderByDesc('id')->get()->map(fn (PurchaseOrder $po) => [
+            'purchaseOrders' => ! $canFinance ? [] : PurchaseOrder::query()->where('project_id', $project->id)->with('items')->orderByDesc('po_date')->orderByDesc('id')->get()->map(fn (PurchaseOrder $po) => [
                 'id' => $po->id,
                 'po_no' => $po->po_no,
                 'po_date' => $po->po_date?->format('Y-m-d'),
@@ -225,6 +226,7 @@ class ProjectController extends Controller
                 'delete' => $user->can('delete', $project),
                 'createTrial' => $canUpdate && $user->can('create', Trial::class),
                 'purchaseOrder' => $user->can('create', PurchaseOrder::class),
+                'finance' => $canFinance,
             ],
             'uploadLimitMb' => ProjectOptions::MAX_UPLOAD_BYTES / 1024 / 1024,
             'allowedExtensions' => array_keys(ProjectOptions::UPLOAD_MIMES),

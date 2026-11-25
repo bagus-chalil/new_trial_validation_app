@@ -96,7 +96,7 @@ test('numbers must be unique and the next number follows the pattern and restart
         ->assertInertia(fn ($page) => $page->component('projects/purchase-orders/form')->where('order.id', null));
 });
 
-test('creating needs Admin or a PIE/PI account; viewers and other departments only read', function () {
+test('Finance is Admin or a PIE/PI account only; viewers and other departments get nothing', function () {
     $project = poProject();
     $order = PurchaseOrder::create(['project_id' => $project->id, 'po_no' => 'X-1', 'po_date' => '2026-11-18', 'vendor_name' => 'V']);
 
@@ -108,8 +108,9 @@ test('creating needs Admin or a PIE/PI account; viewers and other departments on
         $this->actingAs($user)->post(route('projects.purchase-orders.store', $project), poPayload())->assertForbidden();
         $this->actingAs($user)->get(route('projects.purchase-orders.edit', $order))->assertForbidden();
         $this->actingAs($user)->delete(route('projects.purchase-orders.destroy', $order))->assertForbidden();
-        $this->actingAs($user)->get(route('projects.purchase-orders.show', $order))->assertOk()->assertInertia(fn ($page) => $page->where('canEdit', false));
-        $this->actingAs($user)->get(route('projects.purchase-orders.index'))->assertOk()->assertInertia(fn ($page) => $page->where('canCreate', false));
+        $this->actingAs($user)->get(route('projects.purchase-orders.show', $order))->assertForbidden();
+        $this->actingAs($user)->get(route('projects.purchase-orders.pdf', $order))->assertForbidden();
+        $this->actingAs($user)->get(route('projects.purchase-orders.index'))->assertForbidden();
     }
 
     $admin = User::factory()->create(['role' => 'Admin']);
@@ -205,7 +206,7 @@ test('only an Admin edits the template; it validates the pattern and drops unsaf
 });
 
 test('the cross-project list filters by vendor and search and the project page lists its POs', function () {
-    $user = User::factory()->create(['role' => 'Viewer']);
+    $user = poPie();
     $a = poProject();
     $b = poProject(['name' => 'Beta', 'code' => 'PRJ-002']);
     PurchaseOrder::create(['project_id' => $a->id, 'po_no' => '001/A', 'po_date' => '2026-11-01', 'vendor_name' => 'Alpha Vendor', 'subject' => 'Machine']);
@@ -214,5 +215,5 @@ test('the cross-project list filters by vendor and search and the project page l
     $this->actingAs($user)->get(route('projects.purchase-orders.index'))->assertInertia(fn ($page) => $page->has('items.data', 2));
     $this->actingAs($user)->get(route('projects.purchase-orders.index', ['vendor' => 'Beta Vendor']))->assertInertia(fn ($page) => $page->has('items.data', 1)->where('items.data.0.po_no', '002/B'));
     $this->actingAs($user)->get(route('projects.purchase-orders.index', ['q' => 'machine']))->assertInertia(fn ($page) => $page->has('items.data', 1)->where('items.data.0.po_no', '001/A'));
-    $this->actingAs($user)->get(route('projects.show', $a))->assertInertia(fn ($page) => $page->has('purchaseOrders', 1)->where('purchaseOrders.0.po_no', '001/A')->where('can.purchaseOrder', false));
+    $this->actingAs($user)->get(route('projects.show', $a))->assertInertia(fn ($page) => $page->has('purchaseOrders', 1)->where('purchaseOrders.0.po_no', '001/A')->where('can.purchaseOrder', true));
 });

@@ -198,7 +198,7 @@ test('milestones can be created, updated and deleted', function () {
 });
 
 test('quotations CRUD and the cross-project list with filters', function () {
-    $staff = User::factory()->create(['role' => 'Staff']);
+    $staff = User::factory()->create(['role' => 'Staff', 'department' => 'PIE']);
     $project = Project::create(['name' => 'P', 'pic_user_id' => $staff->id]);
     $payload = ['vendor_name' => 'Vendor A', 'quotation_no' => 'Q-1', 'amount' => 1500000, 'currency' => 'idr', 'status' => 'Review'];
 
@@ -221,8 +221,28 @@ test('quotations CRUD and the cross-project list with filters', function () {
     expect(ProjectQuotation::count())->toBe(1);
 });
 
+test('Finance (quotations, quotation files and the project page sections) is Admin and PIE only', function () {
+    $pie = User::factory()->create(['role' => 'Staff', 'department' => 'PIE']);
+    $other = User::factory()->create(['role' => 'Staff', 'department' => 'QAC']);
+    $project = Project::create(['name' => 'P', 'pic_user_id' => $other->id]);
+    $quotation = ProjectQuotation::create(['project_id' => $project->id, 'vendor_name' => 'V']);
+    $payload = ['vendor_name' => 'Vendor A', 'status' => 'Review', 'currency' => 'idr'];
+
+    // Even the project's own PIC from another department cannot touch Finance data.
+    $this->actingAs($other)->get(route('projects.quotations.index'))->assertForbidden();
+    $this->actingAs($other)->post(route('projects.quotations.store', $project), $payload)->assertForbidden();
+    $this->actingAs($other)->put(route('projects.quotations.update', [$project, $quotation]), $payload)->assertForbidden();
+    $this->actingAs($other)->delete(route('projects.quotations.destroy', [$project, $quotation]))->assertForbidden();
+    $this->actingAs($other)->get(route('projects.show', $project))
+        ->assertInertia(fn ($page) => $page->has('quotations', 0)->has('purchaseOrders', 0)->where('can.finance', false));
+
+    $this->actingAs($pie)->get(route('projects.quotations.index'))->assertOk();
+    $this->actingAs($pie)->get(route('projects.show', $project))
+        ->assertInertia(fn ($page) => $page->has('quotations', 1)->where('can.finance', true));
+});
+
 test('files: upload to project/stage/quotation, authorized download, delete removes the physical file', function () {
-    $staff = User::factory()->create(['role' => 'Staff']);
+    $staff = User::factory()->create(['role' => 'Staff', 'department' => 'PIE']);
     $viewer = User::factory()->create(['role' => 'Viewer']);
     $project = Project::create(['name' => 'P', 'pic_user_id' => $staff->id]);
     $stage = ProjectStage::create(['project_id' => $project->id, 'name' => 'S']);
@@ -259,7 +279,7 @@ test('files: upload to project/stage/quotation, authorized download, delete remo
 });
 
 test('replacing a quotation file removes the previous one', function () {
-    $staff = User::factory()->create(['role' => 'Staff']);
+    $staff = User::factory()->create(['role' => 'Staff', 'department' => 'PIE']);
     $project = Project::create(['name' => 'P', 'pic_user_id' => $staff->id]);
     $quotation = ProjectQuotation::create(['project_id' => $project->id, 'vendor_name' => 'V']);
     $png = fn () => UploadedFile::fake()->image('q.png');
