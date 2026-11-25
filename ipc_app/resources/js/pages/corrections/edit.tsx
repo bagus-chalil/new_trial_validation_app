@@ -159,227 +159,231 @@ export default function RoundCorrectionEdit({
         >
             <Head title={`Koreksi ${stageLabel} TH #${correction.revision_no} — ${batch.no_batch}`} />
             <Toast message={message} />
-            <form onSubmit={submit} className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-5 py-5 md:px-8">
-                <div className="rounded-2xl border border-orange-300 bg-orange-50 p-4 text-sm text-orange-900">
-                    <p className="font-bold">
-                        Approver {correction.requester?.name ?? ''} meminta {stageLabel} TH Progress #{correction.revision_no} diperbaiki.
-                    </p>
-                    {correction.request_note && <p className="mt-1 font-medium">Catatan: {correction.request_note}</p>}
-                    <p className="mt-1 text-xs">
-                        Data TH #{correction.revision_no} diperbaiki langsung di posisinya. Nilai sebelum dan sesudah, siapa yang mengoreksi, dan
-                        alasannya tercatat permanen di audit. Foto tidak diubah di sini.
-                    </p>
-                </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+                <form onSubmit={submit} className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-5 py-5 md:px-8">
+                    <div className="rounded-2xl border border-orange-300 bg-orange-50 p-4 text-sm text-orange-900">
+                        <p className="font-bold">
+                            Approver {correction.requester?.name ?? ''} meminta {stageLabel} TH Progress #{correction.revision_no} diperbaiki.
+                        </p>
+                        {correction.request_note && <p className="mt-1 font-medium">Catatan: {correction.request_note}</p>}
+                        <p className="mt-1 text-xs">
+                            Data TH #{correction.revision_no} diperbaiki langsung di posisinya. Nilai sebelum dan sesudah, siapa yang mengoreksi, dan
+                            alasannya tercatat permanen di audit. Foto tidak diubah di sini.
+                        </p>
+                    </div>
 
-                {stage === 'filling' && (
-                    <>
-                        <AccordionCard title="Sample Check">
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <Label>Sample Bulk &amp; Odor (5 Sample)</Label>
-                                    <ChipToggleGroup
-                                        name="Bulk & Odor"
-                                        options={['Conform', 'Not Conform']}
-                                        value={str('sample_bulk_odor_status')}
-                                        disabled={processing}
-                                        onChange={(v) => setData('sample_bulk_odor_status', v)}
-                                    />
-                                    <InputError message={err.sample_bulk_odor_status} />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <Label>Sample Leakage Test</Label>
-                                    <ChipToggleGroup
-                                        name="Leakage"
-                                        options={['Conform', 'Not Conform', 'N/A']}
-                                        value={str('sample_leakage_test_status')}
-                                        disabled={processing}
-                                        onChange={(v) => setData('sample_leakage_test_status', v)}
-                                    />
-                                    <InputError message={err.sample_leakage_test_status} />
-                                </div>
-                            </div>
-                        </AccordionCard>
-                        <AccordionCard title="Berat Sampel">
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                                {fillingSamples.map((row, i) => (
-                                    <div key={row.sample_no} className="flex flex-col gap-1">
-                                        <Label htmlFor={`sample-${row.sample_no}`}>#{row.sample_no}</Label>
-                                        <Input
-                                            id={`sample-${row.sample_no}`}
-                                            inputMode="decimal"
-                                            value={row.weight_value}
-                                            disabled={processing}
-                                            onChange={(e) =>
-                                                setData(
-                                                    'samples',
-                                                    fillingSamples.map((item, idx) => (idx === i ? { ...item, weight_value: e.target.value } : item)),
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                            <InputError message={err.samples} />
-                        </AccordionCard>
-                        <AccordionCard title="Keputusan">
-                            <div className="flex flex-col gap-4">
-                                {decisionBlock('Decision', 'decision', decisions)}
-                                {remarksBlock}
-                            </div>
-                        </AccordionCard>
-                    </>
-                )}
-
-                {stage === 'packing' && (
-                    <>
-                        {checklistGroups.map((group) => (
-                            <AccordionCard key={group.key} title={GROUP_TITLES[group.key] ?? group.key}>
+                    {stage === 'filling' && (
+                        <>
+                            <AccordionCard title="Sample Check">
                                 <div className="flex flex-col gap-4">
-                                    {Object.entries(group.fields).map(([key, label]) => (
-                                        <div key={key} className="flex flex-col gap-1.5">
-                                            <Label>{label}</Label>
-                                            <ChipToggleGroup
-                                                name={label}
-                                                options={group.options}
-                                                value={str(key)}
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label>Sample Bulk &amp; Odor (5 Sample)</Label>
+                                        <ChipToggleGroup
+                                            name="Bulk & Odor"
+                                            options={['Conform', 'Not Conform']}
+                                            value={str('sample_bulk_odor_status')}
+                                            disabled={processing}
+                                            onChange={(v) => setData('sample_bulk_odor_status', v)}
+                                        />
+                                        <InputError message={err.sample_bulk_odor_status} />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label>Sample Leakage Test</Label>
+                                        <ChipToggleGroup
+                                            name="Leakage"
+                                            options={['Conform', 'Not Conform', 'N/A']}
+                                            value={str('sample_leakage_test_status')}
+                                            disabled={processing}
+                                            onChange={(v) => setData('sample_leakage_test_status', v)}
+                                        />
+                                        <InputError message={err.sample_leakage_test_status} />
+                                    </div>
+                                </div>
+                            </AccordionCard>
+                            <AccordionCard title="Berat Sampel">
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                                    {fillingSamples.map((row, i) => (
+                                        <div key={row.sample_no} className="flex flex-col gap-1">
+                                            <Label htmlFor={`sample-${row.sample_no}`}>#{row.sample_no}</Label>
+                                            <Input
+                                                id={`sample-${row.sample_no}`}
+                                                inputMode="decimal"
+                                                value={row.weight_value}
                                                 disabled={processing}
-                                                onChange={(v) => setData(key, v)}
-                                            />
-                                            <InputError message={err[key]} />
-                                        </div>
-                                    ))}
-                                </div>
-                            </AccordionCard>
-                        ))}
-                        {photoFields.length > 0 && (
-                            <AccordionCard title="Foto ronde ini" defaultOpen={false}>
-                                <p className="text-muted-foreground mb-3 text-xs">
-                                    Hanya foto milik TH #{correction.revision_no} yang diganti, lewat kamera langsung. Foto lama tetap tercatat di
-                                    audit.
-                                </p>
-                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                                    {photoFields.map((key) => (
-                                        <div key={key} className="border-border-soft flex flex-col gap-2 rounded-xl border p-2">
-                                            <p className="text-xs font-bold">{key.replaceAll('_', ' ')}</p>
-                                            {photos[key] ? (
-                                                <img src={photos[key]} alt={key} className="h-24 w-full rounded-lg object-cover" />
-                                            ) : (
-                                                <div className="text-muted-foreground bg-muted flex h-24 items-center justify-center rounded-lg text-xs">
-                                                    Belum ada foto
-                                                </div>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => setCameraField(key)}
-                                                className="border-border flex min-h-10 items-center justify-center rounded-lg border text-xs font-bold"
-                                            >
-                                                {photos[key] ? 'Ganti foto' : 'Ambil foto'}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </AccordionCard>
-                        )}
-                        <AccordionCard title="Weight of MB &amp; Keputusan">
-                            <div className="flex flex-col gap-4">
-                                {field('sum_weight_mb', 'Weight of MB (gram, bilangan bulat)', { inputMode: 'numeric' })}
-                                {decisionBlock('Decision', 'decision', decisions)}
-                                {remarksBlock}
-                            </div>
-                        </AccordionCard>
-                    </>
-                )}
-
-                {stage === 'finished' && (
-                    <>
-                        <AccordionCard title="Kuantitas">
-                            <div className="grid gap-4 md:grid-cols-3">
-                                {field('quantity_wi', 'Quantity WI (pcs)', {
-                                    inputMode: 'numeric',
-                                    hint: 'Sampling AQL ikut dihitung ulang dari Quantity WI.',
-                                })}
-                                {field('masterbox', 'Masterbox', { hint: 'Contoh: 4,17,55,78' })}
-                                {field('no_pallet_qty', 'No. Pallet & Qty', { hint: 'Contoh: 1/2016' })}
-                            </div>
-                        </AccordionCard>
-                        {sampleGroups.map((group) => (
-                            <AccordionCard key={group.key} title={`Quantity Sample ${group.label}`} defaultOpen={false}>
-                                <div className="flex flex-col gap-3">
-                                    {Object.entries(group.parameters).map(([key, label]) => (
-                                        <div key={key} className="border-border-soft rounded-xl border p-3">
-                                            <p className="mb-2 text-[13px] font-bold">{label}</p>
-                                            <div className="grid grid-cols-4 gap-2">
-                                                {AQL_COLUMNS.map((col) => (
-                                                    <div key={col} className="flex flex-col gap-1">
-                                                        <Label className="text-xs uppercase">{col}</Label>
-                                                        <Input
-                                                            inputMode="numeric"
-                                                            value={aqlSamples[key]?.[col] ?? ''}
-                                                            disabled={processing}
-                                                            onChange={(e) =>
-                                                                setData('samples', {
-                                                                    ...aqlSamples,
-                                                                    [key]: { ...aqlSamples[key], [col]: e.target.value },
-                                                                })
-                                                            }
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <InputError
-                                                message={
-                                                    err[`samples.${key}.ac`] ??
-                                                    err[`samples.${key}.cd`] ??
-                                                    err[`samples.${key}.md`] ??
-                                                    err[`samples.${key}.mnd`]
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'samples',
+                                                        fillingSamples.map((item, idx) =>
+                                                            idx === i ? { ...item, weight_value: e.target.value } : item,
+                                                        ),
+                                                    )
                                                 }
                                             />
                                         </div>
                                     ))}
                                 </div>
+                                <InputError message={err.samples} />
                             </AccordionCard>
-                        ))}
-                        <AccordionCard title="Keputusan">
-                            <div className="flex flex-col gap-4">
-                                {decisionBlock('Disposition', 'disposition', dispositions)}
-                                {remarksBlock}
-                            </div>
-                        </AccordionCard>
-                    </>
-                )}
+                            <AccordionCard title="Keputusan">
+                                <div className="flex flex-col gap-4">
+                                    {decisionBlock('Decision', 'decision', decisions)}
+                                    {remarksBlock}
+                                </div>
+                            </AccordionCard>
+                        </>
+                    )}
 
-                <div className="border-primary/30 bg-card flex flex-col gap-2 rounded-2xl border p-4">
-                    <Label htmlFor="correction_reason">Alasan koreksi (wajib, masuk audit)</Label>
-                    <Textarea
-                        id="correction_reason"
-                        rows={3}
-                        placeholder="Contoh: berat sampel 3 salah ketik, seharusnya 7321."
-                        value={str('correction_reason')}
-                        onChange={(e) => setData('correction_reason', e.target.value)}
-                        disabled={processing}
-                    />
-                    <InputError message={err.correction_reason} />
-                </div>
+                    {stage === 'packing' && (
+                        <>
+                            {checklistGroups.map((group) => (
+                                <AccordionCard key={group.key} title={GROUP_TITLES[group.key] ?? group.key}>
+                                    <div className="flex flex-col gap-4">
+                                        {Object.entries(group.fields).map(([key, label]) => (
+                                            <div key={key} className="flex flex-col gap-1.5">
+                                                <Label>{label}</Label>
+                                                <ChipToggleGroup
+                                                    name={label}
+                                                    options={group.options}
+                                                    value={str(key)}
+                                                    disabled={processing}
+                                                    onChange={(v) => setData(key, v)}
+                                                />
+                                                <InputError message={err[key]} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionCard>
+                            ))}
+                            {photoFields.length > 0 && (
+                                <AccordionCard title="Foto ronde ini" defaultOpen={false}>
+                                    <p className="text-muted-foreground mb-3 text-xs">
+                                        Hanya foto milik TH #{correction.revision_no} yang diganti, lewat kamera langsung. Foto lama tetap tercatat di
+                                        audit.
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                        {photoFields.map((key) => (
+                                            <div key={key} className="border-border-soft flex flex-col gap-2 rounded-xl border p-2">
+                                                <p className="text-xs font-bold">{key.replaceAll('_', ' ')}</p>
+                                                {photos[key] ? (
+                                                    <img src={photos[key]} alt={key} className="h-24 w-full rounded-lg object-cover" />
+                                                ) : (
+                                                    <div className="text-muted-foreground bg-muted flex h-24 items-center justify-center rounded-lg text-xs">
+                                                        Belum ada foto
+                                                    </div>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCameraField(key)}
+                                                    className="border-border flex min-h-10 items-center justify-center rounded-lg border text-xs font-bold"
+                                                >
+                                                    {photos[key] ? 'Ganti foto' : 'Ambil foto'}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionCard>
+                            )}
+                            <AccordionCard title="Weight of MB &amp; Keputusan">
+                                <div className="flex flex-col gap-4">
+                                    {field('sum_weight_mb', 'Weight of MB (gram, bilangan bulat)', { inputMode: 'numeric' })}
+                                    {decisionBlock('Decision', 'decision', decisions)}
+                                    {remarksBlock}
+                                </div>
+                            </AccordionCard>
+                        </>
+                    )}
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <button
-                        type="button"
-                        onClick={cancelCorrection}
-                        disabled={processing}
-                        className="border-border text-muted-foreground flex h-12 items-center justify-center rounded-xl border px-5 text-[13px] font-bold"
-                    >
-                        Batalkan permintaan koreksi ini
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white disabled:opacity-60 sm:self-end"
-                    >
-                        {processing && <LoaderCircle className="mr-2 size-4 animate-spin" />}
-                        {processing ? 'Menyimpan...' : `Simpan Koreksi TH #${correction.revision_no}`}
-                    </button>
-                </div>
-            </form>
+                    {stage === 'finished' && (
+                        <>
+                            <AccordionCard title="Kuantitas">
+                                <div className="grid gap-4 md:grid-cols-3">
+                                    {field('quantity_wi', 'Quantity WI (pcs)', {
+                                        inputMode: 'numeric',
+                                        hint: 'Sampling AQL ikut dihitung ulang dari Quantity WI.',
+                                    })}
+                                    {field('masterbox', 'Masterbox', { hint: 'Contoh: 4,17,55,78' })}
+                                    {field('no_pallet_qty', 'No. Pallet & Qty', { hint: 'Contoh: 1/2016' })}
+                                </div>
+                            </AccordionCard>
+                            {sampleGroups.map((group) => (
+                                <AccordionCard key={group.key} title={`Quantity Sample ${group.label}`} defaultOpen={false}>
+                                    <div className="flex flex-col gap-3">
+                                        {Object.entries(group.parameters).map(([key, label]) => (
+                                            <div key={key} className="border-border-soft rounded-xl border p-3">
+                                                <p className="mb-2 text-[13px] font-bold">{label}</p>
+                                                <div className="grid grid-cols-4 gap-2">
+                                                    {AQL_COLUMNS.map((col) => (
+                                                        <div key={col} className="flex flex-col gap-1">
+                                                            <Label className="text-xs uppercase">{col}</Label>
+                                                            <Input
+                                                                inputMode="numeric"
+                                                                value={aqlSamples[key]?.[col] ?? ''}
+                                                                disabled={processing}
+                                                                onChange={(e) =>
+                                                                    setData('samples', {
+                                                                        ...aqlSamples,
+                                                                        [key]: { ...aqlSamples[key], [col]: e.target.value },
+                                                                    })
+                                                                }
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <InputError
+                                                    message={
+                                                        err[`samples.${key}.ac`] ??
+                                                        err[`samples.${key}.cd`] ??
+                                                        err[`samples.${key}.md`] ??
+                                                        err[`samples.${key}.mnd`]
+                                                    }
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionCard>
+                            ))}
+                            <AccordionCard title="Keputusan">
+                                <div className="flex flex-col gap-4">
+                                    {decisionBlock('Disposition', 'disposition', dispositions)}
+                                    {remarksBlock}
+                                </div>
+                            </AccordionCard>
+                        </>
+                    )}
+
+                    <div className="border-primary/30 bg-card flex flex-col gap-2 rounded-2xl border p-4">
+                        <Label htmlFor="correction_reason">Alasan koreksi (wajib, masuk audit)</Label>
+                        <Textarea
+                            id="correction_reason"
+                            rows={3}
+                            placeholder="Contoh: berat sampel 3 salah ketik, seharusnya 7321."
+                            value={str('correction_reason')}
+                            onChange={(e) => setData('correction_reason', e.target.value)}
+                            disabled={processing}
+                        />
+                        <InputError message={err.correction_reason} />
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <button
+                            type="button"
+                            onClick={cancelCorrection}
+                            disabled={processing}
+                            className="border-border text-muted-foreground flex h-12 items-center justify-center rounded-xl border px-5 text-[13px] font-bold"
+                        >
+                            Batalkan permintaan koreksi ini
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="bg-primary flex h-12 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white disabled:opacity-60 sm:self-end"
+                        >
+                            {processing && <LoaderCircle className="mr-2 size-4 animate-spin" />}
+                            {processing ? 'Menyimpan...' : `Simpan Koreksi TH #${correction.revision_no}`}
+                        </button>
+                    </div>
+                </form>
+            </div>
             <CameraCaptureDialog
                 open={cameraField !== null}
                 onOpenChange={(open) => {
