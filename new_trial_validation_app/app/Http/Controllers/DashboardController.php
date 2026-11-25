@@ -10,9 +10,11 @@ use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
 use App\Services\Projects\ToolingWorkflow;
+use App\Services\Validation\CaseJourney;
 use App\Support\ToolingOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -85,7 +87,12 @@ class DashboardController extends Controller
             'departmentPending' => Trial::pendingReviewsByDepartment($user, $period),
         ];
 
+        $leadTime = Schema::hasTable('vd_case_links') && Schema::hasTable('vd_trial_meta')
+            ? CaseJourney::realizedLeadTimeKpi($period)
+            : null;
+
         return Inertia::render('dashboard', [
+            'leadTime' => $leadTime,
             'trials' => $trials,
             'filters' => $filters,
             'productTypes' => $productTypes,

@@ -55,6 +55,8 @@ type TrialData = {
     bom: string | null;
     progress_status: string;
     final_decision: string | null;
+    pm_ready_date?: string | null;
+    bulk_ready_date?: string | null;
 };
 
 type PageProps = {
@@ -296,6 +298,40 @@ export default function TrialForm({
                                         />
                                         <InputError
                                             message={errors.validation_date}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="pm_ready_date">
+                                            {t('journey.form.pm_ready_date')}
+                                        </Label>
+                                        <Input
+                                            id="pm_ready_date"
+                                            name="pm_ready_date"
+                                            type="date"
+                                            defaultValue={
+                                                trial?.pm_ready_date ?? ''
+                                            }
+                                        />
+                                        <InputError
+                                            message={errors.pm_ready_date}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="bulk_ready_date">
+                                            {t('journey.form.bulk_ready_date')}
+                                        </Label>
+                                        <Input
+                                            id="bulk_ready_date"
+                                            name="bulk_ready_date"
+                                            type="date"
+                                            defaultValue={
+                                                trial?.bulk_ready_date ?? ''
+                                            }
+                                        />
+                                        <InputError
+                                            message={errors.bulk_ready_date}
                                         />
                                     </div>
 

@@ -25,4 +25,5 @@ require __DIR__.'/reviews.php';
 require __DIR__.'/approvals.php';
 require __DIR__.'/reports.php';
 require __DIR__.'/projects.php';
+require __DIR__.'/validation.php';
 require __DIR__.'/bot.php';

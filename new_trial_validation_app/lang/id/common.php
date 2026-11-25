@@ -15,6 +15,7 @@ return [
         'system' => 'Sistem',
         'dashboard' => 'Dashboard',
         'monitoring' => 'Seluruh Trial',
+        'journey' => 'Product Journey',
         'my_work' => 'Pekerjaan Saya',
         'tracking' => 'Pemantauan Proses',
         'need_review' => 'Perlu Ditinjau',

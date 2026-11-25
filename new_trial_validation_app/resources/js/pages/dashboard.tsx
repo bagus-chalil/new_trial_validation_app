@@ -80,6 +80,12 @@ type PageProps = {
     summary: Summary;
     overview: Overview;
     period: DashboardPeriod;
+    leadTime: {
+        avg_days: number | null;
+        samples: number;
+        defaulted: number;
+        total: number;
+    } | null;
 };
 
 const summaryCards: {
@@ -144,6 +150,7 @@ export default function Dashboard({
     summary,
     overview,
     period,
+    leadTime,
 }: PageProps) {
     const { t, intlLocale } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
@@ -410,6 +417,37 @@ export default function Dashboard({
                                     'dashboard.charts.empty_trials',
                                 )}
                             />
+                        </CardContent>
+                    </Card>
+
+                    <Card className="flex h-full flex-col">
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                {t('journey.kpi.title')}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-1">
+                            <p className="text-3xl font-semibold">
+                                {leadTime && leadTime.avg_days !== null
+                                    ? t('journey.kpi.value', {
+                                          days: leadTime.avg_days,
+                                      })
+                                    : t('journey.kpi.none')}
+                            </p>
+                            {leadTime && leadTime.samples > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    {t('journey.kpi.note', {
+                                        samples: leadTime.samples,
+                                    })}
+                                </p>
+                            )}
+                            {leadTime && leadTime.defaulted > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    {t('journey.kpi.excluded', {
+                                        count: leadTime.defaulted,
+                                    })}
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
 

@@ -43,6 +43,9 @@ class TrialRequestRules
             'initiated_person_team' => ['required', 'string', 'max:200'],
             'reason' => ['required', 'string'],
             'bom' => ['required', 'string'],
+            // Trial Validation v2.0 side-table fields (vd_trial_meta).
+            'pm_ready_date' => ['nullable', 'date'],
+            'bulk_ready_date' => ['nullable', 'date'],
         ];
     }
 }

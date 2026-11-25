@@ -13,6 +13,7 @@ return [
         'system' => '시스템',
         'dashboard' => '대시보드',
         'monitoring' => '전체 트라이얼',
+        'journey' => '제품 여정',
         'my_work' => '내 업무',
         'tracking' => '진행 현황',
         'need_review' => '검토 대기',

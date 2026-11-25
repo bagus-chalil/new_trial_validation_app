@@ -13,11 +13,13 @@ use App\Models\Project;
 use App\Models\ProjectStage;
 use App\Models\Trial;
 use App\Models\User;
+use App\Models\ValidationTrialMeta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -184,6 +186,11 @@ class TrialController extends Controller
         $trial = Trial::whereNull('deleted_at')->withCount('attachments')->findOrFail($trial);
 
         Gate::authorize('update', $trial);
+
+        // Trial Validation v2.0 side-table dates (vd_trial_meta), shown on the form.
+        $meta = Schema::hasTable('vd_trial_meta') ? ValidationTrialMeta::query()->where('trial_id', $trial->id)->first() : null;
+        $trial->setAttribute('pm_ready_date', $meta && ! $meta->dates_defaulted ? $meta->pm_ready_date?->toDateString() : null);
+        $trial->setAttribute('bulk_ready_date', $meta && ! $meta->dates_defaulted ? $meta->bulk_ready_date?->toDateString() : null);
 
         return Inertia::render('trials/form', [
             'mode' => 'edit',

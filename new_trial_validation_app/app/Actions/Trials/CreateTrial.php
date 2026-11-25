@@ -2,10 +2,13 @@
 
 namespace App\Actions\Trials;
 
+use App\Actions\Validation\EnsureCaseForTrial;
+use App\Actions\Validation\SaveTrialMeta;
 use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\Trial;
 use App\Models\User;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -22,7 +25,10 @@ class CreateTrial
      */
     public function __invoke(array $data, User $user): Trial
     {
-        return DB::transaction(function () use ($data, $user) {
+        $dates = Arr::only($data, ['pm_ready_date', 'bulk_ready_date']);
+        $data = Arr::except($data, ['pm_ready_date', 'bulk_ready_date']);
+
+        return DB::transaction(function () use ($data, $dates, $user) {
             $product = Product::where('id', $data['product_id'])->firstOrFail();
 
             $trial = new Trial([
@@ -47,6 +53,9 @@ class CreateTrial
                 'old_data' => null,
                 'new_data' => json_encode($data),
             ]);
+
+            app(SaveTrialMeta::class)->saveDates($trial, $dates);
+            EnsureCaseForTrial::safely($trial, $user->id);
 
             return $trial;
         });

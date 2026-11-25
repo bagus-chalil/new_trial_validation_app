@@ -53,6 +53,7 @@ import { index as productsIndex } from '@/routes/admin/products';
 import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
 import { index as approvalsIndex } from '@/routes/approvals';
+import { index as journeyIndex } from '@/routes/journey';
 import { index as monitoringIndex } from '@/routes/monitoring';
 import { index as projectsIndex } from '@/routes/projects';
 import { index as improvementsIndex } from '@/routes/projects/improvements';
@@ -95,6 +96,12 @@ export function AppSidebar() {
                     title: t('common.nav.monitoring'),
                     href: monitoringIndex(),
                     icon: Hourglass,
+                },
+                {
+                    title: t('common.nav.journey'),
+                    href: journeyIndex(),
+                    icon: RouteIcon,
+                    activePattern: /^\/journey(\/|$)/,
                 },
             ],
         },

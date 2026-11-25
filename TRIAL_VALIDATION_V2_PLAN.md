@@ -173,9 +173,51 @@ Ditetapkan user di sesi ini: **QCO diterbitkan oleh PRNI, IM diterbitkan oleh QA
 4. Lima trial dengan kode FG snapshot berbeda (8.3 butir 1): mana yang benar?
 5. Tooling 1 ↔ master id 188 (Originote Refill): benar atau bukan?
 
+### Hasil Tahap 1 (2026-11-25) — fondasi Case, field baru, Product Journey minimal
+
+Dibangun di `new_trial_validation_app/`. **Belum dijalankan ke DB prod/dev server:** migrasi dan backfill hanya dijalankan di MySQL lokal (lihat 8.9). Tidak ada ALTER ke tabel bersama, `trials_header` dan stage proyek tidak disentuh.
+
+**8.9 Yang dibangun**
+- Migrasi additive `2026_11_26_000001_create_vd_case_tables.php` (hasTable guard, tanpa FK): `vd_cases`, `vd_case_counters` (unik per jenis+periode), `vd_case_links` (unik `kind`+`ref_key`; `ref_key` selalu terisi: id sebagai teks atau kunci bisnis IM/QCO/batch, `ref_id` nullable), `vd_trial_meta` (PM ready, Bulk ready, `dates_defaulted`, bukti approval client). Ditaruh di tabel samping karena `trials_header` tidak boleh di-ALTER; `validation_category` dan `risk_level` yang sudah ada dipetakan, tidak diduplikasi.
+- Model `ValidationCase`, `ValidationCaseLink`, `ValidationTrialMeta`; `ValidationCasePolicy` (lihat: semua user login; catat approval client: Staff/Admin/approver).
+- `CaseNumbering` (counter dikunci `lockForUpdate`, bukan `MAX()+1`), format `VAL-{NPD|IMP|MIX}-{YYMM}-{3 digit}`. `ValidationCaseType` memakai pemetaan 8.5 yang diputuskan user.
+- `TrialOutcome`: satu trial dihitung bila bukan Draft dan tidak terhapus; hasil turunan (tidak disimpan): Pass (Approved tanpa NOT OK), Pass with Approval Client (ada NOT OK + bukti client dicatat), Re-trial (Need Revision, atau Approved dengan NOT OK tanpa bukti client), Fail (Rejected), Pending (masih In Review/Ready). Bukti approval client = tanda + catatan di `vd_trial_meta`, dokumennya diunggah lewat lampiran tambahan trial yang sudah ada (tanpa mekanisme upload baru).
+- `EnsureCaseForTrial`: satu Case per (jenis, `product_id`), idempoten, menomori ulang `attempt_no` (Draft null). **FG kembar tidak digabung**; pelaporan saja. Dipanggil dari `CreateTrial` (lewat `safely()`, diam sampai migrasi dijalankan, tidak pernah menggagalkan alur trial). Form trial punya dua kolom baru, PM Ready Date dan Bulk Ready Date (opsional), disimpan lewat `SaveTrialMeta`.
+- `php artisan validation:backfill-cases [--dry-run]`: menanam Case di bawah semua trial yang ada (kronologis), tanggal bawaan H-1 dari tanggal pembuatan (ditandai `dates_defaulted`), tautan Project ke Case **hanya** bila jelas (stage yang sudah tertaut trial, atau produk project yang hanya punya satu Case); sisanya dicetak, tidak ditebak: konflik, produk dengan banyak Case, kandidat nama persis. Laporan padanan: grup FG kembar dan trial dengan FG snapshot usang. `--dry-run` menjalankan kode yang sama di dalam transaksi yang di-rollback.
+- Product Journey: `/journey` (daftar, filter jenis + cari nomor/produk/FG) dan `/journey/{case}` (ringkasan "N kali trial" + rincian hasil, linimasa percobaan dengan hasil/status/tanggal/PM-Bulk/lead time/Line Configuration, project terkait, catat approval client). FG dibaca dari master lewat `product_id`. Menu "Product Journey" di grup Ringkasan. KPI **Realized Trial Lead Time (NPD)** di Dashboard.
+- String id/en/ko di grup `journey` + `common.nav.journey`.
+
+**8.10 Keputusan yang diambil di tahap ini (mohon dikoreksi bila salah)**
+1. **KPI lead time hanya memakai tanggal asli.** Tanggal bawaan H-1 membuat setiap trial lama terbaca "1 hari" dan itu menyesatkan, jadi baris `dates_defaulted` dikeluarkan dari rata-rata dan jumlahnya ditampilkan ("N trial memakai tanggal bawaan"). Akibatnya KPI kosong sampai PIE mengisi tanggal di trial baru atau mengoreksi yang lama. Bila Anda tetap ingin angka dari tanggal bawaan, itu cukup satu baris di `CaseJourney::realizedLeadTimeKpi`.
+2. Atribusi percobaan **per Case**, urut `created_at`. Satu trial yang di-revisi (Need Revision, `revision_no`) tetap satu percobaan; hanya trial baru yang menambah hitungan.
+3. Case tidak otomatis berpindah bila produk/kategori trial diubah sesudah Case terbentuk (tautan tetap). Dibiarkan sampai Tahap 2 (Case dibuat dari Assessment).
+4. Trial buatan app baru kini otomatis masuk Case saat dibuat; trial buatan app lama baru masuk lewat perintah backfill (aman dijalankan ulang, jadwalkan bila app lama masih hidup lama).
+
+**8.11 Hasil uji.** Dry-run + run nyata + run ulang pada salinan lokal baru `trial_validation_system_v2t1` (dari `trial_validation_system_fase5`, 337 trial aktif): **306 Case** (NPD 141, IMP 15, MIX 150), 337 tautan trial, 27 Case dengan 2+ percobaan, run kedua 0 perubahan (idempoten), 0 tautan project (belum ada project yang berproduk atau punya stage bertrial). Laporan padanan: 39 grup FG kembar (101 baris master, 23 di antaranya berkode `N/A`) dan 5 trial FG snapshot usang (#23, #214, #247, #315, #359) persis seperti temuan Tahap 0. 19 Pest test baru (generator, pemetaan jenis, hasil turunan, backfill + dry-run + idempoten + tidak menyentuh `trials_header`, tautan project + stage Completed tak berubah, halaman Journey, filter, approval client, KPI, simpan tanggal di form + Case otomatis). Verifikasi live Playwright pada salinan itu (daftar, detail Case 3 percobaan, kartu KPI di Dashboard): tanpa error konsol. Gate: Pint bersih untuk file baru, Larastan hanya 2 error lama (`TrialMonitorController`, migrasi `rename_pi_review_team_to_pie`), `php artisan test` 719/723 lulus (1 gagal lama `ExportLocaleTest`/ZipArchive, 3 skip lama), tsc dan `npm run build` bersih, ESLint 1 error lama di `toolings/show.tsx`, Prettier 1 peringatan lama di `resources/ai/trial_document.schema.json`.
+
+**8.12 Catatan lingkungan.** Tabel `vd_*` (kosong) dan catatan migrasinya (batch 23) ternyata sudah ada di DB lokal `trial_validation_system_fase5` (salinan dev, bukan prod) padahal saya tidak menjalankan `migrate` ke sana dengan sengaja; kemungkinan dijalankan otomatis oleh proses lokal. Tidak merusak apa pun (additive, 0 baris). Server dev/prod **belum** memilikinya: migrasi akan jalan lewat pipeline (`migrate --force`), lalu backfill dijalankan manual atas perintah Anda. Hati-hati juga: `composer run lint` (Pint tanpa `--test`) mengubah banyak file lama yang tidak terkait (line ending); saya mengembalikannya, jangan jalankan itu mentah-mentah. Pakai `composer run lint:check`.
+
 ## 9. Prompt siap pakai
 
-### Prompt Tahap 1 (tempel di chat baru)
+### Prompt Tahap 2 (tempel di chat baru)
+
+```text
+Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 3, 5, 6 "Tahap 2", 7, dan 8 terutama "Hasil Tahap 1" 8.9-8.12), PROJECT_MODULE_PLAN.md bagian 6-7, CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only; bagian Projects Fase 4/4b untuk pola tautan stage-trial dan Check Tooling).
+
+Konteks: Tahap 1 selesai (Case `vd_*`, backfill, Product Journey minimal, KPI lead time, field PM/Bulk ready). Belum dijalankan ke server dev/prod. Jangan membangun IM/QCO generator (Tahap 3) atau Mixing (Tahap 4). D5 (Pending approval delete) masih terbuka: tanyakan ke saya bila perlu.
+
+Kerjakan HANYA Tahap 2 (Validation Assessment + Validation Plan + Tooling terhubung), sesuai bagian 6 dan peta menu bagian 5:
+1. Register Validation Assessment (ADD NEW DATA): SKU (dropdown master produk), receive date, client, sales month dan qty PO, packaging type, scope, mesin/line rekomendasi (kelak dari Cek Tooling), nomor+link QCO (isian manual dulu), tanggal PM dan Bulk diterima (boleh N/A), Risk (D9: ditentukan PIE saat assessment). Menyimpan Assessment MEMBUAT Case (CaseNumbering::create, source manual) dan ia menjadi tulang punggung; semua kolom bisa difilter. Tabel baru `vd_assessments` (additive, hasTable guard, tanpa FK). Tampilkan di Product Journey sebagai titik awal linimasa.
+2. Validation Plan: permintaan jadwal trial mingguan ke PPIC (SKU + Week), tabel `vd_validation_plans`, terkait Case; halaman untuk PIE (buat) dan PPIC (lihat/konfirmasi). Putuskan peran lewat pola ToolingWorkflow::hasRole; jangan buat akun baru.
+3. Cek Tooling dan Improvement ditautkan ke Case lewat `vd_case_links` (kind `tooling`; Improvement mendapat nomor sendiri `IMP-{YYYY}-{urut}` lewat tabel/counter baru, bukan kolom baru di pm_*, kecuali nullable additive yang saya setujui). `pm_toolings.npd_no` tetap sebagai referensi lama. Tooling 1 (Originote refill) ditautkan lewat Case setelah SKU barunya didaftarkan di master, jangan dipadankan ke master id 188.
+4. Pembuatan Trial dari Case (pra-isi produk, jenis, mesin dari Assessment), mengikuti pola Fase 4 (`trials.create?project_stage=`): trial baru langsung ditautkan ke Case yang sama sebagai percobaan berikutnya.
+5. Pest test, lalu gate lengkap (Pint hanya `composer run lint:check`, JANGAN `composer run lint` mentah karena mengubah file lama; Larastan, php artisan test, ESLint, Prettier, tsc, npm run build) dan laporkan apa adanya termasuk kegagalan lama. Verifikasi live (Playwright) pada DB lokal SALINAN (pola: buat DB salinan baru dari trial_validation_system_fase5 lewat mysqldump, jalankan dengan DB_DATABASE env override dan cek namanya dulu), bukan DB bersama.
+6. Ritual penutup: update TRIAL_VALIDATION_V2_PLAN.md bagian 8, CLAUDE.md (root dan new_trial_validation_app/), commit pesan English dengan stage file spesifik, lalu tulis prompt Tahap 3.
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama/dev/prod, jangan --env= tanpa file .env.<nama>, jangan factory di tinker, jangan menyentuh ipc_app/ atau Project-Tracking-PIE-Team/, jangan UPDATE trials_header.
+```
+
+### Prompt Tahap 1 (arsip, sudah dikerjakan 2026-11-25)
 
 ```text
 Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root, sumber kebenaran; terutama bagian 2, 3, 7, dan 8 "Hasil Tahap 0" yang memuat temuan audit), PROJECT_MODULE_PLAN.md bagian 6-7, CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only).

@@ -13,6 +13,7 @@ return [
         'system' => 'System',
         'dashboard' => 'Dashboard',
         'monitoring' => 'All Trials',
+        'journey' => 'Product Journey',
         'my_work' => 'My Work',
         'tracking' => 'Process Tracking',
         'need_review' => 'Pending Review',
