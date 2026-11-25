@@ -11,8 +11,8 @@
     // for rows saved before this column existed. Lane names are
     // admin-configured data, so they are never translated.
     $signOffFields = [
-        ['field' => 'approved_pie', 'label' => $report->approved_pie_label ?: 'Approved (PIE)'],
-        ['field' => 'checked_prod', 'label' => $report->checked_prod_label ?: 'Checked (PROD)'],
+        ['field' => 'checked_prod', 'label' => $report->checked_prod_label ?: 'Acknowledged (PROD)'],
+        ['field' => 'approved_pie', 'label' => $report->approved_pie_label ?: 'Approved (PIE Leader)'],
         ['field' => 'return_prod', 'label' => __('exports.line_config.return_prod')],
     ];
     $capacityLabel = $report->capacity_label ?: __('line_config.columns.capacity');

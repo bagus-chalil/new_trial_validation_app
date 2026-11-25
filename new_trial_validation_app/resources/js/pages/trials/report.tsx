@@ -8,7 +8,6 @@ import Heading from '@/components/heading';
 import type { AdditionalAttachment } from '@/components/trials/additional-attachments-section';
 import { AdditionalAttachmentsSection } from '@/components/trials/additional-attachments-section';
 import type {
-    LineConfigurationApproverOption,
     LineConfigurationReportData,
     LineConfigurationReportVersion,
     LineConfigurationReturnNote,
@@ -157,8 +156,7 @@ type PageProps = {
     lineConfigurationReportLocked: boolean;
     lineConfigurationReturnNote: LineConfigurationReturnNote;
     lineConfigurationReportVersions: LineConfigurationReportVersion[];
-    lineConfigurationApprovers: LineConfigurationApproverOption[];
-    lineConfigurationProdApprovers: LineConfigurationApproverOption[];
+    lineConfigurationSigners: Record<'approved_pie' | 'checked_prod', string[]>;
     lineConfigurationLanes: { approved_pie: string; checked_prod: string };
     canApprovePieLineConfigurationReport: boolean;
     canCheckProdLineConfigurationReport: boolean;
@@ -250,8 +248,7 @@ export default function TrialReport({
     lineConfigurationReportLocked,
     lineConfigurationReturnNote,
     lineConfigurationReportVersions,
-    lineConfigurationApprovers,
-    lineConfigurationProdApprovers,
+    lineConfigurationSigners,
     lineConfigurationLanes,
     canApprovePieLineConfigurationReport,
     canCheckProdLineConfigurationReport,
@@ -1319,8 +1316,7 @@ export default function TrialReport({
                             locked={lineConfigurationReportLocked}
                             returnNote={lineConfigurationReturnNote}
                             versions={lineConfigurationReportVersions}
-                            approvers={lineConfigurationApprovers}
-                            prodApprovers={lineConfigurationProdApprovers}
+                            signers={lineConfigurationSigners}
                             lanes={lineConfigurationLanes}
                             canApprovePie={canApprovePieLineConfigurationReport}
                             canCheckProd={canCheckProdLineConfigurationReport}

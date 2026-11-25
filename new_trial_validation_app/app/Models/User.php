@@ -529,7 +529,7 @@ class User extends Authenticatable
             ->whereNull('deleted_at')
             ->where('approver_user_id', $this->id)
             ->exists()
-            || TrialLineConfigurationReport::query()->awaitingSignOffBy($this->id)->exists();
+            || TrialLineConfigurationReport::awaitingSignOffFor($this)->isNotEmpty();
     }
 
     /**

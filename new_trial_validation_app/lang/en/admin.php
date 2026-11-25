@@ -109,6 +109,9 @@ return [
         'all_users' => 'All users',
         'all_users_unrestricted' => 'All users (unrestricted)',
         'required_team_hint' => 'Users who may be assigned to/approve this stage must belong to this team (Access Rights → Review Team). Choose "All users" for no restriction.',
+        'signer_users' => 'Specific signers',
+        'signer_users_hint' => 'Optional. If users are chosen here, only they may sign this stage (used for the PIE Leaders). Leave empty to use the required team above.',
+        'signers_column' => 'Signers',
     ],
 
     'notifications' => [

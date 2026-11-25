@@ -110,20 +110,17 @@ class TrialReportController extends Controller
 
         $lineConfigurationReport = TrialLineConfigurationReport::where('trial_id', $trial->id)
             ->where('is_locked', false)
-            ->with(['approvedPieUser:id,name', 'checkedProdUser:id,name'])
             ->first();
         $lineConfigurationReportVersions = TrialLineConfigurationReport::where('trial_id', $trial->id)
             ->where('is_locked', true)
             ->orderByDesc('version')
             ->get(['id', 'version', 'locked_at', 'return_prod', 'return_reason']);
-        $lineConfigurationApprovers = $this->approversForLane('approved_pie');
-        // Checked(PROD) may only be assigned to someone on the team
-        // currently configured for the 'checked_prod' lane (Phase 3 of the
-        // RBAC/Team-master redesign — admin-editable via Lane Configuration,
-        // no longer a hardcoded 'PROD' literal) — unlike Approved(PIE),
-        // which has no required team configured by default and so stays
-        // open to any active user.
-        $lineConfigurationProdApprovers = $this->approversForLane('checked_prod');
+        // Who may sign each stage — shown on the stage tiles ("Menunggu A, B")
+        // since nobody is picked on the form any more.
+        $lineConfigurationSigners = [
+            'checked_prod' => $this->signerNames('checked_prod'),
+            'approved_pie' => $this->signerNames('approved_pie'),
+        ];
 
         // Once Returned, the maker needs to actually see why when they
         // reopen the (now-unlocked) form — look at the version immediately
@@ -266,8 +263,7 @@ class TrialReportController extends Controller
                 'return_prod' => $v->return_prod,
                 'return_reason' => $v->return_reason,
             ])->values(),
-            'lineConfigurationApprovers' => $lineConfigurationApprovers,
-            'lineConfigurationProdApprovers' => $lineConfigurationProdApprovers,
+            'lineConfigurationSigners' => $lineConfigurationSigners,
             'lineConfigurationLanes' => LineConfigurationLane::labels(),
             'canApprovePieLineConfigurationReport' => $canApprovePie,
             'canCheckProdLineConfigurationReport' => $canCheckProd,
@@ -710,23 +706,17 @@ class TrialReportController extends Controller
     }
 
     /**
-     * Active users eligible to be assigned to a Line Configuration Report
-     * sign-off stage — constrained to the team currently configured for
-     * that lane (Phase 3 of the RBAC/Team-master redesign — see
-     * LineConfigurationLane), or every active user if the lane has no
-     * required team configured.
+     * Names of the active users who may sign a Line Configuration Report
+     * stage (see LineConfigurationLane::userMaySign()).
      *
-     * @return array<int, array{id: int, label: string}>
+     * @return array<int, string>
      */
-    private function approversForLane(string $stageKey): array
+    private function signerNames(string $stageKey): array
     {
-        return LineConfigurationLane::constrainToStage(
-            User::query()->where('is_active', 1)->whereNull('deleted_at'),
-            $stageKey,
-        )
+        return LineConfigurationLane::signersQuery($stageKey)
             ->orderBy('name')
-            ->get(['id', 'name', 'email'])
-            ->map(fn (User $u) => ['id' => $u->id, 'label' => trim((string) ($u->name ?: $u->email))])
+            ->get(['name', 'email'])
+            ->map(fn (User $u) => trim((string) ($u->name ?: $u->email)))
             ->values()
             ->all();
     }

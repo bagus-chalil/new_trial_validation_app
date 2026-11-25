@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 /**
- * Whoever's turn it currently is in the maker-checker chain (see
+ * Any user who may sign the stage currently active in the maker-checker chain (see
  * App\Policies\TrialLineConfigurationReportPolicy::returnReport()) can send
  * a Line Configuration Report back for revision instead of confirming their
  * stage. Unlike the plain edit form, this always stamps the acting user's
@@ -41,8 +41,8 @@ class ReturnTrialLineConfigurationReport
     public function __invoke(Trial $trial, TrialLineConfigurationReport $report, string $reason, User $user): TrialLineConfigurationReport
     {
         $returnedByStage = match ($report->currentApprovalStage()) {
-            'approved_pie' => LineConfigurationLane::label('approved_pie', 'Approved (PIE)'),
-            'checked_prod' => LineConfigurationLane::label('checked_prod', 'Checked (PROD)'),
+            'approved_pie' => LineConfigurationLane::label('approved_pie', 'Approved (PIE Leader)'),
+            'checked_prod' => LineConfigurationLane::label('checked_prod', 'Acknowledged (PROD)'),
             default => null,
         };
 
@@ -63,6 +63,7 @@ class ReturnTrialLineConfigurationReport
             $next->approved_pie_by = null;
             $next->approved_pie_at = null;
             $next->approved_pie_user_id = null;
+            $next->submitted_at = null;
             $next->checked_prod = false;
             $next->checked_prod_by = null;
             $next->checked_prod_at = null;

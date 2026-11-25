@@ -2,15 +2,12 @@
 
 namespace App\Actions\Trials;
 
-use App\Actions\Notifications\CreateNotification;
-use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
 use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
-use Illuminate\Support\Facades\Mail;
-use Throwable;
+use Illuminate\Support\Carbon;
 
 /**
  * Upserts the *current* (is_locked=false) Line Configuration Report row for
@@ -20,33 +17,27 @@ use Throwable;
  * is Admin) lives in SaveTrialLineConfigurationReportRequest::authorize(),
  * not here; this action just performs the plain save.
  *
- * Assigning a new Approved(PIE) user (approved_pie_user_id changing to a
- * different, non-null value) emails that user immediately — PIE is always
- * the first stage. Assigning a new Checked(PROD) user is deliberately
- * step-by-step, matching the sequential approval chain
- * (TrialLineConfigurationReport::currentApprovalStage()): the email only
- * fires here if Approved(PIE) is *already* done (e.g. an Admin reassigning
- * the PROD checker after PIE already approved); otherwise it's deferred to
- * MarkTrialLineConfigurationReportSignOff, right when Approved(PIE) actually
- * gets confirmed, so PROD isn't notified before it's really their turn.
- * This action never sets approved_pie/checked_prod/return_prod itself —
- * those are each their own dedicated, auto-stamped action
- * (MarkTrialLineConfigurationReportSignOff/ReturnTrialLineConfigurationReport),
- * so the date they record is a real "I clicked this" timestamp, not
- * whatever the form-filler happened to type.
+ * `$submit` (the "Simpan & Kirim Approval" button) stamps `submitted_at`,
+ * which is what puts the report into the chain and locks it. Since
+ * 2026-11-25 nobody is picked on the form: the first stage is PROD
+ * acknowledge, so every user who may sign it is notified right away (once —
+ * an Admin re-saving an already-submitted report does not re-notify). The
+ * second stage (PIE Leader) is notified later, by
+ * MarkTrialLineConfigurationReportSignOff, when PROD has acknowledged. This
+ * action never sets approved_pie/checked_prod/return_prod itself — those are
+ * each their own dedicated, auto-stamped action, so the date they record is a
+ * real "I clicked this" timestamp.
  */
 class SaveTrialLineConfigurationReport
 {
     /**
      * @param  array<string, mixed>  $data
      */
-    public function __invoke(Trial $trial, array $data, User $user): TrialLineConfigurationReport
+    public function __invoke(Trial $trial, array $data, User $user, bool $submit = false): TrialLineConfigurationReport
     {
         $existing = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('is_locked', false)->first();
         $isNew = $existing === null;
-
-        $previousApprovedPieUserId = $existing?->approved_pie_user_id;
-        $previousCheckedProdUserId = $existing?->checked_prod_user_id;
+        $newlySubmitted = $submit && ! ($existing?->isSubmittedForApproval() ?? false);
 
         $report = $existing ?? new TrialLineConfigurationReport(['trial_id' => $trial->id, 'version' => 1]);
         $labels = LineConfigurationLane::labels();
@@ -62,6 +53,9 @@ class SaveTrialLineConfigurationReport
             'approved_pie_label' => $labels['approved_pie'],
             'checked_prod_label' => $labels['checked_prod'],
         ]);
+        if ($newlySubmitted) {
+            $report->submitted_at = Carbon::now();
+        }
         $report->save();
 
         ActivityLog::create([
@@ -76,49 +70,10 @@ class SaveTrialLineConfigurationReport
             'new_data' => json_encode($data),
         ]);
 
-        $this->notifyIfNewlyAssigned($trial, $report, 'approved_pie_user_id', $previousApprovedPieUserId, $labels['approved_pie']);
-        if ($report->approved_pie) {
-            $this->notifyIfNewlyAssigned($trial, $report, 'checked_prod_user_id', $previousCheckedProdUserId, $labels['checked_prod']);
+        if ($newlySubmitted) {
+            (new NotifyLineConfigurationSigners)($trial, 'checked_prod');
         }
 
         return $report;
-    }
-
-    /**
-     * Emails must never block the save, matching the never-throw invariant
-     * every other notification-sending action in this app relies on.
-     */
-    private function notifyIfNewlyAssigned(Trial $trial, TrialLineConfigurationReport $report, string $column, ?int $previousUserId, string $fieldLabel): void
-    {
-        $currentUserId = $report->{$column};
-
-        if (! $currentUserId || (int) $currentUserId === (int) $previousUserId) {
-            return;
-        }
-
-        (new CreateNotification)([
-            'user_id' => (int) $currentUserId,
-            'trial_id' => $trial->id,
-            'title' => 'Line Configuration Report Needs Your Sign-off',
-            'message' => "Trial {$trial->trial_code} - {$trial->product_name}: Line Configuration Report menunggu tanda tangan Anda ({$fieldLabel}).",
-            'type' => 'approval',
-        ]);
-
-        try {
-            $assignee = User::query()->where('id', $currentUserId)->where('is_active', 1)->first();
-
-            if (! $assignee || ! $assignee->email) {
-                return;
-            }
-
-            Mail::to($assignee->email)->send(new TrialLineConfigurationSignOffRequestedMail(
-                trial: $trial,
-                assigneeName: $assignee->name ?: $assignee->email,
-                fieldLabel: $fieldLabel,
-                reportUrl: route('trials.report.show', $trial->id),
-            ));
-        } catch (Throwable) {
-            // Email delivery must never block the main workflow.
-        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\LineConfigurationLane;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
 
@@ -16,7 +17,7 @@ use App\Models\User;
  *
  * approvePie()/checkProd()/returnReport() together enforce the sequential
  * chain (see TrialLineConfigurationReport::currentApprovalStage()):
- * Checked(PROD) can't be confirmed before Approved(PIE) is, and Return is
+ * Approved(PIE Leader) can't be confirmed before Checked(PROD) is, and Return is
  * only available to whichever stage is currently active — never to a
  * "reviewer" whose turn hasn't come up yet, and not to the trial's own
  * reviewers/approvers just because they happen to be acting on the trial
@@ -38,28 +39,33 @@ use App\Models\User;
  */
 class TrialLineConfigurationReportPolicy
 {
+    /**
+     * PIE Leader approval — only after PROD has acknowledged (order reversed
+     * 2026-11-25), by any user the 'approved_pie' lane lets sign. Nobody is
+     * assigned on the form; a report that was never submitted into the chain
+     * can't be approved by anyone.
+     */
     public function approvePie(User $user, TrialLineConfigurationReport $report): bool
     {
-        if ($report->approved_pie || empty($report->approved_pie_user_id)) {
+        if (! $report->isSubmittedForApproval() || ! $report->checked_prod || $report->approved_pie) {
             return false;
         }
 
-        return (int) $report->approved_pie_user_id === $user->id;
+        return LineConfigurationLane::userMaySign($user, 'approved_pie');
     }
 
+    /** PROD acknowledgement — always the first stage of a submitted report. */
     public function checkProd(User $user, TrialLineConfigurationReport $report): bool
     {
-        if (! $report->approved_pie || $report->checked_prod || empty($report->checked_prod_user_id)) {
+        if (! $report->isSubmittedForApproval() || $report->checked_prod) {
             return false;
         }
 
-        return (int) $report->checked_prod_user_id === $user->id;
+        return LineConfigurationLane::userMaySign($user, 'checked_prod');
     }
 
     public function returnReport(User $user, TrialLineConfigurationReport $report): bool
     {
-        $stageUserId = $report->currentStageUserId();
-
-        return $stageUserId !== null && $stageUserId === $user->id;
+        return $report->isSubmittedForApproval() && $report->canBeSignedBy($user);
     }
 }

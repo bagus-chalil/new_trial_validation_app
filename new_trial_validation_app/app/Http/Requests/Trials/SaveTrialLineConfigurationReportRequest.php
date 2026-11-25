@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Trials;
 
-use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use Illuminate\Foundation\Http\FormRequest;
@@ -62,14 +61,6 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        if ($this->isDraft()) {
-            // A draft never enters the approval chain, so it never carries
-            // approvers — assigning one is exactly what submits/locks the
-            // report (TrialLineConfigurationReport::isSubmittedForApproval())
-            // and emails the assignee.
-            $this->merge(['approved_pie_user_id' => null, 'checked_prod_user_id' => null]);
-        }
-
         $this->merge([
             'production_standard' => $this->dropBlankRows($this->input('production_standard', [])),
             // 'trial_status' is ignored the same way 'no' already is: the
@@ -85,7 +76,7 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
      * the old everything-optional rules so a preparer can save partial work
      * without entering the approval chain; `intent=submit` (the default, so
      * a missing intent is never the lenient path) requires every field and
-     * both approvers — saving that way *is* submitting into the approval
+     * — saving that way *is* submitting into the approval
      * chain (see TrialLineConfigurationReport::isSubmittedForApproval()).
      * capacity_label always stays optional, since it's hidden from the form.
      *
@@ -112,29 +103,11 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             'capacity_label' => ['nullable', 'string', 'max:50'],
             'opinion' => [$required, 'string', 'max:5000'],
 
-            // Approved(PIE)/Checked(PROD) are no longer submitted here at
-            // all — since the 2026-09-16 assign-an-approver-and-email
-            // follow-up, only the assigned user's own dedicated
-            // Approve/Checked button can set them (see
-            // MarkTrialLineConfigurationReportSignOff), so this form only
-            // ever picks *who* is assigned, not the done/by/at values
-            // themselves. Which team (if any) each stage requires is now
-            // admin-configurable (Phase 3 of the RBAC/Team-master redesign —
-            // see LineConfigurationLane) instead of a hardcoded 'PROD'
-            // literal — enforced here (not just filtered in the UI's
-            // Combobox options), so a direct POST can't assign an
-            // ineligible user. Both are required on submit; a draft never
-            // carries them (see prepareForValidation()).
-            'approved_pie_user_id' => [
-                $required, 'integer',
-                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
-                    ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'approved_pie')),
-            ],
-            'checked_prod_user_id' => [
-                $required, 'integer',
-                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at')
-                    ->where(fn ($query) => LineConfigurationLane::constrainToStage($query, 'checked_prod')),
-            ],
+            // Nobody is picked on the form any more (2026-11-25): PROD
+            // acknowledges first, then a PIE Leader approves, and any user the
+            // lane lets sign may do it (see LineConfigurationLane::
+            // userMaySign()). Saving with intent=submit is what puts the
+            // report into that chain (see SaveTrialLineConfigurationReport).
 
             // Return is its own dedicated, auto-stamped action now (see
             // ReturnTrialLineConfigurationReport) — not submitted here at all.
@@ -182,8 +155,6 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
      */
     public function attributes(): array
     {
-        $lanes = LineConfigurationLane::labels();
-
         return [
             'report_date' => __('line_config.fields.date'),
             'client_name' => __('line_config.fields.client'),
@@ -195,8 +166,6 @@ class SaveTrialLineConfigurationReportRequest extends FormRequest
             'pass_qty' => __('line_config.fields.pass'),
             'ng_qty' => __('line_config.fields.ng'),
             'opinion' => __('line_config.fields.opinion'),
-            'approved_pie_user_id' => $lanes['approved_pie'],
-            'checked_prod_user_id' => $lanes['checked_prod'],
             'production_standard.*.line' => __('line_config.columns.line'),
             'production_standard.*.workers' => __('line_config.columns.workers'),
             'production_standard.*.capacity' => __('line_config.columns.capacity'),

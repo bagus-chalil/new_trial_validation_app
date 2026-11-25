@@ -3,10 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * The "Line Configuration Report" — a production-line-setup/trial-result
@@ -29,13 +29,13 @@ use Illuminate\Support\Carbon;
  *
  * It IS locked, though, by its own maker-checker approval chain (added
  * 2026-09-16, same day as the assignment/versioning follow-up below):
- * assigning a specific user to Approved(PIE) and/or Checked(PROD)
- * (`isSubmittedForApproval()`) submits the report and freezes it from
+ * submitting it (`isSubmittedForApproval()`) submits the report and freezes it from
  * further editing by the maker (PROD reviewer/Admin) — see
  * SaveTrialLineConfigurationReportRequest::authorize() — until either an
  * Admin overrides, or it's Returned. The two checks are sequential
- * (`currentApprovalStage()`): Checked(PROD) can't be confirmed until
- * Approved(PIE) is. Return (see ReturnTrialLineConfigurationReport) is
+ * (`currentApprovalStage()`): Approved(PIE Leader) can't be confirmed until
+ * Checked(PROD) acknowledges (order reversed 2026-11-25; nobody is assigned on
+ * the form, any eligible user — see LineConfigurationLane::userMaySign() — signs). Return (see ReturnTrialLineConfigurationReport) is
  * available to whichever stage is currently active and immediately locks
  * this row as an immutable, download-only historical version, cloning a
  * fresh current version forward with the same content but every sign-off
@@ -75,6 +75,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $return_reason
  * @property int|null $updated_by_user_id
  * @property int $version
+ * @property Carbon|null $submitted_at
  * @property bool $is_locked
  * @property Carbon|null $locked_at
  */
@@ -111,6 +112,7 @@ use Illuminate\Support\Carbon;
     'return_reason',
     'updated_by_user_id',
     'version',
+    'submitted_at',
     'is_locked',
     'locked_at',
 ])]
@@ -130,25 +132,41 @@ class TrialLineConfigurationReport extends Model
             'checked_prod_at' => 'datetime',
             'return_prod' => 'boolean',
             'return_prod_at' => 'datetime',
+            'submitted_at' => 'datetime',
             'is_locked' => 'boolean',
             'locked_at' => 'datetime',
         ];
     }
 
     /**
-     * Current (unlocked) reports whose *active* sign-off stage is assigned to
-     * $userId and not yet confirmed — i.e. what that person still has to
-     * sign. Mirrors currentApprovalStage()/currentStageUserId() in SQL.
+     * Current (unlocked), submitted reports whose *active* sign-off stage
+     * $user may sign — i.e. what that person still has to acknowledge/approve.
+     * Nobody is assigned any more (2026-11-25), so this is decided per stage
+     * by LineConfigurationLane::userMaySign(); the candidate set is tiny.
      *
-     * @param  Builder<TrialLineConfigurationReport>  $query
-     * @return Builder<TrialLineConfigurationReport>
+     * @return Collection<int, static>
      */
-    public function scopeAwaitingSignOffBy($query, int $userId)
+    public static function awaitingSignOffFor(User $user): Collection
     {
-        return $query->where('is_locked', false)->where(function ($q) use ($userId) {
-            $q->where(fn ($w) => $w->where('approved_pie', false)->where('approved_pie_user_id', $userId))
-                ->orWhere(fn ($w) => $w->where('approved_pie', true)->where('checked_prod', false)->where('checked_prod_user_id', $userId));
-        });
+        $reports = static::query()
+            ->where('is_locked', false)
+            ->where(fn ($q) => $q->where('checked_prod', false)->orWhere('approved_pie', false))
+            ->with('trial:id,trial_code,product_name,product_type,deleted_at')
+            ->get()
+            ->filter(fn (TrialLineConfigurationReport $r) => $r->isSubmittedForApproval() && $r->canBeSignedBy($user))
+            ->all();
+
+        return collect(array_values($reports));
+    }
+
+    /**
+     * True when $user may sign whichever stage is currently active.
+     */
+    public function canBeSignedBy(User $user): bool
+    {
+        $stage = $this->currentApprovalStage();
+
+        return $stage !== null && LineConfigurationLane::userMaySign($user, $stage);
     }
 
     /**
@@ -184,14 +202,19 @@ class TrialLineConfigurationReport extends Model
     }
 
     /**
-     * True once at least one of Approved(PIE)/Checked(PROD) has an assigned
-     * user — i.e. this report has been submitted into the approval chain,
+     * True once the report has been submitted into the approval chain
+     * (`submitted_at`, set by "Simpan & Kirim Approval"),
      * which is what freezes it from further edits by the maker (see
      * SaveTrialLineConfigurationReportRequest::authorize()).
      */
     public function isSubmittedForApproval(): bool
     {
-        return ! empty($this->approved_pie_user_id) || ! empty($this->checked_prod_user_id);
+        // Legacy rows (assignee picked on the form, before 2026-11-25) are
+        // also covered by the migration's backfill; the assignee check just
+        // keeps them locked if that ever runs out of order.
+        return $this->submitted_at !== null
+            || ! empty($this->approved_pie_user_id)
+            || ! empty($this->checked_prod_user_id);
     }
 
     /**
@@ -209,36 +232,24 @@ class TrialLineConfigurationReport extends Model
     }
 
     /**
-     * Which sign-off is currently active in the maker-checker chain —
-     * Approved(PIE) always comes before Checked(PROD). Null once both are
-     * done (or once neither was ever assigned).
+     * Which sign-off is currently active in the chain — PROD acknowledges
+     * (`checked_prod`) first, then a PIE Leader approves (`approved_pie`).
+     * Null once both are done. (Order reversed 2026-11-25; a report where
+     * PIE had already approved under the old order just needs the PROD
+     * acknowledgement and is then complete.)
      *
      * @return 'approved_pie'|'checked_prod'|null
      */
     public function currentApprovalStage(): ?string
     {
-        if (! $this->approved_pie) {
-            return 'approved_pie';
-        }
-
         if (! $this->checked_prod) {
             return 'checked_prod';
         }
 
-        return null;
-    }
+        if (! $this->approved_pie) {
+            return 'approved_pie';
+        }
 
-    /**
-     * The user id assigned to whichever stage is currently active, or null
-     * if nothing is currently assignable/actionable (fully done, or the
-     * active stage has no assignee yet).
-     */
-    public function currentStageUserId(): ?int
-    {
-        return match ($this->currentApprovalStage()) {
-            'approved_pie' => $this->approved_pie_user_id,
-            'checked_prod' => $this->checked_prod_user_id,
-            default => null,
-        };
+        return null;
     }
 }

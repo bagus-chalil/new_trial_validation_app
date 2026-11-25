@@ -60,7 +60,7 @@ test('a non-existent or inactive review team id is rejected', function () {
 
     $this->actingAs($superAdmin)
         ->put(route('admin.lane-configuration.update', $lane), [
-            'label' => 'Approved (PIE)',
+            'label' => 'Approved (PIE Leader)',
             'required_team_id' => 999999,
         ])
         ->assertInvalid(['required_team_id']);
