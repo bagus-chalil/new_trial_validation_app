@@ -33,6 +33,7 @@ class ToolingReportController extends Controller
         $filter = in_array($request->query('filter'), self::FILTERS, true) ? (string) $request->query('filter') : 'all';
 
         $all = Tooling::query()
+            ->visibleTo($request->user())
             ->whereNull('deleted_at')
             ->with(['approvals', 'project'])
             ->orderByDesc('updated_at')
@@ -91,11 +92,12 @@ class ToolingReportController extends Controller
     }
 
     /** CSV (opens in Excel) of every non-deleted request, like the old "Ekspor Excel (CSV)". */
-    public function export(): StreamedResponse
+    public function export(Request $request): StreamedResponse
     {
         Gate::authorize('viewAny', Tooling::class);
 
         $tools = Tooling::query()
+            ->visibleTo($request->user())
             ->whereNull('deleted_at')
             ->with(['approvals', 'items', 'project'])
             ->orderByDesc('updated_at')

@@ -65,7 +65,7 @@ test('a request cannot be saved while a required field is blank', function () {
     expect(Tooling::count())->toBe(0);
 });
 
-test('only PRNI (or admin) creates a request; everyone can read the list', function () {
+test('only PRNI (or admin) creates a request; only participating departments read the list', function () {
     $this->actingAs(toolingUser('RNI'))->post(route('projects.toolings.store'), toolingRequestPayload())->assertForbidden();
 
     $prni = toolingUser('PRNI');
@@ -80,9 +80,17 @@ test('only PRNI (or admin) creates a request; everyone can read the list', funct
         ->and($tooling->links)->toBe([['title' => 'Drawing', 'url' => 'https://example.test/drawing.pdf']])
         ->and($tooling->history_log[0]['action'])->toBe('CREATE');
 
-    $this->actingAs(toolingUser('QA', 'Viewer'))->get(route('projects.toolings.index', ['scope' => 'all']))
+    // RNI (a participating department) reads it; QA (not in the flow) and Viewers cannot.
+    $this->actingAs(toolingUser('RNI'))->get(route('projects.toolings.index', ['scope' => 'all']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('toolings/index')->has('items', 1)->where('can.create', false));
+
+    $this->actingAs(toolingUser('QA', 'Viewer'))->get(route('projects.toolings.index'))->assertForbidden();
+    $this->actingAs(toolingUser('QA'))->get(route('projects.toolings.index'))->assertForbidden();
+    $this->actingAs(toolingUser('QA'))->get(route('projects.toolings.show', $tooling))->assertForbidden();
+    $this->actingAs(toolingUser('QA'))->get(route('projects.toolings.pdf', $tooling))->assertForbidden();
+    $this->actingAs(toolingUser('QA'))->get(route('projects.toolings.report'))->assertForbidden();
+    $this->actingAs(toolingUser('QA'))->get(route('projects.toolings.report.export'))->assertForbidden();
 });
 
 test('the full flow reaches Approved with password e-signatures in the right order', function () {
@@ -210,7 +218,9 @@ test('files upload and download through the policy; the detail page shows the ne
     $file = ProjectFile::where('tooling_id', $tooling->id)->firstOrFail();
     expect($file->context)->toBe('tooling');
 
-    $this->actingAs(toolingUser('QA', 'Viewer'))->get(route('projects.toolings.files.show', [$tooling->id, $file->id]))->assertOk();
+    $this->actingAs(toolingUser('RNI'))->get(route('projects.toolings.files.show', [$tooling->id, $file->id]))->assertOk();
+    $this->actingAs(toolingUser('QA', 'Viewer'))->get(route('projects.toolings.files.show', [$tooling->id, $file->id]))->assertForbidden();
+    $this->actingAs(toolingUser('RNI'))->post(route('projects.toolings.files.store', $tooling), ['file' => UploadedFile::fake()->create('x.pdf')])->assertRedirect();
     $this->actingAs(toolingUser('QA', 'Viewer'))->post(route('projects.toolings.files.store', $tooling), ['file' => UploadedFile::fake()->create('x.pdf')])->assertForbidden();
 
     $this->actingAs($prni)->get(route('projects.toolings.show', $tooling))
@@ -219,7 +229,7 @@ test('files upload and download through the policy; the detail page shows the ne
             ->where('tooling.my_action', 'sign_prni')
             ->where('can.signPrni', true)
             ->where('can.pieCheck', false)
-            ->has('files', 1)
+            ->has('files', 2)
             ->has('tooling.approvals', 4));
 });
 

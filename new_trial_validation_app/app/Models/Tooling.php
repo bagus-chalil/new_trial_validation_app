@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Projects\ToolingWorkflow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -85,6 +87,23 @@ class Tooling extends Model
             'assignees' => 'array',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Row-level visibility (2026-11-25): Admin and users whose department / review
+     * unit takes part in the flow (PRNI, RNI, PIE/PI, Production) see every
+     * request; anybody else only the requests they submitted themselves.
+     *
+     * @param  Builder<Tooling>  $query
+     * @return Builder<Tooling>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if (ToolingWorkflow::canSeeAll($user)) {
+            return $query;
+        }
+
+        return $query->where('submitted_by_user_id', $user->id);
     }
 
     /** The user id assigned to sign this role's box, or null = anyone in the department group. */

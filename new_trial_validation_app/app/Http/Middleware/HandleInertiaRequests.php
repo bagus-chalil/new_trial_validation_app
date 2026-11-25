@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Models\User;
 use App\Services\Localization\Locales;
+use App\Services\Projects\ToolingWorkflow;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -64,6 +65,7 @@ class HandleInertiaRequests extends Middleware
             'impersonator' => fn () => $this->impersonator($request),
             'canReviewTrials' => $request->user()?->isReviewer() ?? false,
             'canApproveTrials' => $request->user()?->canApproveTrials() ?? false,
+            'canViewToolings' => $request->user() !== null && ToolingWorkflow::canSeeAll($request->user()),
             'locale' => app()->getLocale(),
             'translations' => fn () => Locales::frontendStrings(app()->getLocale()),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

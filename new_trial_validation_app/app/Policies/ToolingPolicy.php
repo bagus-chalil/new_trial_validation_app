@@ -8,8 +8,9 @@ use App\Services\Projects\ToolingWorkflow;
 use App\Support\ToolingOptions;
 
 /**
- * Check Tooling access. Every logged-in user may read every request (the old
- * app showed all of them to contributors too, to track progress). Each step
+ * Check Tooling access. Admin and the departments in the flow (PRNI, RNI,
+ * PIE/PI, Production) read every request; other departments and Viewers
+ * read nothing except requests they submitted (tightened 2026-11-25). Each step
  * belongs to one department role from ToolingWorkflow::rolesFor(); Viewer holds
  * none; a box may be assigned to one person (Admin can always sign, see
  * ToolingWorkflow::canSign()). Signatures additionally need the user's password
@@ -19,12 +20,14 @@ class ToolingPolicy
 {
     public function viewAny(User $user): bool
     {
-        return true;
+        return ToolingWorkflow::canSeeAll($user);
     }
 
+    /** Participating departments + Admin see all; others only what they submitted. */
     public function view(User $user, Tooling $tooling): bool
     {
-        return true;
+        return ToolingWorkflow::canSeeAll($user)
+            || ($tooling->submitted_by_user_id !== null && $tooling->submitted_by_user_id === $user->id);
     }
 
     public function create(User $user): bool

@@ -618,7 +618,16 @@ export default function ToolingShow({
                         </AlertTitle>
                         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                             <span>
-                                {t(`toolings.bottleneck.${tooling.bottleneck}`)}
+                                <span className="block font-medium text-foreground">
+                                    {t(
+                                        `toolings.action_hint.${tooling.my_action}`,
+                                    )}
+                                </span>
+                                <span className="block">
+                                    {t(
+                                        `toolings.bottleneck.${tooling.bottleneck}`,
+                                    )}
+                                </span>
                             </span>
                             {stepButton(tooling.my_action, true)}
                         </AlertDescription>

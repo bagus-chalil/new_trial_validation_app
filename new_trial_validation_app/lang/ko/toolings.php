@@ -147,6 +147,14 @@ return [
         'rejected' => '요청이 반려되었습니다.',
         'done' => '모든 부서가 서명했습니다.',
     ],
+    'action_hint' => [
+        'sign_prni' => '담당 단계(PRNI): "Prepared by"에 서명하여 이 요청을 제출하세요.',
+        'sign_rni' => '담당 단계(RNI): 처방을 입력하고 "Reviewed by"에 서명하세요.',
+        'send_sample' => '담당 단계(PRNI): 실물 샘플을 PIE로 보내고 발송을 기록하세요.',
+        'receive_sample' => '담당 단계(PIE): 실물 샘플이 도착하면 수령을 확인하세요.',
+        'pie_check' => '담당 단계(PIE): 툴링을 점검하고 서명하세요.',
+        'sign_production' => '담당 단계(생산): 최종 검토 후 서명하세요.',
+    ],
     'actions' => [
         'sign_prni' => 'PRNI 서명',
         'send_sample' => '샘플 발송',

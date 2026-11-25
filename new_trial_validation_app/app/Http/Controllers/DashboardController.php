@@ -252,6 +252,7 @@ class DashboardController extends Controller
 
         // Check Tooling: open requests waiting on a step this user's role can take.
         $myToolingRows = Tooling::query()
+            ->visibleTo($user)
             ->whereNull('deleted_at')
             ->whereNotIn('status', ToolingOptions::FINAL_STATUSES)
             ->with('approvals')

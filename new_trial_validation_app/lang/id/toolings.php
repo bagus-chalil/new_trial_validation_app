@@ -147,6 +147,14 @@ return [
         'rejected' => 'Request ditolak.',
         'done' => 'Semua departemen sudah menandatangani.',
     ],
+    'action_hint' => [
+        'sign_prni' => 'Langkah Anda (PRNI): tanda tangani "Prepared by" untuk mengajukan request ini.',
+        'sign_rni' => 'Langkah Anda (RNI): isi formula lalu tanda tangani "Reviewed by".',
+        'send_sample' => 'Langkah Anda (PRNI): kirim sampel fisik ke PIE dan catat pengirimannya.',
+        'receive_sample' => 'Langkah Anda (PIE): konfirmasi bila sampel fisik sudah sampai ke Anda.',
+        'pie_check' => 'Langkah Anda (PIE): cek tooling lalu tanda tangani.',
+        'sign_production' => 'Langkah Anda (Produksi): lakukan review akhir lalu tanda tangani.',
+    ],
     'actions' => [
         'sign_prni' => 'Tanda tangan PRNI',
         'send_sample' => 'Kirim sampel',

@@ -147,6 +147,14 @@ return [
         'rejected' => 'The request was rejected.',
         'done' => 'All departments have signed.',
     ],
+    'action_hint' => [
+        'sign_prni' => 'Your step (PRNI): sign "Prepared by" to submit this request.',
+        'sign_rni' => 'Your step (RNI): fill in the formula and sign "Reviewed by".',
+        'send_sample' => 'Your step (PRNI): ship the physical sample to PIE and record it.',
+        'receive_sample' => 'Your step (PIE): confirm once the physical sample has reached you.',
+        'pie_check' => 'Your step (PIE): check the tooling and sign.',
+        'sign_production' => 'Your step (Production): give the final review and sign.',
+    ],
     'actions' => [
         'sign_prni' => 'Sign as PRNI',
         'send_sample' => 'Ship sample',

@@ -41,7 +41,7 @@ class ToolingController extends Controller
         $status = (string) $request->query('status', '');
         $scope = in_array($request->query('scope'), ['active', 'mine', 'all'], true) ? (string) $request->query('scope') : 'active';
 
-        $all = Tooling::query()->whereNull('deleted_at')->with('approvals')->orderByDesc('id')->get();
+        $all = Tooling::query()->visibleTo($user)->whereNull('deleted_at')->with('approvals')->orderByDesc('id')->get();
 
         $kpi = [
             'active' => $all->filter(fn (Tooling $t) => ! ToolingWorkflow::isFinal($t))->count(),

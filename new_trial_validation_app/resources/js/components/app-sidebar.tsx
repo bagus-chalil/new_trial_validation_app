@@ -64,11 +64,13 @@ import { index as trialsIndex } from '@/routes/trials';
 import type { Auth, NavGroup } from '@/types';
 
 export function AppSidebar() {
-    const { auth, canReviewTrials, canApproveTrials } = usePage<{
-        auth: Auth;
-        canReviewTrials: boolean;
-        canApproveTrials: boolean;
-    }>().props;
+    const { auth, canReviewTrials, canApproveTrials, canViewToolings } =
+        usePage<{
+            auth: Auth;
+            canReviewTrials: boolean;
+            canApproveTrials: boolean;
+            canViewToolings: boolean;
+        }>().props;
     const { t } = useTranslation();
     const isSuperAdmin = auth.user.role === 'Super Admin';
     const isAdmin = auth.user.role === 'Admin' || isSuperAdmin;
@@ -163,12 +165,16 @@ export function AppSidebar() {
                     icon: Lightbulb,
                     activePattern: /^\/projects\/improvements\//,
                 },
-                {
-                    title: t('common.nav.project_toolings_menu'),
-                    href: toolingsIndex(),
-                    icon: Wrench,
-                    activePattern: /^\/projects\/toolings(\/|$)/,
-                },
+                ...(canViewToolings
+                    ? [
+                          {
+                              title: t('common.nav.project_toolings_menu'),
+                              href: toolingsIndex(),
+                              icon: Wrench,
+                              activePattern: /^\/projects\/toolings(\/|$)/,
+                          },
+                      ]
+                    : []),
                 {
                     title: t('common.nav.project_quotations'),
                     href: quotationsIndex(),

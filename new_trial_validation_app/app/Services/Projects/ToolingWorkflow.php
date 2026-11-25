@@ -67,6 +67,12 @@ class ToolingWorkflow
         return in_array($role, self::rolesFor($user), true);
     }
 
+    /** Admin or a department that takes part in the flow: may see every request. */
+    public static function canSeeAll(User $user): bool
+    {
+        return $user->isAdmin() || self::rolesFor($user) !== [];
+    }
+
     /** Admins manage requests (but never sign): used by the policy for the non-signing steps. */
     public static function canManage(User $user): bool
     {
