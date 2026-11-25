@@ -27,6 +27,7 @@ function toolingRequestPayload(array $overrides = []): array
     return array_merge([
         'npd_no' => '1200/NPD/PKD/11/2026',
         'request_date' => '2026-11-20',
+        'requested_by_name' => 'PRNI Tester',
         'client_code' => 'SMB',
         'product_name' => 'Micellar Refill',
         'product_type' => 'skin_care',
@@ -51,6 +52,17 @@ test('tooling roles come from the department or review unit; admin and viewer ho
         ->and(ToolingWorkflow::rolesFor(toolingUser('IT', 'Admin')))->toBe([])
         ->and(ToolingWorkflow::rolesFor(toolingUser('PRNI', 'Viewer')))->toBe([])
         ->and(ToolingWorkflow::rolesFor(toolingUser('QA')))->toBe([]);
+});
+
+test('a request cannot be saved while a required field is blank', function () {
+    $prni = toolingUser('PRNI');
+
+    foreach (['npd_no', 'request_date', 'requested_by_name', 'client_code', 'product_name', 'product_type', 'packaging_type', 'bom_primary'] as $field) {
+        $this->actingAs($prni)->post(route('projects.toolings.store'), toolingRequestPayload([$field => '']))
+            ->assertSessionHasErrors($field);
+    }
+
+    expect(Tooling::count())->toBe(0);
 });
 
 test('only PRNI (or admin) creates a request; everyone can read the list', function () {

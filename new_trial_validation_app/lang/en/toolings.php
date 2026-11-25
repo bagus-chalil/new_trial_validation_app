@@ -213,6 +213,7 @@ return [
         'section_packaging' => 'Packaging',
         'section_refs' => 'References',
         'after_create_hint' => 'After saving, sign as PRNI and ship the sample from the detail page.',
+        'complete_to_continue' => 'Fill in all fields marked * on this step to continue.',
     ],
     'history' => [
         'actions' => [

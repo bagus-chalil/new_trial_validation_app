@@ -213,6 +213,7 @@ return [
         'section_packaging' => '포장재',
         'section_refs' => '참고 자료',
         'after_create_hint' => '저장 후 상세 페이지에서 PRNI로 서명하고 샘플을 발송하십시오.',
+        'complete_to_continue' => '계속하려면 이 단계의 * 표시 항목을 모두 입력하십시오.',
     ],
     'history' => [
         'actions' => [

@@ -213,6 +213,7 @@ return [
         'section_packaging' => 'Packaging',
         'section_refs' => 'Referensi',
         'after_create_hint' => 'Setelah disimpan, tanda tangani sebagai PRNI dan kirim sampel dari halaman detail.',
+        'complete_to_continue' => 'Isi semua kolom bertanda * pada langkah ini untuk melanjutkan.',
     ],
     'history' => [
         'actions' => [

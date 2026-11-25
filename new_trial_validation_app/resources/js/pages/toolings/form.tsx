@@ -79,6 +79,21 @@ const STEP_2_FIELDS = [
     'pm_ref_detail',
 ];
 
+/** Fields that must be filled before the user may leave each step. */
+const REQUIRED_BY_STEP: Record<number, string[]> = {
+    1: [
+        'npd_no',
+        'request_date',
+        'requested_by_name',
+        'client_code',
+        'product_name',
+        'product_type',
+    ],
+    2: ['packaging_type', 'bom_primary'],
+};
+const REQUIRED_FIELDS = Object.values(REQUIRED_BY_STEP).flat();
+const ATTACHMENT_DEFAULT = 'please see attachment';
+
 /** After a failed save, jump to the first step that holds an invalid field. */
 function StepJump({
     errors,
@@ -201,6 +216,30 @@ export default function ToolingForm({
         ? ToolingController.update.form(tooling.id)
         : ToolingController.store.form();
 
+    const [filled, setFilled] = useState<Record<string, string>>(() =>
+        Object.fromEntries(
+            REQUIRED_FIELDS.map((key) => [
+                key,
+                key === 'product_type'
+                    ? value('product_type') || 'skin_care'
+                    : value(key as keyof ToolingData),
+            ]),
+        ),
+    );
+
+    const stepComplete = (n: number): boolean =>
+        (REQUIRED_BY_STEP[n] ?? []).every(
+            (key) => (filled[key] ?? '').trim() !== '',
+        );
+    const canReach = (n: number): boolean =>
+        [1, 2].filter((s) => s < n).every(stepComplete);
+
+    const trackRequired = (name: string, val: string) => {
+        if (REQUIRED_FIELDS.includes(name)) {
+            setFilled((prev) => ({ ...prev, [name]: val }));
+        }
+    };
+
     const textFields = [
         'dimension_packaging',
         'material_packaging',
@@ -236,6 +275,10 @@ export default function ToolingForm({
                     {...formProps}
                     noValidate
                     className="space-y-6"
+                    onInput={(e) => {
+                        const el = e.target as HTMLInputElement;
+                        trackRequired(el.name, el.value);
+                    }}
                     onKeyDown={(e) => {
                         if (
                             e.key === 'Enter' &&
@@ -250,7 +293,11 @@ export default function ToolingForm({
                             <StepJump errors={errors} onJump={setStep} />
                             <Stepper
                                 step={step}
-                                onSelect={setStep}
+                                onSelect={(n) => {
+                                    if (n <= step || canReach(n)) {
+                                        setStep(n);
+                                    }
+                                }}
                                 labels={[
                                     t('toolings.form.step_request'),
                                     t('toolings.form.step_packaging'),
@@ -272,11 +319,12 @@ export default function ToolingForm({
                                     </CardHeader>
                                     <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                         <Field
-                                            label={t('toolings.fields.npd_no')}
+                                            label={`${t('toolings.fields.npd_no')} *`}
                                             error={errors.npd_no}
                                         >
                                             <Input
                                                 name="npd_no"
+                                                required
                                                 defaultValue={value('npd_no')}
                                             />
                                         </Field>
@@ -294,13 +342,12 @@ export default function ToolingForm({
                                             />
                                         </Field>
                                         <Field
-                                            label={t(
-                                                'toolings.fields.requested_by_name',
-                                            )}
+                                            label={`${t('toolings.fields.requested_by_name')} *`}
                                             error={errors.requested_by_name}
                                         >
                                             <Input
                                                 name="requested_by_name"
+                                                required
                                                 defaultValue={value(
                                                     'requested_by_name',
                                                 )}
@@ -320,13 +367,12 @@ export default function ToolingForm({
                                             />
                                         </Field>
                                         <Field
-                                            label={t(
-                                                'toolings.fields.client_code',
-                                            )}
+                                            label={`${t('toolings.fields.client_code')} *`}
                                             error={errors.client_code}
                                         >
                                             <Input
                                                 name="client_code"
+                                                required
                                                 defaultValue={value(
                                                     'client_code',
                                                 )}
@@ -338,6 +384,12 @@ export default function ToolingForm({
                                         >
                                             <Select
                                                 name="product_type"
+                                                onValueChange={(v) =>
+                                                    trackRequired(
+                                                        'product_type',
+                                                        v,
+                                                    )
+                                                }
                                                 defaultValue={
                                                     value('product_type') ||
                                                     'skin_care'
@@ -465,15 +517,33 @@ export default function ToolingForm({
                                         {textFields.map((field) => (
                                             <Field
                                                 key={field}
-                                                label={t(
-                                                    `toolings.fields.${field}`,
-                                                )}
+                                                label={
+                                                    t(
+                                                        'toolings.fields.' +
+                                                            field,
+                                                    ) +
+                                                    (field === 'bom_primary'
+                                                        ? ' *'
+                                                        : '')
+                                                }
                                                 error={errors[field]}
                                             >
                                                 <Textarea
                                                     name={field}
                                                     rows={3}
-                                                    defaultValue={value(field)}
+                                                    required={
+                                                        field === 'bom_primary'
+                                                    }
+                                                    defaultValue={
+                                                        value(field) ||
+                                                        (!isEdit &&
+                                                        (field ===
+                                                            'dimension_packaging' ||
+                                                            field ===
+                                                                'material_packaging')
+                                                            ? ATTACHMENT_DEFAULT
+                                                            : '')
+                                                    }
                                                 />
                                             </Field>
                                         ))}
@@ -621,6 +691,12 @@ export default function ToolingForm({
                                 )}
                             </div>
 
+                            {step < 3 && !stepComplete(step) && (
+                                <p className="text-sm text-muted-foreground">
+                                    {t('toolings.form.complete_to_continue')}
+                                </p>
+                            )}
+
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <Button variant="outline" asChild>
                                     <Link
@@ -647,6 +723,7 @@ export default function ToolingForm({
                                     {step < 3 ? (
                                         <Button
                                             type="button"
+                                            disabled={!stepComplete(step)}
                                             onClick={() => setStep(step + 1)}
                                         >
                                             {t('toolings.form.next')}
@@ -655,7 +732,9 @@ export default function ToolingForm({
                                     ) : (
                                         <Button
                                             type="submit"
-                                            disabled={processing}
+                                            disabled={
+                                                processing || !canReach(3)
+                                            }
                                         >
                                             {t('toolings.form.submit')}
                                         </Button>
