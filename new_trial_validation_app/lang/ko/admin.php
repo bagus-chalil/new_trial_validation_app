@@ -109,6 +109,9 @@ return [
         'all_users' => '모든 사용자',
         'all_users_unrestricted' => '모든 사용자 (제한 없음)',
         'required_team_hint' => '이 단계에 배정되거나 승인할 수 있는 사용자는 이 팀에 소속되어야 합니다 (접근 권한 → 검토 팀). 제한하지 않으려면 "모든 사용자"를 선택하십시오.',
+        'signer_users' => '지정 서명자',
+        'signer_users_hint' => '선택 사항입니다. 여기서 사용자를 선택하면 해당 사용자만 이 단계에 서명할 수 있습니다(PIE 리더용). 비워 두면 위의 필수 팀을 사용합니다.',
+        'signers_column' => '서명자',
     ],
 
     'notifications' => [

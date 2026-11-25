@@ -3,6 +3,7 @@ import { useState } from 'react';
 import LaneConfigurationController from '@/actions/App/Http/Controllers/Admin/LaneConfigurationController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { MultiSelect } from '@/components/multi-select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -39,11 +40,13 @@ type Lane = {
     stage_key: string;
     label: string;
     required_team_id: number | null;
+    signer_user_ids: number[];
 };
 
 type PageProps = {
     lanes: Lane[];
     reviewTeams: ReviewTeam[];
+    users: { id: number; name: string }[];
 };
 
 function LaneEditDialog({
@@ -51,13 +54,24 @@ function LaneEditDialog({
     onOpenChange,
     editingLane,
     reviewTeams,
+    users,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     editingLane: Lane | null;
     reviewTeams: ReviewTeam[];
+    users: { id: number; name: string }[];
 }) {
     const { t } = useTranslation();
+    const [signerIds, setSignerIds] = useState<string[]>([]);
+
+    // Re-seed the picked signers each time a different lane is opened.
+    const [seededFor, setSeededFor] = useState<number | null>(null);
+
+    if (editingLane && seededFor !== editingLane.id) {
+        setSeededFor(editingLane.id);
+        setSignerIds(editingLane.signer_user_ids.map(String));
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,6 +149,39 @@ function LaneEditDialog({
                                     />
                                 </div>
 
+                                <div className="grid gap-2">
+                                    <Label>
+                                        {t('admin.lanes.signer_users')}
+                                    </Label>
+                                    <MultiSelect
+                                        options={users.map((u) => ({
+                                            value: String(u.id),
+                                            label: u.name,
+                                        }))}
+                                        value={signerIds}
+                                        onChange={setSignerIds}
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="sync_signers"
+                                        value="1"
+                                    />
+                                    {signerIds.map((id) => (
+                                        <input
+                                            key={id}
+                                            type="hidden"
+                                            name="signer_user_ids[]"
+                                            value={id}
+                                        />
+                                    ))}
+                                    <p className="text-xs text-muted-foreground">
+                                        {t('admin.lanes.signer_users_hint')}
+                                    </p>
+                                    <InputError
+                                        message={errors.signer_user_ids}
+                                    />
+                                </div>
+
                                 <DialogFooter>
                                     <Button type="submit" disabled={processing}>
                                         {t('admin.actions.save_changes')}
@@ -152,6 +199,7 @@ function LaneEditDialog({
 export default function AdminLaneConfigurationIndex({
     lanes,
     reviewTeams,
+    users,
 }: PageProps) {
     const { t } = useTranslation();
     const [editingLane, setEditingLane] = useState<Lane | null>(null);
@@ -180,6 +228,7 @@ export default function AdminLaneConfigurationIndex({
                     }}
                     editingLane={editingLane}
                     reviewTeams={reviewTeams}
+                    users={users}
                 />
 
                 <Card>
@@ -200,6 +249,9 @@ export default function AdminLaneConfigurationIndex({
                                         {t('admin.lanes.required_team')}
                                     </TableHead>
                                     <TableHead>
+                                        {t('admin.lanes.signers_column')}
+                                    </TableHead>
+                                    <TableHead>
                                         {t('admin.fields.action')}
                                     </TableHead>
                                 </TableRow>
@@ -213,6 +265,20 @@ export default function AdminLaneConfigurationIndex({
                                         <TableCell>{lane.label}</TableCell>
                                         <TableCell>
                                             {teamName(lane.required_team_id)}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs text-sm">
+                                            {lane.signer_user_ids.length > 0
+                                                ? lane.signer_user_ids
+                                                      .map(
+                                                          (id) =>
+                                                              users.find(
+                                                                  (u) =>
+                                                                      u.id ===
+                                                                      id,
+                                                              )?.name ?? id,
+                                                      )
+                                                      .join(', ')
+                                                : '—'}
                                         </TableCell>
                                         <TableCell>
                                             <Button

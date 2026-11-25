@@ -2,38 +2,26 @@
 
 namespace App\Actions\Trials;
 
-use App\Actions\Notifications\CreateNotification;
-use App\Mail\TrialLineConfigurationSignOffRequestedMail;
 use App\Models\ActivityLog;
-use App\Models\LineConfigurationLane;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Mail;
-use Throwable;
 
 /**
- * The assigned Approved(PIE)/Checked(PROD) user's own one-click confirmation
- * on a trial's *current* Line Configuration Report version — see
- * App\Policies\TrialLineConfigurationReportPolicy for who may call this.
- * Always stamps the acting user's own name and Carbon::now(), unlike every
- * other field on this form (which stays freely typed by whoever's editing):
- * the "who" was already fixed at assignment time
- * (SaveTrialLineConfigurationReport's *_user_id), so this action just
- * confirms that person really did click it, with a real, automatic
- * timestamp — matching the user's explicit "otomatis tanggal record" request.
+ * One eligible user's one-click confirmation of the report's *current* stage
+ * — PROD acknowledge first, then a PIE Leader approves (see
+ * App\Policies\TrialLineConfigurationReportPolicy for who may call this).
+ * Always stamps the acting user's own name and Carbon::now(): nobody is
+ * assigned in advance any more (2026-11-25), so this is the record of who
+ * really signed, with a real, automatic timestamp.
  *
- * The approval chain is step-by-step (see
- * TrialLineConfigurationReport::currentApprovalStage()), so the Checked(PROD)
- * assignee's email is deliberately deferred to *this* moment — right after
- * Approved(PIE) is confirmed — rather than firing immediately at assignment
- * time (SaveTrialLineConfigurationReport only ever emails the Approved(PIE)
- * assignee immediately, since that stage is always first).
+ * When PROD acknowledges, every PIE Leader who may approve is notified (the
+ * PROD signers were notified at submit time, see
+ * SaveTrialLineConfigurationReport).
  *
- * `$comment` (added 2026-09-24, user request) is optional and freely typed
- * by the confirming user alongside the same click — unlike Return's
- * mandatory reason, this is just a note, not a revision request.
+ * `$comment` is optional and freely typed by the confirming user alongside
+ * the same click — unlike Return's mandatory reason, this is just a note.
  */
 class MarkTrialLineConfigurationReportSignOff
 {
@@ -60,46 +48,10 @@ class MarkTrialLineConfigurationReportSignOff
             'new_data' => json_encode([$field => true, 'comment' => $comment]),
         ]);
 
-        if ($field === 'approved_pie') {
-            $this->notifyCheckedProdStageReady($trial, $report);
+        if ($field === 'checked_prod') {
+            (new NotifyLineConfigurationSigners)($trial, 'approved_pie');
         }
 
         return $report;
-    }
-
-    /**
-     * Emails must never block the save, matching the never-throw invariant
-     * every other notification-sending action in this app relies on.
-     */
-    private function notifyCheckedProdStageReady(Trial $trial, TrialLineConfigurationReport $report): void
-    {
-        if (! $report->checked_prod_user_id) {
-            return;
-        }
-
-        (new CreateNotification)([
-            'user_id' => (int) $report->checked_prod_user_id,
-            'trial_id' => $trial->id,
-            'title' => 'Line Configuration Report Needs Your Sign-off',
-            'message' => "Trial {$trial->trial_code} - {$trial->product_name}: Line Configuration Report menunggu tanda tangan Anda (Checked (PROD)).",
-            'type' => 'approval',
-        ]);
-
-        try {
-            $assignee = User::query()->where('id', $report->checked_prod_user_id)->where('is_active', 1)->first();
-
-            if (! $assignee || ! $assignee->email) {
-                return;
-            }
-
-            Mail::to($assignee->email)->send(new TrialLineConfigurationSignOffRequestedMail(
-                trial: $trial,
-                assigneeName: $assignee->name ?: $assignee->email,
-                fieldLabel: LineConfigurationLane::label('checked_prod', 'Checked (PROD)'),
-                reportUrl: route('trials.report.show', $trial->id),
-            ));
-        } catch (Throwable) {
-            // Email delivery must never block the main workflow.
-        }
     }
 }

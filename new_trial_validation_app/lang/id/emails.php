@@ -29,7 +29,7 @@ return [
     'line_config_signoff' => [
         'subject' => 'Line Configuration Report — Diperlukan Sign-Off :label (:code)',
         'heading' => 'Line Configuration Report: Sign-Off :label',
-        'intro' => 'Anda ditunjuk sebagai :label pada :report untuk trial di bawah ini — formulir pengaturan lini produksi yang terlampir pada trial, bukan keputusan review/approval trial itu sendiri. Tidak ada tindakan yang diperlukan pada trial secara keseluruhan, hanya sign-off pada laporan ini.',
+        'intro' => 'Giliran Anda untuk menandatangani sebagai :label pada :report untuk trial di bawah ini — formulir pengaturan lini produksi yang terlampir pada trial, bukan keputusan review/approval trial itu sendiri. Tidak ada tindakan yang diperlukan pada trial secara keseluruhan, hanya sign-off pada laporan ini. Siapa pun yang eligible di tahap ini boleh melakukannya; yang pertama menandatangani menyelesaikan tahap ini.',
         'button' => 'Buka Line Configuration Report',
         'outro' => 'Silakan klik tombol di atas, gulir ke bagian :report, lalu gunakan tombol :label untuk mengonfirmasi — tanggal akan tercatat secara otomatis.',
     ],

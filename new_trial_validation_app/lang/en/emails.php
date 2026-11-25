@@ -29,7 +29,7 @@ return [
     'line_config_signoff' => [
         'subject' => 'Line Configuration Report — :label Sign-Off Needed (:code)',
         'heading' => 'Line Configuration Report: :label Sign-Off',
-        'intro' => 'You\'ve been named :label on the :report for the trial below — this is the production-line setup form attached to the trial, not the trial\'s own review/approval decision. No action is needed on the overall trial itself, only a sign-off on this specific report.',
+        'intro' => 'It is your turn to sign as :label on the :report for the trial below — this is the production-line setup form attached to the trial, not the trial\'s own review/approval decision. No action is needed on the overall trial itself, only a sign-off on this specific report. Anyone eligible for this step may do it; the first to sign completes it.',
         'button' => 'Open Line Configuration Report',
         'outro' => 'Please click the button above, scroll to the :report section, then use its :label button to confirm — the date will be recorded automatically.',
     ],

@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 // PIE makes the report (the 'approved_pie' lane gates editing); PROD is the
@@ -54,12 +55,6 @@ function lcrPayload(array $overrides = []): array
         'pass_qty' => '90',
         'ng_qty' => '0 Pcs (0%)',
         'opinion' => 'Low risk',
-        'approved_pie_user_id' => array_key_exists('approved_pie_user_id', $overrides)
-            ? $overrides['approved_pie_user_id']
-            : User::factory()->reviewUnit('PIE')->create()->id,
-        'checked_prod_user_id' => array_key_exists('checked_prod_user_id', $overrides)
-            ? $overrides['checked_prod_user_id']
-            : User::factory()->reviewUnit('PROD')->create()->id,
         'production_standard' => [
             ['line' => 'F', 'workers' => '1', 'capacity' => '70', 'remark' => 'Standard'],
         ],
@@ -209,598 +204,284 @@ test('approved_pie/checked_prod can no longer be set directly through the genera
     expect($report->checked_prod)->toBeFalse();
 });
 
-test('Checked(PROD) can only be assigned to a user on the PROD review team', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $qacUser = User::factory()->reviewUnit('QAC')->create();
-    $trial = makeLcrTrial();
+/** Submits a complete report as $maker; returns the report. */
+function submitLcr(User $maker, Trial $trial, array $overrides = []): TrialLineConfigurationReport
+{
+    test()->actingAs($maker)->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['intent' => 'submit', ...$overrides]));
 
-    $this->actingAs($reviewer)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-            'checked_prod_user_id' => $qacUser->id,
-        ]))
-        ->assertInvalid(['checked_prod_user_id']);
+    return TrialLineConfigurationReport::where('trial_id', $trial->id)->where('is_locked', false)->firstOrFail();
+}
 
-    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->exists())->toBeFalse();
-});
-
-test('the report page only offers PROD-team users for the Checked(PROD) assignment combobox', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create(['name' => 'Reviewer PIE']);
-    $prodUser = User::factory()->reviewUnit('PROD')->create();
-    $qacUser = User::factory()->reviewUnit('QAC')->create();
-    $trial = makeLcrTrial();
-
-    $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
-
-    $page->assertInertia(function ($p) use ($prodUser, $qacUser) {
-        $prodIds = collect($p->toArray()['props']['lineConfigurationProdApprovers'])->pluck('id');
-        expect($prodIds)->toContain($prodUser->id);
-        expect($prodIds)->not->toContain($qacUser->id);
-    });
-});
-
-test('changing the approved_pie lane required team (Lane Configuration) changes who may edit/be assigned, without touching code', function () {
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $qacTeam = MasterOption::firstWhere(['type' => 'reviewer_department', 'name' => 'QAC']);
-    $qacUser = User::factory()->create(['review_team_id' => $qacTeam->id]);
-    $trial = makeLcrTrial();
-
-    // Before reconfiguring: the PIE user may edit, and a QAC user can't be
-    // assigned as Approved(PIE).
-    $this->actingAs($pieUser)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['approved_pie_user_id' => $qacUser->id]))
-        ->assertInvalid(['approved_pie_user_id']);
-
-    // A Super Admin repoints the 'approved_pie' lane at QAC instead of PIE
-    // (Lane Configuration). General edit rights (manage-line-configuration-report
-    // follows this lane) and the approved_pie_user_id rule follow the new team.
+/** A PIE Leader: explicitly listed as a signer of the approved_pie lane. */
+function makePieLeader(array $attrs = []): User
+{
+    $leader = User::factory()->create(['role' => 'Staff', 'department' => 'PIE', ...$attrs]);
     $lane = LineConfigurationLane::where('stage_key', 'approved_pie')->firstOrFail();
-    $lane->required_team_id = $qacTeam->id;
-    $lane->save();
+    DB::table('line_configuration_lane_users')->insert(['lane_id' => $lane->id, 'user_id' => $leader->id, 'created_at' => now(), 'updated_at' => now()]);
 
-    $this->actingAs($pieUser)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['client_name' => 'Nope']))
-        ->assertForbidden();
+    return $leader;
+}
 
-    $this->actingAs($qacUser)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['approved_pie_user_id' => $pieUser->id]))
-        ->assertInvalid(['approved_pie_user_id']);
-
-    $this->actingAs($qacUser)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['approved_pie_user_id' => $qacUser->id]))
-        ->assertRedirect(route('trials.report.show', $trial->id));
-});
-
-test('a locked historical version keeps its own frozen label even after the live lane is later renamed', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'client_name' => 'Client V1',
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    $v1BeforeRename = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('version', 1)->firstOrFail();
-    expect($v1BeforeRename->checked_prod_label)->toBe('Checked (PROD)');
-
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), [
-        'reason' => 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali',
-    ]);
-
-    // Rename the live lane after the version above was already locked.
-    LineConfigurationLane::where('stage_key', 'checked_prod')->update(['label' => 'Checked (Line Head)']);
-
-    $lockedV1 = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('version', 1)->firstOrFail();
-    expect($lockedV1->is_locked)->toBeTrue();
-    expect($lockedV1->checked_prod_label)->toBe('Checked (PROD)');
-
-    // The live config (and the new, still-editable v2) reflect the rename.
-    expect(LineConfigurationLane::label('checked_prod', '?'))->toBe('Checked (Line Head)');
-});
-
-test('once an approver is assigned, the report is locked for the maker until an admin overrides or it is returned', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'client_name' => 'Before submit',
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    // The same PROD reviewer who could freely edit a moment ago is now
-    // forbidden — the report has been submitted into the approval chain.
-    $this->actingAs($reviewer)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['client_name' => 'Sneaky edit']))
-        ->assertForbidden();
-
-    // Admin can still override the lock.
-    $admin = User::factory()->role('Admin')->create();
-    $this->actingAs($admin)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['client_name' => 'Admin override']))
-        ->assertRedirect(route('trials.report.show', $trial->id));
-
-    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail()->client_name)->toBe('Admin override');
-});
-
-test('assigning a new Approved(PIE) user emails them immediately, but a Checked(PROD) assignment is deferred until PIE approves', function () {
+test('nobody is picked on the form: submit puts the report in the chain and notifies PROD signers only', function () {
     Mail::fake();
-
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Bagus']);
-    $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti']);
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
+    $leader = makePieLeader();
     $trial = makeLcrTrial();
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
+    $report = submitLcr($maker, $trial);
 
-    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($mail) => $mail->hasTo($pieUser->email) && $mail->fieldLabel === 'Approved (PIE)');
-    Mail::assertNotSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($mail) => $mail->hasTo($prodUser->email));
-
-    // PIE approves — this is exactly when PROD's turn (and email) begins.
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
-
-    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($mail) => $mail->hasTo($prodUser->email) && $mail->fieldLabel === 'Checked (PROD)');
+    expect($report->isSubmittedForApproval())->toBeTrue();
+    expect($report->currentApprovalStage())->toBe('checked_prod');
+    expect(Notification::where('user_id', $prod->id)->where('type', 'approval')->count())->toBe(1);
+    expect(Notification::where('user_id', $leader->id)->count())->toBe(0);
+    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($m) => $m->hasTo($prod->email) && $m->fieldLabel === 'Acknowledged (PROD)');
+    Mail::assertNotSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($m) => $m->hasTo($leader->email));
 });
 
-test('re-saving with the same assigned user does not resend the email', function () {
+test('PROD acknowledges first, then a PIE Leader approves, each stamping own name and time', function () {
     Mail::fake();
-
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $admin = User::factory()->role('Admin')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
+    $leader = makePieLeader(['name' => 'Mr DJ']);
     $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-    // Report is now locked for the reviewer — use Admin (override) to save
-    // again with the same assignment, proving the "no resend" behavior
-    // rather than the lock itself (covered by its own test above).
-    $this->actingAs($admin)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'client_name' => 'Second save',
-    ]));
+    $this->actingAs($leader)->post(route('trials.line-configuration.approve-pie', $trial->id))->assertForbidden();
 
-    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, 1);
-});
-
-test('the assigned Approved(PIE) user can view the trial report even without any other access', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create(['role' => 'Viewer', 'department' => 'PIE']);
-    $trial = makeLcrTrial(['progress_status' => 'In Review', 'final_decision' => null]);
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    $this->actingAs($pieUser)
-        ->get(route('trials.report.show', $trial->id))
-        ->assertOk();
-});
-
-test('the assigned Approved(PIE) user can confirm approval, stamping their own name and time automatically', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Bagus Approver']);
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    $this->actingAs($pieUser)
-        ->post(route('trials.line-configuration.approve-pie', $trial->id))
+    $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id), ['comment' => 'Line sesuai'])
         ->assertRedirect(route('trials.report.show', $trial->id));
-
     $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
-    expect($report->approved_pie)->toBeTrue();
-    expect($report->approved_pie_by)->toBe('Bagus Approver');
-    expect($report->approved_pie_at)->not->toBeNull();
+    expect($report->checked_prod)->toBeTrue()->and($report->checked_prod_by)->toBe('Siti PROD')->and($report->checked_prod_comment)->toBe('Line sesuai');
+
+    expect(Notification::where('user_id', $leader->id)->where('type', 'approval')->count())->toBe(1);
+    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($m) => $m->hasTo($leader->email) && $m->fieldLabel === 'Approved (PIE Leader)');
+
+    $this->actingAs($leader)->post(route('trials.line-configuration.approve-pie', $trial->id))
+        ->assertRedirect(route('trials.report.show', $trial->id));
+    $report->refresh();
+    expect($report->approved_pie)->toBeTrue()->and($report->approved_pie_by)->toBe('Mr DJ')->and($report->approved_pie_at)->not->toBeNull();
+    expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'CHECK_PROD')->exists())->toBeTrue();
     expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'APPROVE_PIE')->exists())->toBeTrue();
 });
 
-test('a user who is not the assigned Approved(PIE) cannot confirm approval', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $someoneElse = User::factory()->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    $this->actingAs($someoneElse)
-        ->post(route('trials.line-configuration.approve-pie', $trial->id))
-        ->assertForbidden();
-});
-
-test('an admin cannot Approve/Checked/Return on someone else\'s behalf — these are personal sign-offs, not an admin override', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
+test('only eligible users can sign: not other teams, not a plain PIE maker, not even Admin', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
+    $qac = User::factory()->reviewUnit('QAC')->create();
     $admin = User::factory()->role('Admin')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $prodUser = User::factory()->reviewUnit('PROD')->create();
+    $leader = makePieLeader();
     $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
+    foreach ([$qac, $admin, $maker, $leader] as $nope) {
+        $this->actingAs($nope)->post(route('trials.line-configuration.check-prod', $trial->id))->assertForbidden();
+    }
 
-    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('canApprovePieLineConfigurationReport', false)
-        ->where('canReturnLineConfigurationReport', false));
+    $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id));
 
-    $this->actingAs($admin)
-        ->post(route('trials.line-configuration.approve-pie', $trial->id))
-        ->assertForbidden();
-    $this->actingAs($admin)
-        ->post(route('trials.line-configuration.return', $trial->id), [
-            'reason' => 'Ini alasan pengembalian yang sengaja dibuat panjang untuk lolos validasi',
-        ])
-        ->assertForbidden();
-
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
-
-    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('canCheckProdLineConfigurationReport', false)
-        ->where('canReturnLineConfigurationReport', false));
-
-    $this->actingAs($admin)
-        ->post(route('trials.line-configuration.check-prod', $trial->id))
-        ->assertForbidden();
+    foreach ([$maker, $admin, $qac, $prod] as $nope) {
+        $this->actingAs($nope)->post(route('trials.line-configuration.approve-pie', $trial->id))->assertForbidden();
+    }
+    $this->actingAs($leader)->post(route('trials.line-configuration.approve-pie', $trial->id))->assertRedirect();
 });
 
-test('Checked(PROD) cannot be confirmed until Approved(PIE) is done, even by the assigned Checked(PROD) user', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $prodUser = User::factory()->reviewUnit('PROD')->create();
+test('a draft or never-submitted report cannot be signed by anyone', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
+    $this->actingAs($maker)->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'draft', 'client_name' => 'x']);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
-
-    $this->actingAs($prodUser)
-        ->post(route('trials.line-configuration.check-prod', $trial->id))
-        ->assertForbidden();
+    $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id))->assertForbidden();
+    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail()->isSubmittedForApproval())->toBeFalse();
 });
 
-test('the assigned Checked(PROD) user can confirm checked once Approved(PIE) is done, stamping their own name and time automatically', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
+test('once submitted the report is locked for the maker until an admin overrides, and re-saving does not re-notify', function () {
+    Mail::fake();
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
+    $admin = User::factory()->role('Admin')->create();
     $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
+    $this->actingAs($maker)->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['client_name' => 'Sneaky']))->assertForbidden();
+    $this->actingAs($admin)->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['client_name' => 'Admin override']))->assertRedirect();
 
-    $this->actingAs($prodUser)
-        ->post(route('trials.line-configuration.check-prod', $trial->id))
-        ->assertRedirect(route('trials.report.show', $trial->id));
-
-    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
-    expect($report->checked_prod)->toBeTrue();
-    expect($report->checked_prod_by)->toBe('Siti PROD');
-    expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'CHECK_PROD')->exists())->toBeTrue();
+    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail()->client_name)->toBe('Admin override');
+    expect(Notification::where('user_id', $prod->id)->count())->toBe(1);
+    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, 1);
 });
 
-test('Approved(PIE) and Checked(PROD) can each be confirmed with an optional comment, and it is shown on the report page', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Fauzi PIE']);
-    $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
-    $trial = makeLcrTrial();
+test('the PROD signer can view the trial report with no other access', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $viewer = User::factory()->create(['role' => 'Viewer', 'department' => 'PROD', 'review_unit' => 'PROD']);
+    $trial = makeLcrTrial(['progress_status' => 'In Review', 'final_decision' => null]);
+    submitLcr($maker, $trial);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
-
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id), [
-        'comment' => 'Sudah sesuai standar produksi',
-    ]);
-    $this->actingAs($prodUser)->post(route('trials.line-configuration.check-prod', $trial->id), [
-        'comment' => 'Checked, semua line sesuai',
-    ]);
-
-    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
-    expect($report->approved_pie_comment)->toBe('Sudah sesuai standar produksi');
-    expect($report->checked_prod_comment)->toBe('Checked, semua line sesuai');
-
-    $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('lineConfigurationReport.approved_pie_comment', 'Sudah sesuai standar produksi')
-        ->where('lineConfigurationReport.checked_prod_comment', 'Checked, semua line sesuai'));
+    $this->actingAs($viewer)->get(route('trials.report.show', $trial->id))->assertOk();
 });
 
-test('confirming Approved(PIE) with no comment leaves it null', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
+test('returning needs 5 words, is allowed to whoever holds the active stage, and restarts from PROD', function () {
+    Mail::fake();
+    $maker = User::factory()->reviewUnit('PIE')->create(['name' => 'Dedi Drafter']);
+    $prod = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
+    $leader = makePieLeader();
     $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
-
-    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail()->approved_pie_comment)->toBeNull();
-});
-
-test('returning requires a reason of at least 5 words', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    $this->actingAs($pieUser)
-        ->post(route('trials.line-configuration.return', $trial->id), ['reason' => 'Terlalu singkat'])
-        ->assertInvalid(['reason']);
-
-    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->count())->toBe(1);
-});
-
-test('only whoever the currently active stage is assigned to may return', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $prodUser = User::factory()->reviewUnit('PROD')->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
-
-    // PIE's stage is active — the PROD assignee's turn hasn't come yet, so
-    // they can't return it either.
-    $this->actingAs($prodUser)
-        ->post(route('trials.line-configuration.return', $trial->id), [
-            'reason' => 'Ini alasan pengembalian yang sengaja dibuat panjang untuk lolos validasi kata',
-        ])
-        ->assertForbidden();
-
-    // Once PIE approves, the stage moves to PROD — now the PROD assignee
-    // can return it.
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
-
-    $this->actingAs($prodUser)
-        ->post(route('trials.line-configuration.return', $trial->id), [
-            'reason' => 'Ini alasan pengembalian yang sengaja dibuat panjang untuk lolos validasi kata',
-        ])
-        ->assertRedirect(route('trials.report.show', $trial->id));
-});
-
-test('returning locks the current version with the reason and stamped approver, and spins off a fresh version with sign-off state cleared', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Bagus Approver']);
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'client_name' => 'Client V1',
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
+    submitLcr($maker, $trial);
     $reason = 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali';
 
-    $this->actingAs($pieUser)
-        ->post(route('trials.line-configuration.return', $trial->id), ['reason' => $reason])
-        ->assertRedirect(route('trials.report.show', $trial->id));
+    $this->actingAs($prod)->post(route('trials.line-configuration.return', $trial->id), ['reason' => 'Terlalu singkat'])->assertInvalid(['reason']);
+    $this->actingAs($leader)->post(route('trials.line-configuration.return', $trial->id), ['reason' => $reason])->assertForbidden();
+
+    $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id));
+    $this->actingAs($leader)->post(route('trials.line-configuration.return', $trial->id), ['reason' => $reason])->assertRedirect();
 
     $all = TrialLineConfigurationReport::where('trial_id', $trial->id)->orderBy('version')->get();
     expect($all)->toHaveCount(2);
+    [$v1, $v2] = [$all[0], $all[1]];
+    expect($v1->is_locked)->toBeTrue()->and($v1->return_reason)->toBe($reason)->and($v1->checked_prod)->toBeTrue();
+    expect($v2->is_locked)->toBeFalse()->and($v2->checked_prod)->toBeFalse()->and($v2->approved_pie)->toBeFalse()
+        ->and($v2->submitted_at)->toBeNull()->and($v2->isSubmittedForApproval())->toBeFalse();
+    Mail::assertSent(TrialLineConfigurationReturnedMail::class, fn ($m) => $m->hasTo($maker->email) && $m->returnedByStage === 'Approved (PIE Leader)' && $m->reason === $reason);
 
-    $v1 = $all->firstWhere('version', 1);
-    $v2 = $all->firstWhere('version', 2);
+    $this->actingAs($maker)->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['intent' => 'draft', 'client_name' => 'Revised']))->assertRedirect();
+    $this->actingAs($maker)->get(route('trials.report.show', $trial->id))
+        ->assertInertia(fn ($p) => $p->where('lineConfigurationReturnNote.reason', $reason)->where('canCheckProdLineConfigurationReport', false));
+    $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id))->assertForbidden();
 
-    expect($v1->is_locked)->toBeTrue();
-    expect($v1->locked_at)->not->toBeNull();
-    expect($v1->return_prod)->toBeTrue();
-    expect($v1->return_prod_by)->toBe('Bagus Approver');
-    expect($v1->return_reason)->toBe($reason);
-    expect($v1->client_name)->toBe('Client V1');
-
-    expect($v2->is_locked)->toBeFalse();
-    expect($v2->client_name)->toBe('Client V1');
-    // A fresh review cycle — approvals/assignments/return state all reset,
-    // otherwise the new version would be immediately re-locked for the
-    // maker with no chance to actually revise it.
-    expect($v2->approved_pie)->toBeFalse();
-    expect($v2->approved_pie_user_id)->toBeNull();
-    expect($v2->return_prod)->toBeFalse();
-    expect($v2->return_reason)->toBeNull();
-    expect($v2->isSubmittedForApproval())->toBeFalse();
-
-    expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'RETURN')->exists())->toBeTrue();
-    expect(ActivityLog::where('module', 'LINE_CONFIG')->where('action', 'NEW_VERSION')->exists())->toBeTrue();
+    submitLcr($maker, $trial);
+    $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id))->assertRedirect();
 });
 
-test('returning emails the report drafter directly, regardless of which stage returned it', function () {
+test('PROD can also return, and the drafter is mailed with the PROD stage label', function () {
     Mail::fake();
-
-    $reviewer = User::factory()->reviewUnit('PIE')->create(['name' => 'Dedi Drafter']);
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $prodUser = User::factory()->reviewUnit('PROD')->create();
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
+    $this->actingAs($prod)->post(route('trials.line-configuration.return', $trial->id), [
+        'reason' => 'Ini alasan pengembalian yang sengaja dibuat panjang untuk lolos validasi',
+    ])->assertRedirect();
 
-    $pieReason = 'Ini alasan pengembalian yang sengaja dibuat panjang untuk lolos validasi';
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), ['reason' => $pieReason]);
-
-    Mail::assertSent(TrialLineConfigurationReturnedMail::class, fn ($mail) => $mail->hasTo($reviewer->email)
-        && $mail->drafterName === 'Dedi Drafter'
-        && $mail->returnedByStage === 'Approved (PIE)'
-        && $mail->reason === $pieReason);
-
-    // Re-assign and progress to PROD's stage, then have PROD return it too —
-    // the drafter is emailed again, not the PIE assignee.
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.approve-pie', $trial->id));
-
-    $prodReason = 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui';
-    $this->actingAs($prodUser)->post(route('trials.line-configuration.return', $trial->id), ['reason' => $prodReason]);
-
-    Mail::assertSent(TrialLineConfigurationReturnedMail::class, fn ($mail) => $mail->hasTo($reviewer->email)
-        && $mail->returnedByStage === 'Checked (PROD)'
-        && $mail->reason === $prodReason);
-    Mail::assertNotSent(TrialLineConfigurationReturnedMail::class, fn ($mail) => $mail->hasTo($pieUser->email) || $mail->hasTo($prodUser->email));
+    Mail::assertSent(TrialLineConfigurationReturnedMail::class, fn ($m) => $m->hasTo($maker->email) && $m->returnedByStage === 'Acknowledged (PROD)');
 });
 
-test('after being returned, the maker can edit the new version freely again and sees the return reason', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
+test('a locked historical version keeps its frozen label after the live lane is renamed', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
     $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), [
+    submitLcr($maker, $trial);
+    $this->actingAs($prod)->post(route('trials.line-configuration.return', $trial->id), [
         'reason' => 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali',
     ]);
 
-    $this->actingAs($reviewer)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['client_name' => 'Revised']))
-        ->assertRedirect(route('trials.report.show', $trial->id));
+    LineConfigurationLane::where('stage_key', 'checked_prod')->update(['label' => 'Checked (Line Head)']);
 
-    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->where('is_locked', false)->firstOrFail()->client_name)->toBe('Revised');
-
-    $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p->where('lineConfigurationReturnNote.reason', 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali'));
+    $v1 = TrialLineConfigurationReport::where('trial_id', $trial->id)->where('version', 1)->firstOrFail();
+    expect($v1->is_locked)->toBeTrue()->and($v1->checked_prod_label)->toBe('Acknowledged (PROD)');
+    expect(LineConfigurationLane::label('checked_prod', '?'))->toBe('Checked (Line Head)');
 });
 
-test('after being returned, the Approve/Return sign-off buttons are hidden for everyone — including admin — until re-assigned', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
+test('the report page exposes who may sign each stage', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
+    $leader = makePieLeader(['name' => 'Mr DJ']);
+    $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
+
+    $this->actingAs($maker)->get(route('trials.report.show', $trial->id))->assertInertia(function ($p) use ($prod, $leader) {
+        $signers = $p->toArray()['props']['lineConfigurationSigners'];
+        expect($signers['checked_prod'])->toContain($prod->name);
+        expect($signers['approved_pie'])->toBe([$leader->name]);
+    });
+});
+
+test('without an explicit leader list the approved_pie lane falls back to its team', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
+    $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id));
+
+    expect(LineConfigurationLane::signerUserIds('approved_pie'))->toBe([]);
+    $this->actingAs($maker)->post(route('trials.line-configuration.approve-pie', $trial->id))->assertRedirect();
+});
+
+test('the line configuration report PDF downloads for any version that exists', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->reviewUnit('PROD')->create();
+    $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
+    $this->actingAs($prod)->post(route('trials.line-configuration.return', $trial->id), [
+        'reason' => 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali',
+    ]);
+
+    $r = $this->actingAs($maker)->get(route('trials.line-configuration.versions.pdf', ['trial' => $trial->id, 'version' => 1]));
+    $r->assertOk();
+    expect($r->headers->get('Content-Type'))->toBe('application/pdf');
+    $this->actingAs($maker)->get(route('trials.line-configuration.versions.pdf', ['trial' => $trial->id, 'version' => 3]))->assertNotFound();
+});
+
+test('a submit needs every field, a draft does not and never enters the chain', function () {
+    Mail::fake();
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $trial = makeLcrTrial();
+
+    $this->actingAs($maker)->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'submit', 'client_name' => ''])
+        ->assertInvalid(['client_name', 'opinion', 'pic']);
+    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->exists())->toBeFalse();
+
+    $this->actingAs($maker)->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'draft', 'client_name' => 'Half'])
+        ->assertRedirect()->assertInertiaFlash('toast.message', __('messages.toast.line_config_draft_saved'));
+    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
+    expect($report->isSubmittedForApproval())->toBeFalse();
+    Mail::assertNothingSent();
+
+    $this->actingAs($maker)->put(route('trials.line-configuration.update', $trial->id), lcrPayload(['intent' => 'submit']))->assertRedirect();
+    expect($report->fresh()->isSubmittedForApproval())->toBeTrue();
+});
+
+test('an already-submitted report cannot be turned back into a draft, even by an admin', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
     $admin = User::factory()->role('Admin')->create();
     $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), [
-        'reason' => 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali',
-    ]);
-
-    // The fresh version has no assignee for either stage yet — nobody,
-    // not even an admin, should see an actionable Approve/Return button
-    // for a stage that hasn't been (re-)submitted.
-    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('canApprovePieLineConfigurationReport', false)
-        ->where('canCheckProdLineConfigurationReport', false)
-        ->where('canReturnLineConfigurationReport', false));
-
-    // The original PIE assignee no longer has any assignment on the new
-    // version either, so they lose the ability too.
-    $page = $this->actingAs($pieUser)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('canApprovePieLineConfigurationReport', false)
-        ->where('canReturnLineConfigurationReport', false));
-
-    // Once re-assigned, the buttons become actionable again — for the
-    // newly-assigned user specifically. Admin still gets none of these
-    // three (see the dedicated "personal sign-offs, not an admin override"
-    // test above) since it never bypasses assignment.
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-    ]));
-
-    $page = $this->actingAs($pieUser)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('canApprovePieLineConfigurationReport', true)
-        ->where('canReturnLineConfigurationReport', true));
-
-    $page = $this->actingAs($admin)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('canApprovePieLineConfigurationReport', false)
-        ->where('canReturnLineConfigurationReport', false));
+    $this->actingAs($admin)->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'draft', 'client_name' => 'Demoted'])->assertInvalid(['intent']);
+    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail()->client_name)->toBe('JUV');
 });
 
-test('a locked historical version can be downloaded as a PDF but is no longer the editable current report', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
+test('Need Approval lists the report for whoever may sign the active stage, in order', function () {
+    $maker = User::factory()->reviewUnit('PIE')->create();
+    $prod = User::factory()->create(['role' => 'Staff', 'department' => 'PROD', 'review_unit' => 'PROD']);
+    $leader = makePieLeader();
     $trial = makeLcrTrial();
+    submitLcr($maker, $trial);
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'client_name' => 'V1', 'approved_pie_user_id' => $pieUser->id,
-    ]));
-    $this->actingAs($pieUser)->post(route('trials.line-configuration.return', $trial->id), [
-        'reason' => 'Data produksi belum sesuai standar mohon direvisi ulang sebelum disetujui kembali',
-    ]);
+    $this->actingAs($prod)->get(route('approvals.index'))->assertOk()
+        ->assertInertia(fn ($p) => $p->has('lineConfigItems', 1)->where('lineConfigItems.0.trial_id', $trial->id));
+    $this->actingAs($leader)->get(route('approvals.index'))->assertForbidden();
 
-    $response = $this->actingAs($reviewer)->get(route('trials.line-configuration.versions.pdf', ['trial' => $trial->id, 'version' => 1]));
-    $response->assertOk();
-    expect($response->headers->get('Content-Type'))->toBe('application/pdf');
+    (new MarkTrialLineConfigurationReportSignOff)($trial, TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail(), 'checked_prod', $prod);
 
-    $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p->where('lineConfigurationReport.version', 2));
+    $this->actingAs($leader)->get(route('approvals.index'))->assertOk()->assertInertia(fn ($p) => $p->has('lineConfigItems', 1));
+    $this->actingAs($prod)->get(route('approvals.index'))->assertForbidden();
 });
 
-test('the current (e.g. fully signed-off) version can be downloaded as a PDF too', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $trial = makeLcrTrial();
+test('super admin can set explicit signers on a lane, and a bare label update keeps them', function () {
+    $sa = User::factory()->create(['role' => 'Super Admin']);
+    $u = User::factory()->create();
+    $lane = LineConfigurationLane::where('stage_key', 'approved_pie')->firstOrFail();
 
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload());
+    $this->actingAs($sa)->put(route('admin.lane-configuration.update', $lane), [
+        'label' => 'Approved (PIE Leader)', 'required_team_id' => $lane->required_team_id,
+        'sync_signers' => '1', 'signer_user_ids' => [$u->id],
+    ])->assertRedirect();
+    expect(LineConfigurationLane::signerUserIds('approved_pie'))->toBe([$u->id]);
 
-    $response = $this->actingAs($reviewer)->get(route('trials.line-configuration.versions.pdf', ['trial' => $trial->id, 'version' => 1]));
-    $response->assertOk();
-    expect($response->headers->get('Content-Type'))->toBe('application/pdf');
-
-    $this->actingAs($reviewer)
-        ->get(route('trials.line-configuration.versions.pdf', ['trial' => $trial->id, 'version' => 2]))
-        ->assertNotFound();
-});
-
-test('the report page exposes the assigned approver and checker names, not just the done flag', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create(['name' => 'Fauzi PIE']);
-    $prodUser = User::factory()->reviewUnit('PROD')->create(['name' => 'Siti PROD']);
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-        'approved_pie_user_id' => $pieUser->id,
-        'checked_prod_user_id' => $prodUser->id,
-    ]));
-
-    // Someone other than the assigned approver — e.g. the drafter checking
-    // back on the locked report — should still be able to see *who* it's
-    // waiting on, not just that Approved(PIE) is blank.
-    $page = $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id));
-    $page->assertInertia(fn ($p) => $p
-        ->where('lineConfigurationReport.approved_pie_user.name', 'Fauzi PIE')
-        ->where('lineConfigurationReport.checked_prod_user.name', 'Siti PROD'));
-});
-
-test('a line configuration report cannot be saved with any field left empty, including either approver', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-            'client_name' => '',
-            'opinion' => '',
-            'approved_pie_user_id' => null,
-            'checked_prod_user_id' => null,
-        ]))
-        ->assertInvalid(['client_name', 'opinion', 'approved_pie_user_id', 'checked_prod_user_id']);
-
-    expect(TrialLineConfigurationReport::where('trial_id', $trial->id)->exists())->toBeFalse();
+    $this->actingAs($sa)->put(route('admin.lane-configuration.update', $lane), ['label' => 'Renamed', 'required_team_id' => $lane->required_team_id])->assertRedirect();
+    expect(LineConfigurationLane::signerUserIds('approved_pie'))->toBe([$u->id]);
 });
 
 test('production standard needs at least one fully-filled row', function () {
@@ -844,103 +525,4 @@ test('line configuration cells and the table itself are optional on submit', fun
 
     $html = view('pdf.partials.line-configuration-report', ['report' => $report])->render();
     expect($html)->toContain('<td>-</td>');
-});
-
-test('a draft can be saved incomplete, stays editable for the drafter, and never assigns approvers or sends email', function () {
-    Mail::fake();
-
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $pieUser = User::factory()->reviewUnit('PIE')->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)
-        ->put(route('trials.line-configuration.update', $trial->id), [
-            'intent' => 'draft',
-            'client_name' => 'Half done',
-            'approved_pie_user_id' => $pieUser->id,
-            'production_standard' => [['line' => 'F', 'workers' => '', 'capacity' => '', 'remark' => '']],
-        ])
-        ->assertRedirect(route('trials.report.show', $trial->id))
-        ->assertInertiaFlash('toast.message', __('messages.toast.line_config_draft_saved'));
-
-    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
-    expect($report->client_name)->toBe('Half done');
-    expect($report->approved_pie_user_id)->toBeNull();
-    expect($report->isSubmittedForApproval())->toBeFalse();
-    Mail::assertNothingSent();
-
-    $this->actingAs($reviewer)->get(route('trials.report.show', $trial->id))
-        ->assertInertia(fn ($p) => $p
-            ->where('canEditLineConfigurationReport', true)
-            ->where('lineConfigurationReportLocked', false));
-
-    // Submitting the same draft later still needs everything filled in.
-    $this->actingAs($reviewer)
-        ->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'submit', 'client_name' => 'Half done'])
-        ->assertInvalid(['pic', 'approved_pie_user_id', 'checked_prod_user_id']);
-
-    $this->actingAs($reviewer)
-        ->put(route('trials.line-configuration.update', $trial->id), lcrPayload([
-            'intent' => 'submit',
-            'approved_pie_user_id' => $pieUser->id,
-        ]))
-        ->assertRedirect(route('trials.report.show', $trial->id));
-
-    expect($report->fresh()->isSubmittedForApproval())->toBeTrue();
-    Mail::assertSent(TrialLineConfigurationSignOffRequestedMail::class, fn ($mail) => $mail->hasTo($pieUser->email));
-});
-
-test('an already-submitted report cannot be turned back into a draft, even by an admin', function () {
-    $reviewer = User::factory()->reviewUnit('PIE')->create();
-    $admin = User::factory()->role('Admin')->create();
-    $trial = makeLcrTrial();
-
-    $this->actingAs($reviewer)->put(route('trials.line-configuration.update', $trial->id), lcrPayload());
-
-    $this->actingAs($admin)
-        ->put(route('trials.line-configuration.update', $trial->id), ['intent' => 'draft', 'client_name' => 'Demoted'])
-        ->assertInvalid(['intent']);
-
-    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
-    expect($report->client_name)->toBe('JUV');
-    expect($report->isSubmittedForApproval())->toBeTrue();
-});
-
-test('an assigned Approved(PIE) user sees the report in Need Approval and gets an in-app notification, PROD only after PIE signs', function () {
-    Mail::fake();
-
-    $trial = makeLcrTrial();
-    $pie = User::factory()->reviewUnit('PIE')->create(['role' => 'Staff', 'department' => 'PIE']);
-    $prod = User::factory()->reviewUnit('PROD')->create();
-    $maker = User::factory()->reviewUnit('PIE')->create();
-
-    $this->actingAs($maker)
-        ->put(route('trials.line-configuration.update', $trial), lcrPayload([
-            'intent' => 'submit',
-            'approved_pie_user_id' => $pie->id,
-            'checked_prod_user_id' => $prod->id,
-        ]));
-
-    expect(Notification::where('user_id', $pie->id)->where('type', 'approval')->count())->toBe(1)
-        ->and(Notification::where('user_id', $prod->id)->where('type', 'approval')->count())->toBe(0);
-
-    $this->actingAs($pie)
-        ->get(route('approvals.index'))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->has('lineConfigItems', 1)
-            ->where('lineConfigItems.0.trial_id', $trial->id));
-
-    // PROD's turn hasn't come up yet, so nothing is queued for them (and no queue access either).
-    $this->actingAs($prod)->get(route('approvals.index'))->assertForbidden();
-
-    $report = TrialLineConfigurationReport::where('trial_id', $trial->id)->firstOrFail();
-    (new MarkTrialLineConfigurationReportSignOff)($trial, $report, 'approved_pie', $pie);
-
-    expect(Notification::where('user_id', $prod->id)->where('type', 'approval')->count())->toBe(1);
-
-    // PIE has signed, so there's nothing left for them to do here.
-    $this->actingAs($pie)->get(route('approvals.index'))->assertForbidden();
-    $this->actingAs($prod)->get(route('approvals.index'))
-        ->assertInertia(fn ($page) => $page->has('lineConfigItems', 1));
 });

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Phase 3 of the RBAC/Team-master redesign (see memory
@@ -63,8 +64,8 @@ class LineConfigurationLane extends Model
     public static function labels(): array
     {
         return [
-            'approved_pie' => static::label('approved_pie', 'Approved (PIE)'),
-            'checked_prod' => static::label('checked_prod', 'Checked (PROD)'),
+            'approved_pie' => static::label('approved_pie', 'Approved (PIE Leader)'),
+            'checked_prod' => static::label('checked_prod', 'Acknowledged (PROD)'),
         ];
     }
 
@@ -120,5 +121,70 @@ class LineConfigurationLane extends Model
             $inner->where('review_team_id', $teamId)
                 ->orWhereRaw('UPPER(TRIM(review_unit)) = ?', [$normalized]);
         });
+    }
+
+    /**
+     * Explicit users allowed to sign this stage (the "PIE Leader" list — the
+     * PIE lane's *team* is the report makers, so leaders can't be a team).
+     *
+     * @return array<int, int>
+     */
+    public static function signerUserIds(string $stageKey): array
+    {
+        $laneId = static::query()->where('stage_key', $stageKey)->value('id');
+        if ($laneId === null) {
+            return [];
+        }
+
+        return DB::table('line_configuration_lane_users')
+            ->where('lane_id', $laneId)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Who may sign (acknowledge / approve / return) a stage. No one is
+     * assigned on the form: an explicit user list wins when configured, else
+     * the lane's team. A lane with neither configured has NO signers on
+     * purpose — unlike userEligibleForStage(), "open to everyone" would let
+     * any account sign a report.
+     */
+    public static function userMaySign(User $user, string $stageKey): bool
+    {
+        $explicit = static::signerUserIds($stageKey);
+        if ($explicit !== []) {
+            return in_array((int) $user->id, $explicit, true);
+        }
+
+        if (static::requiredTeamId($stageKey) === null) {
+            return false;
+        }
+
+        return static::userEligibleForStage($user, $stageKey);
+    }
+
+    /**
+     * Active users who may sign $stageKey — same rule as userMaySign(), as a
+     * query (e-mail / notification recipients, the form's "who signs" hint).
+     *
+     * @return EloquentBuilder<User>
+     */
+    public static function signersQuery(string $stageKey): EloquentBuilder
+    {
+        $query = User::query()->where('is_active', 1)->whereNull('deleted_at');
+        $explicit = static::signerUserIds($stageKey);
+
+        if ($explicit !== []) {
+            return $query->whereIn('id', $explicit);
+        }
+
+        if (static::requiredTeamId($stageKey) === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        /** @var EloquentBuilder<User> */
+        return static::constrainToStage($query, $stageKey);
     }
 }

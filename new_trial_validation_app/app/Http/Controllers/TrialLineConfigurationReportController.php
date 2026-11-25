@@ -48,7 +48,7 @@ class TrialLineConfigurationReportController extends Controller
         // SaveTrialLineConfigurationReportRequest::prepareForValidation().
         $data['line_configuration'] = $this->renumberRows($data['line_configuration']);
 
-        $action($trial, $data, $request->user());
+        $action($trial, $data, $request->user(), submit: ! $request->isDraft());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __($request->isDraft()
             ? 'messages.toast.line_config_draft_saved'
@@ -86,7 +86,7 @@ class TrialLineConfigurationReportController extends Controller
 
         $action($trial, $report, $field, $request->user(), $comment);
 
-        $label = LineConfigurationLane::label($field, $field === 'approved_pie' ? 'Approved (PIE)' : 'Checked (PROD)');
+        $label = LineConfigurationLane::label($field, $field === 'approved_pie' ? 'Approved (PIE Leader)' : 'Acknowledged (PROD)');
         Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.line_config_confirmed', ['label' => $label])]);
 
         return to_route('trials.report.show', $trial->id);

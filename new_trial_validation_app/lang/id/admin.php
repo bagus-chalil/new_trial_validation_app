@@ -109,6 +109,9 @@ return [
         'all_users' => 'Semua user',
         'all_users_unrestricted' => 'Semua user (tidak dibatasi)',
         'required_team_hint' => 'User yang boleh ditugaskan/menyetujui di tahap ini harus tergabung di tim ini (Hak Akses → Review Team). Pilih "Semua user" untuk tidak membatasi.',
+        'signer_users' => 'User penanda tangan',
+        'signer_users_hint' => 'Opsional. Jika user dipilih di sini, hanya mereka yang boleh menandatangani tahap ini (dipakai untuk PIE Leader). Kosongkan untuk memakai tim wajib di atas.',
+        'signers_column' => 'Penanda tangan',
     ],
 
     'notifications' => [

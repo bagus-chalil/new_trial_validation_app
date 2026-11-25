@@ -36,20 +36,17 @@ class ApprovalController extends Controller
             ->withQueryString();
 
         $user = $request->user();
-        $lineConfigItems = TrialLineConfigurationReport::query()
-            ->awaitingSignOffBy($user->id)
-            ->whereHas('trial', fn ($t) => $t->whereNull('deleted_at'))
-            ->with('trial:id,trial_code,product_name,product_type')
-            ->orderByDesc('updated_at')
-            ->get()
+        $lineConfigItems = TrialLineConfigurationReport::awaitingSignOffFor($user)
+            ->filter(fn (TrialLineConfigurationReport $r) => $r->trial !== null && $r->trial->deleted_at === null)
+            ->sortByDesc('updated_at')
             ->map(fn (TrialLineConfigurationReport $r) => [
                 'trial_id' => $r->trial_id,
                 'trial_code' => $r->trial?->trial_code,
                 'product_name' => $r->trial?->product_name,
                 'product_type' => $r->trial?->product_type,
                 'stage' => $r->currentApprovalStage() === 'checked_prod'
-                    ? LineConfigurationLane::label('checked_prod', 'Checked (PROD)')
-                    : LineConfigurationLane::label('approved_pie', 'Approved (PIE)'),
+                    ? LineConfigurationLane::label('checked_prod', 'Acknowledged (PROD)')
+                    : LineConfigurationLane::label('approved_pie', 'Approved (PIE Leader)'),
             ])
             ->values();
 

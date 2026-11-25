@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import TrialLineConfigurationReportController from '@/actions/App/Http/Controllers/TrialLineConfigurationReportController';
-import { Combobox } from '@/components/combobox';
 import InputError from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -120,18 +119,19 @@ export type LineConfigurationReportData = {
     approved_pie: boolean;
     approved_pie_by: string | null;
     approved_pie_at: string | null;
-    approved_pie_user_id: number | null;
     approved_pie_comment: string | null;
     checked_prod: boolean;
     checked_prod_by: string | null;
     checked_prod_at: string | null;
-    checked_prod_user_id: number | null;
     checked_prod_comment: string | null;
-    approved_pie_user: { id: number; name: string } | null;
-    checked_prod_user: { id: number; name: string } | null;
+    submitted_at: string | null;
 } | null;
 
-export type LineConfigurationApproverOption = { id: number; label: string };
+/** Names of the users who may sign each stage (nobody is picked on the form). */
+export type LineConfigurationSigners = Record<
+    'approved_pie' | 'checked_prod',
+    string[]
+>;
 
 export type LineConfigurationReportVersion = {
     id: number;
@@ -165,16 +165,17 @@ export type LineConfigurationLanes = {
 };
 
 const DEFAULT_LANES: LineConfigurationLanes = {
-    approved_pie: 'Approved (PIE)',
-    checked_prod: 'Checked (PROD)',
+    approved_pie: 'Approved (PIE Leader)',
+    checked_prod: 'Acknowledged (PROD)',
 };
 
 function stageFields(
     lanes: LineConfigurationLanes,
 ): { field: StageField; label: string }[] {
+    // PROD acknowledges first, then a PIE Leader approves.
     return [
-        { field: 'approved_pie', label: lanes.approved_pie },
         { field: 'checked_prod', label: lanes.checked_prod },
+        { field: 'approved_pie', label: lanes.approved_pie },
     ];
 }
 
@@ -252,8 +253,7 @@ export function LineConfigurationReportSection({
     locked,
     returnNote,
     versions,
-    approvers,
-    prodApprovers,
+    signers,
     lanes = DEFAULT_LANES,
     canApprovePie,
     canCheckProd,
@@ -265,10 +265,8 @@ export function LineConfigurationReportSection({
     locked: boolean;
     returnNote: LineConfigurationReturnNote;
     versions: LineConfigurationReportVersion[];
-    /** Eligible for the 'approved_pie' stage per its current lane config. */
-    approvers: LineConfigurationApproverOption[];
-    /** Eligible for the 'checked_prod' stage per its current lane config. */
-    prodApprovers: LineConfigurationApproverOption[];
+    /** Who may sign each stage, per its current lane config. */
+    signers: LineConfigurationSigners;
     /** Current, admin-editable display labels for the two stages. */
     lanes?: LineConfigurationLanes;
     canApprovePie: boolean;
@@ -333,8 +331,8 @@ export function LineConfigurationReportSection({
                         </div>
                         <p className="text-sm text-muted-foreground">
                             {t('line_config.subtitle', {
-                                first: lanes.approved_pie,
-                                second: lanes.checked_prod,
+                                first: lanes.checked_prod,
+                                second: lanes.approved_pie,
                             })}
                         </p>
                     </div>
@@ -408,6 +406,7 @@ export function LineConfigurationReportSection({
                     trialId={trialId}
                     report={report}
                     lanes={lanes}
+                    signers={signers}
                     canApprovePie={canApprovePie}
                     canCheckProd={canCheckProd}
                     canReturn={canReturn}
@@ -510,8 +509,6 @@ export function LineConfigurationReportSection({
                         <EditableLineConfigurationReport
                             trialId={trialId}
                             report={report}
-                            approvers={approvers}
-                            prodApprovers={prodApprovers}
                             lanes={lanes}
                             submitted={locked}
                             onSaved={() => setDialogOpen(false)}
@@ -526,16 +523,12 @@ export function LineConfigurationReportSection({
 function EditableLineConfigurationReport({
     trialId,
     report,
-    approvers,
-    prodApprovers,
     lanes,
     submitted,
     onSaved,
 }: {
     trialId: number;
     report: LineConfigurationReportData;
-    approvers: LineConfigurationApproverOption[];
-    prodApprovers: LineConfigurationApproverOption[];
     lanes: LineConfigurationLanes;
     /** Already in the approval chain (only an Admin can still edit it) — no draft option then. */
     submitted: boolean;
@@ -606,21 +599,6 @@ function EditableLineConfigurationReport({
         ),
     );
 
-    const approverOptions = approvers.map((a) => ({
-        value: String(a.id),
-        label: a.label,
-    }));
-    const prodApproverOptions = prodApprovers.map((a) => ({
-        value: String(a.id),
-        label: a.label,
-    }));
-    const [approvedPieUserId, setApprovedPieUserId] = useState(
-        report?.approved_pie_user_id ? String(report.approved_pie_user_id) : '',
-    );
-    const [checkedProdUserId, setCheckedProdUserId] = useState(
-        report?.checked_prod_user_id ? String(report.checked_prod_user_id) : '',
-    );
-
     const [totalQty, setTotalQty] = useState(report?.total_qty ?? '');
     const [settingQty, setSettingQty] = useState(report?.setting_qty ?? '');
     const [passQty, setPassQty] = useState(report?.pass_qty ?? '');
@@ -644,79 +622,14 @@ function EditableLineConfigurationReport({
                     <p className="text-sm text-muted-foreground">
                         {t('line_config.validation.summary')}
                     </p>
-                    <div className="space-y-4 rounded-md border p-4">
+                    <div className="space-y-2 rounded-md border p-4">
                         <h4 className="text-sm font-semibold">
                             {t('line_config.sign_off.title')}
                         </h4>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label>{lanes.approved_pie}</Label>
-                                <Combobox
-                                    options={approverOptions}
-                                    value={approvedPieUserId}
-                                    onChange={setApprovedPieUserId}
-                                    placeholder={t(
-                                        'line_config.sign_off.select_user',
-                                    )}
-                                    searchPlaceholder={t(
-                                        'line_config.sign_off.search_user',
-                                    )}
-                                />
-                                <input
-                                    type="hidden"
-                                    name="approved_pie_user_id"
-                                    value={approvedPieUserId}
-                                />
-                                <InputError
-                                    message={errors.approved_pie_user_id}
-                                />
-                                <SignOffStatusHint
-                                    field="approved_pie"
-                                    report={report}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>{lanes.checked_prod}</Label>
-                                {prodApproverOptions.length === 0 ? (
-                                    <p className="text-xs text-destructive">
-                                        {t(
-                                            'line_config.sign_off.no_eligible_users',
-                                            {
-                                                lane: lanes.checked_prod,
-                                            },
-                                        )}
-                                    </p>
-                                ) : (
-                                    <Combobox
-                                        options={prodApproverOptions}
-                                        value={checkedProdUserId}
-                                        onChange={setCheckedProdUserId}
-                                        placeholder={t(
-                                            'line_config.sign_off.select_user',
-                                        )}
-                                        searchPlaceholder={t(
-                                            'line_config.sign_off.search_user',
-                                        )}
-                                    />
-                                )}
-                                <input
-                                    type="hidden"
-                                    name="checked_prod_user_id"
-                                    value={checkedProdUserId}
-                                />
-                                <InputError
-                                    message={errors.checked_prod_user_id}
-                                />
-                                <SignOffStatusHint
-                                    field="checked_prod"
-                                    report={report}
-                                />
-                            </div>
-                        </div>
                         <p className="text-xs text-muted-foreground">
                             {t('line_config.sign_off.hint', {
-                                first: lanes.approved_pie,
-                                second: lanes.checked_prod,
+                                first: lanes.checked_prod,
+                                second: lanes.approved_pie,
                             })}
                         </p>
                         {!submitted && (
@@ -1293,43 +1206,11 @@ function EditableLineConfigurationReport({
     );
 }
 
-function SignOffStatusHint({
-    field,
-    report,
-}: {
-    field: StageField;
-    report: LineConfigurationReportData;
-}) {
-    const { t, formatDate } = useTranslation();
-    const done = report?.[field] ?? false;
-
-    if (!done) {
-        return (
-            <p className="text-xs text-muted-foreground">
-                {t('line_config.sign_off.not_confirmed')}
-            </p>
-        );
-    }
-
-    const by = report?.[`${field}_by`] ?? null;
-    const at = report?.[`${field}_at`] ?? null;
-
-    return (
-        <p className="text-xs text-green-600 dark:text-green-400">
-            {at
-                ? t('line_config.sign_off.confirmed_by_at', {
-                      name: by || '-',
-                      date: formatDate(at),
-                  })
-                : t('line_config.sign_off.confirmed_by', { name: by || '-' })}
-        </p>
-    );
-}
-
 function ReadOnlyLineConfigurationReport({
     trialId,
     report,
     lanes,
+    signers,
     canApprovePie,
     canCheckProd,
     canReturn,
@@ -1337,6 +1218,7 @@ function ReadOnlyLineConfigurationReport({
     trialId: number;
     report: LineConfigurationReportData;
     lanes: LineConfigurationLanes;
+    signers: LineConfigurationSigners;
     canApprovePie: boolean;
     canCheckProd: boolean;
     canReturn: boolean;
@@ -1365,6 +1247,7 @@ function ReadOnlyLineConfigurationReport({
                 <SignOffFlow
                     report={report}
                     lanes={lanes}
+                    signers={signers}
                     canApprovePie={canApprovePie}
                     canCheckProd={canCheckProd}
                     canReturn={canReturn}
@@ -1623,8 +1506,8 @@ type StageView = {
 
 /**
  * The three sign-off stages as a left-to-right flow — Prepared (just the
- * report's `pic`), then the two sequential real stages (Approved(PIE) before
- * Checked(PROD), see App\Policies\TrialLineConfigurationReportPolicy). Each
+ * report's `pic`), then the two sequential real stages (Checked(PROD) before
+ * Approved(PIE Leader), see App\Policies\TrialLineConfigurationReportPolicy). Each
  * tile carries its own status, signer, timestamp and optional sign-off
  * comment inline, replacing the old right-floated compact table plus its
  * separate "Catatan Sign-off" box (which left a large empty area beside the
@@ -1638,12 +1521,14 @@ type StageView = {
 function SignOffFlow({
     report,
     lanes,
+    signers,
     canApprovePie,
     canCheckProd,
     canReturn,
 }: {
     report: NonNullable<LineConfigurationReportData>;
     lanes: LineConfigurationLanes;
+    signers: LineConfigurationSigners;
     canApprovePie: boolean;
     canCheckProd: boolean;
     canReturn: boolean;
@@ -1661,31 +1546,37 @@ function SignOffFlow({
         },
         ...stageFields(lanes).map(({ field, label }): StageView => {
             const done = report[field] ?? false;
-            const assignedUser = report[`${field}_user`] ?? null;
             const canConfirm =
                 field === 'approved_pie' ? canApprovePie : canCheckProd;
+            // PIE Leader approval only opens after PROD has acknowledged.
             const waitingOnPrevious =
-                field === 'checked_prod' && !report.approved_pie && !done;
+                field === 'approved_pie' && !report.checked_prod && !done;
+            const names = signers[field];
 
             let state: StageState = 'idle';
-            let detail = t('line_config.stage.not_assigned');
+            let detail = t('line_config.stage.not_submitted');
 
             if (done) {
                 state = 'done';
                 detail =
                     report[`${field}_by`] || t('line_config.stage.confirmed');
+            } else if (!report.submitted_at) {
+                // Draft: not in the approval chain yet.
             } else if (waitingOnPrevious) {
                 detail = t('line_config.stage.waiting_for', {
-                    name: lanes.approved_pie,
+                    name: lanes.checked_prod,
                 });
             } else if (canConfirm || canReturn) {
                 state = 'action';
                 detail = t('line_config.stage.awaiting_you');
-            } else if (assignedUser) {
+            } else {
                 state = 'waiting';
-                detail = t('line_config.stage.waiting_for', {
-                    name: assignedUser.name,
-                });
+                detail =
+                    names.length > 0
+                        ? t('line_config.stage.waiting_for', {
+                              name: names.join(', '),
+                          })
+                        : t('line_config.stage.waiting_any');
             }
 
             return {
@@ -1693,7 +1584,7 @@ function SignOffFlow({
                 label,
                 state,
                 detail,
-                assignee: !done && assignedUser ? assignedUser.name : null,
+                assignee: null,
                 at: done ? (report[`${field}_at`] ?? null) : null,
                 comment: done ? (report[`${field}_comment`] ?? null) : null,
             };
@@ -1820,10 +1711,10 @@ function SignOffActionPanel({
     const reasonOk = wordCount >= MIN_RETURN_REASON_WORDS;
 
     const field: StageField | null =
-        canApprovePie && !report.approved_pie
-            ? 'approved_pie'
-            : canCheckProd && !report.checked_prod
-              ? 'checked_prod'
+        canCheckProd && !report.checked_prod
+            ? 'checked_prod'
+            : canApprovePie && !report.approved_pie
+              ? 'approved_pie'
               : null;
 
     if (!field) {

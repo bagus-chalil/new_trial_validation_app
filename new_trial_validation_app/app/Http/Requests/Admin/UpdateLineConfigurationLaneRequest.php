@@ -32,6 +32,15 @@ class UpdateLineConfigurationLaneRequest extends FormRequest
                     ->where('type', 'reviewer_department')
                     ->where('is_active', 1),
             ],
+            // Explicit signers (e.g. the PIE Leaders). Only applied when the
+            // form says it is sending the list (`sync_signers`), so a bare
+            // label/team update never wipes it.
+            'sync_signers' => ['nullable', 'boolean'],
+            'signer_user_ids' => ['nullable', 'array'],
+            'signer_user_ids.*' => [
+                'integer',
+                Rule::exists('users', 'id')->where('is_active', 1)->whereNull('deleted_at'),
+            ],
         ];
     }
 
