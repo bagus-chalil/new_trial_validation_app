@@ -2,7 +2,7 @@ import { BatchCreatedAt } from '@/components/ipc/batch-created-at';
 import { BatchFilterBar, type BatchFilterOptions, type BatchFilterValues } from '@/components/ipc/batch-filter-bar';
 import { PaginationFooter } from '@/components/ipc/pagination-footer';
 import { IpcShell } from '@/layouts/ipc-shell';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { ChevronRight, ClipboardCheck } from 'lucide-react';
 
 interface QueueBatch {
@@ -32,16 +32,51 @@ export default function ApprovalQueueIndex({
     queue,
     filters,
     filterOptions,
+    level,
+    levelLocked,
 }: {
     queue: PaginatedQueue;
     filters: BatchFilterValues;
     filterOptions: BatchFilterOptions;
+    level: 1 | 2 | null;
+    levelLocked: boolean;
 }) {
+    const setLevel = (value: 1 | 2 | null) =>
+        router.get('/approvals', { ...filters, level: value ?? undefined }, { preserveState: true, replace: true });
+
     return (
         <IpcShell title="Approval Queue" subtitle={`${queue.total} batch menunggu keputusan`} backHref="/dashboard">
             <Head title="Approval Queue" />
             <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-5 md:p-6">
-                <BatchFilterBar path="/approvals" filters={filters} options={filterOptions} withSearch />
+                {levelLocked ? (
+                    <p className="text-muted-foreground px-1 text-[13px] font-semibold">Menampilkan approval Level {level} (sesuai role Anda).</p>
+                ) : (
+                    <div className="flex gap-2" role="group" aria-label="Filter level approval">
+                        {([null, 1, 2] as const).map((value) => (
+                            <button
+                                key={String(value)}
+                                type="button"
+                                onClick={() => setLevel(value)}
+                                aria-pressed={level === value}
+                                className={`rounded-full border px-4 py-1.5 text-[13px] font-bold transition-colors ${
+                                    level === value
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'border-border-soft bg-card hover:border-primary/40'
+                                }`}
+                            >
+                                {value === null ? 'Semua' : `Level ${value}`}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                <BatchFilterBar
+                    path="/approvals"
+                    filters={filters}
+                    keep={level && !levelLocked ? ({ level } as never) : {}}
+                    options={filterOptions}
+                    withSearch
+                />
 
                 <p className="text-muted-foreground px-1 text-[13px] font-medium" aria-live="polite">
                     {queue.total === 0 ? (
