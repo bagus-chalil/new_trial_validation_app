@@ -23,6 +23,8 @@ class StoreTrialRequest extends FormRequest
             // Projects module Fase 4: link the new trial to this Validation
             // stage (checked in TrialController::store()).
             'project_stage_id' => ['nullable', 'integer'],
+            // Trial Validation v2.0 Tahap 2: attach the new trial to this Case.
+            'case_id' => ['nullable', 'integer'],
         ];
     }
 }

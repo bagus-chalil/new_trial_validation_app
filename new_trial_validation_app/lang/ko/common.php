@@ -14,6 +14,8 @@ return [
         'dashboard' => '대시보드',
         'monitoring' => '전체 트라이얼',
         'journey' => '제품 여정',
+        'assessment' => '검증 사전평가',
+        'validation_plan' => 'Validation Plan',
         'my_work' => '내 업무',
         'tracking' => '진행 현황',
         'need_review' => '검토 대기',

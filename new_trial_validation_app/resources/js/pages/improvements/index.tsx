@@ -28,6 +28,7 @@ type Item = {
     decision: string;
     submitted_by_name: string;
     submitted_at: string | null;
+    number?: string | null;
     project_id: number | null;
 };
 
@@ -124,6 +125,11 @@ export default function ImprovementBoard({
                                                 className="block space-y-1.5 rounded-md border p-3 text-sm transition-colors hover:bg-muted/50"
                                             >
                                                 <div className="font-medium">
+                                                    {item.number && (
+                                                        <span className="mr-2 text-xs text-muted-foreground">
+                                                            {item.number}
+                                                        </span>
+                                                    )}
                                                     {item.title}
                                                 </div>
                                                 <div className="text-xs text-muted-foreground">

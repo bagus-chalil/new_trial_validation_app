@@ -14,6 +14,8 @@ return [
         'dashboard' => 'Dashboard',
         'monitoring' => 'All Trials',
         'journey' => 'Product Journey',
+        'assessment' => 'Validation Assessment',
+        'validation_plan' => 'Validation Plan',
         'my_work' => 'My Work',
         'tracking' => 'Process Tracking',
         'need_review' => 'Pending Review',

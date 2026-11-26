@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Projects\LinkProjectStageTrial;
 use App\Actions\Trials\CreateTrial;
 use App\Actions\Trials\UpdateTrial;
+use App\Actions\Validation\EnsureCaseForTrial;
 use App\Http\Requests\Trials\StoreTrialRequest;
 use App\Http\Requests\Trials\UpdateTrialRequest;
 use App\Models\MasterOption;
@@ -13,7 +14,9 @@ use App\Models\Project;
 use App\Models\ProjectStage;
 use App\Models\Trial;
 use App\Models\User;
+use App\Models\ValidationCase;
 use App\Models\ValidationTrialMeta;
+use App\Services\Validation\CaseTrialPrefill;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -123,10 +126,26 @@ class TrialController extends Controller
             ];
         }
 
+        // Trial Validation v2.0 Tahap 2: "Buat Trial dari Case" pre-fills from
+        // the Case and its Assessment; the new trial joins that Case on save.
+        $caseRef = null;
+        if ($projectStage === null && $request->filled('case') && Schema::hasTable('vd_cases')) {
+            $case = ValidationCase::query()->whereNull('deleted_at')->find((int) $request->query('case'));
+            if ($case === null) {
+                Inertia::flash('toast', ['type' => 'error', 'message' => __('assessment.trial_from_case.not_found')]);
+
+                return back();
+            }
+
+            $caseRef = ['id' => $case->id, 'case_no' => $case->case_no];
+            $prefill = app(CaseTrialPrefill::class)->build($case);
+        }
+
         return Inertia::render('trials/form', [
             'mode' => 'create',
             'trial' => null,
             'projectStage' => $projectStage,
+            'caseRef' => $caseRef,
             'prefill' => $prefill,
             ...$this->formOptions(),
         ]);
@@ -136,7 +155,8 @@ class TrialController extends Controller
     {
         $data = $request->validated();
         $stageId = $data['project_stage_id'] ?? null;
-        unset($data['project_stage_id']);
+        $caseId = $data['case_id'] ?? null;
+        unset($data['project_stage_id'], $data['case_id']);
         $user = $request->user();
 
         if ($stageId === null) {
@@ -152,6 +172,18 @@ class TrialController extends Controller
 
                 return $trial;
             });
+        }
+
+        // The trial joins its Case as the next attempt (never blocks the trial flow).
+        if ($caseId !== null && Schema::hasTable('vd_cases')) {
+            $case = ValidationCase::query()->whereNull('deleted_at')->find((int) $caseId);
+            if ($case !== null) {
+                try {
+                    app(EnsureCaseForTrial::class)->linkTo($trial, $case, $user->id);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('messages.toast.trial_created')]);

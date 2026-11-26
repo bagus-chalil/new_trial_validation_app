@@ -6,6 +6,8 @@ import {
     Bell,
     Bot,
     BriefcaseBusiness,
+    CalendarDays,
+    ClipboardList,
     FolderKanban,
     Lightbulb,
     Receipt,
@@ -62,6 +64,8 @@ import { index as toolingsIndex } from '@/routes/projects/toolings';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { index as trialsIndex } from '@/routes/trials';
+import { index as assessmentsIndex } from '@/routes/validation/assessments';
+import { index as plansIndex } from '@/routes/validation/plans';
 import type { Auth, NavGroup } from '@/types';
 
 export function AppSidebar() {
@@ -102,6 +106,18 @@ export function AppSidebar() {
                     href: journeyIndex(),
                     icon: RouteIcon,
                     activePattern: /^\/journey(\/|$)/,
+                },
+                {
+                    title: t('common.nav.assessment'),
+                    href: assessmentsIndex(),
+                    icon: ClipboardList,
+                    activePattern: /^\/validation\/assessments(\/|$)/,
+                },
+                {
+                    title: t('common.nav.validation_plan'),
+                    href: plansIndex(),
+                    icon: CalendarDays,
+                    activePattern: /^\/validation\/plans(\/|$)/,
                 },
             ],
         },

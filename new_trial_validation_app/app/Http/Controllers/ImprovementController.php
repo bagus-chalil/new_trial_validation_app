@@ -6,6 +6,7 @@ use App\Actions\Improvements\ConvertImprovementToProject;
 use App\Actions\Improvements\DeleteImprovement;
 use App\Actions\Improvements\ReviewImprovement;
 use App\Actions\Improvements\SaveImprovement;
+use App\Actions\Validation\AssignImprovementNumber;
 use App\Http\Requests\Improvements\ReviewImprovementRequest;
 use App\Http\Requests\Improvements\SaveImprovementRequest;
 use App\Models\ActivityLog;
@@ -51,8 +52,10 @@ class ImprovementController extends Controller
             ->limit(300)
             ->get();
 
+        $numbers = AssignImprovementNumber::numbersFor($items->pluck('id'));
+
         return Inertia::render('improvements/index', [
-            'items' => $items->map(fn (Improvement $i) => $this->summary($i))->values(),
+            'items' => $items->map(fn (Improvement $i) => $this->summary($i) + ['number' => $numbers[$i->id] ?? null])->values(),
             'statuses' => Improvement::STATUSES,
             'filters' => ['q' => $q],
             'defaults' => ['department' => (string) $user->department],
@@ -93,6 +96,7 @@ class ImprovementController extends Controller
         return Inertia::render('improvements/show', [
             'improvement' => [
                 ...$this->summary($improvement),
+                'number' => AssignImprovementNumber::numbersFor([$improvement->id])[$improvement->id] ?? null,
                 'background' => $improvement->background,
                 'purpose' => $improvement->purpose,
                 'goals' => $improvement->goals,

@@ -3,18 +3,22 @@
 namespace App\Services\Validation;
 
 use App\Models\Project;
+use App\Models\Tooling;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\TrialResult;
 use App\Models\User;
+use App\Models\ValidationAssessment;
 use App\Models\ValidationCase;
 use App\Models\ValidationCaseLink;
+use App\Models\ValidationPlan;
 use App\Models\ValidationTrialMeta;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Read model for the Product Journey: everything about one Case (attempts and
@@ -75,6 +79,85 @@ class CaseJourney
             ],
             'attempts' => $attempts,
             'projects' => $this->projects($case),
+        ];
+    }
+
+    /**
+     * Tahap 2 extras for the Case page only (kept out of build() so the list
+     * page does not run these queries once per row): the Assessment that
+     * started the Case, linked Check Tooling requests, and weekly plans.
+     *
+     * @return array<string, mixed>
+     */
+    public function extras(ValidationCase $case): array
+    {
+        // The Tahap 2 migration may not have run on this server yet.
+        if (! Schema::hasTable('vd_assessments') || ! Schema::hasTable('vd_validation_plans')) {
+            return ['assessment' => null, 'toolings' => [], 'availableToolings' => [], 'plans' => []];
+        }
+
+        $assessment = ValidationAssessment::query()->whereNull('deleted_at')->where('case_id', $case->id)->first();
+
+        $toolingIds = ValidationCaseLink::query()
+            ->where('case_id', $case->id)
+            ->where('kind', 'tooling')
+            ->pluck('ref_id');
+
+        $linked = Tooling::query()
+            ->whereNull('deleted_at')
+            ->whereIn('id', $toolingIds)
+            ->get(['id', 'npd_no', 'product_name', 'status']);
+
+        $taken = ValidationCaseLink::query()->where('kind', 'tooling')->pluck('ref_id');
+
+        return [
+            'assessment' => $assessment === null ? null : [
+                'id' => $assessment->id,
+                'receive_date' => $assessment->receive_date?->toDateString(),
+                'client' => $assessment->client,
+                'sales_month' => $assessment->sales_month,
+                'qty_po' => $assessment->qty_po,
+                'packaging_type' => $assessment->packaging_type,
+                'validation_scope' => $assessment->validation_scope ?? [],
+                'recommended_machine' => $assessment->recommended_machine,
+                'qco_no' => $assessment->qco_no,
+                'qco_link' => $assessment->qco_link,
+                'pm_received_date' => $assessment->pm_received_date?->toDateString(),
+                'pm_na' => $assessment->pm_na,
+                'bulk_received_date' => $assessment->bulk_received_date?->toDateString(),
+                'bulk_na' => $assessment->bulk_na,
+                'risk_level' => $assessment->risk_level,
+                'created_by_name' => $assessment->created_by_name,
+            ],
+            'toolings' => $linked->map(fn (Tooling $t) => [
+                'id' => $t->id,
+                'npd_no' => $t->npd_no,
+                'product_name' => $t->product_name,
+                'status' => $t->status,
+            ])->values()->all(),
+            // Not yet tied to any Case: the pick list of the link dialog.
+            'availableToolings' => Tooling::query()
+                ->whereNull('deleted_at')
+                ->whereNotIn('id', $taken)
+                ->orderByDesc('id')
+                ->limit(200)
+                ->get(['id', 'npd_no', 'product_name'])
+                ->map(fn (Tooling $t) => ['id' => $t->id, 'label' => trim($t->npd_no.' · '.$t->product_name, ' ·')])
+                ->values()
+                ->all(),
+            'plans' => ValidationPlan::query()
+                ->whereNull('deleted_at')
+                ->where('case_id', $case->id)
+                ->orderByDesc('week_start')
+                ->get()
+                ->map(fn (ValidationPlan $p) => [
+                    'id' => $p->id,
+                    'week_start' => $p->week_start->toDateString(),
+                    'status' => $p->status,
+                    'ppic_note' => $p->ppic_note,
+                ])
+                ->values()
+                ->all(),
         ];
     }
 

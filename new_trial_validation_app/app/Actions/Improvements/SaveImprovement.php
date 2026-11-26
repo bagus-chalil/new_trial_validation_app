@@ -2,6 +2,7 @@
 
 namespace App\Actions\Improvements;
 
+use App\Actions\Validation\AssignImprovementNumber;
 use App\Models\Improvement;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -48,6 +49,7 @@ class SaveImprovement
                     'feedback_log' => [],
                 ])->save();
                 ($this->log)($user, 'CREATE', $improvement, null, ['title' => $improvement->title]);
+                AssignImprovementNumber::safely($improvement);
 
                 return $improvement;
             }

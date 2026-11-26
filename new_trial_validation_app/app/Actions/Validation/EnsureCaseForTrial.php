@@ -73,6 +73,40 @@ class EnsureCaseForTrial
     }
 
     /**
+     * Put a trial under a specific Case (Tahap 2: "create trial from Case").
+     * Moves an automatic link made by __invoke() when the Case differs, and
+     * renumbers attempts on both Cases. Never touches trials_header.
+     */
+    public function linkTo(Trial $trial, ValidationCase $case, ?int $userId = null): void
+    {
+        DB::transaction(function () use ($trial, $case, $userId) {
+            $link = ValidationCaseLink::query()
+                ->where('kind', 'trial')
+                ->where('ref_key', (string) $trial->id)
+                ->first();
+
+            $previous = null;
+            if ($link === null) {
+                ValidationCaseLink::create([
+                    'case_id' => $case->id,
+                    'kind' => 'trial',
+                    'ref_id' => $trial->id,
+                    'ref_key' => (string) $trial->id,
+                    'linked_by' => $userId,
+                ]);
+            } elseif ((int) $link->case_id !== $case->id) {
+                $previous = ValidationCase::query()->find($link->case_id);
+                $link->fill(['case_id' => $case->id, 'linked_by' => $userId])->save();
+            }
+
+            $this->renumberAttempts($case);
+            if ($previous !== null) {
+                $this->renumberAttempts($previous);
+            }
+        });
+    }
+
+    /**
      * Never let Case bookkeeping break the trial workflow, and stay silent
      * until the vd_* migration has actually been run.
      */

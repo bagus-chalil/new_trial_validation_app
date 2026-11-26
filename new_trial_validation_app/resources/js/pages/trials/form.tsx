@@ -78,7 +78,18 @@ type PageProps = {
         project_name: string;
         project_code: string;
     } | null;
-    prefill?: { product_id: number | null; machine_used: string[] } | null;
+    prefill?: {
+        product_id: number | null;
+        machine_used: string[];
+        validation_scope?: string[];
+        product_type?: string | null;
+        validation_category?: string | null;
+        risk_level?: string | null;
+        pm_ready_date?: string | null;
+        bulk_ready_date?: string | null;
+    } | null;
+    // Trial Validation v2.0 Tahap 2: set when opened from a Case.
+    caseRef?: { id: number; case_no: string } | null;
 };
 
 export default function TrialForm({
@@ -89,6 +100,7 @@ export default function TrialForm({
     riskLevels,
     projectStage = null,
     prefill = null,
+    caseRef = null,
 }: PageProps) {
     const { t } = useTranslation();
     const title =
@@ -103,7 +115,7 @@ export default function TrialForm({
               : '',
     );
     const [validationScope, setValidationScope] = useState<string[]>(
-        trial?.validation_scope ?? [],
+        trial?.validation_scope ?? prefill?.validation_scope ?? [],
     );
     const [machineUsed, setMachineUsed] = useState<string[]>(
         trial?.machine_used ?? prefill?.machine_used ?? [],
@@ -141,6 +153,16 @@ export default function TrialForm({
 
                 <TrialWizardSteps currentStep={1} trial={trial} />
 
+                {caseRef && (
+                    <Alert>
+                        <AlertDescription>
+                            {t('assessment.trial_from_case.banner', {
+                                case: caseRef.case_no,
+                            })}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {projectStage && (
                     <Alert>
                         <AlertDescription>
@@ -166,6 +188,13 @@ export default function TrialForm({
                                 name="product_id"
                                 value={productId}
                             />
+                            {caseRef && (
+                                <input
+                                    type="hidden"
+                                    name="case_id"
+                                    value={caseRef.id}
+                                />
+                            )}
                             {projectStage && (
                                 <input
                                     type="hidden"
@@ -247,7 +276,11 @@ export default function TrialForm({
                                         </Label>
                                         <Select
                                             name="product_type"
-                                            defaultValue={trial?.product_type}
+                                            defaultValue={
+                                                trial?.product_type ??
+                                                prefill?.product_type ??
+                                                undefined
+                                            }
                                         >
                                             <SelectTrigger
                                                 id="product_type"
@@ -310,7 +343,9 @@ export default function TrialForm({
                                             name="pm_ready_date"
                                             type="date"
                                             defaultValue={
-                                                trial?.pm_ready_date ?? ''
+                                                trial?.pm_ready_date ??
+                                                prefill?.pm_ready_date ??
+                                                ''
                                             }
                                         />
                                         <InputError
@@ -327,7 +362,9 @@ export default function TrialForm({
                                             name="bulk_ready_date"
                                             type="date"
                                             defaultValue={
-                                                trial?.bulk_ready_date ?? ''
+                                                trial?.bulk_ready_date ??
+                                                prefill?.bulk_ready_date ??
+                                                ''
                                             }
                                         />
                                         <InputError
@@ -344,7 +381,9 @@ export default function TrialForm({
                                         <Select
                                             name="validation_category"
                                             defaultValue={
-                                                trial?.validation_category
+                                                trial?.validation_category ??
+                                                prefill?.validation_category ??
+                                                undefined
                                             }
                                         >
                                             <SelectTrigger
@@ -384,7 +423,11 @@ export default function TrialForm({
                                         </Label>
                                         <Select
                                             name="risk_level"
-                                            defaultValue={trial?.risk_level}
+                                            defaultValue={
+                                                trial?.risk_level ??
+                                                prefill?.risk_level ??
+                                                undefined
+                                            }
                                         >
                                             <SelectTrigger
                                                 id="risk_level"

@@ -16,6 +16,8 @@ return [
         'dashboard' => 'Dashboard',
         'monitoring' => 'Seluruh Trial',
         'journey' => 'Product Journey',
+        'assessment' => 'Validation Assessment',
+        'validation_plan' => 'Validation Plan',
         'my_work' => 'Pekerjaan Saya',
         'tracking' => 'Pemantauan Proses',
         'need_review' => 'Perlu Ditinjau',

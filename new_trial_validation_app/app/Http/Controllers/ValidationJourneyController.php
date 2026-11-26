@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Actions\Validation\SaveTrialMeta;
 use App\Models\ActivityLog;
 use App\Models\Trial;
+use App\Models\ValidationAssessment;
 use App\Models\ValidationCase;
 use App\Models\ValidationCaseLink;
 use App\Services\Validation\CaseJourney;
+use App\Services\Validation\ValidationRoles;
 use App\Support\ValidationCaseType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,6 +87,10 @@ class ValidationJourneyController extends Controller
 
         return Inertia::render('journey/show', [
             ...$journey->build($case, $request->user()),
+            ...$journey->extras($case),
+            'canCreateTrial' => Gate::forUser($request->user())->allows('create', Trial::class),
+            'canManageCase' => ValidationRoles::isPie($request->user()),
+            'canEditAssessment' => Gate::forUser($request->user())->allows('create', ValidationAssessment::class),
             'canRecordClientApproval' => Gate::forUser($request->user())->allows('recordClientApproval', $case),
         ]);
     }

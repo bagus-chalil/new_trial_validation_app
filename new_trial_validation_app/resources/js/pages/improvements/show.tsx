@@ -44,6 +44,7 @@ type FeedbackEntry = {
 type Improvement = {
     id: number;
     title: string;
+    number?: string | null;
     department: string;
     type: string;
     status: string;
@@ -163,7 +164,11 @@ export default function ImprovementShow({
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-2">
                         <Heading
-                            title={improvement.title}
+                            title={
+                                improvement.number
+                                    ? `${improvement.number} · ${improvement.title}`
+                                    : improvement.title
+                            }
                             description={t('improvements.submitted_meta', {
                                 name: improvement.submitted_by_name || '-',
                                 date: improvement.submitted_at ?? '-',

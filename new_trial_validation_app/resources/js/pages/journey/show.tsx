@@ -15,6 +15,12 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CaseExtras } from '@/components/validation/case-extras';
+import type {
+    CaseAssessment,
+    CasePlan,
+    CaseTooling,
+} from '@/components/validation/case-extras';
 import { useTranslation } from '@/hooks/use-translation';
 import {
     journeyResultClassName,
@@ -27,6 +33,7 @@ import {
 } from '@/lib/trial-status';
 import { index as journeyIndex } from '@/routes/journey';
 import { show as projectShow } from '@/routes/projects';
+import { create as trialCreate } from '@/routes/trials';
 import { show as reportShow } from '@/routes/trials/report';
 
 type Attempt = {
@@ -79,6 +86,12 @@ type PageProps = {
         progress: number;
     }[];
     canRecordClientApproval: boolean;
+    assessment: CaseAssessment | null;
+    toolings: CaseTooling[];
+    availableToolings: { id: number; label: string }[];
+    plans: CasePlan[];
+    canCreateTrial: boolean;
+    canManageCase: boolean;
 };
 
 function ClientApprovalDialog({
@@ -159,6 +172,12 @@ export default function JourneyShow({
     attempts,
     projects,
     canRecordClientApproval,
+    assessment,
+    toolings,
+    availableToolings,
+    plans,
+    canCreateTrial,
+    canManageCase,
 }: PageProps) {
     const { t, formatDateOnly } = useTranslation();
     const [editing, setEditing] = useState<Attempt | null>(null);
@@ -172,9 +191,33 @@ export default function JourneyShow({
             <Head title={caseData.case_no} />
 
             <div className="space-y-6 p-4">
-                <Heading
-                    title={`${caseData.case_no} · ${caseData.product_name}`}
-                    description={`${journeyTypeLabel(t, caseData.case_type)} · ${t('journey.columns.fg')}: ${caseData.finish_good_code ?? '-'}`}
+                <div className="flex items-start justify-between gap-4">
+                    <Heading
+                        title={`${caseData.case_no} · ${caseData.product_name}`}
+                        description={`${journeyTypeLabel(t, caseData.case_type)} · ${t('journey.columns.fg')}: ${caseData.finish_good_code ?? '-'}`}
+                    />
+                    {canCreateTrial && (
+                        <Button asChild>
+                            <Link
+                                href={
+                                    trialCreate({
+                                        query: { case: caseData.id },
+                                    }).url
+                                }
+                            >
+                                {t('assessment.trial_from_case.button')}
+                            </Link>
+                        </Button>
+                    )}
+                </div>
+
+                <CaseExtras
+                    caseId={caseData.id}
+                    assessment={assessment}
+                    toolings={toolings}
+                    availableToolings={availableToolings}
+                    plans={plans}
+                    canManageCase={canManageCase}
                 />
 
                 <Card>
