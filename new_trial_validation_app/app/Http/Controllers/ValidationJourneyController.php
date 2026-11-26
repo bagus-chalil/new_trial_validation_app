@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Validation\SaveTrialMeta;
 use App\Models\ActivityLog;
+use App\Models\Mixing;
 use App\Models\Trial;
 use App\Models\ValidationAssessment;
 use App\Models\ValidationCase;
@@ -91,6 +92,8 @@ class ValidationJourneyController extends Controller
             ...$journey->extras($case),
             ...$journey->numbers($case, $request->user()),
             'ipc' => app(IpcBatchLookup::class)->forCase($case),
+            'mixings' => $journey->mixings($case),
+            'canCreateMixing' => Gate::forUser($request->user())->allows('create', Mixing::class),
             'canCreateTrial' => Gate::forUser($request->user())->allows('create', Trial::class),
             'canManageCase' => ValidationRoles::isPie($request->user()),
             'canEditAssessment' => Gate::forUser($request->user())->allows('create', ValidationAssessment::class),

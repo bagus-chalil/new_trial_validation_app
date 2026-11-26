@@ -91,7 +91,7 @@ Urutan ditetapkan user 2026-11-25: **Tahap 0 harus selesai dulu.** IM dan QCO ge
 - IPC: pertama **lookup read-only** (koneksi baca ke `ipc_system`, padanan lewat `fg_code` + nomor IM) sehingga Product Journey bisa menampilkan batch IPC. Lalu opsional: Startup Check di IPC memilih IM dari daftar yang diterbitkan, dan menyimpan Case No. Perubahan di `ipc_app/` perlu rencana sendiri (migrasi IPC jalan lewat pipeline).
 - Sebelum Tahap 3: field QCO/IM di Case tetap isian manual.
 
-**Tahap 4 — Mixing.** Tabel baru (bukan `trials_header`, karena app legacy masih memakainya). Wizard berbasis konfigurasi langkah per jenis Case (Trial 6 langkah; Mixing tanpa Weighing). Menunggu D8 (poin TBD tim: cara melampirkan bukti revisi batch record, kategori produk Mixing).
+**Tahap 4 — Mixing.** Tabel baru (bukan `trials_header`, karena app legacy masih memakainya). Wizard berbasis konfigurasi langkah per jenis Case (Trial 6 langkah; Mixing tanpa Weighing). **Dikerjakan 2026-11-26 (lihat 8.20-8.21).**
 
 **Tahap 5 — Product Journey penuh + ekspor stakeholder.** Timeline lengkap lintas modul, PDF tiga bahasa, ringkasan dalam bahasa biasa, filter per produk/client/periode.
 
@@ -106,7 +106,7 @@ Urutan ditetapkan user 2026-11-25: **Tahap 0 harus selesai dulu.** IM dan QCO ge
 | D5 | Aturan *Pending approval delete* | belum ada (Excel hanya menulis judulnya di menu Trials; tanya user) |
 | D6 | Format nomor IM | **Diputuskan 2026-11-26 (Tahap 3):** `IM-{KODE CUSTOMER/BRAND}-{NAMA PRODUK UKURAN}`, versi pertama tanpa sufiks, revisi ` V2`, ` V3`; UPPER CASE, spasi tunggal (dinormalkan). Penerbit QA, tanpa approval penerbitan (rantai tanda tangan IM tetap di kertas). Dibangun di 8.17 |
 | D7 | Format nomor QCO, integrasi QCO elektronik (TBD di Excel) | **Diputuskan 2026-11-26 (Tahap 3):** `QCO-{YYYY}-{NNNN}`, urutan per tahun, penerbit PRNI, tanpa approval. Integrasi QCO elektronik tetap TBD. Dibangun di 8.17 |
-| D8 | Mixing: bukti revisi batch record, kategori produk | menunggu tim (Mr. Moon) |
+| D8 | Mixing: bukti revisi batch record, kategori produk | **Dijawab user 2026-11-26 (Tahap 4):** bukti revisi batch record = upload file (gambar/PDF) kategori `Revisi Batch Record` di langkah Lampiran, plus isian nomor dan revisi BR di header; kategori produk = master `product_type` yang ada. Approval Mixing sama dengan Trial. Dibangun di 8.20 |
 | D9 | Siapa yang menentukan Risk (PIE saat assessment atau dihitung) | PIE saat assessment |
 
 **Usulan Tahap 0 (menunggu persetujuan user, belum final):** D1 setuju default, tapi Tahap 1 harus memetakan 6 nilai `validation_category` yang sudah ada ke NPD/IMP/MIX (lihat 8.5). D2 per bulan (volume ±60 trial/bulan, 3 digit cukup). D3 ya. D4 pakai default, tetapi hitung **per Case**, bukan per `product_id` (lihat temuan master produk di 8.3). D5 tetap tanya user. D6/D7 penerbit sudah jelas, format menyusul sebelum Tahap 3. D9 default. **K4: pertahankan aturan yang sudah jalan, dan jangan dipakai untuk riwayat** (lihat 8.6).
@@ -246,9 +246,38 @@ Dibangun di `new_trial_validation_app/`. **Belum dijalankan ke server dev/prod**
 - Kode customer/brand diisi QA lewat dialog IM (belum ada master terpisah atau impor). Akun "Viewer PRNI/QAC" lokal bisa menerbitkan karena departemennya PRNI/QAC (sejalan K6 Tahap 4b).
 - Python di Windows menulis CRLF saat membuka file teks; semua edit file lewat skrip harus memakai `newline=''` (Pint melaporkan `line_ending`).
 
+**8.20 Yang dibangun (Tahap 4, Mixing)**
+- Jawaban user untuk D8 dan pola approval: bukti revisi batch record diunggah sebagai file (kategori `Revisi Batch Record`), kategori produk memakai master `product_type`, approval Mixing sama dengan Trial (review per departemen lalu keputusan final dengan tanda tangan password).
+- Migrasi `2026_11_29_000001_create_vd_mixing_tables` (additive, `hasTable`, tanpa FK; `trials_header` tidak disentuh): `vd_mixings` (kode `MIX-YYYYMMDD-XXXX`, header, status, ronde review, approver, keputusan), `vd_mixing_results`, `vd_mixing_files`, `vd_mixing_reviews`. Tercatat di Case lewat `vd_case_links` kind `mixing` (`EnsureMixingCase`: pakai Case yang dipilih, kalau tidak Case MIX pertama untuk produk itu, kalau tidak membuat Case baru).
+- Wizard berbasis konfigurasi langkah per jenis Case: `App\Support\ValidationStepConfig` (PHP) dan `resources/js/lib/validation-steps.ts`. Trial tetap 6 langkah; Mixing 4 langkah (Data Mixing, Validasi, Lampiran, Review & Kirim), tanpa Weighing. Wizard Trial yang ada tidak diubah.
+- `MixingController` (daftar, form header, ringkasan/aksi), `MixingStepController` (validasi parameter, lampiran, review & kirim, simpan review reviewer, keputusan approver), `MixingWorkflow` (kelengkapan, submit, review, keputusan), `SaveMixingHeader`, `SaveMixingValidation`, `SaveMixingFiles`. Parameter validasi dibaca dari `validation_parameters` per `product_type` seperti Trial. Berkas disimpan di disk `local` privat (`mixing/{id}/`), dilayani lewat rute dengan policy, `nosniff` dan CSP sandbox; gambar dan PDF, maks. 10 MB, penyimpanan parsial per file.
+- `MixingPolicy` (Draft hanya pemilik/Admin, setelah dikirim semua pengguna login bisa baca; hanya Staff membuat; pemilik/Admin mengubah saat Draft atau Need Revision; approver yang ditunjuk atau Admin memutuskan) dan `MixingReviewPolicy` (reviewer departemen itu, review Pending, ronde berjalan). Catatan: ability `review` harus ada di policy untuk kelas modelnya (`MixingReviewPolicy`), bukan di `MixingPolicy`.
+- Notifikasi memakai `CreateNotification` tanpa `trial_id`. Product Journey: kartu "Mixing" di halaman Case (+ tombol "Buat Mixing dari Case"), menu sidebar Mixing, string `mixing.php` id/en/ko (key parity dites).
+- 17 Pest test baru (`tests/Feature/MixingTest.php`). Suite penuh 768 lulus dari 772 (1 gagal lama ZipArchive, 3 skip lama); Pint `lint:check`, tsc, ESLint untuk file baru, Prettier file baru, `npm run build` lulus; Larastan hanya error lama (`TrialMonitorController`, migrasi `rename_pi_review_team_to_pie`).
+- Live (Playwright, `trial_validation_system_v2t4` = salinan baru dari `v2t3`, migrasi hanya dijalankan di salinan): Staff membuat Mixing lewat wizard, unggah PDF revisi batch record, kirim ke review (PROD, approver Manager QAC), reviewer PROD menyimpan review, approver menyetujui dengan password, kartu Mixing muncul di Case 614. Password akun `manager.qac@local.test` di salinan itu diubah ke `manager123` untuk uji (hanya di salinan).
+
+**8.21 Catatan dan yang masih terbuka (Tahap 4)**
+- Migrasi `2026_11_29_000001` belum dijalankan di server dev/prod (ikut `migrate --force` pipeline), begitu juga migrasi/backfill Tahap 1-3. Sampai itu jalan, daftar Mixing akan error karena tabel belum ada; Journey tetap jalan (kartu Mixing kosong).
+- Antrean Need Review / Need Approval dan Pemantauan Proses belum memuat Mixing; reviewer dan approver membukanya dari notifikasi atau daftar Mixing. Menyatukan antrean adalah keputusan terpisah.
+- Trial lama dengan `product_type = Mixing` (yang di Tahap 1 sudah masuk Case MIX lewat `ValidationCaseType`) tetap berupa Trial; belum ada konversi Trial -> Mixing.
+- Berkas Mixing ada di disk `local` server (`storage/app/private/mixing`); perlu ikut backup server.
+- Edit file lewat skrip Python harus `newline=''`; heredoc berisi tanda kutip gagal di shell ini, pakai tool Write.
+
 ## 9. Prompt siap pakai
 
-### Prompt Tahap 4 (tempel di chat baru)
+### Prompt Tahap 5 (tempel di chat baru)
+
+```text
+Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 3, 6 "Tahap 5", 7, dan 8 terutama "Hasil Tahap 4" 8.20-8.21), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), serta ipc_app/CLAUDE.md (hanya baca).
+
+Konteks: Tahap 1-4 selesai (Case, Product Journey minimal, Assessment, Validation Plan, tautan Tooling/Improvement, penerbit QCO/IM, lookup batch IPC read-only, Mixing). Migrasi dan backfill v2.0 belum dijalankan di server dev/prod. Tanyakan ke saya lebih dulu sebelum membangun: format ekspor stakeholder (PDF saja atau juga Excel), siapa pembacanya (internal PIE, client, manajemen), dan apakah ringkasan "bahasa biasa" boleh disusun dari aturan (tanpa LLM) atau perlu Vision Service insights. Jangan menebak.
+
+Kerjakan HANYA Tahap 5, sesuai bagian 6: Product Journey penuh (timeline lintas modul: Assessment, Validation Plan, Trial/Re-trial, Mixing, Tooling, Improvement/Project, QCO/IM, batch IPC), filter per produk/client/periode, ekspor PDF tiga bahasa lewat PdfService (Blade view + Browsershot, pola yang ada), dan ringkasan dalam bahasa biasa. Semua data dari tabel yang sudah ada (read-only); kalau perlu tabel, additive dengan hasTable guard dan tanpa FK. id/en/ko, Pest test, gate lengkap (Pint hanya `composer run lint:check`, bukan `composer run lint`; Larastan, php artisan test, ESLint, Prettier, tsc, npm run build), verifikasi live Playwright di DB SALINAN baru dari trial_validation_system_v2t4 lewat mysqldump dengan DB_DATABASE env override (cek namanya dulu; Playwright lokal butuh executablePath ke chromium_headless_shell-1248), lalu ritual penutup: update plan bagian 8, CLAUDE.md (root dan new_trial_validation_app/), commit pesan English dengan stage file spesifik, dan tulis catatan penutup (v2.0 selesai, apa yang perlu dijalankan di dev/prod).
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama/dev/prod, jangan --env= tanpa file .env.<nama>, jangan factory di tinker, jangan menyentuh Project-Tracking-PIE-Team/, jangan UPDATE trials_header, jangan menulis ke ipc_system atau mengubah ipc_app/. Edit file lewat skrip Python harus memakai newline='' (kalau tidak Windows menulis CRLF); heredoc berisi tanda kutip gagal di shell ini, pakai tool Write.
+```
+
+### Prompt Tahap 4 (arsip, sudah dikerjakan 2026-11-26)
 
 ```text
 Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 6 "Tahap 4", 7 (D8), dan 8 terutama "Hasil Tahap 3" 8.17-8.19), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), serta ipc_app/CLAUDE.md (hanya baca).

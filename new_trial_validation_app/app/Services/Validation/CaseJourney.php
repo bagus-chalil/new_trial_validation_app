@@ -5,6 +5,7 @@ namespace App\Services\Validation;
 use App\Actions\Validation\AssignImprovementNumber;
 use App\Models\ImNumber;
 use App\Models\Improvement;
+use App\Models\Mixing;
 use App\Models\Project;
 use App\Models\QcoNumber;
 use App\Models\Tooling;
@@ -191,6 +192,34 @@ class CaseJourney
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * Mixing records (Tahap 4) linked to this Case through vd_case_links kind `mixing`.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function mixings(ValidationCase $case): array
+    {
+        if (! Schema::hasTable('vd_mixings')) {
+            return [];
+        }
+
+        return Mixing::query()
+            ->whereNull('deleted_at')
+            ->whereIn('id', ValidationCaseLink::query()->where('case_id', $case->id)->where('kind', 'mixing')->pluck('ref_id'))
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Mixing $m) => [
+                'id' => $m->id,
+                'mixing_code' => $m->mixing_code,
+                'batch_no' => $m->batch_no,
+                'mixing_date' => $m->mixing_date?->toDateString(),
+                'progress_status' => $m->progress_status,
+                'batch_record_revision' => $m->batch_record_revision,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

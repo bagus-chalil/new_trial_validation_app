@@ -135,6 +135,12 @@ export function AppSidebar() {
                     icon: FileText,
                     activePattern: /^\/validation\/im(\/|$)/,
                 },
+                {
+                    title: t('mixing.nav'),
+                    href: '/mixings',
+                    icon: FlaskConical,
+                    activePattern: /^\/mixings(\/|$)/,
+                },
             ],
         },
         {

@@ -22,6 +22,8 @@ import type {
     CasePlan,
     CaseTooling,
 } from '@/components/validation/case-extras';
+import { CaseMixings } from '@/components/validation/case-mixings';
+import type { CaseMixing } from '@/components/validation/case-mixings';
 import {
     CaseIpcBatches,
     CaseNumbers,
@@ -109,6 +111,8 @@ type PageProps = {
     availableNumbers: AvailableNumbers;
     canLinkNumbers: { qco: boolean; im: boolean };
     ipc: IpcData;
+    mixings: CaseMixing[];
+    canCreateMixing: boolean;
 };
 
 function ClientApprovalDialog({
@@ -202,6 +206,8 @@ export default function JourneyShow({
     availableNumbers,
     canLinkNumbers,
     ipc,
+    mixings,
+    canCreateMixing,
 }: PageProps) {
     const { t, formatDateOnly } = useTranslation();
     const [editing, setEditing] = useState<Attempt | null>(null);
@@ -252,6 +258,12 @@ export default function JourneyShow({
                     numbers={numbers}
                     available={availableNumbers}
                     canLink={canLinkNumbers}
+                />
+
+                <CaseMixings
+                    caseId={caseData.id}
+                    mixings={mixings}
+                    canCreate={canCreateMixing}
                 />
 
                 <CaseIpcBatches ipc={ipc} />
