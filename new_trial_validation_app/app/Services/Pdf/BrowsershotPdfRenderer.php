@@ -53,19 +53,24 @@ use Spatie\Browsershot\Browsershot;
  */
 class BrowsershotPdfRenderer implements PdfRenderer
 {
-    public function render(string $html): string
+    public function render(string $html, array $options = []): string
     {
         $cacheDir = storage_path('app/puppeteer-cache');
         putenv("PUPPETEER_CACHE_DIR={$cacheDir}");
         $_ENV['PUPPETEER_CACHE_DIR'] = $cacheDir;
 
-        return Browsershot::html($html)
+        $shot = Browsershot::html($html)
             ->format('A4')
             ->margins(10, 10, 10, 10)
             ->showBackground()
             ->waitUntilNetworkIdle()
             ->timeout(60)
-            ->noSandbox()
-            ->pdf();
+            ->noSandbox();
+
+        if (! empty($options['landscape'])) {
+            $shot->landscape();
+        }
+
+        return $shot->pdf();
     }
 }

@@ -11,12 +11,13 @@ class PdfService
     /**
      * @param  view-string  $view
      * @param  array<string, mixed>  $data
+     * @param  array{landscape?: bool}  $options
      */
-    public function fromView(string $view, array $data, string $filename): Response
+    public function fromView(string $view, array $data, string $filename, array $options = []): Response
     {
         $html = view($view, $data)->render();
 
-        $pdf = $this->renderer->render($html);
+        $pdf = $this->renderer->render($html, $options);
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',

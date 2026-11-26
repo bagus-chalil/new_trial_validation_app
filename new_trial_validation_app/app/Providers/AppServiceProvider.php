@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\ImSignoff;
 use App\Models\LineConfigurationLane;
 use App\Models\User;
+use App\Policies\ImRevisionPolicy;
 use App\Services\Pdf\BrowsershotPdfRenderer;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Projects\ToolingWorkflow;
@@ -96,6 +98,8 @@ class AppServiceProvider extends ServiceProvider
         // such as stage templates). Per-project/improvement rules live in
         // ProjectPolicy / ImprovementPolicy.
         Gate::define('manage-projects', fn (User $user) => $user->isAdmin());
+        // IM master (Tahap 6): the sign-off row is authorised by the same policy as its revision.
+        Gate::policy(ImSignoff::class, ImRevisionPolicy::class);
         // Finance (Quotation & PO): Admin and PIE/PI only (decision 2026-11-25).
         Gate::define('access-finance', fn (User $user) => $user->isAdmin() || ToolingWorkflow::hasRole($user, 'pi'));
         Gate::define('manage-line-configuration-report', fn (User $user) => $user->isAdmin()

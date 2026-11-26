@@ -6,6 +6,8 @@ use App\Http\Controllers\ValidationCaseImprovementController;
 use App\Http\Controllers\ValidationCaseNumberController;
 use App\Http\Controllers\ValidationCaseToolingController;
 use App\Http\Controllers\ValidationImController;
+use App\Http\Controllers\ValidationImMasterController;
+use App\Http\Controllers\ValidationImRevisionController;
 use App\Http\Controllers\ValidationJourneyController;
 use App\Http\Controllers\ValidationPlanController;
 use App\Http\Controllers\ValidationQcoController;
@@ -52,4 +54,23 @@ Route::middleware(['auth', 'verified'])->prefix('validation')->as('validation.')
     Route::post('im/brands', [ValidationImController::class, 'storeBrand'])->name('im.brands.store');
     Route::post('im/{im}/revise', [ValidationImController::class, 'revise'])->whereNumber('im')->name('im.revise');
     Route::post('im/{im}/void', [ValidationImController::class, 'void'])->whereNumber('im')->name('im.void');
+
+    // Tahap 6: IM master owned by QA (one per FG Code, N revisions, QA approval).
+    Route::get('im-masters', [ValidationImMasterController::class, 'index'])->name('im-masters.index');
+    Route::post('im-masters', [ValidationImMasterController::class, 'store'])->name('im-masters.store');
+    Route::get('im-masters/{master}', [ValidationImMasterController::class, 'show'])->whereNumber('master')->name('im-masters.show');
+    Route::post('im-masters/{master}/revisions', [ValidationImMasterController::class, 'revisionStore'])->whereNumber('master')->name('im-masters.revisions.store');
+
+    Route::get('im-revisions/{revision}', [ValidationImRevisionController::class, 'show'])->whereNumber('revision')->name('im-revisions.show');
+    Route::put('im-revisions/{revision}', [ValidationImRevisionController::class, 'update'])->whereNumber('revision')->name('im-revisions.update');
+    Route::delete('im-revisions/{revision}', [ValidationImRevisionController::class, 'destroy'])->whereNumber('revision')->name('im-revisions.destroy');
+    Route::post('im-revisions/{revision}/submit', [ValidationImRevisionController::class, 'submit'])->whereNumber('revision')->name('im-revisions.submit');
+    Route::post('im-revisions/{revision}/decision', [ValidationImRevisionController::class, 'decide'])->whereNumber('revision')->name('im-revisions.decision');
+    Route::post('im-signoffs/{signoff}/review', [ValidationImRevisionController::class, 'review'])->whereNumber('signoff')->name('im-signoffs.review');
+    Route::post('im-revisions/{revision}/files', [ValidationImRevisionController::class, 'fileStore'])->whereNumber('revision')->name('im-revisions.files.store');
+    Route::delete('im-revisions/{revision}/files/{file}', [ValidationImRevisionController::class, 'fileDestroy'])
+        ->whereNumber('revision')->whereNumber('file')->name('im-revisions.files.destroy');
+    Route::get('im-revisions/{revision}/files/{file}', [ValidationImRevisionController::class, 'fileShow'])
+        ->whereNumber('revision')->whereNumber('file')->name('im-revisions.files.show');
+    Route::get('im-revisions/{revision}/pdf', [ValidationImRevisionController::class, 'pdf'])->whereNumber('revision')->name('im-revisions.pdf');
 });

@@ -18,5 +18,8 @@ Schedule::command('ai:bot-prune')->dailyAt('03:00')->withoutOverlapping();
 // Idempotent, no notifications. Drop once the legacy app is switched off (Fase 4).
 Schedule::command('projects:sync-trial-stages')->hourly()->withoutOverlapping();
 
+// IM (QA): an approved future revision becomes Effective on its release date.
+Schedule::command('validation:im-release')->hourly()->withoutOverlapping();
+
 // Archive finished trials after a year (reversible from Admin > Archive).
 Schedule::command('trials:auto-archive')->dailyAt('03:30')->withoutOverlapping();

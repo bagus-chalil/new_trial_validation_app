@@ -11,7 +11,7 @@ use App\Services\Pdf\PdfRenderer;
  */
 class FakePdfRenderer implements PdfRenderer
 {
-    public function render(string $html): string
+    public function render(string $html, array $options = []): string
     {
         return "%PDF-FAKE\n".$html;
     }

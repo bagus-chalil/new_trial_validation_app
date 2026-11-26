@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Validation\IssueImNumber;
 use App\Models\ImBrandCode;
 use App\Models\ImNumber;
+use App\Models\ImRevision;
 use App\Models\Product;
 use App\Models\ValidationCaseLink;
 use App\Services\Validation\ValidationRoles;
@@ -126,6 +127,7 @@ class ValidationImController extends Controller
         abort_unless(ValidationRoles::isQa($request->user()), 403);
 
         $previous = ImNumber::query()->findOrFail($im);
+        $this->assertNotManaged($previous);
 
         $data = $request->validate([
             'revision_reason' => ['required', 'string', 'max:255'],
@@ -147,6 +149,7 @@ class ValidationImController extends Controller
         abort_unless(ValidationRoles::isQa($request->user()), 403);
 
         $model = ImNumber::query()->findOrFail($im);
+        $this->assertNotManaged($model);
         $data = $request->validate(['reason' => ['required', 'string', 'max:255']]);
 
         $action->void($model, $data['reason'], $request->user());
@@ -154,6 +157,14 @@ class ValidationImController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('numbers.toast.number_void')]);
 
         return back();
+    }
+
+    /** Numbers owned by an IM master move only through its revision workflow (QA approval). */
+    private function assertNotManaged(ImNumber $number): void
+    {
+        if (Schema::hasTable('vd_im_revisions') && ImRevision::query()->where('im_number_id', $number->id)->exists()) {
+            abort(422, __('im_master.error.managed_number'));
+        }
     }
 
     public function storeBrand(Request $request): RedirectResponse

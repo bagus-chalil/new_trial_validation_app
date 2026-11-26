@@ -10,5 +10,6 @@ namespace App\Services\Pdf;
  */
 interface PdfRenderer
 {
-    public function render(string $html): string;
+    /** @param array{landscape?: bool} $options */
+    public function render(string $html, array $options = []): string;
 }

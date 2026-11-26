@@ -18,6 +18,7 @@ import {
     ClipboardCheck,
     FlaskConical,
     History,
+    FileCheck,
     Hourglass,
     KeyRound,
     LayoutGrid,
@@ -68,6 +69,7 @@ import { index as reviewsIndex } from '@/routes/reviews';
 import { index as trialsIndex } from '@/routes/trials';
 import { index as assessmentsIndex } from '@/routes/validation/assessments';
 import { index as imIndex } from '@/routes/validation/im';
+import { index as imMastersIndex } from '@/routes/validation/im-masters';
 import { index as plansIndex } from '@/routes/validation/plans';
 import { index as qcoIndex } from '@/routes/validation/qco';
 import type { Auth, NavGroup } from '@/types';
@@ -134,6 +136,13 @@ export function AppSidebar() {
                     href: imIndex(),
                     icon: FileText,
                     activePattern: /^\/validation\/im(\/|$)/,
+                },
+                {
+                    title: t('im_master.nav'),
+                    href: imMastersIndex(),
+                    icon: FileCheck,
+                    activePattern:
+                        /^\/validation\/im-(masters|revisions)(\/|$)/,
                 },
                 {
                     title: t('mixing.nav'),
