@@ -9,6 +9,7 @@ use App\Models\ValidationAssessment;
 use App\Models\ValidationCase;
 use App\Models\ValidationCaseLink;
 use App\Services\Validation\CaseJourney;
+use App\Services\Validation\IpcBatchLookup;
 use App\Services\Validation\ValidationRoles;
 use App\Support\ValidationCaseType;
 use Illuminate\Http\RedirectResponse;
@@ -88,6 +89,8 @@ class ValidationJourneyController extends Controller
         return Inertia::render('journey/show', [
             ...$journey->build($case, $request->user()),
             ...$journey->extras($case),
+            ...$journey->numbers($case, $request->user()),
+            'ipc' => app(IpcBatchLookup::class)->forCase($case),
             'canCreateTrial' => Gate::forUser($request->user())->allows('create', Trial::class),
             'canManageCase' => ValidationRoles::isPie($request->user()),
             'canEditAssessment' => Gate::forUser($request->user())->allows('create', ValidationAssessment::class),

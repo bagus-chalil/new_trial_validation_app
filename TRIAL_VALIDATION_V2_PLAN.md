@@ -104,8 +104,8 @@ Urutan ditetapkan user 2026-11-25: **Tahap 0 harus selesai dulu.** IM dan QCO ge
 | D3 | Satu Case boleh banyak Trial (Re-trial)? | ya |
 | D4 | Definisi "satu kali trial" (bagian 3) | disubmit, bukan Draft/terhapus; Rejected dan Re-trial dihitung |
 | D5 | Aturan *Pending approval delete* | belum ada (Excel hanya menulis judulnya di menu Trials; tanya user) |
-| D6 | Format nomor IM | **Penerbit: QA (ditetapkan 2026-11-25), Tahap 3.** Format dan alur approval belum ada; isian manual sampai Tahap 3 |
-| D7 | Format nomor QCO, integrasi QCO elektronik (TBD di Excel) | **Penerbit: PRNI (ditetapkan 2026-11-25), Tahap 3.** Format belum ada; isian manual sampai Tahap 3 |
+| D6 | Format nomor IM | **Diputuskan 2026-11-26 (Tahap 3):** `IM-{KODE CUSTOMER/BRAND}-{NAMA PRODUK UKURAN}`, versi pertama tanpa sufiks, revisi ` V2`, ` V3`; UPPER CASE, spasi tunggal (dinormalkan). Penerbit QA, tanpa approval penerbitan (rantai tanda tangan IM tetap di kertas). Dibangun di 8.17 |
+| D7 | Format nomor QCO, integrasi QCO elektronik (TBD di Excel) | **Diputuskan 2026-11-26 (Tahap 3):** `QCO-{YYYY}-{NNNN}`, urutan per tahun, penerbit PRNI, tanpa approval. Integrasi QCO elektronik tetap TBD. Dibangun di 8.17 |
 | D8 | Mixing: bukti revisi batch record, kategori produk | menunggu tim (Mr. Moon) |
 | D9 | Siapa yang menentukan Risk (PIE saat assessment atau dihitung) | PIE saat assessment |
 
@@ -228,9 +228,39 @@ Dibangun di `new_trial_validation_app/`. **Belum dijalankan ke server dev/prod**
 - **PPIC** diatur sebagai Review Team lewat Access Rights (tanpa kode baru).
 - 3 Pest test baru (total 17 di `ValidationAssessmentTest.php`); suite penuh 736 lulus dari 740 (1 gagal lama ZipArchive, 3 skip lama); Larastan hanya 2 error lama; verifikasi live Playwright pada salinan `trial_validation_system_v2t2` (lengkapi Case 307, tautkan Improvement, halaman Improvement menunjuk balik ke Case).
 
+### Hasil Tahap 3 (2026-11-26) — penerbit nomor QCO dan IM, lookup batch IPC read-only
+
+**8.17 Keputusan user (jawaban atas pertanyaan format)**
+- QCO: `QCO-YYYY-NNNN`, diterbitkan PRNI, tanpa approval. IM: contoh nyata dari user (`IM-ABL-SCULPT CALM LILY DEODORANT 25ML V2`, `IM-BHM- BHUMI CALMING CLEANSER 100ML- V2`, form FR.QAC.050.01) menunjukkan format **deskriptif, bukan urutan**: `IM-{kode customer/brand}-{nama produk + ukuran}[ V{n}]`. Versi pertama tanpa sufiks lalu V2, V3 (IM BHM lama memakai sufiks `A`; input historis seperti itu tetap diterima sebagai teks). Spasi dan huruf dirapikan otomatis (UPPER CASE, spasi tunggal) supaya cocok dengan IPC. Penerbit IM: QA (departemen/review unit `QA` atau `QAC`). Tanpa approval penerbitan: rantai tanda tangan di halaman Validasi IM (QA Staff, QA Part Leader, QC, Production, PPIC, QAC Leader, Customer) tetap di dokumen kertas dan tidak dibangun. Hanya nomor + metadata header yang dicatat, PDF IM tidak diunggah.
+
+**8.18 Yang dibangun**
+- Migrasi `2026_11_28_000001_create_vd_number_registers` (additive, `hasTable`, tanpa FK): `vd_qco_numbers`, `vd_im_brand_codes`, `vd_im_numbers`. Counter QCO memakai baris `vd_number_counters` terkunci (scope `qco`, period tahun), bukan `MAX()+1`; unique `(year, seq)` dan unique `number` sebagai pengaman.
+- `IssueQcoNumber`, `IssueImNumber` (terbit, revisi V+1 yang menandai IM lama `Superseded` dan mencatat "Menggantikan", batalkan dengan alasan; nomor Void tidak dipakai ulang), `LinkCaseNumber` (kind `qco`/`im`, `ref_key` = nomor, satu Case per nomor), `ImNumberFormat::normalize/compose`. Peran: `ValidationRoles::isPrni` / `isQa` (Admin semuanya); semua pengguna login boleh membaca. Semua aksi masuk `activity_logs` (`QCO_NUMBER`, `IM_NUMBER`, `VALIDATION_CASE`).
+- Halaman `/validation/qco` dan `/validation/im` (+ kode customer/brand baru langsung dari dialog IM), menu sidebar, kartu "Nomor QCO & IM" di halaman Case (tautkan/lepas oleh PIE atau penerbit), string `numbers.php` id/en/ko. Isian QCO manual di Assessment tidak diubah.
+- **IPC read-only** (`IpcBatchLookup`): koneksi DB `ipc_system` (`IPC_DB_*`, default memakai host/kredensial `DB_*`; pakai akun SELECT-only bila ada), kartu "Batch IPC" di halaman Case. Padanan: nomor IM batch (`startup_checks.im_document_number`, dinormalkan) sama dengan IM tertaut ke Case, atau `master_products.fg_code` sama dengan FG produk Case / FG di IM (kode kosong dan `N/A` diabaikan). Tidak pernah menulis dan tidak pernah melempar: bila IPC tidak terbaca halaman menampilkan "tidak tersedia". **Tidak ada perubahan di `ipc_app/`.** Opsi lanjutan "Startup Check IPC memilih IM dari daftar terbit dan menyimpan Case No" butuh rencana dan persetujuan sendiri (migrasi IPC lewat pipeline).
+- 15 Pest test baru (`tests/Feature/ValidationNumbersTest.php`); suite penuh 751 lulus dari 755 (1 gagal lama ZipArchive, 3 skip lama); Pint `lint:check` lulus; Larastan hanya 2 error lama (`TrialMonitorController`, migrasi `rename_pi_review_team_to_pie`); tsc dan build lulus; ESLint hanya 1 error lama (`toolings/show.tsx`). Verifikasi live Playwright pada salinan baru `trial_validation_system_v2t3` (dari `v2t2`, migrasi Tahap 3 dijalankan hanya di salinan): QCO-2026-0001 terbit, IM BHM terbit lalu direvisi ke V2 (V1 jadi Superseded), keduanya ditautkan ke Case 324, dan kartu Batch IPC menampilkan 2 batch nyata dari `ipc_system` lewat FG 651702009; `ipc_batches` tetap 917 baris.
+
+**8.19 Catatan dan yang masih terbuka**
+- Migrasi `2026_11_28_000001` belum dijalankan di server dev/prod (ikut `migrate --force` pipeline), begitu juga migrasi/backfill Tahap 1-2. Sampai itu jalan, halaman register menampilkan peringatan "tabel belum tersedia" dan Journey tetap jalan.
+- Server dev/prod harus punya kredensial baca ke `ipc_system` (`IPC_DB_*`); bila tidak, kartu IPC menampilkan "tidak tersedia".
+- Kode customer/brand diisi QA lewat dialog IM (belum ada master terpisah atau impor). Akun "Viewer PRNI/QAC" lokal bisa menerbitkan karena departemennya PRNI/QAC (sejalan K6 Tahap 4b).
+- Python di Windows menulis CRLF saat membuka file teks; semua edit file lewat skrip harus memakai `newline=''` (Pint melaporkan `line_ending`).
+
 ## 9. Prompt siap pakai
 
-### Prompt Tahap 3 (tempel di chat baru)
+### Prompt Tahap 4 (tempel di chat baru)
+
+```text
+Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 6 "Tahap 4", 7 (D8), dan 8 terutama "Hasil Tahap 3" 8.17-8.19), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), serta ipc_app/CLAUDE.md (hanya baca).
+
+Konteks: Tahap 1-3 selesai (Case, Product Journey, Assessment, Validation Plan, tautan Tooling/Improvement, penerbit nomor QCO dan IM, lookup batch IPC read-only). Migrasi dan backfill v2.0 belum dijalankan di server dev/prod. Jangan membangun Tahap 5. D8 (poin TBD tim Mr. Moon: cara melampirkan bukti revisi batch record, kategori produk Mixing) belum terjawab: tanyakan ke saya lebih dulu dan jangan menebak. Tanyakan juga apakah Mixing memakai pola approval yang sama dengan Trial.
+
+Kerjakan HANYA Tahap 4, sesuai bagian 6: Mixing sebagai jenis Case MIX dengan tabel baru vd_* (additive, hasTable guard, tanpa FK; JANGAN mengubah trials_header, app legacy masih memakainya), wizard berbasis konfigurasi langkah per jenis Case (Trial 6 langkah; Mixing tanpa Weighing), tercatat di Case lewat vd_case_links kind `mixing`, Product Journey menampilkan Mixing, id/en/ko, Pest test, gate lengkap (Pint hanya `composer run lint:check`, bukan `composer run lint`; Larastan, php artisan test, ESLint, Prettier, tsc, npm run build), verifikasi live Playwright di DB SALINAN baru dari trial_validation_system_v2t3 lewat mysqldump dengan DB_DATABASE env override (cek namanya dulu), lalu ritual penutup: update plan bagian 8, CLAUDE.md (root dan new_trial_validation_app/), commit pesan English dengan stage file spesifik, tulis prompt Tahap 5.
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama/dev/prod, jangan --env= tanpa file .env.<nama>, jangan factory di tinker, jangan menyentuh Project-Tracking-PIE-Team/, jangan UPDATE trials_header, jangan menulis ke ipc_system atau mengubah ipc_app/. Edit file lewat skrip Python harus memakai newline='' (kalau tidak Windows menulis CRLF); heredoc berisi tanda kutip gagal di sini, pakai tool Write.
+```
+
+### Prompt Tahap 3 (arsip, sudah dikerjakan 2026-11-26)
 
 ```text
 Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 6 "Tahap 3", 7 (D6/D7), dan 8 terutama "Hasil Tahap 2" 8.13-8.15), PROJECT_MODULE_PLAN.md bagian 6-7, CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), serta ipc_app/CLAUDE.md (hanya baca; ipc_app proyek terpisah).

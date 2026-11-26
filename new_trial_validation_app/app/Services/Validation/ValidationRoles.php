@@ -33,4 +33,26 @@ final class ValidationRoles
 
         return false;
     }
+
+    /** PRNI issues QCO numbers. */
+    public static function isPrni(User $user): bool
+    {
+        return $user->isAdmin() || ToolingWorkflow::hasRole($user, 'prni');
+    }
+
+    /** QA (department QA or QAC) issues IM numbers. */
+    public static function isQa(User $user): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        foreach ([$user->department, $user->review_unit] as $value) {
+            if (in_array(strtoupper(trim((string) $value)), ['QA', 'QAC'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

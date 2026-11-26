@@ -7,6 +7,8 @@ import {
     Bot,
     BriefcaseBusiness,
     CalendarDays,
+    FileText,
+    Hash,
     ClipboardList,
     FolderKanban,
     Lightbulb,
@@ -65,7 +67,9 @@ import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { index as trialsIndex } from '@/routes/trials';
 import { index as assessmentsIndex } from '@/routes/validation/assessments';
+import { index as imIndex } from '@/routes/validation/im';
 import { index as plansIndex } from '@/routes/validation/plans';
+import { index as qcoIndex } from '@/routes/validation/qco';
 import type { Auth, NavGroup } from '@/types';
 
 export function AppSidebar() {
@@ -118,6 +122,18 @@ export function AppSidebar() {
                     href: plansIndex(),
                     icon: CalendarDays,
                     activePattern: /^\/validation\/plans(\/|$)/,
+                },
+                {
+                    title: t('numbers.nav.qco'),
+                    href: qcoIndex(),
+                    icon: Hash,
+                    activePattern: /^\/validation\/qco(\/|$)/,
+                },
+                {
+                    title: t('numbers.nav.im'),
+                    href: imIndex(),
+                    icon: FileText,
+                    activePattern: /^\/validation\/im(\/|$)/,
                 },
             ],
         },

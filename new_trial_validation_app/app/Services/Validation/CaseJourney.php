@@ -3,8 +3,10 @@
 namespace App\Services\Validation;
 
 use App\Actions\Validation\AssignImprovementNumber;
+use App\Models\ImNumber;
 use App\Models\Improvement;
 use App\Models\Project;
+use App\Models\QcoNumber;
 use App\Models\Tooling;
 use App\Models\Trial;
 use App\Models\TrialLineConfigurationReport;
@@ -188,6 +190,51 @@ class CaseJourney
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * Tahap 3: QCO / IM numbers recorded on the Case, plus the issued numbers
+     * not tied to any Case yet (pick list of the link dialog) and who may link.
+     *
+     * @return array<string, mixed>
+     */
+    public function numbers(ValidationCase $case, User $user): array
+    {
+        $empty = ['numbers' => ['qco' => [], 'im' => []], 'availableNumbers' => ['qco' => [], 'im' => []], 'canLinkNumbers' => ['qco' => false, 'im' => false]];
+
+        if (! Schema::hasTable('vd_qco_numbers') || ! Schema::hasTable('vd_im_numbers')) {
+            return $empty;
+        }
+
+        $links = ValidationCaseLink::query()->where('case_id', $case->id)->whereIn('kind', ['qco', 'im'])->get();
+        $takenQco = ValidationCaseLink::query()->where('kind', 'qco')->pluck('ref_key');
+        $takenIm = ValidationCaseLink::query()->where('kind', 'im')->pluck('ref_key');
+
+        $qco = QcoNumber::query()->whereIn('number', $links->where('kind', 'qco')->pluck('ref_key'))->get();
+        $im = ImNumber::query()->whereIn('number', $links->where('kind', 'im')->pluck('ref_key'))->get();
+
+        return [
+            'numbers' => [
+                'qco' => $qco->map(fn (QcoNumber $n) => [
+                    'id' => $n->id, 'number' => $n->number, 'status' => $n->status, 'client' => $n->client,
+                ])->values()->all(),
+                'im' => $im->map(fn (ImNumber $n) => [
+                    'id' => $n->id, 'number' => $n->number, 'status' => $n->status, 'version_no' => $n->version_no,
+                ])->values()->all(),
+            ],
+            'availableNumbers' => [
+                'qco' => QcoNumber::query()->where('status', 'Issued')->whereNotIn('number', $takenQco)
+                    ->orderByDesc('id')->limit(200)->get()
+                    ->map(fn (QcoNumber $n) => ['id' => $n->id, 'label' => trim($n->number.' · '.$n->product_name, ' ·')])->values()->all(),
+                'im' => ImNumber::query()->where('status', '!=', 'Void')->whereNotIn('number', $takenIm)
+                    ->orderByDesc('id')->limit(200)->get()
+                    ->map(fn (ImNumber $n) => ['id' => $n->id, 'label' => $n->number])->values()->all(),
+            ],
+            'canLinkNumbers' => [
+                'qco' => ValidationRoles::isPie($user) || ValidationRoles::isPrni($user),
+                'im' => ValidationRoles::isPie($user) || ValidationRoles::isQa($user),
+            ],
         ];
     }
 

@@ -22,6 +22,15 @@ import type {
     CasePlan,
     CaseTooling,
 } from '@/components/validation/case-extras';
+import {
+    CaseIpcBatches,
+    CaseNumbers,
+} from '@/components/validation/case-numbers';
+import type {
+    AvailableNumbers,
+    CaseNumbersData,
+    IpcData,
+} from '@/components/validation/case-numbers';
 import { useTranslation } from '@/hooks/use-translation';
 import {
     journeyResultClassName,
@@ -96,6 +105,10 @@ type PageProps = {
     plans: CasePlan[];
     canCreateTrial: boolean;
     canManageCase: boolean;
+    numbers: CaseNumbersData;
+    availableNumbers: AvailableNumbers;
+    canLinkNumbers: { qco: boolean; im: boolean };
+    ipc: IpcData;
 };
 
 function ClientApprovalDialog({
@@ -185,6 +198,10 @@ export default function JourneyShow({
     plans,
     canCreateTrial,
     canManageCase,
+    numbers,
+    availableNumbers,
+    canLinkNumbers,
+    ipc,
 }: PageProps) {
     const { t, formatDateOnly } = useTranslation();
     const [editing, setEditing] = useState<Attempt | null>(null);
@@ -229,6 +246,15 @@ export default function JourneyShow({
                     plans={plans}
                     canManageCase={canManageCase}
                 />
+
+                <CaseNumbers
+                    caseId={caseData.id}
+                    numbers={numbers}
+                    available={availableNumbers}
+                    canLink={canLinkNumbers}
+                />
+
+                <CaseIpcBatches ipc={ipc} />
 
                 <Card>
                     <CardHeader>

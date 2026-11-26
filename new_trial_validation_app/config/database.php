@@ -48,6 +48,24 @@ return [
             'engine' => null,
         ],
 
+        // READ-ONLY lookup into the separate IPC app's database (`ipc_system`,
+        // same MySQL instance). Used only by the Product Journey to list IPC
+        // batches; this app never writes to it. Point IPC_DB_USERNAME at a
+        // SELECT-only account where one exists.
+        'ipc_system' => [
+            'driver' => 'mysql',
+            'host' => env('IPC_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('IPC_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('IPC_DB_DATABASE', 'ipc_system'),
+            'username' => env('IPC_DB_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('IPC_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
