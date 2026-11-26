@@ -3,6 +3,8 @@
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
+use App\Models\ValidationCase;
+use App\Models\ValidationCaseLink;
 use Illuminate\Support\Carbon;
 
 function makeDashboardTrial(array $attributes = []): Trial
@@ -378,4 +380,34 @@ test('an invalid or half-filled overview period falls back to all time', functio
     $response->assertInertia(fn ($page) => $page
         ->where('period.from', '')
         ->where('summary.total', 1));
+});
+
+test('the dashboard overview splits NPD and Improvement trials per status and counts risk', function () {
+    $superAdmin = User::factory()->create(['role' => 'Super Admin']);
+    $mk = fn (string $type, string $no) => ValidationCase::create([
+        'case_no' => $no, 'case_type' => $type, 'period' => '2611', 'seq' => (int) substr($no, -3),
+        'product_name' => 'x', 'source' => 'manual',
+    ]);
+    $link = fn ($case, Trial $t) => ValidationCaseLink::create([
+        'case_id' => $case->id, 'kind' => 'trial', 'ref_id' => $t->id, 'ref_key' => (string) $t->id,
+    ]);
+
+    $npd = $mk('NPD', 'VAL-NPD-2611-001');
+    $imp = $mk('IMP', 'VAL-IMP-2611-002');
+    $link($npd, makeDashboardTrial(['progress_status' => 'In Review']));
+    $link($npd, makeDashboardTrial(['progress_status' => 'Approved']));
+    $link($npd, makeDashboardTrial(['progress_status' => 'Draft']));
+    $link($imp, makeDashboardTrial(['progress_status' => 'Ready for Approval']));
+    makeDashboardTrial(['product_type' => 'Mixing', 'progress_status' => 'Rejected']);
+
+    $this->actingAs($superAdmin)
+        ->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('validationOverview.npd.total', 2)
+            ->where('validationOverview.npd.in_review', 1)
+            ->where('validationOverview.npd.done', 1)
+            ->where('validationOverview.improvement.total', 1)
+            ->where('validationOverview.improvement.awaiting_approval', 1)
+            ->where('validationOverview.mixing.rejected', 1)
+            ->where('validationOverview.risk.high', 0));
 });

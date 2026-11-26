@@ -5,6 +5,8 @@ return [
 
     'nav' => [
         'overview' => '개요',
+        'validation' => '검증',
+        'numbering' => '번호 관리',
         'trials' => '트라이얼',
         'results' => '결과',
         'report' => '보고서',

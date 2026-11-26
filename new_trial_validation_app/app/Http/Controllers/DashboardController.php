@@ -11,6 +11,7 @@ use App\Models\TrialReview;
 use App\Models\User;
 use App\Services\Projects\ToolingWorkflow;
 use App\Services\Validation\CaseJourney;
+use App\Services\Validation\DashboardValidationOverview;
 use App\Support\ToolingOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -92,6 +93,7 @@ class DashboardController extends Controller
             : null;
 
         return Inertia::render('dashboard', [
+            'validationOverview' => DashboardValidationOverview::build($user, $period),
             'leadTime' => $leadTime,
             'trials' => $trials,
             'filters' => $filters,

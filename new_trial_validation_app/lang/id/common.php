@@ -7,6 +7,8 @@ return [
 
     'nav' => [
         'overview' => 'Ringkasan',
+        'validation' => 'Validasi',
+        'numbering' => 'Penomoran',
         'trials' => 'Trial',
         'results' => 'Hasil',
         'report' => 'Laporan',

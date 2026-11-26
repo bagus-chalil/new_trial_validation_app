@@ -5,6 +5,8 @@ return [
 
     'nav' => [
         'overview' => 'Overview',
+        'validation' => 'Validation',
+        'numbering' => 'Numbering',
         'trials' => 'Trials',
         'results' => 'Results',
         'report' => 'Reports',

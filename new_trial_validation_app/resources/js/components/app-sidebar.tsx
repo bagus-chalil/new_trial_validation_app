@@ -103,6 +103,11 @@ export function AppSidebar() {
                     icon: LayoutGrid,
                 },
                 {
+                    title: t('common.nav.my_work'),
+                    href: '/my-work',
+                    icon: BriefcaseBusiness,
+                },
+                {
                     title: t('common.nav.monitoring'),
                     href: monitoringIndex(),
                     icon: Hourglass,
@@ -113,6 +118,11 @@ export function AppSidebar() {
                     icon: RouteIcon,
                     activePattern: /^\/journey(\/|$)/,
                 },
+            ],
+        },
+        {
+            label: t('common.nav.validation'),
+            items: [
                 {
                     title: t('common.nav.assessment'),
                     href: assessmentsIndex(),
@@ -124,41 +134,6 @@ export function AppSidebar() {
                     href: plansIndex(),
                     icon: CalendarDays,
                     activePattern: /^\/validation\/plans(\/|$)/,
-                },
-                {
-                    title: t('numbers.nav.qco'),
-                    href: qcoIndex(),
-                    icon: Hash,
-                    activePattern: /^\/validation\/qco(\/|$)/,
-                },
-                {
-                    title: t('numbers.nav.im'),
-                    href: imIndex(),
-                    icon: FileText,
-                    activePattern: /^\/validation\/im(\/|$)/,
-                },
-                {
-                    title: t('im_master.nav'),
-                    href: imMastersIndex(),
-                    icon: FileCheck,
-                    activePattern:
-                        /^\/validation\/im-(masters|revisions)(\/|$)/,
-                },
-                {
-                    title: t('mixing.nav'),
-                    href: '/mixings',
-                    icon: FlaskConical,
-                    activePattern: /^\/mixings(\/|$)/,
-                },
-            ],
-        },
-        {
-            label: t('common.nav.trials'),
-            items: [
-                {
-                    title: t('common.nav.my_work'),
-                    href: '/my-work',
-                    icon: BriefcaseBusiness,
                 },
                 {
                     title: t('common.nav.tracking'),
@@ -189,6 +164,36 @@ export function AppSidebar() {
                     trialStatuses: ['Need Revision'],
                     icon: AlertTriangle,
                 },
+                {
+                    title: t('mixing.nav'),
+                    href: '/mixings',
+                    icon: FlaskConical,
+                    activePattern: /^\/mixings(\/|$)/,
+                },
+            ],
+        },
+        {
+            label: t('common.nav.numbering'),
+            items: [
+                {
+                    title: t('numbers.nav.qco'),
+                    href: qcoIndex(),
+                    icon: Hash,
+                    activePattern: /^\/validation\/qco(\/|$)/,
+                },
+                {
+                    title: t('numbers.nav.im'),
+                    href: imIndex(),
+                    icon: FileText,
+                    activePattern: /^\/validation\/im(\/|$)/,
+                },
+                {
+                    title: t('im_master.nav'),
+                    href: imMastersIndex(),
+                    icon: FileCheck,
+                    activePattern:
+                        /^\/validation\/im-(masters|revisions)(\/|$)/,
+                },
             ],
         },
         {
@@ -205,6 +210,11 @@ export function AppSidebar() {
                     href: trialsIndex('rejected'),
                     trialStatuses: ['Rejected'],
                     icon: XCircle,
+                },
+                {
+                    title: t('common.nav.reports'),
+                    href: reportsIndex(),
+                    icon: Printer,
                 },
             ],
         },
@@ -246,16 +256,6 @@ export function AppSidebar() {
                           },
                       ]
                     : []),
-            ],
-        },
-        {
-            label: t('common.nav.report'),
-            items: [
-                {
-                    title: t('common.nav.reports'),
-                    href: reportsIndex(),
-                    icon: Printer,
-                },
             ],
         },
         {

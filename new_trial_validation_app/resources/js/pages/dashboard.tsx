@@ -22,6 +22,8 @@ import { StatusDistributionChart } from '@/components/dashboard/status-distribut
 import type { StatusDatum } from '@/components/dashboard/status-distribution-chart';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import type { TrendDatum } from '@/components/dashboard/trend-chart';
+import { ValidationOverview } from '@/components/dashboard/validation-overview';
+import type { ValidationOverviewData } from '@/components/dashboard/validation-overview';
 import type { ActiveFilterChip } from '@/components/filter-bar';
 import { FilterBar, FilterField, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
@@ -80,6 +82,7 @@ type PageProps = {
     summary: Summary;
     overview: Overview;
     period: DashboardPeriod;
+    validationOverview: ValidationOverviewData;
     leadTime: {
         avg_days: number | null;
         samples: number;
@@ -150,6 +153,7 @@ export default function Dashboard({
     summary,
     overview,
     period,
+    validationOverview,
     leadTime,
 }: PageProps) {
     const { t, intlLocale } = useTranslation();
@@ -357,6 +361,8 @@ export default function Dashboard({
                         </a>
                     ))}
                 </section>
+
+                <ValidationOverview data={validationOverview} />
 
                 <section className="grid items-stretch gap-4 lg:grid-cols-2">
                     <Card className="flex h-full flex-col lg:col-span-2">
