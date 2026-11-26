@@ -8,6 +8,7 @@ use App\Models\ImRevision;
 use App\Models\ImSignoff;
 use App\Models\User;
 use App\Support\ImLog;
+use App\Support\ImSignSlots;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -66,19 +67,22 @@ class ImWorkflow
         return $errors;
     }
 
-    /** @param list<int> $reviewerIds */
-    public function submit(ImRevision $revision, array $reviewerIds, User $approver, User $preparer): ImRevision
+    /**
+     * @param  list<int>  $reviewerIds
+     * @param  array<int, string>  $reviewerLabels  reviewer id => title on the sign-off sheet
+     */
+    public function submit(ImRevision $revision, array $reviewerIds, User $approver, User $preparer, array $reviewerLabels = []): ImRevision
     {
         $reviewers = User::query()->whereIn('id', $reviewerIds)->get();
 
-        DB::transaction(function () use ($revision, $reviewers, $approver, $preparer) {
+        DB::transaction(function () use ($revision, $reviewers, $approver, $preparer, $reviewerLabels) {
             $round = $revision->review_round;
 
             ImSignoff::query()->where('revision_id', $revision->id)->where('round', $round)->delete();
 
             ImSignoff::create([
                 'revision_id' => $revision->id, 'round' => $round, 'stage' => 'prepared',
-                'role_label' => 'Prepared by', 'user_id' => $preparer->id,
+                'role_label' => (string) config('im_signoff.prepared_label', 'QA Staff'), 'user_id' => $preparer->id,
                 'user_name' => (string) ($preparer->name ?: $preparer->email),
                 'status' => 'Signed', 'signed_at' => Carbon::now(),
             ]);
@@ -86,16 +90,24 @@ class ImWorkflow
             foreach ($reviewers as $reviewer) {
                 ImSignoff::create([
                     'revision_id' => $revision->id, 'round' => $round, 'stage' => 'review',
-                    'role_label' => 'Review by', 'user_id' => $reviewer->id,
+                    'role_label' => $reviewerLabels[$reviewer->id] ?? 'QA', 'user_id' => $reviewer->id,
                     'user_name' => (string) ($reviewer->name ?: $reviewer->email), 'status' => 'Pending',
                 ]);
             }
 
             ImSignoff::create([
                 'revision_id' => $revision->id, 'round' => $round, 'stage' => 'approved',
-                'role_label' => 'Approved by', 'user_id' => $approver->id,
+                'role_label' => (string) config('im_signoff.approved_label', 'QAC Leader'), 'user_id' => $approver->id,
                 'user_name' => (string) ($approver->name ?: $approver->email), 'status' => 'Pending',
             ]);
+
+            // "Knowledge by": informative rows, signed electronically by the matching team; they never block release.
+            foreach (ImSignSlots::knowledgeSlots() as $slot) {
+                ImSignoff::create([
+                    'revision_id' => $revision->id, 'round' => $round, 'stage' => 'knowledge',
+                    'role_label' => $slot['label'], 'user_id' => null, 'user_name' => '', 'status' => 'Pending',
+                ]);
+            }
 
             $revision->status = 'In Review';
             $revision->prepared_by_user_id = $preparer->id;
@@ -117,6 +129,26 @@ class ImWorkflow
         }
 
         return $revision->fresh() ?? $revision;
+    }
+
+    /** A team member acknowledges the IM ("Knowledge by"); signing with the own password was checked by the controller. */
+    public function acknowledge(ImSignoff $signoff, string $comment, User $user): void
+    {
+        $revision = $signoff->revision;
+        if ($revision === null) {
+            throw new \RuntimeException('Sign-off without a revision.');
+        }
+
+        DB::transaction(function () use ($signoff, $revision, $comment, $user) {
+            $signoff->status = 'Signed';
+            $signoff->user_id = $user->id;
+            $signoff->user_name = (string) ($user->name ?: $user->email);
+            $signoff->comment = $comment === '' ? null : $comment;
+            $signoff->signed_at = Carbon::now();
+            $signoff->save();
+
+            ImLog::write($user, 'KNOWLEDGE', $revision, ['role' => $signoff->role_label]);
+        });
     }
 
     public function review(ImSignoff $signoff, string $comment, User $reviewer): ImRevision

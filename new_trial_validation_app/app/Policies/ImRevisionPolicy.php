@@ -6,6 +6,7 @@ use App\Models\ImRevision;
 use App\Models\ImSignoff;
 use App\Models\User;
 use App\Services\Validation\ValidationRoles;
+use App\Support\ImSignSlots;
 use App\Support\SelfApprovalGuard;
 
 /**
@@ -76,5 +77,24 @@ class ImRevisionPolicy
         }
 
         return ValidationRoles::isQaEditor($user) && (int) $signoff->user_id === $user->id;
+    }
+
+    /** "Knowledge by" acknowledgement: a member of the slot's team, while the revision is in the QA chain. */
+    public function acknowledge(User $user, ImSignoff $signoff): bool
+    {
+        $revision = $signoff->revision;
+        if ($revision === null || ! in_array($revision->status, ['In Review', 'Ready for Approval'], true)) {
+            return false;
+        }
+
+        if ($signoff->stage !== 'knowledge' || $signoff->status !== 'Pending' || $signoff->round !== $revision->review_round) {
+            return false;
+        }
+
+        if (SelfApprovalGuard::isPreparerById($user, $revision->prepared_by_user_id)) {
+            return false;
+        }
+
+        return ImSignSlots::userMaySign($user, $signoff->role_label);
     }
 }

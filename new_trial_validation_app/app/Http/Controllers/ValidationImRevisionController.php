@@ -17,6 +17,7 @@ use App\Models\ValidationCaseLink;
 use App\Services\Pdf\PdfService;
 use App\Services\Validation\ValidationRoles;
 use App\Support\ImSections;
+use App\Support\ImSignSlots;
 use App\Support\SelfApprovalGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,6 +85,11 @@ class ValidationImRevisionController extends Controller
             'cases' => $canEdit ? ValidationImMasterController::caseOptions($master) : [],
             'linkedCase' => $linked === null ? null : ['id' => $linked->case_id, 'case_no' => $linked->validationCase?->case_no],
             'mySignoffId' => $mySignoff?->id,
+            'myKnowledgeIds' => $revision->signoffs
+                ->where('round', $revision->review_round)->where('stage', 'knowledge')
+                ->filter(fn (ImSignoff $s) => Gate::forUser($user)->allows('acknowledge', $s))
+                ->pluck('id')->values(),
+            'reviewLabels' => ImSignSlots::reviewLabels(),
             'can' => [
                 'edit' => $canEdit,
                 'delete' => Gate::allows('delete', $revision),
@@ -162,6 +168,8 @@ class ValidationImRevisionController extends Controller
         $data = $request->validate([
             'reviewer_ids' => ['required', 'array', 'min:1'],
             'reviewer_ids.*' => ['integer'],
+            'reviewer_labels' => ['nullable', 'array'],
+            'reviewer_labels.*' => ['nullable', 'string', Rule::in(ImSignSlots::reviewLabels())],
             'approver_user_id' => ['required', 'integer'],
             'signature_password' => ['required', 'string'],
         ]);
@@ -195,7 +203,14 @@ class ValidationImRevisionController extends Controller
             throw ValidationException::withMessages(['reviewer_ids' => implode(' | ', $errors)]);
         }
 
-        $workflow->submit($revision, $reviewerIds, $approver, $user);
+        $labels = [];
+        foreach ((array) ($data['reviewer_labels'] ?? []) as $id => $label) {
+            if (in_array((int) $id, $reviewerIds, true) && filled($label)) {
+                $labels[(int) $id] = (string) $label;
+            }
+        }
+
+        $workflow->submit($revision, $reviewerIds, $approver, $user, $labels);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('im_master.toast.submitted')]);
 
@@ -217,6 +232,25 @@ class ValidationImRevisionController extends Controller
         $workflow->review($signoff, trim($data['comment']), $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('im_master.toast.reviewed')]);
+
+        return back();
+    }
+
+    public function acknowledge(Request $request, int $signoff, ImWorkflow $workflow): RedirectResponse
+    {
+        $signoff = ImSignoff::query()->with('revision')->findOrFail($signoff);
+        Gate::authorize('acknowledge', $signoff);
+
+        $data = $request->validate([
+            'comment' => ['nullable', 'string', 'max:5000'],
+            'signature_password' => ['required', 'string'],
+        ]);
+
+        $this->assertPassword($request->user(), $data['signature_password']);
+
+        $workflow->acknowledge($signoff, trim((string) ($data['comment'] ?? '')), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('im_master.toast.acknowledged')]);
 
         return back();
     }
@@ -323,6 +357,8 @@ class ValidationImRevisionController extends Controller
             'prepared' => $signoffs->firstWhere('stage', 'prepared'),
             'reviews' => $signoffs->where('stage', 'review')->values(),
             'approval' => $signoffs->firstWhere('stage', 'approved'),
+            'knowledge' => $signoffs->where('stage', 'knowledge')->keyBy('role_label'),
+            'knowledgeSlots' => ImSignSlots::knowledgeSlots(),
             'isEffective' => $revision->status === 'Effective',
             'title' => $revision->im_number,
         ], $filename, ['landscape' => true]);

@@ -31,6 +31,10 @@
     .sig tr.grp td { height: auto; padding: 3px 4px; }
     .grp { background: #333; color: #fff; font-weight: 700; }
     .muted { color: #666; }
+    table.cols { border: 0; }
+    table.cols > tbody > tr > td.col { width: 50%; border: 0; padding: 0 3px; }
+    .sec.green { background: #7fbf6a; }
+    .legal { margin: 2px 0; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -78,19 +82,19 @@
         </table>
 
         @if ($page === 1)
-            <div class="sec">A. {{ __('im_master.pdf.fg_spec') }}</div>
-            <div class="sub">A.1 {{ __('im_master.pdf.appearance_filling') }}</div>
-            <table>
-                <tr class="th"><td style="width:14%">{{ __('im_master.pdf.item_no') }}</td><td>{{ __('im_master.pdf.packaging_material') }}</td><td style="width:16%">{{ __('im_master.pdf.category') }}</td></tr>
-                @forelse ($section('bom') as $row)
-                    <tr><td>{{ $row->code }}</td><td>{{ $row->name }}</td><td>{{ $row->category }}</td></tr>
-                @empty
-                    <tr><td colspan="3" class="muted">—</td></tr>
-                @endforelse
-            </table>
-
-            <table style="margin-top:4px"><tr>
-                <td style="width:50%; border:0; padding:0 4px 0 0">
+            {{-- Two columns like the paper IM: A.1 / points / A.3 on the left, A.2 and B on the right --}}
+            <table class="cols"><tr>
+                <td class="col">
+                    <div class="sec">A. {{ __('im_master.pdf.fg_spec') }}</div>
+                    <div class="sub">A.1 {{ __('im_master.pdf.appearance_filling') }}</div>
+                    <table>
+                        <tr class="th"><td style="width:22%">{{ __('im_master.pdf.item_no') }}</td><td>{{ __('im_master.pdf.packaging_material') }}</td><td style="width:20%">{{ __('im_master.pdf.category') }}</td></tr>
+                        @forelse ($section('bom') as $row)
+                            <tr><td>{{ $row->code }}</td><td>{{ $row->name }}</td><td>{{ $row->category }}</td></tr>
+                        @empty
+                            <tr><td colspan="3" class="muted">—</td></tr>
+                        @endforelse
+                    </table>
                     <div class="box"><h5>{{ __('im_master.pdf.point_filling') }}</h5>
                         <ol>@foreach ($section('filling_point') as $row)<li>{{ $nameOf($row) }}</li>@endforeach</ol></div>
                     <div class="box"><h5>{{ __('im_master.pdf.point_appearance') }}</h5>
@@ -98,9 +102,23 @@
                     @foreach ($images['appearance_filling'] ?? [] as $img)
                         <div class="gallery"><figure><img src="{{ $img['src'] }}" alt=""><figcaption>{{ $img['caption'] }}</figcaption></figure></div>
                     @endforeach
+
+                    <div class="sub">A.3 {{ __('im_master.pdf.weight_filling') }}</div>
+                    @if (! empty($content['legal_note']))<p class="legal">{{ $content['legal_note'] }}</p>@endif
+                    <table>
+                        <tr class="th"><td>{{ __('im_master.pdf.product_name') }}</td><td>{{ __('im_master.pdf.std_weight') }}</td><td>{{ __('im_master.pdf.bulk_code') }}</td><td>{{ __('im_master.pdf.fg_wip_code') }}</td></tr>
+                        @foreach ($section('weight') as $row)
+                            <tr>
+                                <td>{{ $row->name }}</td>
+                                <td style="text-align:center"><strong>{{ rtrim(rtrim((string) $row->value_min, '0'), '.') }} - {{ rtrim(rtrim((string) $row->value_max, '0'), '.') }} {{ $row->unit }}</strong></td>
+                                <td style="text-align:center">{{ $row->code }}</td>
+                                <td style="text-align:center">{{ $row->category }}</td>
+                            </tr>
+                        @endforeach
+                    </table>
                 </td>
-                <td style="width:50%; border:0; padding:0">
-                    <div class="sub" style="margin:0">A.2 {{ __('im_master.pdf.appearance_packing') }}</div>
+                <td class="col">
+                    <div class="sec">A.2 {{ __('im_master.pdf.appearance_packing') }}</div>
                     @foreach ($images['primary_packaging'] ?? [] as $img)
                         <div class="gallery"><figure><img src="{{ $img['src'] }}" alt=""><figcaption>{{ $img['caption'] }}</figcaption></figure></div>
                     @endforeach
@@ -110,22 +128,36 @@
                             @if (! empty($content[$key]))<div><strong>{{ $label }}</strong>: <span class="pre">{{ $content[$key] }}</span></div>@endif
                         @endforeach
                     </div>
+
+                    <div class="sec green" style="margin-top:6px">B. {{ __('im_master.pdf.surveillance') }}</div>
+                    @foreach (['surveillance_initial' => 'initial', 'surveillance_periodic' => 'periodic'] as $key => $label)
+                        @php
+                            $rows = $section($key)->values();
+                            // Merge consecutive identical frequencies into one tall cell, like the paper sheet.
+                            $spans = [];
+                            $head = 0;
+                            foreach ($rows as $i => $row) {
+                                $freq = trim((string) $row->frequency);
+                                if ($i > 0 && $freq !== '' && $freq === trim((string) $rows[$i - 1]->frequency)) {
+                                    $spans[$i] = 0;
+                                    $spans[$head]++;
+                                } else {
+                                    $spans[$i] = 1;
+                                    $head = $i;
+                                }
+                            }
+                        @endphp
+                        <table>
+                            <tr class="th2"><td style="width:30%">{{ __('im_master.pdf.check_'.$label) }}</td><td>{{ __('im_master.pdf.work_description') }}</td><td style="width:14%">{{ __('im_master.pdf.specification') }}</td><td style="width:24%">{{ __('im_master.pdf.frequency') }}</td></tr>
+                            @foreach ($rows as $i => $row)
+                                <tr><td>{{ $i + 1 }}. {{ $row->name }}</td><td>{{ $row->description }}</td><td>{{ $row->specification }}</td>
+                                    @if (($spans[$i] ?? 1) > 0)<td rowspan="{{ $spans[$i] ?? 1 }}" style="vertical-align:middle;text-align:center">{{ $row->frequency }}</td>@endif
+                                </tr>
+                            @endforeach
+                        </table>
+                    @endforeach
                 </td>
             </tr></table>
-
-            <div class="sub">A.3 {{ __('im_master.pdf.weight_filling') }}</div>
-            <table>
-                <tr class="th"><td>{{ __('im_master.pdf.product_name') }}</td><td>{{ __('im_master.pdf.std_weight') }}</td><td>{{ __('im_master.pdf.bulk_code') }}</td><td>{{ __('im_master.pdf.fg_wip_code') }}</td></tr>
-                @foreach ($section('weight') as $row)
-                    <tr>
-                        <td>{{ $row->name }}</td>
-                        <td style="text-align:center"><strong>{{ rtrim(rtrim((string) $row->value_min, '0'), '.') }} - {{ rtrim(rtrim((string) $row->value_max, '0'), '.') }} {{ $row->unit }}</strong></td>
-                        <td style="text-align:center">{{ $row->code }}</td>
-                        <td style="text-align:center">{{ $row->category }}</td>
-                    </tr>
-                @endforeach
-            </table>
-            @if (! empty($content['legal_note']))<p><strong>{{ $content['legal_note'] }}</strong></p>@endif
         @endif
 
         @if ($page === 2)
@@ -144,39 +176,40 @@
                 @if (! empty($content['pallet_layout']))<tr><td><strong>{{ __('im_master.pdf.pallet') }}</strong></td><td>{{ $content['pallet_layout'] }}</td></tr>@endif
                 @if (! empty($content['notes']))<tr><td><strong>{{ __('im_master.pdf.notes') }}</strong></td><td class="pre">{{ $content['notes'] }}</td></tr>@endif
             </table>
-
-            <div class="sec" style="margin-top:6px">B. {{ __('im_master.pdf.surveillance') }}</div>
-            @foreach (['surveillance_initial' => 'initial', 'surveillance_periodic' => 'periodic'] as $key => $label)
-                <table>
-                    <tr class="th2"><td style="width:28%">{{ __('im_master.pdf.check_'.$label) }}</td><td>{{ __('im_master.pdf.work_description') }}</td><td style="width:16%">{{ __('im_master.pdf.specification') }}</td><td style="width:22%">{{ __('im_master.pdf.frequency') }}</td></tr>
-                    @foreach ($section($key) as $i => $row)
-                        <tr><td>{{ $i + 1 }}. {{ $row->name }}</td><td>{{ $row->description }}</td><td>{{ $row->specification }}</td><td>{{ $row->frequency }}</td></tr>
-                    @endforeach
-                </table>
-            @endforeach
         @endif
 
         @if ($page === 3)
+            @php
+                $fixedReview = (array) config('im_signoff.review_labels', []);
+                $extraReviews = $reviews->reject(fn ($r) => in_array($r->role_label, $fixedReview, true));
+            @endphp
             <div class="sec">VALIDATION</div>
             <table class="sig">
                 <tr class="grp"><td colspan="4">PREPARED BY</td></tr>
-                <tr><td style="width:24%">{{ $prepared?->user_name ?? $revision->prepared_by_name }}<br><span class="muted">QA</span></td>
+                <tr><td style="width:24%">{{ $prepared?->user_name ?? $revision->prepared_by_name }}<br><span class="muted">{{ $prepared?->role_label ?: config('im_signoff.prepared_label') }}</span></td>
                     <td style="width:24%">@if ($prepared?->status === 'Signed')<strong>{{ __('im_master.pdf.signed_electronically') }}</strong>@endif</td>
                     <td style="width:16%">{{ $prepared?->signed_at?->format('d-m-Y H:i') }}</td><td>{{ $prepared?->comment }}</td></tr>
                 <tr class="grp"><td colspan="4">REVIEW BY</td></tr>
-                @forelse ($reviews as $r)
-                    <tr><td>{{ $r->user_name }}<br><span class="muted">QA</span></td>
+                @foreach ($fixedReview as $label)
+                    @php $r = $reviews->firstWhere('role_label', $label); @endphp
+                    <tr><td>{{ $r?->user_name }}<br><span class="muted">{{ $label }}</span></td>
+                        <td>@if ($r?->status === 'Signed')<strong>{{ __('im_master.pdf.signed_electronically') }}</strong>@endif</td>
+                        <td>{{ $r?->signed_at?->format('d-m-Y H:i') }}</td><td class="pre">{{ $r?->comment }}</td></tr>
+                @endforeach
+                @foreach ($extraReviews as $r)
+                    <tr><td>{{ $r->user_name }}<br><span class="muted">{{ $r->role_label }}</span></td>
                         <td>@if ($r->status === 'Signed')<strong>{{ __('im_master.pdf.signed_electronically') }}</strong>@endif</td>
                         <td>{{ $r->signed_at?->format('d-m-Y H:i') }}</td><td class="pre">{{ $r->comment }}</td></tr>
-                @empty
-                    <tr><td colspan="4">&nbsp;</td></tr>
-                @endforelse
+                @endforeach
                 <tr class="grp"><td colspan="4">KNOWLEDGE BY</td></tr>
-                @foreach (['QC Part Leader', 'RNI Team', 'Production Leader', 'PPIC Leader'] as $label)
-                    <tr><td>{{ $label }}</td><td></td><td></td><td></td></tr>
+                @foreach ($knowledgeSlots as $slot)
+                    @php $k = $knowledge->get($slot['label']); @endphp
+                    <tr><td>{{ $k?->user_name }}<br><span class="muted">{{ $slot['label'] }}</span></td>
+                        <td>@if ($k?->status === 'Signed')<strong>{{ __('im_master.pdf.signed_electronically') }}</strong>@endif</td>
+                        <td>{{ $k?->signed_at?->format('d-m-Y H:i') }}</td><td class="pre">{{ $k?->comment }}</td></tr>
                 @endforeach
                 <tr class="grp"><td colspan="4">APPROVED BY</td></tr>
-                <tr><td>{{ $approval?->user_name }}<br><span class="muted">QA</span></td>
+                <tr><td>{{ $approval?->user_name }}<br><span class="muted">{{ $approval?->role_label ?: config('im_signoff.approved_label') }}</span></td>
                     <td>@if ($approval?->status === 'Signed')<strong>{{ __('im_master.pdf.signed_electronically') }}</strong>@endif</td>
                     <td>{{ $approval?->signed_at?->format('d-m-Y H:i') }}</td><td class="pre">{{ $approval?->comment }}</td></tr>
                 <tr><td>Customer / Marketing</td><td></td><td></td><td></td></tr>

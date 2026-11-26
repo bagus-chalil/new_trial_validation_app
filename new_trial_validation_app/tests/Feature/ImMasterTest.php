@@ -489,3 +489,94 @@ test('a read-only Viewer in a QA department can neither start, edit nor be picke
         'reviewer_ids' => [$viewer->id], 'approver_user_id' => $other->id, 'signature_password' => 'password',
     ])->assertSessionHasErrors('reviewer_ids');
 });
+
+test('the sign-off sheet keeps the paper titles and creates the Knowledge by rows', function () {
+    $qa = imQa('Preparer');
+    $reviewer = imQa('Reviewer');
+    $approver = imQa('Approver');
+    $revision = imDraft($qa);
+
+    // A title outside the configured list is refused.
+    $this->actingAs($qa)->post(route('validation.im-revisions.submit', $revision->id), [
+        'reviewer_ids' => [$reviewer->id], 'reviewer_labels' => [$reviewer->id => 'Janitor'],
+        'approver_user_id' => $approver->id, 'signature_password' => 'password',
+    ])->assertSessionHasErrors('reviewer_labels.'.$reviewer->id);
+
+    $this->actingAs($qa)->post(route('validation.im-revisions.submit', $revision->id), [
+        'reviewer_ids' => [$reviewer->id], 'reviewer_labels' => [$reviewer->id => 'QA Part Leader'],
+        'approver_user_id' => $approver->id, 'signature_password' => 'password',
+    ])->assertSessionHasNoErrors();
+
+    $rows = ImSignoff::query()->where('revision_id', $revision->id)->get();
+    expect($rows->firstWhere('stage', 'prepared')->role_label)->toBe('QA Staff')
+        ->and($rows->firstWhere('stage', 'review')->role_label)->toBe('QA Part Leader')
+        ->and($rows->firstWhere('stage', 'approved')->role_label)->toBe('QAC Leader')
+        ->and($rows->where('stage', 'knowledge')->pluck('role_label')->all())
+        ->toBe(['QC Part Leader', 'RNI Team', 'Production Leader', 'PPIC Leader']);
+});
+
+test('only a member of the matching team signs a Knowledge by row, and it never blocks release', function () {
+    $qa = imQa('Preparer');
+    $reviewer = imQa('Reviewer');
+    $approver = imQa('Approver');
+    $rni = User::factory()->role('Staff', 'RNI')->create(['name' => 'RNI Member']);
+    $prod = User::factory()->role('Staff', 'PRD')->create(['name' => 'Prod Member']);
+    $revision = imDraft($qa);
+
+    $this->actingAs($qa)->post(route('validation.im-revisions.submit', $revision->id), [
+        'reviewer_ids' => [$reviewer->id], 'approver_user_id' => $approver->id, 'signature_password' => 'password',
+    ])->assertSessionHasNoErrors();
+
+    $slot = ImSignoff::query()->where('revision_id', $revision->id)->where('role_label', 'RNI Team')->firstOrFail();
+
+    // Wrong team, the preparer and a wrong password are all refused.
+    $this->actingAs($prod)->post(route('validation.im-signoffs.acknowledge', $slot->id), ['signature_password' => 'password'])->assertForbidden();
+    $this->actingAs($qa)->post(route('validation.im-signoffs.acknowledge', $slot->id), ['signature_password' => 'password'])->assertForbidden();
+    $this->actingAs($rni)->post(route('validation.im-signoffs.acknowledge', $slot->id), ['signature_password' => 'nope'])->assertSessionHasErrors('signature_password');
+
+    $this->actingAs($rni)->post(route('validation.im-signoffs.acknowledge', $slot->id), [
+        'comment' => 'Dipahami', 'signature_password' => 'password',
+    ])->assertSessionHasNoErrors();
+
+    expect($slot->fresh()->status)->toBe('Signed')
+        ->and($slot->fresh()->user_name)->toBe('RNI Member')
+        ->and($slot->fresh()->comment)->toBe('Dipahami');
+
+    // A second signature on the same row is refused.
+    $this->actingAs($rni)->post(route('validation.im-signoffs.acknowledge', $slot->id), ['signature_password' => 'password'])->assertForbidden();
+
+    // The other three rows stay Pending and the IM still goes Effective.
+    $row = ImSignoff::query()->where('revision_id', $revision->id)->where('stage', 'review')->firstOrFail();
+    $this->actingAs($reviewer)->post(route('validation.im-signoffs.review', $row->id), ['comment' => 'OK', 'signature_password' => 'password'])->assertSessionHasNoErrors();
+    $this->actingAs($approver)->post(route('validation.im-revisions.decision', $revision->id), [
+        'decision' => 'Approved', 'approval_comment' => 'OK', 'signature_password' => 'password',
+    ])->assertSessionHasNoErrors();
+
+    expect($revision->fresh()->status)->toBe('Effective')
+        ->and(ImSignoff::query()->where('revision_id', $revision->id)->where('stage', 'knowledge')->where('status', 'Pending')->count())->toBe(3);
+
+    // The signed row is printed on the sheet together with the paper titles.
+    $pdf = $this->actingAs($qa)->get(route('validation.im-revisions.pdf', $revision->id))->getContent();
+    expect($pdf)->toContain('RNI Member')->toContain('RNI Team')->toContain('Regulatory')->toContain('Packaging Development')->toContain('QAC Leader');
+});
+
+test('the revision page lists the Knowledge by rows the viewer may sign', function () {
+    $qa = imQa('Preparer');
+    $reviewer = imQa('Reviewer');
+    $approver = imQa('Approver');
+    $rni = User::factory()->role('Staff', 'RNI')->create(['name' => 'RNI Member']);
+    $revision = imDraft($qa);
+
+    $this->actingAs($qa)->post(route('validation.im-revisions.submit', $revision->id), [
+        'reviewer_ids' => [$reviewer->id], 'approver_user_id' => $approver->id, 'signature_password' => 'password',
+    ])->assertSessionHasNoErrors();
+
+    $rniSlot = ImSignoff::query()->where('revision_id', $revision->id)->where('role_label', 'RNI Team')->firstOrFail();
+    $revisionView = $this->actingAs($rni)->get(route('validation.im-revisions.show', $revision->id));
+
+    // Only QA sees a non-effective IM, so an RNI member gets no page, but the preparer sees none to sign.
+    $revisionView->assertForbidden();
+    $this->actingAs($qa)->get(route('validation.im-revisions.show', $revision->id))
+        ->assertInertia(fn ($page) => $page->where('myKnowledgeIds', [])->has('reviewLabels', 4));
+    expect($rniSlot->status)->toBe('Pending');
+});

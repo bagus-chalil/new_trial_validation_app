@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ImSignoffTimeline } from '@/components/validation/im-signoff-timeline';
 import { useTranslation } from '@/hooks/use-translation';
 import {
     IM_CONTENT_KEYS,
@@ -104,6 +105,8 @@ type PageProps = {
     cases: { id: number; label: string }[];
     linkedCase: { id: number; case_no: string | null } | null;
     mySignoffId: number | null;
+    myKnowledgeIds: number[];
+    reviewLabels: string[];
     can: { edit: boolean; delete: boolean; approve: boolean };
 };
 
@@ -215,6 +218,8 @@ export default function ImRevisionPage({
     cases,
     linkedCase,
     mySignoffId,
+    myKnowledgeIds,
+    reviewLabels,
     can,
 }: PageProps) {
     const { t } = useTranslation();
@@ -246,6 +251,9 @@ export default function ImRevisionPage({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [reviewers, setReviewers] = useState<number[]>([]);
     const [approverId, setApproverId] = useState('');
+    const [reviewerLabels, setReviewerLabels] = useState<
+        Record<number, string>
+    >({});
 
     function touch<T>(setter: (v: T) => void, value: T) {
         setter(value);
@@ -1003,39 +1011,71 @@ export default function ImRevisionPage({
                             {t('im_master.chain.hint')}
                         </p>
 
-                        {signoffs.length > 0 && (
-                            <ul className="space-y-1 text-sm">
-                                {signoffs.map((s) => (
-                                    <li
-                                        key={s.id}
-                                        className="flex flex-wrap items-center gap-2 rounded border px-2 py-1"
-                                    >
-                                        <Badge variant="outline">
-                                            {t(`im_master.chain.${s.stage}`)}
-                                            {s.round > 1
-                                                ? ` · #${s.round}`
-                                                : ''}
-                                        </Badge>
-                                        <span className="font-medium">
-                                            {s.user_name}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
+                        <ImSignoffTimeline
+                            signoffs={signoffs}
+                            currentRound={revision.review_round}
+                            actionableIds={[
+                                ...(mySignoffId !== null ? [mySignoffId] : []),
+                                ...myKnowledgeIds,
+                            ]}
+                        />
+
+                        {myKnowledgeIds.map((id) => (
+                            <Form
+                                key={id}
+                                {...ValidationImRevisionController.acknowledge.form(
+                                    id,
+                                )}
+                                options={{ preserveScroll: true }}
+                                className="space-y-3 rounded-md border border-brand/50 p-3"
+                            >
+                                {({ errors: ke, processing }) => (
+                                    <>
+                                        <h4 className="font-medium">
                                             {t(
-                                                `im_master.chain.status.${s.status}`,
+                                                'im_master.chain.acknowledge_title',
                                             )}
-                                            {s.signed_at
-                                                ? ` · ${s.signed_at}`
-                                                : ''}
-                                        </span>
-                                        {s.comment && (
-                                            <span className="w-full text-xs">
-                                                {s.comment}
-                                            </span>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                                            {' · '}
+                                            {
+                                                signoffs.find(
+                                                    (s) => s.id === id,
+                                                )?.role_label
+                                            }
+                                        </h4>
+                                        <div className="grid gap-1.5">
+                                            <Label className="text-xs">
+                                                {t(
+                                                    'im_master.chain.comment_optional',
+                                                )}
+                                            </Label>
+                                            <Textarea name="comment" rows={2} />
+                                            <InputError message={ke.comment} />
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label className="text-xs">
+                                                {t('im_master.chain.password')}
+                                            </Label>
+                                            <Input
+                                                type="password"
+                                                name="signature_password"
+                                                autoComplete="current-password"
+                                            />
+                                            <InputError
+                                                message={ke.signature_password}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            {t(
+                                                'im_master.chain.acknowledge_submit',
+                                            )}
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        ))}
 
                         {editable && (
                             <Form
@@ -1110,6 +1150,68 @@ export default function ImRevisionPage({
                                                         'im_master.chain.no_qa_users',
                                                     )}
                                                 </p>
+                                            )}
+                                            {reviewers.length > 0 && (
+                                                <div className="mt-2 grid gap-2 rounded-md border bg-muted/30 p-2">
+                                                    <p className="text-xs font-medium">
+                                                        {t(
+                                                            'im_master.chain.reviewer_title',
+                                                        )}
+                                                    </p>
+                                                    {reviewers.map((id) => (
+                                                        <div
+                                                            key={id}
+                                                            className="flex flex-wrap items-center gap-2 text-sm"
+                                                        >
+                                                            <span className="min-w-32 flex-1 truncate">
+                                                                {
+                                                                    qaUsers.find(
+                                                                        (u) =>
+                                                                            u.id ===
+                                                                            id,
+                                                                    )?.label
+                                                                }
+                                                            </span>
+                                                            <select
+                                                                name={`reviewer_labels[${id}]`}
+                                                                value={
+                                                                    reviewerLabels[
+                                                                        id
+                                                                    ] ?? ''
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setReviewerLabels(
+                                                                        {
+                                                                            ...reviewerLabels,
+                                                                            [id]: e
+                                                                                .target
+                                                                                .value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                                className="h-8 rounded-md border bg-transparent px-2 text-sm"
+                                                            >
+                                                                <option value="">
+                                                                    QA
+                                                                </option>
+                                                                {reviewLabels.map(
+                                                                    (l) => (
+                                                                        <option
+                                                                            key={
+                                                                                l
+                                                                            }
+                                                                            value={
+                                                                                l
+                                                                            }
+                                                                        >
+                                                                            {l}
+                                                                        </option>
+                                                                    ),
+                                                                )}
+                                                            </select>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             )}
                                             <InputError
                                                 message={se.reviewer_ids}

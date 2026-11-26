@@ -66,6 +66,7 @@ Route::middleware(['auth', 'verified'])->prefix('validation')->as('validation.')
     Route::delete('im-revisions/{revision}', [ValidationImRevisionController::class, 'destroy'])->whereNumber('revision')->name('im-revisions.destroy');
     Route::post('im-revisions/{revision}/submit', [ValidationImRevisionController::class, 'submit'])->whereNumber('revision')->name('im-revisions.submit');
     Route::post('im-revisions/{revision}/decision', [ValidationImRevisionController::class, 'decide'])->whereNumber('revision')->name('im-revisions.decision');
+    Route::post('im-signoffs/{signoff}/acknowledge', [ValidationImRevisionController::class, 'acknowledge'])->whereNumber('signoff')->name('im-signoffs.acknowledge');
     Route::post('im-signoffs/{signoff}/review', [ValidationImRevisionController::class, 'review'])->whereNumber('signoff')->name('im-signoffs.review');
     Route::post('im-revisions/{revision}/files', [ValidationImRevisionController::class, 'fileStore'])->whereNumber('revision')->name('im-revisions.files.store');
     Route::delete('im-revisions/{revision}/files/{file}', [ValidationImRevisionController::class, 'fileDestroy'])
