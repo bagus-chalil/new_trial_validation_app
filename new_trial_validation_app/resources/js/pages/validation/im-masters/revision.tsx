@@ -13,14 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    ImageSlot,
+    ImSheetEditor,
+} from '@/components/validation/im-sheet-editor';
 import { ImSignoffTimeline } from '@/components/validation/im-signoff-timeline';
 import { useTranslation } from '@/hooks/use-translation';
-import {
-    IM_CONTENT_KEYS,
-    IM_SECTIONS,
-    imStatusClassName,
-} from '@/lib/im-master';
-import type { ImSection } from '@/lib/im-master';
+import { imStatusClassName } from '@/lib/im-master';
 import { show as masterShow } from '@/routes/validation/im-masters';
 import { index as mastersIndex } from '@/routes/validation/im-masters';
 
@@ -110,84 +109,6 @@ type PageProps = {
     can: { edit: boolean; delete: boolean; approve: boolean };
 };
 
-type Col = {
-    key: keyof Param;
-    label: string;
-    numeric?: boolean;
-    wide?: boolean;
-};
-
-const COLS: Record<ImSection, Col[]> = {
-    bom: [
-        { key: 'code', label: 'im_master.cols.item_no' },
-        { key: 'name', label: 'im_master.cols.material', wide: true },
-        { key: 'category', label: 'im_master.cols.category' },
-    ],
-    filling_point: [
-        { key: 'name', label: 'im_master.cols.point', wide: true },
-        { key: 'description', label: 'im_master.cols.detail', wide: true },
-    ],
-    appearance_point: [
-        { key: 'name', label: 'im_master.cols.point', wide: true },
-        { key: 'description', label: 'im_master.cols.detail', wide: true },
-    ],
-    weight: [
-        { key: 'name', label: 'im_master.cols.product', wide: true },
-        { key: 'code', label: 'im_master.cols.bulk_code' },
-        { key: 'category', label: 'im_master.cols.fg_wip_code' },
-        { key: 'value_min', label: 'im_master.cols.min', numeric: true },
-        { key: 'value_max', label: 'im_master.cols.max', numeric: true },
-        { key: 'unit', label: 'im_master.cols.unit' },
-    ],
-    coding: [
-        { key: 'name', label: 'im_master.cols.point', wide: true },
-        { key: 'description', label: 'im_master.cols.detail', wide: true },
-        { key: 'specification', label: 'im_master.cols.specification' },
-    ],
-    packing_point: [
-        { key: 'name', label: 'im_master.cols.point', wide: true },
-        { key: 'description', label: 'im_master.cols.detail', wide: true },
-    ],
-    surveillance_initial: [
-        { key: 'name', label: 'im_master.cols.check', wide: true },
-        { key: 'description', label: 'im_master.cols.work', wide: true },
-        { key: 'specification', label: 'im_master.cols.specification' },
-        { key: 'frequency', label: 'im_master.cols.frequency' },
-    ],
-    surveillance_periodic: [
-        { key: 'name', label: 'im_master.cols.check', wide: true },
-        { key: 'description', label: 'im_master.cols.work', wide: true },
-        { key: 'specification', label: 'im_master.cols.specification' },
-        { key: 'frequency', label: 'im_master.cols.frequency' },
-    ],
-};
-
-const HEADER_FIELDS = [
-    'description',
-    'appearance',
-    'mfg_category',
-    'customer',
-    'customer_ref',
-    'line_label',
-    'revision_reason',
-    'legacy_reference',
-] as const;
-
-function emptyParam(section: string): Param {
-    return {
-        section,
-        code: '',
-        name: '',
-        category: '',
-        description: '',
-        specification: '',
-        frequency: '',
-        value_min: '',
-        value_max: '',
-        unit: section === 'weight' ? 'Gram' : '',
-    };
-}
-
 function Field({
     label,
     children,
@@ -211,7 +132,6 @@ export default function ImRevisionPage({
     evidence,
     files,
     signoffs,
-    fileCategories,
     completeness,
     qaUsers,
     approvedTrials,
@@ -246,6 +166,7 @@ export default function ImRevisionPage({
     const [caseId, setCaseId] = useState(
         linkedCase ? String(linkedCase.id) : '',
     );
+    const [page, setPage] = useState<'p1' | 'p2' | 'p3'>('p1');
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -258,13 +179,6 @@ export default function ImRevisionPage({
     function touch<T>(setter: (v: T) => void, value: T) {
         setter(value);
         setDirty(true);
-    }
-
-    function updateParam(index: number, patch: Partial<Param>) {
-        touch(
-            setParams,
-            params.map((p, i) => (i === index ? { ...p, ...patch } : p)),
-        );
     }
 
     function save() {
@@ -293,11 +207,6 @@ export default function ImRevisionPage({
             },
         );
     }
-
-    const grouped = (section: string) =>
-        params
-            .map((p, index) => ({ p, index }))
-            .filter(({ p }) => p.section === section);
 
     return (
         <>
@@ -388,87 +297,64 @@ export default function ImRevisionPage({
                         </Alert>
                     )}
 
-                {/* Header */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            {t('im_master.sections_title.header')}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {HEADER_FIELDS.map((key) => (
-                            <Field
-                                key={key}
-                                label={t(`im_master.fields.${key}`)}
-                                className={
-                                    key === 'description' ||
-                                    key === 'line_label' ||
-                                    key === 'revision_reason'
-                                        ? 'sm:col-span-2'
-                                        : undefined
-                                }
-                            >
-                                <Input
-                                    value={header[key]}
-                                    disabled={!editable}
-                                    onChange={(e) =>
-                                        touch(setHeader, {
-                                            ...header,
-                                            [key]: e.target.value,
-                                        })
-                                    }
-                                />
-                                <InputError message={errors[key]} />
-                            </Field>
-                        ))}
-                        <Field label={t('im_master.fields.issue_date')}>
-                            <Input
-                                type="date"
-                                value={header.issue_date}
-                                disabled={!editable}
-                                onChange={(e) =>
-                                    touch(setHeader, {
-                                        ...header,
-                                        issue_date: e.target.value,
-                                    })
-                                }
-                            />
-                        </Field>
-                        <Field label={t('im_master.fields.effective_from')}>
-                            <Input
-                                type="date"
-                                value={header.effective_from}
-                                disabled={!editable}
-                                onChange={(e) =>
-                                    touch(setHeader, {
-                                        ...header,
-                                        effective_from: e.target.value,
-                                    })
-                                }
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                {t('im_master.fields.effective_from_hint')}
-                            </p>
-                        </Field>
-                        <Field label={t('im_master.fields.bulk_wip_refs')}>
-                            <Input
-                                value={bulk}
-                                disabled={!editable}
-                                onChange={(e) => touch(setBulk, e.target.value)}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                {t('im_master.fields.bulk_wip_hint')}
-                            </p>
-                        </Field>
-                        {revision.replaces_number && (
-                            <Field label={t('im_master.fields.replaces')}>
-                                <Input
-                                    value={revision.replaces_number}
-                                    disabled
-                                />
-                            </Field>
-                        )}
-                        {editable && cases.length > 0 && (
+                {/* Paper-like sheet: page tabs */}
+                <div
+                    role="tablist"
+                    className="sticky top-0 z-20 flex flex-wrap gap-1 rounded-md border bg-background/95 p-1 shadow-sm backdrop-blur"
+                >
+                    {(['p1', 'p2', 'p3'] as const).map((key, n) => (
+                        <button
+                            key={key}
+                            type="button"
+                            role="tab"
+                            aria-selected={page === key}
+                            onClick={() => setPage(key)}
+                            className={
+                                'flex items-center gap-2 rounded px-3 py-1.5 text-sm font-medium transition ' +
+                                (page === key
+                                    ? 'bg-brand text-white'
+                                    : 'text-muted-foreground hover:bg-muted')
+                            }
+                        >
+                            <span className="text-xs opacity-70">
+                                {n + 1}/3
+                            </span>
+                            {t(`im_master.sheet.page_${key}`)}
+                        </button>
+                    ))}
+                    {dirty && (
+                        <span className="ml-auto self-center px-2 text-xs text-amber-600">
+                            {t('im_master.unsaved')}
+                        </span>
+                    )}
+                </div>
+
+                {page !== 'p3' && (
+                    <ImSheetEditor
+                        page={page}
+                        revision={{
+                            id: revision.id,
+                            im_number: revision.im_number,
+                            fg_code: revision.fg_code,
+                            replaces_number: revision.replaces_number,
+                        }}
+                        editable={editable}
+                        header={header}
+                        onHeader={(h) => touch(setHeader, h)}
+                        bulk={bulk}
+                        onBulk={(v) => touch(setBulk, v)}
+                        content={content}
+                        onContent={(c) => touch(setContent, c)}
+                        params={params}
+                        onParams={(next) => touch(setParams, next)}
+                        files={files}
+                        errors={errors}
+                    />
+                )}
+
+                {page === 'p3' && editable && cases.length > 0 && (
+                    <Card>
+                        <CardContent className="pt-6">
                             <Field label={t('im_master.fields.case')}>
                                 <Combobox
                                     options={cases.map((c) => ({
@@ -479,16 +365,16 @@ export default function ImRevisionPage({
                                     onChange={(v) => touch(setCaseId, v)}
                                 />
                             </Field>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
 
-                {/* Structured parameters */}
-                {IM_SECTIONS.map((section) => (
-                    <Card key={section}>
+                {/* Evidence */}
+                {page === 'p3' && (
+                    <Card>
                         <CardHeader className="flex-row items-center justify-between space-y-0">
                             <CardTitle>
-                                {t(`im_master.sections.${section}`)}
+                                {t('im_master.evidence.title')}
                             </CardTitle>
                             {editable && (
                                 <Button
@@ -497,9 +383,15 @@ export default function ImRevisionPage({
                                     variant="outline"
                                     className="gap-1"
                                     onClick={() =>
-                                        touch(setParams, [
-                                            ...params,
-                                            emptyParam(section),
+                                        touch(setEv, [
+                                            ...ev,
+                                            {
+                                                kind: 'trial',
+                                                trial_id: null,
+                                                title: '',
+                                                reference: '',
+                                                note: '',
+                                            },
                                         ])
                                     }
                                 >
@@ -508,66 +400,199 @@ export default function ImRevisionPage({
                                 </Button>
                             )}
                         </CardHeader>
-                        <CardContent className="space-y-2">
-                            {grouped(section).length === 0 && (
+                        <CardContent className="space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                                {t('im_master.evidence.hint')}
+                            </p>
+                            {ev.length === 0 && (
                                 <p className="text-sm text-muted-foreground">
                                     —
                                 </p>
                             )}
-                            {grouped(section).map(({ p, index }) => (
+                            {ev.map((row, index) => (
                                 <div
                                     key={index}
-                                    className="flex flex-wrap items-end gap-2"
+                                    className="flex flex-wrap items-end gap-2 rounded-md border p-2"
                                 >
-                                    {COLS[section].map((col) => (
-                                        <Field
-                                            key={col.key}
-                                            label={t(col.label)}
-                                            className={
-                                                col.wide
-                                                    ? 'min-w-56 flex-[2]'
-                                                    : 'min-w-28 flex-1'
+                                    <Field
+                                        label={t('im_master.evidence.kind')}
+                                        className="w-40"
+                                    >
+                                        <select
+                                            className="h-9 rounded-md border bg-transparent px-2 text-sm"
+                                            value={row.kind}
+                                            disabled={!editable}
+                                            onChange={(e) =>
+                                                touch(
+                                                    setEv,
+                                                    ev.map((r, i) =>
+                                                        i === index
+                                                            ? {
+                                                                  ...r,
+                                                                  kind: e.target
+                                                                      .value,
+                                                              }
+                                                            : r,
+                                                    ),
+                                                )
                                             }
                                         >
-                                            {col.wide && col.key !== 'name' ? (
-                                                <Textarea
-                                                    rows={2}
-                                                    value={
-                                                        (p[
-                                                            col.key
-                                                        ] as string) ?? ''
-                                                    }
-                                                    disabled={!editable}
-                                                    onChange={(e) =>
-                                                        updateParam(index, {
-                                                            [col.key]:
-                                                                e.target.value,
-                                                        })
-                                                    }
-                                                />
-                                            ) : (
-                                                <Input
-                                                    inputMode={
-                                                        col.numeric
-                                                            ? 'decimal'
-                                                            : undefined
-                                                    }
-                                                    value={
-                                                        (p[
-                                                            col.key
-                                                        ] as string) ?? ''
-                                                    }
-                                                    disabled={!editable}
-                                                    onChange={(e) =>
-                                                        updateParam(index, {
-                                                            [col.key]:
-                                                                e.target.value,
-                                                        })
-                                                    }
-                                                />
+                                            <option value="trial">
+                                                {t('im_master.evidence.trial')}
+                                            </option>
+                                            <option value="document">
+                                                {t(
+                                                    'im_master.evidence.document',
+                                                )}
+                                            </option>
+                                        </select>
+                                    </Field>
+                                    {row.kind === 'trial' ? (
+                                        <Field
+                                            label={t(
+                                                'im_master.evidence.approved_trial',
                                             )}
+                                            className="min-w-64 flex-[2]"
+                                        >
+                                            <Combobox
+                                                disabled={!editable}
+                                                options={[
+                                                    ...approvedTrials.map(
+                                                        (tr) => ({
+                                                            value: String(
+                                                                tr.id,
+                                                            ),
+                                                            label: tr.label,
+                                                        }),
+                                                    ),
+                                                    ...(row.trial_id &&
+                                                    !approvedTrials.some(
+                                                        (tr) =>
+                                                            tr.id ===
+                                                            row.trial_id,
+                                                    )
+                                                        ? [
+                                                              {
+                                                                  value: String(
+                                                                      row.trial_id,
+                                                                  ),
+                                                                  label: `${row.reference} · ${row.title}`,
+                                                              },
+                                                          ]
+                                                        : []),
+                                                ]}
+                                                value={
+                                                    row.trial_id
+                                                        ? String(row.trial_id)
+                                                        : ''
+                                                }
+                                                onChange={(v) =>
+                                                    touch(
+                                                        setEv,
+                                                        ev.map((r, i) =>
+                                                            i === index
+                                                                ? {
+                                                                      ...r,
+                                                                      trial_id:
+                                                                          v
+                                                                              ? Number(
+                                                                                    v,
+                                                                                )
+                                                                              : null,
+                                                                  }
+                                                                : r,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={
+                                                    errors[
+                                                        `evidence.${index}.trial_id`
+                                                    ]
+                                                }
+                                            />
                                         </Field>
-                                    ))}
+                                    ) : (
+                                        <>
+                                            <Field
+                                                label={t(
+                                                    'im_master.evidence.doc_title',
+                                                )}
+                                                className="min-w-48 flex-[2]"
+                                            >
+                                                <Input
+                                                    value={row.title}
+                                                    disabled={!editable}
+                                                    onChange={(e) =>
+                                                        touch(
+                                                            setEv,
+                                                            ev.map((r, i) =>
+                                                                i === index
+                                                                    ? {
+                                                                          ...r,
+                                                                          title: e
+                                                                              .target
+                                                                              .value,
+                                                                      }
+                                                                    : r,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                            </Field>
+                                            <Field
+                                                label={t(
+                                                    'im_master.evidence.reference',
+                                                )}
+                                                className="min-w-40 flex-1"
+                                            >
+                                                <Input
+                                                    value={row.reference}
+                                                    disabled={!editable}
+                                                    onChange={(e) =>
+                                                        touch(
+                                                            setEv,
+                                                            ev.map((r, i) =>
+                                                                i === index
+                                                                    ? {
+                                                                          ...r,
+                                                                          reference:
+                                                                              e
+                                                                                  .target
+                                                                                  .value,
+                                                                      }
+                                                                    : r,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                            </Field>
+                                        </>
+                                    )}
+                                    <Field
+                                        label={t('im_master.evidence.note')}
+                                        className="min-w-48 flex-[2]"
+                                    >
+                                        <Input
+                                            value={row.note ?? ''}
+                                            disabled={!editable}
+                                            onChange={(e) =>
+                                                touch(
+                                                    setEv,
+                                                    ev.map((r, i) =>
+                                                        i === index
+                                                            ? {
+                                                                  ...r,
+                                                                  note: e.target
+                                                                      .value,
+                                                              }
+                                                            : r,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </Field>
                                     {editable && (
                                         <Button
                                             type="button"
@@ -578,8 +603,8 @@ export default function ImRevisionPage({
                                             )}
                                             onClick={() =>
                                                 touch(
-                                                    setParams,
-                                                    params.filter(
+                                                    setEv,
+                                                    ev.filter(
                                                         (_, i) => i !== index,
                                                     ),
                                                 )
@@ -592,270 +617,7 @@ export default function ImRevisionPage({
                             ))}
                         </CardContent>
                     </Card>
-                ))}
-
-                {/* Free-form blocks */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            {t('im_master.sections_title.content')}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2">
-                        {IM_CONTENT_KEYS.map((key) => (
-                            <Field
-                                key={key}
-                                label={t(`im_master.content.${key}`)}
-                            >
-                                <Textarea
-                                    rows={2}
-                                    value={content[key] ?? ''}
-                                    disabled={!editable}
-                                    onChange={(e) =>
-                                        touch(setContent, {
-                                            ...content,
-                                            [key]: e.target.value,
-                                        })
-                                    }
-                                />
-                            </Field>
-                        ))}
-                    </CardContent>
-                </Card>
-
-                {/* Evidence */}
-                <Card>
-                    <CardHeader className="flex-row items-center justify-between space-y-0">
-                        <CardTitle>{t('im_master.evidence.title')}</CardTitle>
-                        {editable && (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="gap-1"
-                                onClick={() =>
-                                    touch(setEv, [
-                                        ...ev,
-                                        {
-                                            kind: 'trial',
-                                            trial_id: null,
-                                            title: '',
-                                            reference: '',
-                                            note: '',
-                                        },
-                                    ])
-                                }
-                            >
-                                <Plus className="size-3.5" />
-                                {t('im_master.add_row')}
-                            </Button>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <p className="text-xs text-muted-foreground">
-                            {t('im_master.evidence.hint')}
-                        </p>
-                        {ev.length === 0 && (
-                            <p className="text-sm text-muted-foreground">—</p>
-                        )}
-                        {ev.map((row, index) => (
-                            <div
-                                key={index}
-                                className="flex flex-wrap items-end gap-2 rounded-md border p-2"
-                            >
-                                <Field
-                                    label={t('im_master.evidence.kind')}
-                                    className="w-40"
-                                >
-                                    <select
-                                        className="h-9 rounded-md border bg-transparent px-2 text-sm"
-                                        value={row.kind}
-                                        disabled={!editable}
-                                        onChange={(e) =>
-                                            touch(
-                                                setEv,
-                                                ev.map((r, i) =>
-                                                    i === index
-                                                        ? {
-                                                              ...r,
-                                                              kind: e.target
-                                                                  .value,
-                                                          }
-                                                        : r,
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        <option value="trial">
-                                            {t('im_master.evidence.trial')}
-                                        </option>
-                                        <option value="document">
-                                            {t('im_master.evidence.document')}
-                                        </option>
-                                    </select>
-                                </Field>
-                                {row.kind === 'trial' ? (
-                                    <Field
-                                        label={t(
-                                            'im_master.evidence.approved_trial',
-                                        )}
-                                        className="min-w-64 flex-[2]"
-                                    >
-                                        <Combobox
-                                            disabled={!editable}
-                                            options={[
-                                                ...approvedTrials.map((tr) => ({
-                                                    value: String(tr.id),
-                                                    label: tr.label,
-                                                })),
-                                                ...(row.trial_id &&
-                                                !approvedTrials.some(
-                                                    (tr) =>
-                                                        tr.id === row.trial_id,
-                                                )
-                                                    ? [
-                                                          {
-                                                              value: String(
-                                                                  row.trial_id,
-                                                              ),
-                                                              label: `${row.reference} · ${row.title}`,
-                                                          },
-                                                      ]
-                                                    : []),
-                                            ]}
-                                            value={
-                                                row.trial_id
-                                                    ? String(row.trial_id)
-                                                    : ''
-                                            }
-                                            onChange={(v) =>
-                                                touch(
-                                                    setEv,
-                                                    ev.map((r, i) =>
-                                                        i === index
-                                                            ? {
-                                                                  ...r,
-                                                                  trial_id: v
-                                                                      ? Number(
-                                                                            v,
-                                                                        )
-                                                                      : null,
-                                                              }
-                                                            : r,
-                                                    ),
-                                                )
-                                            }
-                                        />
-                                        <InputError
-                                            message={
-                                                errors[
-                                                    `evidence.${index}.trial_id`
-                                                ]
-                                            }
-                                        />
-                                    </Field>
-                                ) : (
-                                    <>
-                                        <Field
-                                            label={t(
-                                                'im_master.evidence.doc_title',
-                                            )}
-                                            className="min-w-48 flex-[2]"
-                                        >
-                                            <Input
-                                                value={row.title}
-                                                disabled={!editable}
-                                                onChange={(e) =>
-                                                    touch(
-                                                        setEv,
-                                                        ev.map((r, i) =>
-                                                            i === index
-                                                                ? {
-                                                                      ...r,
-                                                                      title: e
-                                                                          .target
-                                                                          .value,
-                                                                  }
-                                                                : r,
-                                                        ),
-                                                    )
-                                                }
-                                            />
-                                        </Field>
-                                        <Field
-                                            label={t(
-                                                'im_master.evidence.reference',
-                                            )}
-                                            className="min-w-40 flex-1"
-                                        >
-                                            <Input
-                                                value={row.reference}
-                                                disabled={!editable}
-                                                onChange={(e) =>
-                                                    touch(
-                                                        setEv,
-                                                        ev.map((r, i) =>
-                                                            i === index
-                                                                ? {
-                                                                      ...r,
-                                                                      reference:
-                                                                          e
-                                                                              .target
-                                                                              .value,
-                                                                  }
-                                                                : r,
-                                                        ),
-                                                    )
-                                                }
-                                            />
-                                        </Field>
-                                    </>
-                                )}
-                                <Field
-                                    label={t('im_master.evidence.note')}
-                                    className="min-w-48 flex-[2]"
-                                >
-                                    <Input
-                                        value={row.note ?? ''}
-                                        disabled={!editable}
-                                        onChange={(e) =>
-                                            touch(
-                                                setEv,
-                                                ev.map((r, i) =>
-                                                    i === index
-                                                        ? {
-                                                              ...r,
-                                                              note: e.target
-                                                                  .value,
-                                                          }
-                                                        : r,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                {editable && (
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        aria-label={t('im_master.remove_row')}
-                                        onClick={() =>
-                                            touch(
-                                                setEv,
-                                                ev.filter(
-                                                    (_, i) => i !== index,
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        <Trash2 className="size-4" />
-                                    </Button>
-                                )}
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
+                )}
 
                 {editable && (
                     <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-md border bg-background p-3 shadow-sm">
@@ -870,535 +632,488 @@ export default function ImRevisionPage({
                     </div>
                 )}
 
-                {/* Files */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('im_master.files.title')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {editable && (
-                            <Form
-                                {...ValidationImRevisionController.fileStore.form(
-                                    revision.id,
+                {/* Source documents (the other picture areas live on the sheet) */}
+                {page === 'p3' && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                {t(
+                                    'im_master.files.categories.source_document',
                                 )}
-                                options={{ preserveScroll: true }}
-                                resetOnSuccess
-                                className="flex flex-wrap items-end gap-2"
-                            >
-                                {({ errors: fe, processing }) => (
-                                    <>
-                                        <Field
-                                            label={t(
-                                                'im_master.files.category',
-                                            )}
-                                            className="w-56"
-                                        >
-                                            <select
-                                                name="category"
-                                                className="h-9 rounded-md border bg-transparent px-2 text-sm"
-                                            >
-                                                {fileCategories.map((c) => (
-                                                    <option key={c} value={c}>
-                                                        {t(
-                                                            `im_master.files.categories.${c}`,
-                                                        )}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <InputError message={fe.category} />
-                                        </Field>
-                                        <Field
-                                            label={t('im_master.files.caption')}
-                                            className="min-w-48 flex-1"
-                                        >
-                                            <Input name="caption" />
-                                        </Field>
-                                        <Field
-                                            label={t('im_master.files.pick')}
-                                            className="min-w-56 flex-1"
-                                        >
-                                            <Input
-                                                type="file"
-                                                name="files[]"
-                                                multiple
-                                                accept="image/jpeg,image/png,image/webp,application/pdf"
-                                            />
-                                            <InputError message={fe.files} />
-                                        </Field>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            {t('im_master.files.upload')}
-                                        </Button>
-                                    </>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ImageSlot
+                                revisionId={revision.id}
+                                category="source_document"
+                                label={t(
+                                    'im_master.files.categories.source_document',
                                 )}
-                            </Form>
-                        )}
-                        {files.length === 0 && (
-                            <p className="text-sm text-muted-foreground">—</p>
-                        )}
-                        <ul className="space-y-1 text-sm">
-                            {files.map((f) => (
-                                <li
-                                    key={f.id}
-                                    className="flex items-center justify-between gap-2 rounded border px-2 py-1"
-                                >
-                                    <span className="min-w-0 truncate">
-                                        <Badge
-                                            variant="outline"
-                                            className="mr-2"
-                                        >
-                                            {t(
-                                                `im_master.files.categories.${f.category}`,
-                                            )}
-                                        </Badge>
-                                        <a
-                                            className="hover:underline"
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            href={ValidationImRevisionController.fileShow.url(
-                                                {
-                                                    revision: revision.id,
-                                                    file: f.id,
-                                                },
-                                            )}
-                                        >
-                                            {f.original_name}
-                                        </a>
-                                        {f.caption && (
-                                            <span className="ml-2 text-xs text-muted-foreground">
-                                                {f.caption}
-                                            </span>
-                                        )}
-                                    </span>
-                                    {editable && (
-                                        <ConfirmDialog
-                                            trigger={
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    aria-label={t(
-                                                        'im_master.remove_row',
-                                                    )}
-                                                >
-                                                    <Trash2 className="size-4" />
-                                                </Button>
-                                            }
-                                            title={t('im_master.files.delete')}
-                                            description={f.original_name}
-                                            formProps={ValidationImRevisionController.fileDestroy.form(
-                                                {
-                                                    revision: revision.id,
-                                                    file: f.id,
-                                                },
-                                            )}
-                                        />
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
-                    </CardContent>
-                </Card>
+                                files={files.filter(
+                                    (f) => f.category === 'source_document',
+                                )}
+                                editable={editable}
+                            />
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* QA sign-off chain */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('im_master.chain.title')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <p className="text-xs text-muted-foreground">
-                            {t('im_master.chain.hint')}
-                        </p>
+                {page === 'p3' && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{t('im_master.chain.title')}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-xs text-muted-foreground">
+                                {t('im_master.chain.hint')}
+                            </p>
 
-                        <ImSignoffTimeline
-                            signoffs={signoffs}
-                            currentRound={revision.review_round}
-                            actionableIds={[
-                                ...(mySignoffId !== null ? [mySignoffId] : []),
-                                ...myKnowledgeIds,
-                            ]}
-                        />
+                            <ImSignoffTimeline
+                                signoffs={signoffs}
+                                currentRound={revision.review_round}
+                                actionableIds={[
+                                    ...(mySignoffId !== null
+                                        ? [mySignoffId]
+                                        : []),
+                                    ...myKnowledgeIds,
+                                ]}
+                            />
 
-                        {myKnowledgeIds.map((id) => (
-                            <Form
-                                key={id}
-                                {...ValidationImRevisionController.acknowledge.form(
-                                    id,
-                                )}
-                                options={{ preserveScroll: true }}
-                                className="space-y-3 rounded-md border border-brand/50 p-3"
-                            >
-                                {({ errors: ke, processing }) => (
-                                    <>
-                                        <h4 className="font-medium">
-                                            {t(
-                                                'im_master.chain.acknowledge_title',
-                                            )}
-                                            {' · '}
-                                            {
-                                                signoffs.find(
-                                                    (s) => s.id === id,
-                                                )?.role_label
-                                            }
-                                        </h4>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
+                            {myKnowledgeIds.map((id) => (
+                                <Form
+                                    key={id}
+                                    {...ValidationImRevisionController.acknowledge.form(
+                                        id,
+                                    )}
+                                    options={{ preserveScroll: true }}
+                                    className="space-y-3 rounded-md border border-brand/50 p-3"
+                                >
+                                    {({ errors: ke, processing }) => (
+                                        <>
+                                            <h4 className="font-medium">
                                                 {t(
-                                                    'im_master.chain.comment_optional',
+                                                    'im_master.chain.acknowledge_title',
                                                 )}
-                                            </Label>
-                                            <Textarea name="comment" rows={2} />
-                                            <InputError message={ke.comment} />
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.password')}
-                                            </Label>
-                                            <Input
-                                                type="password"
-                                                name="signature_password"
-                                                autoComplete="current-password"
-                                            />
-                                            <InputError
-                                                message={ke.signature_password}
-                                            />
-                                        </div>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            {t(
-                                                'im_master.chain.acknowledge_submit',
-                                            )}
-                                        </Button>
-                                    </>
-                                )}
-                            </Form>
-                        ))}
-
-                        {editable && (
-                            <Form
-                                {...ValidationImRevisionController.submit.form(
-                                    revision.id,
-                                )}
-                                options={{ preserveScroll: true }}
-                                className="space-y-3 rounded-md border p-3"
-                            >
-                                {({ errors: se, processing }) => (
-                                    <>
-                                        <h4 className="font-medium">
-                                            {t('im_master.chain.submit_title')}
-                                        </h4>
-                                        {completeness.length > 0 && (
-                                            <Alert variant="destructive">
-                                                <AlertDescription>
-                                                    <ul className="list-disc pl-4">
-                                                        {completeness.map(
-                                                            (c) => (
-                                                                <li key={c}>
-                                                                    {c}
-                                                                </li>
-                                                            ),
-                                                        )}
-                                                    </ul>
-                                                </AlertDescription>
-                                            </Alert>
-                                        )}
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.reviewers')}
-                                            </Label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {qaUsers.map((u) => (
-                                                    <label
-                                                        key={u.id}
-                                                        className="flex items-center gap-1.5 rounded border px-2 py-1 text-sm"
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            name="reviewer_ids[]"
-                                                            value={u.id}
-                                                            checked={reviewers.includes(
-                                                                u.id,
-                                                            )}
-                                                            onChange={(e) =>
-                                                                setReviewers(
-                                                                    e.target
-                                                                        .checked
-                                                                        ? [
-                                                                              ...reviewers,
-                                                                              u.id,
-                                                                          ]
-                                                                        : reviewers.filter(
-                                                                              (
-                                                                                  id,
-                                                                              ) =>
-                                                                                  id !==
-                                                                                  u.id,
-                                                                          ),
-                                                                )
-                                                            }
-                                                        />
-                                                        {u.label}
-                                                    </label>
-                                                ))}
+                                                {' · '}
+                                                {
+                                                    signoffs.find(
+                                                        (s) => s.id === id,
+                                                    )?.role_label
+                                                }
+                                            </h4>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
+                                                    {t(
+                                                        'im_master.chain.comment_optional',
+                                                    )}
+                                                </Label>
+                                                <Textarea
+                                                    name="comment"
+                                                    rows={2}
+                                                />
+                                                <InputError
+                                                    message={ke.comment}
+                                                />
                                             </div>
-                                            {qaUsers.length === 0 && (
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
+                                                    {t(
+                                                        'im_master.chain.password',
+                                                    )}
+                                                </Label>
+                                                <Input
+                                                    type="password"
+                                                    name="signature_password"
+                                                    autoComplete="current-password"
+                                                />
+                                                <InputError
+                                                    message={
+                                                        ke.signature_password
+                                                    }
+                                                />
+                                            </div>
+                                            <Button
+                                                type="submit"
+                                                disabled={processing}
+                                            >
+                                                {t(
+                                                    'im_master.chain.acknowledge_submit',
+                                                )}
+                                            </Button>
+                                        </>
+                                    )}
+                                </Form>
+                            ))}
+
+                            {editable && (
+                                <Form
+                                    {...ValidationImRevisionController.submit.form(
+                                        revision.id,
+                                    )}
+                                    options={{ preserveScroll: true }}
+                                    className="space-y-3 rounded-md border p-3"
+                                >
+                                    {({ errors: se, processing }) => (
+                                        <>
+                                            <h4 className="font-medium">
+                                                {t(
+                                                    'im_master.chain.submit_title',
+                                                )}
+                                            </h4>
+                                            {completeness.length > 0 && (
+                                                <Alert variant="destructive">
+                                                    <AlertDescription>
+                                                        <ul className="list-disc pl-4">
+                                                            {completeness.map(
+                                                                (c) => (
+                                                                    <li key={c}>
+                                                                        {c}
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
+                                                    </AlertDescription>
+                                                </Alert>
+                                            )}
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
+                                                    {t(
+                                                        'im_master.chain.reviewers',
+                                                    )}
+                                                </Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {qaUsers.map((u) => (
+                                                        <label
+                                                            key={u.id}
+                                                            className="flex items-center gap-1.5 rounded border px-2 py-1 text-sm"
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                name="reviewer_ids[]"
+                                                                value={u.id}
+                                                                checked={reviewers.includes(
+                                                                    u.id,
+                                                                )}
+                                                                onChange={(e) =>
+                                                                    setReviewers(
+                                                                        e.target
+                                                                            .checked
+                                                                            ? [
+                                                                                  ...reviewers,
+                                                                                  u.id,
+                                                                              ]
+                                                                            : reviewers.filter(
+                                                                                  (
+                                                                                      id,
+                                                                                  ) =>
+                                                                                      id !==
+                                                                                      u.id,
+                                                                              ),
+                                                                    )
+                                                                }
+                                                            />
+                                                            {u.label}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                {qaUsers.length === 0 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {t(
+                                                            'im_master.chain.no_qa_users',
+                                                        )}
+                                                    </p>
+                                                )}
+                                                {reviewers.length > 0 && (
+                                                    <div className="mt-2 grid gap-2 rounded-md border bg-muted/30 p-2">
+                                                        <p className="text-xs font-medium">
+                                                            {t(
+                                                                'im_master.chain.reviewer_title',
+                                                            )}
+                                                        </p>
+                                                        {reviewers.map((id) => (
+                                                            <div
+                                                                key={id}
+                                                                className="flex flex-wrap items-center gap-2 text-sm"
+                                                            >
+                                                                <span className="min-w-32 flex-1 truncate">
+                                                                    {
+                                                                        qaUsers.find(
+                                                                            (
+                                                                                u,
+                                                                            ) =>
+                                                                                u.id ===
+                                                                                id,
+                                                                        )?.label
+                                                                    }
+                                                                </span>
+                                                                <select
+                                                                    name={`reviewer_labels[${id}]`}
+                                                                    value={
+                                                                        reviewerLabels[
+                                                                            id
+                                                                        ] ?? ''
+                                                                    }
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) =>
+                                                                        setReviewerLabels(
+                                                                            {
+                                                                                ...reviewerLabels,
+                                                                                [id]: e
+                                                                                    .target
+                                                                                    .value,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                    className="h-8 rounded-md border bg-transparent px-2 text-sm"
+                                                                >
+                                                                    <option value="">
+                                                                        QA
+                                                                    </option>
+                                                                    {reviewLabels.map(
+                                                                        (l) => (
+                                                                            <option
+                                                                                key={
+                                                                                    l
+                                                                                }
+                                                                                value={
+                                                                                    l
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    l
+                                                                                }
+                                                                            </option>
+                                                                        ),
+                                                                    )}
+                                                                </select>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <InputError
+                                                    message={se.reviewer_ids}
+                                                />
+                                            </div>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
+                                                    {t(
+                                                        'im_master.chain.approver',
+                                                    )}
+                                                </Label>
+                                                <Combobox
+                                                    options={qaUsers
+                                                        .filter(
+                                                            (u) =>
+                                                                !reviewers.includes(
+                                                                    u.id,
+                                                                ),
+                                                        )
+                                                        .map((u) => ({
+                                                            value: String(u.id),
+                                                            label: u.label,
+                                                        }))}
+                                                    value={approverId}
+                                                    onChange={setApproverId}
+                                                />
+                                                <input
+                                                    type="hidden"
+                                                    name="approver_user_id"
+                                                    value={approverId}
+                                                />
+                                                <InputError
+                                                    message={
+                                                        se.approver_user_id
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
+                                                    {t(
+                                                        'im_master.chain.password',
+                                                    )}
+                                                </Label>
+                                                <Input
+                                                    type="password"
+                                                    name="signature_password"
+                                                    autoComplete="current-password"
+                                                />
+                                                <InputError
+                                                    message={
+                                                        se.signature_password
+                                                    }
+                                                />
+                                            </div>
+                                            <Button
+                                                type="submit"
+                                                disabled={processing || dirty}
+                                            >
+                                                {t('im_master.chain.submit')}
+                                            </Button>
+                                            {dirty && (
                                                 <p className="text-xs text-muted-foreground">
                                                     {t(
-                                                        'im_master.chain.no_qa_users',
+                                                        'im_master.chain.save_first',
                                                     )}
                                                 </p>
                                             )}
-                                            {reviewers.length > 0 && (
-                                                <div className="mt-2 grid gap-2 rounded-md border bg-muted/30 p-2">
-                                                    <p className="text-xs font-medium">
-                                                        {t(
-                                                            'im_master.chain.reviewer_title',
-                                                        )}
-                                                    </p>
-                                                    {reviewers.map((id) => (
-                                                        <div
-                                                            key={id}
-                                                            className="flex flex-wrap items-center gap-2 text-sm"
-                                                        >
-                                                            <span className="min-w-32 flex-1 truncate">
-                                                                {
-                                                                    qaUsers.find(
-                                                                        (u) =>
-                                                                            u.id ===
-                                                                            id,
-                                                                    )?.label
-                                                                }
-                                                            </span>
-                                                            <select
-                                                                name={`reviewer_labels[${id}]`}
-                                                                value={
-                                                                    reviewerLabels[
-                                                                        id
-                                                                    ] ?? ''
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setReviewerLabels(
-                                                                        {
-                                                                            ...reviewerLabels,
-                                                                            [id]: e
-                                                                                .target
-                                                                                .value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                                className="h-8 rounded-md border bg-transparent px-2 text-sm"
-                                                            >
-                                                                <option value="">
-                                                                    QA
-                                                                </option>
-                                                                {reviewLabels.map(
-                                                                    (l) => (
-                                                                        <option
-                                                                            key={
-                                                                                l
-                                                                            }
-                                                                            value={
-                                                                                l
-                                                                            }
-                                                                        >
-                                                                            {l}
-                                                                        </option>
-                                                                    ),
-                                                                )}
-                                                            </select>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <InputError
-                                                message={se.reviewer_ids}
-                                            />
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.approver')}
-                                            </Label>
-                                            <Combobox
-                                                options={qaUsers
-                                                    .filter(
-                                                        (u) =>
-                                                            !reviewers.includes(
-                                                                u.id,
-                                                            ),
-                                                    )
-                                                    .map((u) => ({
-                                                        value: String(u.id),
-                                                        label: u.label,
-                                                    }))}
-                                                value={approverId}
-                                                onChange={setApproverId}
-                                            />
-                                            <input
-                                                type="hidden"
-                                                name="approver_user_id"
-                                                value={approverId}
-                                            />
-                                            <InputError
-                                                message={se.approver_user_id}
-                                            />
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.password')}
-                                            </Label>
-                                            <Input
-                                                type="password"
-                                                name="signature_password"
-                                                autoComplete="current-password"
-                                            />
-                                            <InputError
-                                                message={se.signature_password}
-                                            />
-                                        </div>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing || dirty}
-                                        >
-                                            {t('im_master.chain.submit')}
-                                        </Button>
-                                        {dirty && (
-                                            <p className="text-xs text-muted-foreground">
+                                        </>
+                                    )}
+                                </Form>
+                            )}
+
+                            {mySignoffId !== null && (
+                                <Form
+                                    {...ValidationImRevisionController.review.form(
+                                        mySignoffId,
+                                    )}
+                                    options={{ preserveScroll: true }}
+                                    className="space-y-3 rounded-md border p-3"
+                                >
+                                    {({ errors: re, processing }) => (
+                                        <>
+                                            <h4 className="font-medium">
                                                 {t(
-                                                    'im_master.chain.save_first',
+                                                    'im_master.chain.review_title',
                                                 )}
-                                            </p>
-                                        )}
-                                    </>
-                                )}
-                            </Form>
-                        )}
-
-                        {mySignoffId !== null && (
-                            <Form
-                                {...ValidationImRevisionController.review.form(
-                                    mySignoffId,
-                                )}
-                                options={{ preserveScroll: true }}
-                                className="space-y-3 rounded-md border p-3"
-                            >
-                                {({ errors: re, processing }) => (
-                                    <>
-                                        <h4 className="font-medium">
-                                            {t('im_master.chain.review_title')}
-                                        </h4>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.comment')}
-                                            </Label>
-                                            <Textarea name="comment" rows={3} />
-                                            <InputError message={re.comment} />
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.password')}
-                                            </Label>
-                                            <Input
-                                                type="password"
-                                                name="signature_password"
-                                                autoComplete="current-password"
-                                            />
-                                            <InputError
-                                                message={re.signature_password}
-                                            />
-                                        </div>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            {t('im_master.chain.review_submit')}
-                                        </Button>
-                                    </>
-                                )}
-                            </Form>
-                        )}
-
-                        {can.approve && (
-                            <Form
-                                {...ValidationImRevisionController.decide.form(
-                                    revision.id,
-                                )}
-                                options={{ preserveScroll: true }}
-                                className="space-y-3 rounded-md border p-3"
-                            >
-                                {({ errors: de, processing }) => (
-                                    <>
-                                        <h4 className="font-medium">
-                                            {t(
-                                                'im_master.chain.decision_title',
-                                            )}
-                                        </h4>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.decision')}
-                                            </Label>
-                                            <select
-                                                name="decision"
-                                                defaultValue="Approved"
-                                                className="h-9 rounded-md border bg-transparent px-2 text-sm"
+                                            </h4>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
+                                                    {t(
+                                                        'im_master.chain.comment',
+                                                    )}
+                                                </Label>
+                                                <Textarea
+                                                    name="comment"
+                                                    rows={3}
+                                                />
+                                                <InputError
+                                                    message={re.comment}
+                                                />
+                                            </div>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
+                                                    {t(
+                                                        'im_master.chain.password',
+                                                    )}
+                                                </Label>
+                                                <Input
+                                                    type="password"
+                                                    name="signature_password"
+                                                    autoComplete="current-password"
+                                                />
+                                                <InputError
+                                                    message={
+                                                        re.signature_password
+                                                    }
+                                                />
+                                            </div>
+                                            <Button
+                                                type="submit"
+                                                disabled={processing}
                                             >
-                                                <option value="Approved">
+                                                {t(
+                                                    'im_master.chain.review_submit',
+                                                )}
+                                            </Button>
+                                        </>
+                                    )}
+                                </Form>
+                            )}
+
+                            {can.approve && (
+                                <Form
+                                    {...ValidationImRevisionController.decide.form(
+                                        revision.id,
+                                    )}
+                                    options={{ preserveScroll: true }}
+                                    className="space-y-3 rounded-md border p-3"
+                                >
+                                    {({ errors: de, processing }) => (
+                                        <>
+                                            <h4 className="font-medium">
+                                                {t(
+                                                    'im_master.chain.decision_title',
+                                                )}
+                                            </h4>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
                                                     {t(
-                                                        'im_master.chain.decisions.Approved',
+                                                        'im_master.chain.decision',
                                                     )}
-                                                </option>
-                                                <option value="Need Revision">
+                                                </Label>
+                                                <select
+                                                    name="decision"
+                                                    defaultValue="Approved"
+                                                    className="h-9 rounded-md border bg-transparent px-2 text-sm"
+                                                >
+                                                    <option value="Approved">
+                                                        {t(
+                                                            'im_master.chain.decisions.Approved',
+                                                        )}
+                                                    </option>
+                                                    <option value="Need Revision">
+                                                        {t(
+                                                            'im_master.chain.decisions.Need Revision',
+                                                        )}
+                                                    </option>
+                                                    <option value="Rejected">
+                                                        {t(
+                                                            'im_master.chain.decisions.Rejected',
+                                                        )}
+                                                    </option>
+                                                </select>
+                                                <InputError
+                                                    message={de.decision}
+                                                />
+                                            </div>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
                                                     {t(
-                                                        'im_master.chain.decisions.Need Revision',
+                                                        'im_master.chain.comment',
                                                     )}
-                                                </option>
-                                                <option value="Rejected">
+                                                </Label>
+                                                <Textarea
+                                                    name="approval_comment"
+                                                    rows={3}
+                                                />
+                                                <InputError
+                                                    message={
+                                                        de.approval_comment
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-1.5">
+                                                <Label className="text-xs">
                                                     {t(
-                                                        'im_master.chain.decisions.Rejected',
+                                                        'im_master.chain.password',
                                                     )}
-                                                </option>
-                                            </select>
-                                            <InputError message={de.decision} />
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.comment')}
-                                            </Label>
-                                            <Textarea
-                                                name="approval_comment"
-                                                rows={3}
-                                            />
-                                            <InputError
-                                                message={de.approval_comment}
-                                            />
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <Label className="text-xs">
-                                                {t('im_master.chain.password')}
-                                            </Label>
-                                            <Input
-                                                type="password"
-                                                name="signature_password"
-                                                autoComplete="current-password"
-                                            />
-                                            <InputError
-                                                message={de.signature_password}
-                                            />
-                                        </div>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            {t('im_master.chain.decide')}
-                                        </Button>
-                                    </>
-                                )}
-                            </Form>
-                        )}
-                    </CardContent>
-                </Card>
+                                                </Label>
+                                                <Input
+                                                    type="password"
+                                                    name="signature_password"
+                                                    autoComplete="current-password"
+                                                />
+                                                <InputError
+                                                    message={
+                                                        de.signature_password
+                                                    }
+                                                />
+                                            </div>
+                                            <Button
+                                                type="submit"
+                                                disabled={processing}
+                                            >
+                                                {t('im_master.chain.decide')}
+                                            </Button>
+                                        </>
+                                    )}
+                                </Form>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </>
     );

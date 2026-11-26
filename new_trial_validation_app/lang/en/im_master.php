@@ -155,6 +155,15 @@ return [
         ],
     ],
 
+    'sheet' => [
+        'page_p1' => 'Page 1 · Specification and Surveillance',
+        'page_p2' => 'Page 2 · Packing',
+        'page_p3' => 'Page 3 · Validation',
+        'drop_hint' => 'Drop pictures here or click Add picture',
+        'caption_ph' => 'Picture note (blue box)',
+        'add_image' => 'Add picture',
+    ],
+
     'chain' => [
         'title' => 'QA sign-off chain',
         'hint' => 'The whole chain stays in QA: the author signs on submit, QA reviewers review, then one QA approver approves. Signatures use your own account password. The author cannot review or approve an IM they prepared.',

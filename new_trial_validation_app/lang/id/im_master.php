@@ -155,6 +155,15 @@ return [
         ],
     ],
 
+    'sheet' => [
+        'page_p1' => 'Halaman 1 · Spesifikasi dan Surveillance',
+        'page_p2' => 'Halaman 2 · Packing',
+        'page_p3' => 'Halaman 3 · Validasi',
+        'drop_hint' => 'Seret gambar ke sini atau klik Tambah gambar',
+        'caption_ph' => 'Keterangan gambar (kotak biru)',
+        'add_image' => 'Tambah gambar',
+    ],
+
     'chain' => [
         'title' => 'Rantai pengesahan QA',
         'hint' => 'Seluruh rantai ada di QA: penyusun menandatangani saat kirim, reviewer QA mereview, lalu satu approver QA menyetujui. Tanda tangan memakai password akun sendiri. Penyusun tidak bisa me-review atau menyetujui IM yang ia susun.',
