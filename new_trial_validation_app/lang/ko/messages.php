@@ -48,6 +48,7 @@ return [
         'submit_incomplete' => '아직 검토 요청을 제출할 수 없습니다: :errors',
         'reviewer_required' => ':department 부서의 검토자를 선택해 주십시오.',
         'reviewer_invalid' => '선택한 검토자는 :department 부서에 유효하지 않습니다.',
+        'self_approval' => '이 문서를 작성한 사람은 검토자 또는 승인자가 될 수 없습니다.',
         'not_ready_for_approval' => '이 트라이얼은 아직 승인 단계가 아닙니다.',
         'signature_wrong' => '전자 서명 비밀번호가 올바르지 않습니다.',
         'return_reason_min_words' => '반송 사유는 최소 5단어 이상 입력해야 합니다.',

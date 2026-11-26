@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Mixing;
 use App\Models\User;
+use App\Support\SelfApprovalGuard;
 
 /**
  * Mixing authorization (Tahap 4), the same shape as the Trial rules but
@@ -49,6 +50,10 @@ class MixingPolicy
     public function approve(User $user, Mixing $mixing): bool
     {
         if ($mixing->progress_status !== 'Ready for Approval') {
+            return false;
+        }
+
+        if (SelfApprovalGuard::isPreparerByEmail($user, $mixing->created_by)) {
             return false;
         }
 

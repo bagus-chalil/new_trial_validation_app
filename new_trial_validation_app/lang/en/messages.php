@@ -48,6 +48,7 @@ return [
         'submit_incomplete' => 'Cannot submit for review yet: :errors',
         'reviewer_required' => 'Select a reviewer for department :department.',
         'reviewer_invalid' => 'The selected reviewer is not valid for department :department.',
+        'self_approval' => 'The person who prepared this document cannot be its reviewer or approver.',
         'not_ready_for_approval' => 'This trial is not ready for approval yet.',
         'signature_wrong' => 'Incorrect e-signature password.',
         'return_reason_min_words' => 'The return reason must be at least 5 words.',

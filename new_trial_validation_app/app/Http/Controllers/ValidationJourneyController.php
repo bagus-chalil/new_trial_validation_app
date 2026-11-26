@@ -10,8 +10,11 @@ use App\Models\ValidationAssessment;
 use App\Models\ValidationCase;
 use App\Models\ValidationCaseLink;
 use App\Services\Validation\CaseJourney;
+use App\Services\Validation\FgMappingStatus;
 use App\Services\Validation\IpcBatchLookup;
 use App\Services\Validation\ValidationRoles;
+use App\Support\CaseClassification;
+use App\Support\CaseCohort;
 use App\Support\ValidationCaseType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,12 +37,14 @@ class ValidationJourneyController extends Controller
         $filters = [
             'q' => trim((string) $request->query('q', '')),
             'type' => trim((string) $request->query('type', '')),
+            'cohort' => trim((string) $request->query('cohort', '')),
         ];
 
         $cases = ValidationCase::query()
             ->whereNull('deleted_at')
             ->with('product:id,product_name,finish_good_code')
             ->when($filters['type'] !== '' && in_array($filters['type'], ValidationCaseType::ALL, true), fn ($q) => $q->where('case_type', $filters['type']))
+            ->when(in_array($filters['cohort'], [CaseCohort::ELIGIBLE, CaseCohort::HISTORICAL], true), fn ($q) => CaseCohort::scope($q, $filters['cohort']))
             ->when($filters['q'] !== '', function ($q) use ($filters) {
                 $like = '%'.addcslashes($filters['q'], '%_\\').'%';
                 $q->where(function ($q) use ($like) {
@@ -65,6 +70,8 @@ class ValidationJourneyController extends Controller
                 'total' => $built['summary']['total'],
                 'counts' => $built['summary']['counts'],
                 'last_result' => $built['summary']['last_result'],
+                'cohort' => CaseCohort::forCase($case),
+                'classification' => CaseClassification::forCase($case),
             ];
         });
 
@@ -98,6 +105,18 @@ class ValidationJourneyController extends Controller
             'canManageCase' => ValidationRoles::isPie($request->user()),
             'canEditAssessment' => Gate::forUser($request->user())->allows('create', ValidationAssessment::class),
             'canRecordClientApproval' => Gate::forUser($request->user())->allows('recordClientApproval', $case),
+            'classification' => CaseClassification::forCase($case),
+            'classificationOptions' => [
+                'process_areas' => CaseClassification::PROCESS_AREAS,
+                'purposes' => CaseClassification::PURPOSES,
+                'subjects' => CaseClassification::SUBJECTS,
+                'document_types' => CaseClassification::DOCUMENT_TYPES,
+            ],
+            'canClassify' => ValidationRoles::isPie($request->user()) || $request->user()->isStaff(),
+            'cohort' => CaseCohort::forCase($case),
+            'cohortCutoff' => CaseCohort::cutoff()->toDateString(),
+            'fgMapping' => FgMappingStatus::forProduct($case->product),
+            'canVerifyFg' => ValidationRoles::isPie($request->user()) || ValidationRoles::isQa($request->user()),
         ]);
     }
 

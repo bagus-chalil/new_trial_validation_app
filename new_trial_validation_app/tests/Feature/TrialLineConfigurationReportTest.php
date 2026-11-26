@@ -405,7 +405,12 @@ test('without an explicit leader list the approved_pie lane falls back to its te
     $this->actingAs($prod)->post(route('trials.line-configuration.check-prod', $trial->id));
 
     expect(LineConfigurationLane::signerUserIds('approved_pie'))->toBe([]);
-    $this->actingAs($maker)->post(route('trials.line-configuration.approve-pie', $trial->id))->assertRedirect();
+
+    // Brief 02: the drafter never gives the PIE Leader approval of their own report.
+    $this->actingAs($maker)->post(route('trials.line-configuration.approve-pie', $trial->id))->assertForbidden();
+
+    $leader = User::factory()->reviewUnit('PIE')->create();
+    $this->actingAs($leader)->post(route('trials.line-configuration.approve-pie', $trial->id))->assertRedirect();
 });
 
 test('the line configuration report PDF downloads for any version that exists', function () {

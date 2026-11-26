@@ -48,6 +48,7 @@ return [
         'submit_incomplete' => 'Belum bisa mengajukan review: :errors',
         'reviewer_required' => 'Pilih reviewer untuk departemen :department.',
         'reviewer_invalid' => 'Reviewer yang dipilih tidak valid untuk departemen :department.',
+        'self_approval' => 'Penyusun dokumen ini tidak boleh menjadi reviewer atau approver-nya.',
         'not_ready_for_approval' => 'Trial belum siap untuk approval.',
         'signature_wrong' => 'Password e-signature salah.',
         'return_reason_min_words' => 'Alasan Return minimal 5 kata.',

@@ -6,6 +6,7 @@ use App\Models\Trial;
 use App\Models\TrialAdditionalAttachment;
 use App\Models\TrialReview;
 use App\Models\User;
+use App\Support\SelfApprovalGuard;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -138,6 +139,11 @@ class TrialPolicy
      */
     public function approve(User $user, Trial $trial): bool
     {
+        // Brief 02: nobody approves a trial they prepared (Admin included).
+        if (SelfApprovalGuard::isPreparerByEmail($user, $trial->created_by)) {
+            return false;
+        }
+
         if ($user->isAdmin()) {
             return true;
         }

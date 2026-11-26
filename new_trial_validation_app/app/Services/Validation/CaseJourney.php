@@ -18,6 +18,7 @@ use App\Models\ValidationCase;
 use App\Models\ValidationCaseLink;
 use App\Models\ValidationPlan;
 use App\Models\ValidationTrialMeta;
+use App\Support\CaseCohort;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -398,6 +399,8 @@ class CaseJourney
             ->where('l.kind', 'trial')
             ->where('c.case_type', 'NPD')
             ->whereNull('c.deleted_at')
+            // Brief 03: only the eligible cohort (trials from the cutoff date) counts.
+            ->whereRaw(CaseCohort::startSql('c').' >= ?', [CaseCohort::cutoff()->toDateTimeString()])
             ->whereNull('t.deleted_at')
             ->where('t.progress_status', '!=', 'Draft')
             ->when($period !== null, fn ($q) => $q->whereBetween('t.validation_date', [$period['from'], $period['to']]))

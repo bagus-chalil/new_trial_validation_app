@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\MixingReview;
 use App\Models\User;
+use App\Support\SelfApprovalGuard;
 
 /**
  * A reviewer may save a Mixing review only for their own department, only
@@ -23,6 +24,10 @@ class MixingReviewPolicy
         }
 
         if ((int) $review->review_round !== $mixing->currentReviewRound()) {
+            return false;
+        }
+
+        if (SelfApprovalGuard::isPreparerByEmail($user, $mixing->created_by)) {
             return false;
         }
 

@@ -97,5 +97,53 @@ return [
 
     'toast' => [
         'client_approval_saved' => '고객 승인이 저장되었습니다.',
+        'classification_saved' => '분류가 저장되었습니다.',
+        'fg_verified' => 'FG 매핑이 확인되었습니다.',
+    ],
+
+    'classification' => [
+        'title' => '분류',
+        'description' => '공정 영역, 목적, 대상, 문서 유형은 서로 독립된 축입니다. Case 번호는 바뀌지 않습니다.',
+        'process_area' => '공정 영역',
+        'purpose' => '트라이얼 목적',
+        'subject' => '트라이얼 대상',
+        'document_type' => '문서 유형',
+        'other_note' => '어떤 트라이얼입니까?',
+        'derived_hint' => 'Case 유형에서 제안된 값입니다. 저장하여 확정하세요.',
+        'edit' => '분류 수정',
+        'save' => '분류 저장',
+        'not_set' => '미지정',
+        'process_areas' => ['Mixing' => '믹싱', 'Filling-Packing' => '충진·포장'],
+        'purposes' => ['NPD' => 'NPD', 'Improvement' => '개선', 'Other' => '기타 엔지니어링 트라이얼'],
+        'subjects' => ['Product' => '제품', 'Machine' => '설비', 'RM' => '원료(RM)', 'PM' => '포장재(PM)', 'Process' => '공정'],
+        'document_types' => ['Validation Plan' => '밸리데이션 계획', 'Trial Report' => '트라이얼 보고서', 'Line Configuration' => '라인 구성'],
+    ],
+
+    'cohort' => [
+        'all' => '전체 데이터',
+        'eligible' => '대상 (:date 이후)',
+        'historical' => '과거 (:date 이전)',
+        'badge_eligible' => '대상',
+        'badge_historical' => '과거',
+        'historical_hint' => ':date 이전에 생성됨: 참고용으로만 표시되며 새 KPI에 포함되지 않습니다.',
+    ],
+
+    'fg' => [
+        'title' => 'FG 식별',
+        'official_name' => '공식 품목명 (iERP)',
+        'verify' => '매핑 확인',
+        'cannot_verify' => '이 FG 코드는 iERP 가져오기에 없거나 이미 다른 제품에 연결되어 있습니다.',
+        'status' => [
+            'verified' => '확인됨',
+            'unverified' => '등록됨, 미확인',
+            'mismatch' => '다른 제품에 매핑됨',
+            'missing' => '공식 FG 없음',
+        ],
+        'hint' => [
+            'verified' => 'FG 코드가 iERP 공식 목록과 일치하며 담당자가 확인했습니다.',
+            'unverified' => '코드가 iERP에 있습니다. PIE 또는 QA가 이 제품의 코드인지 확인해야 합니다.',
+            'mismatch' => '공식 목록은 이 코드를 다른 제품에 매핑합니다. 제품 마스터를 확인하세요.',
+            'missing' => 'FG가 생기기 전에도 트라이얼을 시작할 수 있습니다. iERP가 코드를 발급하면 매핑하세요.',
+        ],
     ],
 ];

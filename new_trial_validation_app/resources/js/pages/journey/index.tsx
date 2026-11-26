@@ -32,9 +32,14 @@ type CaseRow = {
     total: number;
     counts: Record<string, number>;
     last_result: string | null;
+    cohort: string;
+    classification: {
+        process_area: string;
+        purpose: string;
+    };
 };
 
-type Filters = { q: string; type: string };
+type Filters = { q: string; type: string; cohort: string };
 
 type PageProps = {
     cases: Paginated<CaseRow>;
@@ -72,7 +77,9 @@ export default function JourneyIndex({ cases, filters, caseTypes }: PageProps) {
                     searchPlaceholder={t('journey.search_placeholder')}
                     onSubmit={submit}
                     onReset={reset}
-                    hasActiveFilters={Boolean(filters.q || filters.type)}
+                    hasActiveFilters={Boolean(
+                        filters.q || filters.type || filters.cohort,
+                    )}
                 >
                     <FilterSelect
                         label={t('journey.columns.type')}
@@ -83,6 +90,22 @@ export default function JourneyIndex({ cases, filters, caseTypes }: PageProps) {
                             value: type,
                             label: journeyTypeLabel(t, type),
                         }))}
+                    />
+                    <FilterSelect
+                        label={t('journey.cohort.badge_eligible')}
+                        value={form.cohort}
+                        onChange={(cohort) => setForm({ ...form, cohort })}
+                        placeholder={t('journey.cohort.all')}
+                        options={[
+                            {
+                                value: 'eligible',
+                                label: t('journey.cohort.badge_eligible'),
+                            },
+                            {
+                                value: 'historical',
+                                label: t('journey.cohort.badge_historical'),
+                            },
+                        ]}
                     />
                 </FilterBar>
 
@@ -130,6 +153,16 @@ export default function JourneyIndex({ cases, filters, caseTypes }: PageProps) {
                                         </TableCell>
                                         <TableCell>
                                             {journeyTypeLabel(t, row.case_type)}
+                                            {row.cohort !== 'eligible' && (
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="ml-2 bg-muted text-muted-foreground"
+                                                >
+                                                    {t(
+                                                        'journey.cohort.badge_historical',
+                                                    )}
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell>{row.total}</TableCell>
                                         <TableCell>

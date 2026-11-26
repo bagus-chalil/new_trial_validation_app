@@ -10,6 +10,7 @@ use App\Models\MixingFile;
 use App\Models\MixingReview;
 use App\Models\User;
 use App\Models\ValidationParameter;
+use App\Support\SelfApprovalGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -202,6 +203,10 @@ class MixingStepController extends Controller
         $approver = $approverQuery->find((int) $data['approver_user_id']);
         if ($approver === null) {
             throw ValidationException::withMessages(['approver_user_id' => __('mixing.review.invalid_approver')]);
+        }
+
+        if (SelfApprovalGuard::isPreparerByEmail($approver, $mixing->created_by)) {
+            throw ValidationException::withMessages(['approver_user_id' => __('messages.validation.self_approval')]);
         }
 
         $errors = $workflow->completeness($mixing);

@@ -15,6 +15,12 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CaseAlignment } from '@/components/validation/case-alignment';
+import type {
+    CaseClassification,
+    ClassificationOptions,
+    FgMapping,
+} from '@/components/validation/case-alignment';
 import { CaseExtras } from '@/components/validation/case-extras';
 import type {
     CaseAssessment,
@@ -113,6 +119,13 @@ type PageProps = {
     ipc: IpcData;
     mixings: CaseMixing[];
     canCreateMixing: boolean;
+    classification: CaseClassification;
+    classificationOptions: ClassificationOptions;
+    canClassify: boolean;
+    cohort: string;
+    cohortCutoff: string;
+    fgMapping: FgMapping;
+    canVerifyFg: boolean;
 };
 
 function ClientApprovalDialog({
@@ -208,6 +221,13 @@ export default function JourneyShow({
     ipc,
     mixings,
     canCreateMixing,
+    classification,
+    classificationOptions,
+    canClassify,
+    cohort,
+    cohortCutoff,
+    fgMapping,
+    canVerifyFg,
 }: PageProps) {
     const { t, formatDateOnly } = useTranslation();
     const [editing, setEditing] = useState<Attempt | null>(null);
@@ -240,6 +260,17 @@ export default function JourneyShow({
                         </Button>
                     )}
                 </div>
+
+                <CaseAlignment
+                    caseId={caseData.id}
+                    classification={classification}
+                    options={classificationOptions}
+                    canClassify={canClassify}
+                    cohort={cohort}
+                    cohortCutoff={cohortCutoff}
+                    fgMapping={fgMapping}
+                    canVerifyFg={canVerifyFg}
+                />
 
                 <CaseExtras
                     caseId={caseData.id}

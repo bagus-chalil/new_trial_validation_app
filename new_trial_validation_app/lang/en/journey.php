@@ -97,5 +97,53 @@ return [
 
     'toast' => [
         'client_approval_saved' => 'Client approval saved.',
+        'classification_saved' => 'Classification saved.',
+        'fg_verified' => 'FG mapping verified.',
+    ],
+
+    'classification' => [
+        'title' => 'Classification',
+        'description' => 'Process area, purpose, subject and document type are separate axes. The Case number never changes.',
+        'process_area' => 'Process area',
+        'purpose' => 'Trial purpose',
+        'subject' => 'Trial subject',
+        'document_type' => 'Document type',
+        'other_note' => 'What kind of trial?',
+        'derived_hint' => 'Suggested from the Case type. Save to confirm.',
+        'edit' => 'Edit classification',
+        'save' => 'Save classification',
+        'not_set' => 'Not set',
+        'process_areas' => ['Mixing' => 'Mixing', 'Filling-Packing' => 'Filling-Packing'],
+        'purposes' => ['NPD' => 'NPD', 'Improvement' => 'Improvement', 'Other' => 'Other engineering trial'],
+        'subjects' => ['Product' => 'Product', 'Machine' => 'Machine', 'RM' => 'Raw material (RM)', 'PM' => 'Packaging material (PM)', 'Process' => 'Process'],
+        'document_types' => ['Validation Plan' => 'Validation Plan', 'Trial Report' => 'Trial Report', 'Line Configuration' => 'Line Configuration'],
+    ],
+
+    'cohort' => [
+        'all' => 'All data',
+        'eligible' => 'Eligible (from :date)',
+        'historical' => 'Historical (before :date)',
+        'badge_eligible' => 'Eligible',
+        'badge_historical' => 'Historical',
+        'historical_hint' => 'Created before :date: shown for reference, not counted in the new KPIs.',
+    ],
+
+    'fg' => [
+        'title' => 'FG identity',
+        'official_name' => 'Official item name (iERP)',
+        'verify' => 'Verify mapping',
+        'cannot_verify' => 'This FG code is not listed in the iERP import, or it already belongs to another product.',
+        'status' => [
+            'verified' => 'Verified',
+            'unverified' => 'Listed, not verified',
+            'mismatch' => 'Mapped to another product',
+            'missing' => 'No official FG yet',
+        ],
+        'hint' => [
+            'verified' => 'The FG code matches the official iERP list and a person confirmed it.',
+            'unverified' => 'The code exists in iERP. PIE or QA should confirm it belongs to this product.',
+            'mismatch' => 'The official list maps this code to a different product. Check the products master.',
+            'missing' => 'A trial may start before the FG exists. Map it once iERP issues the code.',
+        ],
     ],
 ];

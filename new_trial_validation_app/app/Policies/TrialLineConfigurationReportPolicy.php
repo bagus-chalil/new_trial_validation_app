@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\LineConfigurationLane;
 use App\Models\TrialLineConfigurationReport;
 use App\Models\User;
+use App\Support\SelfApprovalGuard;
 
 /**
  * Authorizes the maker-checker actions on a Line Configuration Report's
@@ -51,6 +52,12 @@ class TrialLineConfigurationReportPolicy
             return false;
         }
 
+        // Brief 02: the drafter and the PROD acknowledger never also give the PIE Leader approval.
+        if (SelfApprovalGuard::isPreparerById($user, $report->updated_by_user_id !== null ? (int) $report->updated_by_user_id : null)
+            || SelfApprovalGuard::isPreparerById($user, $report->checked_prod_user_id !== null ? (int) $report->checked_prod_user_id : null)) {
+            return false;
+        }
+
         return LineConfigurationLane::userMaySign($user, 'approved_pie');
     }
 
@@ -58,6 +65,11 @@ class TrialLineConfigurationReportPolicy
     public function checkProd(User $user, TrialLineConfigurationReport $report): bool
     {
         if (! $report->isSubmittedForApproval() || $report->checked_prod) {
+            return false;
+        }
+
+        // Brief 02: the drafter never acknowledges their own report.
+        if (SelfApprovalGuard::isPreparerById($user, $report->updated_by_user_id !== null ? (int) $report->updated_by_user_id : null)) {
             return false;
         }
 

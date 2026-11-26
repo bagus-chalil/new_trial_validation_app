@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\TrialReview;
 use App\Models\User;
+use App\Support\SelfApprovalGuard;
 
 /**
  * Port of the authorization checks inline in the legacy app's public/index.php
@@ -47,6 +48,11 @@ class TrialReviewPolicy
         $trial = $review->trial;
 
         if (! $trial || $trial->final_decision !== null) {
+            return false;
+        }
+
+        // Brief 02: a reviewer never reviews a trial they prepared.
+        if (SelfApprovalGuard::isPreparerByEmail($user, $trial->created_by)) {
             return false;
         }
 

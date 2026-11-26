@@ -97,5 +97,53 @@ return [
 
     'toast' => [
         'client_approval_saved' => 'Approval client disimpan.',
+        'classification_saved' => 'Klasifikasi disimpan.',
+        'fg_verified' => 'Mapping FG terverifikasi.',
+    ],
+
+    'classification' => [
+        'title' => 'Klasifikasi',
+        'description' => 'Process area, tujuan, subjek, dan jenis dokumen adalah sumbu yang terpisah. Nomor Case tidak pernah berubah.',
+        'process_area' => 'Process area',
+        'purpose' => 'Tujuan trial',
+        'subject' => 'Subjek trial',
+        'document_type' => 'Jenis dokumen',
+        'other_note' => 'Trial jenis apa?',
+        'derived_hint' => 'Usulan dari jenis Case. Simpan untuk mengonfirmasi.',
+        'edit' => 'Ubah klasifikasi',
+        'save' => 'Simpan klasifikasi',
+        'not_set' => 'Belum diisi',
+        'process_areas' => ['Mixing' => 'Mixing', 'Filling-Packing' => 'Filling-Packing'],
+        'purposes' => ['NPD' => 'NPD', 'Improvement' => 'Improvement', 'Other' => 'Trial engineering lain'],
+        'subjects' => ['Product' => 'Produk', 'Machine' => 'Mesin', 'RM' => 'Bahan baku (RM)', 'PM' => 'Bahan kemas (PM)', 'Process' => 'Proses'],
+        'document_types' => ['Validation Plan' => 'Validation Plan', 'Trial Report' => 'Laporan Trial', 'Line Configuration' => 'Line Configuration'],
+    ],
+
+    'cohort' => [
+        'all' => 'Semua data',
+        'eligible' => 'Eligible (sejak :date)',
+        'historical' => 'Historis (sebelum :date)',
+        'badge_eligible' => 'Eligible',
+        'badge_historical' => 'Historis',
+        'historical_hint' => 'Dibuat sebelum :date: ditampilkan sebagai referensi, tidak dihitung di KPI baru.',
+    ],
+
+    'fg' => [
+        'title' => 'Identitas FG',
+        'official_name' => 'Nama item resmi (iERP)',
+        'verify' => 'Verifikasi mapping',
+        'cannot_verify' => 'Kode FG ini tidak ada di impor iERP, atau sudah menjadi milik produk lain.',
+        'status' => [
+            'verified' => 'Terverifikasi',
+            'unverified' => 'Terdaftar, belum diverifikasi',
+            'mismatch' => 'Terpetakan ke produk lain',
+            'missing' => 'Belum ada FG resmi',
+        ],
+        'hint' => [
+            'verified' => 'Kode FG cocok dengan daftar resmi iERP dan sudah dikonfirmasi seseorang.',
+            'unverified' => 'Kode ada di iERP. PIE atau QA perlu mengonfirmasi bahwa kode ini milik produk ini.',
+            'mismatch' => 'Daftar resmi memetakan kode ini ke produk lain. Periksa master produk.',
+            'missing' => 'Trial boleh dimulai sebelum FG ada. Petakan setelah iERP menerbitkan kodenya.',
+        ],
     ],
 ];

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Trials;
 use App\Actions\Trials\CheckTrialCompleteness;
 use App\Models\Trial;
 use App\Models\User;
+use App\Support\SelfApprovalGuard;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -78,6 +79,14 @@ class SubmitTrialForReviewRequest extends FormRequest
                 if (! $valid) {
                     $validator->errors()->add('reviewer_user_ids', __('messages.validation.reviewer_invalid', ['department' => $department]));
                 }
+            }
+
+            // Brief 02: the preparer is never picked as reviewer or approver.
+            $pickedIds = array_merge(array_values($this->reviewerUserIds()), [(int) $this->input('approver_user_id')]);
+            $preparer = User::query()->whereIn('id', array_filter($pickedIds))->get()
+                ->first(fn (User $u) => SelfApprovalGuard::isPreparerByEmail($u, $trial->created_by));
+            if ($preparer !== null) {
+                $validator->errors()->add('approver_user_id', __('messages.validation.self_approval'));
             }
         });
     }

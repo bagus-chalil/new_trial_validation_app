@@ -93,7 +93,22 @@ Urutan ditetapkan user 2026-11-25: **Tahap 0 harus selesai dulu.** IM dan QCO ge
 
 **Tahap 4 — Mixing.** Tabel baru (bukan `trials_header`, karena app legacy masih memakainya). Wizard berbasis konfigurasi langkah per jenis Case (Trial 6 langkah; Mixing tanpa Weighing). **Dikerjakan 2026-11-26 (lihat 8.20-8.21).**
 
-**Tahap 5 — Product Journey penuh + ekspor stakeholder.** Timeline lengkap lintas modul, PDF tiga bahasa, ringkasan dalam bahasa biasa, filter per produk/client/periode.
+**Penyelarasan dengan Visual Developer Brief (2026-11-26).** Setelah Tahap 4, brief atasan `docs/QAC SuperApp_Integrated_Quality_Visual_Brief_20261126.pdf` (`QAC-IBSA-CR-20261126`) mengubah urutan di bawah. Tahap 5 yang lama (Product Journey penuh + ekspor) dipindah ke Tahap 8. Jawaban user atas 3 pertanyaan penyelarasan: lingkup = **semua bagian brief, kalau bisa**; **Line Configuration ikut**; **IM wajib melewati approval QA** (QA adalah governance SOP). Detail celah: bagian 8 "Penyelarasan brief".
+
+**Tahap 5 — Penyelarasan fondasi (G1/G2). Dikerjakan 2026-11-26 (lihat 8.22).** Tanpa fitur besar baru:
+- Pisah klasifikasi jadi sumbu sendiri: process area (Mixing / Filling-Packing), trial purpose (NPD / Improvement / Other engineering trial), trial subject (Product / Machine, RM / PM / Process), document type. Case kind `NPD|IMP|MIX` dipetakan ke sumbu baru lewat tabel samping `vd_*` (tanpa ALTER), dengan backfill idempoten `--dry-run`. Penomoran Case ditinjau (D10).
+- FG identity: verified mapping FG Code resmi (iERP) tanpa menimpa histori; FG boleh belum tersedia saat trial; Case/Trial boleh lahir langsung tanpa Assessment atau Project; trial ID + revisi unik (D11).
+- Kohort data: trial sejak 16 Nov 2026 eligible, sebelum itu historis tanpa backfill otomatis; KPI dan Journey menghormati batas ini (D12). Penanda kohort ditambahkan ke Case hasil backfill Tahap 1.
+- Audit kontrol approval Trial / Mixing / Validation Plan / Line Config: pool PIC eligible, satu reviewer valid per departemen, final approver ditunjuk, cegah self-approval, tanpa email hardcoded, akun pribadi, reviewer PIE khusus. Termasuk K6 (D14).
+- **Line Configuration (ikut):** konfirmasi urutan dengan PIE/PROD (baseline 13 Nov: PIE sign-off → PROD check; interpretasi CR: PROD acknowledge → PIE Leader approval), pertahankan versi historis, lalu ubah workflow (D13).
+
+**Tahap 6 — IM master QA (G3).** Satu IM master per FG dengan N revisi. QA memilih bukti trial approved dan sumber resmi lain (approval trial bukan approval IM). Parameter terstruktur + PDF yang dihasilkan sepadan dokumen existing. Alur review dan **approval QA wajib** (menggantikan D6 "tanpa approval"). Status Draft / Effective / Superseded, maksimal satu Effective pada satu waktu, versi mendatang efektif pada tanggal rilisnya, perubahan di tengah run butuh disposisi QA, IM draft tidak boleh dipakai. Nomor IM dari Tahap 3 dipertahankan sebagai identitas master/revisi. Onboarding IM existing.
+
+**Tahap 7 — IPC dinamis (G4).** Perubahan di `ipc_app/` dan perlu rencana sendiri (migrasi IPC lewat pipeline, DB `ipc_system` terpisah, tanpa SSO). FG batch number dari iERP/dokumen resmi, banyak run per FG batch, Run ID internal, pin versi IM + rules per run sebagai snapshot, rule outcome PASS / FAIL / REVIEW dengan konfirmasi QC dan audit, AI actual vs expected (confidence rendah → REVIEW), expiry dari tanggal produksi + shelf life resmi, produk existing dengan IM efektif boleh langsung masuk IPC tanpa trial. Sambungan lewat kunci bisnis, bukan FK lintas DB.
+
+**Tahap 8 — Dashboard readiness, Product Journey penuh, feedback loop, ekspor (G5).** Matriks readiness per FG (PIE / Trial / IM / IPC) dengan drill-down ke transaksi sumber; Product Journey penuh lintas modul dan ekspor stakeholder PDF tiga bahasa (isi Tahap 5 yang lama); feedback loop konditional deviation/NCR → assessment → improvement → revalidasi → revisi IM; UAT dan regresi Trial/IPC.
+
+**Gerbang dari brief:** sebelum development: `Excel DB Validation (1) (1).xlsx` (kita memakai `DB Validation.xlsx`, perlu dicek sama atau tidak), konfirmasi Mixing/plan/approval/dashboard, audit sumber dan arsitektur developer, mapping, SOP, effort dan target. Kualifikasi minimum: linked/direct trial, reviewer tak berwenang ditolak, revision history, sumber approved QA, snapshot IM efektif, identitas FG/batch/run, handover idempoten, RBAC lintas app. Sebelum release: onboarding IM existing, feedback improvement konditional, migrasi dan rekonsiliasi, regresi Trial/IPC, GO terpisah untuk development, UAT, dan deployment. Brief menulis "FSD & development authorization pending" dan target requester 7 Desember 2026 tanpa komitmen delivery; semua pekerjaan ini masih di salinan lokal.
 
 ## 7. Keputusan terbuka
 
@@ -108,6 +123,12 @@ Urutan ditetapkan user 2026-11-25: **Tahap 0 harus selesai dulu.** IM dan QCO ge
 | D7 | Format nomor QCO, integrasi QCO elektronik (TBD di Excel) | **Diputuskan 2026-11-26 (Tahap 3):** `QCO-{YYYY}-{NNNN}`, urutan per tahun, penerbit PRNI, tanpa approval. Integrasi QCO elektronik tetap TBD. Dibangun di 8.17 |
 | D8 | Mixing: bukti revisi batch record, kategori produk | **Dijawab user 2026-11-26 (Tahap 4):** bukti revisi batch record = upload file (gambar/PDF) kategori `Revisi Batch Record` di langkah Lampiran, plus isian nomor dan revisi BR di header; kategori produk = master `product_type` yang ada. Approval Mixing sama dengan Trial. Dibangun di 8.20 |
 | D9 | Siapa yang menentukan Risk (PIE saat assessment atau dihitung) | PIE saat assessment |
+| D6 (revisi) | IM perlu approval? | **Dijawab user 2026-11-26: ya, approval QA wajib** (QA governance SOP). Penerbitan nomor tanpa approval (Tahap 3) tetap, tetapi IM baru bisa Effective setelah approval QA (Tahap 6). Brief juga: approval trial bukan approval IM |
+| D10 | Pemisahan sumbu klasifikasi (process area, purpose, subject, document type) dan nasib prefix Case `NPD/IMP/MIX` | Pemetaan lewat tabel samping `vd_*`, prefix nomor tidak diubah dulu (jangan memecah nomor yang sudah terbit); tinjau di Tahap 5 |
+| D11 | FG identity: verified mapping FG Code iERP, Case/Trial tanpa Assessment atau Project | **Dijawab user 2026-11-26:** sumber = **impor Excel/CSV dari iERP** (`validation:import-fg`, kolom `fg_code,item_name,effective_date`). FG Batch Number diimpor di Tahap 7 (milik run IPC). Dibangun di 8.22 |
+| D12 | Kohort data: trial >= 16 Nov 2026 eligible, sebelumnya historis | Diturunkan dari tanggal trial pertama Case (bukan `vd_cases.created_at`, karena Case hasil backfill dibuat "sekarang"); cutoff `VALIDATION_COHORT_START`. Dibangun di 8.22 |
+| D13 | Urutan approval Line Config (baseline 13 Nov vs interpretasi CR) | **Ikut lingkup; dijawab user 2026-11-26: PROD acknowledge lalu PIE Leader approve.** Urutan ini ternyata sudah berjalan sejak 2026-11-25 (migrasi `2026_11_25_000001_line_config_prod_acknowledge_then_pie_leader_approve`), jadi tidak ada perubahan alur; Tahap 5 hanya menambah kontrol self-approval |
+| D14 | Kontrol approval (pool PIC, self-approval, reviewer PIE khusus, akun pribadi) | **Dijawab user 2026-11-26: pakai aturan yang sudah ada** (reviewer = akun dengan review unit/department cocok, approver dipilih di form); Tahap 5 menambah cegah self-approval. Matriks Mixing/Validation Plan masih belum final menurut brief. Dibangun di 8.22 |
 
 **Usulan Tahap 0 (menunggu persetujuan user, belum final):** D1 setuju default, tapi Tahap 1 harus memetakan 6 nilai `validation_category` yang sudah ada ke NPD/IMP/MIX (lihat 8.5). D2 per bulan (volume ±60 trial/bulan, 3 digit cukup). D3 ya. D4 pakai default, tetapi hitung **per Case**, bukan per `product_id` (lihat temuan master produk di 8.3). D5 tetap tanya user. D6/D7 penerbit sudah jelas, format menyusul sebelum Tahap 3. D9 default. **K4: pertahankan aturan yang sudah jalan, dan jangan dipakai untuk riwayat** (lihat 8.6).
 
@@ -263,9 +284,71 @@ Dibangun di `new_trial_validation_app/`. **Belum dijalankan ke server dev/prod**
 - Berkas Mixing ada di disk `local` server (`storage/app/private/mixing`); perlu ikut backup server.
 - Edit file lewat skrip Python harus `newline=''`; heredoc berisi tanda kutip gagal di shell ini, pakai tool Write.
 
+### Penyelarasan brief atasan (2026-11-26) — hanya plan, tanpa kode
+
+Brief visual `docs/QAC SuperApp_Integrated_Quality_Visual_Brief_20261126.pdf` dibandingkan dengan plan. **Sesuai:** alur PIE → Trial → QA IM → IPC → Surveillance, batas dua aplikasi (D02/D07), Case sebagai tulang punggung, Validation Plan, Tooling Check, Improvement, Mixing/Filling-Packing, lookup IPC read-only, tanpa FK lintas DB, budget vs actual opsional.
+
+**Celah (dan tahap yang menutupnya):** (1) sumbu klasifikasi tercampur di Case kind → Tahap 5; (2) IM hanya penerbit nomor tanpa approval, padahal brief meminta domain QA penuh dengan versi dan approval → Tahap 6; (3) IPC hanya lookup, brief meminta snapshot IM per run, batch/run, rule outcome → Tahap 7; (4) FG identity iERP, Case tanpa Assessment/Project → Tahap 5; (5) kontrol approval belum diaudit → Tahap 5; (6) backfill semua trial lama vs kohort 16 Nov → Tahap 5; (7) Line Config tidak ada di plan → Tahap 5; (8) dashboard readiness per FG → Tahap 8; (9) feedback loop NCR → Tahap 8. Brief tidak menyebut QCO, jadi generator QCO Tahap 3 belum terkonfirmasi atasan.
+
+**Jawaban user:** lingkup semua bagian brief kalau bisa; Line Configuration ikut; IM wajib approval QA karena QA governance SOP. Belum terkonfirmasi: status FSD/authorization, target 7 Desember, dan file `Excel DB Validation (1) (1).xlsx`. Plan bagian 6, 7, 9 diperbarui; Tahap 5 lama pindah ke Tahap 8.
+
+### Hasil Tahap 5 (2026-11-26) — penyelarasan fondasi dengan brief atasan
+
+Dibangun di `new_trial_validation_app/`. **Belum dijalankan ke server dev/prod**; migrasi dan verifikasi hanya di MySQL lokal salinan `trial_validation_system_v2t5` (dari `v2t4`, nama DB dicek dulu; `.env` tetap menunjuk `fase5` yang tidak disentuh). Tidak ada ALTER ke tabel bersama.
+
+**8.22 Yang dibangun**
+- Migrasi additive `2026_11_30_000001_create_vd_alignment_tables.php` (hasTable guard, tanpa FK): `vd_case_classifications` (satu per Case) dan `vd_fg_mappings` (unik `fg_code`).
+- **Sumbu klasifikasi (D10):** process area (Mixing / Filling-Packing), trial purpose (NPD / Improvement / Other + catatan), trial subject (Product / Machine / RM / PM / Process), document type (Validation Plan / Trial Report / Line Configuration). Tanpa baris tersimpan, nilai diturunkan dari jenis Case (`CaseClassification::defaultsFor`), lalu PIE/Staff menyimpan untuk mengonfirmasi (`SaveCaseClassification`, `PUT /journey/{case}/classification`). **Nomor Case dan prefix `NPD/IMP/MIX` tidak diubah.** Kartu "Klasifikasi" di halaman Case.
+- **FG identity (D11):** `php artisan validation:import-fg {file} [--dry-run]` mengimpor daftar resmi iERP (CSV/XLSX) ke `vd_fg_mappings`: idempoten per `fg_code`, tidak menghapus, nama yang berubah disimpan di `item_name_previous`, diusulkan `product_id` hanya bila kode cocok **tepat satu** produk aktif (FG kembar tidak ditebak). Status per Case lewat `FgMappingStatus`: `verified` / `unverified` / `mismatch` / `missing` (FG belum ada atau `N/A` diperbolehkan, sesuai brief). PIE atau QA memverifikasi dengan satu klik (`POST /journey/{case}/fg/verify`, `VerifyFgMapping`). Kartu "Identitas FG" di halaman Case. Case dari trial langsung dan project opsional **sudah berlaku sejak Tahap 1** (`EnsureCaseForTrial` dari `CreateTrial`).
+- **Kohort (D12):** `CaseCohort` memakai tanggal trial pertama Case (`vd_case_links` + `trials_header.created_at`), fallback `vd_cases.created_at`; cutoff `config/validation_v2.php` (`VALIDATION_COHORT_START`, default 2026-11-16). Badge "Historis", filter Eligible/Historis di daftar Journey, dan **KPI Realized Trial Lead Time hanya menghitung kohort eligible**. Hasil pada salinan lokal: 308 Case = 24 eligible + 284 historis.
+- **Kontrol self-approval (D14):** `SelfApprovalGuard` (flag `VALIDATION_PREVENT_SELF_APPROVAL`, default aktif, berlaku untuk Admin juga). Penyusun tidak bisa approve Trial (`TrialPolicy::approve`), mereview Trial (`TrialReviewPolicy::update`), approve/review Mixing (`MixingPolicy::approve`, `MixingReviewPolicy::review`), atau dipilih sebagai reviewer/approver saat submit (Trial dan Mixing). Line Config: drafter tidak bisa acknowledge PROD, dan drafter maupun pe-acknowledge PROD tidak bisa memberi approval PIE Leader. Satu test lama diubah (maker PIE tidak lagi boleh approve laporannya sendiri; pakai leader PIE lain).
+- Strings id/en/ko di `journey.classification|cohort|fg|toast` dan `messages.validation.self_approval`. 12 Pest test baru (`tests/Feature/ValidationAlignmentTest.php`).
+
+**8.23 Hasil audit kontrol approval (D14, temuan nyata di kode)**
+1. Sebelum Tahap 5 **tidak ada** pencegahan self-approval di mana pun (approver bisa saja pembuat trial, Admin selalu lolos).
+2. Reviewer dipilih per departemen dari akun ber-`review_unit` cocok (sudah satu reviewer per departemen); approver dipilih dari role eligible. Tidak ada email hardcoded di kode aplikasi.
+3. Line Config sudah memakai tanda tangan akun sendiri tanpa bypass Admin; urutan PROD -> PIE Leader sudah sesuai CR.
+4. Belum dikerjakan: daftar PIC eksplisit per departemen (jawaban user: pakai aturan yang ada), matriks approval final Mixing/Validation Plan (belum final menurut brief), dan K6 (akun Viewer `@local.test` yang bisa tanda tangan karena role-nya sama dengan staf asli; itu masalah data akun, bukan kode).
+
+**8.24 Uji.** Pest 783 dari 784 lulus (1 gagal lama `ExportLocaleTest`/ZipArchive, 3 skip lama). Pint (`composer run lint:check`), Prettier, ESLint file baru, tsc, `npm run build` bersih. Larastan menyisakan 2 error lama (`TrialMonitorController`, migrasi `rename_pi_review_team_to_pie`). Live pada `trial_validation_system_v2t5`: migrasi jalan, `validation:import-fg` dry-run lalu nyata lalu ulang (5 dibuat, ulang 0 perubahan, 2 dari 4 kode nyata cocok, sisanya FG kembar sengaja tidak ditebak), halaman Journey dan Case dibuka dengan data nyata lewat Kernel (filter kohort 24 + 284 = 308, kartu klasifikasi/FG/kohort tampil). Verifikasi browser Playwright tidak dijalankan di tahap ini (frontend hanya diuji build/tsc/eslint/prettier).
+
+**8.25 Keputusan yang diambil (mohon dikoreksi bila salah)**
+1. Kohort memakai tanggal trial pertama, bukan tanggal baris Case.
+2. Yang boleh mengklasifikasi: PIE atau Staff; memverifikasi mapping FG: PIE atau QA. Jawaban atas siapa pool resminya belum ada.
+3. Self-approval ditolak untuk semua termasuk Admin; ini mengubah perilaku lama Admin yang bisa menyetujui trial buatannya sendiri. Lingkungan satu orang (uji) cukup `VALIDATION_PREVENT_SELF_APPROVAL=false`.
+4. FG Batch Number belum diimpor (Tahap 7).
+
 ## 9. Prompt siap pakai
 
-### Prompt Tahap 5 (tempel di chat baru)
+### Prompt Tahap 6 baru: IM master QA (tempel di chat baru)
+
+```text
+Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 6 terutama "Penyelarasan dengan Visual Developer Brief" dan "Tahap 6", 7 (D6 revisi, D6, D14), 8 terutama "Penyelarasan brief atasan", 8.17 (penerbit IM Tahap 3) dan 8.22-8.25), docs/QAC SuperApp_Integrated_Quality_Visual_Brief_20261126.pdf (halaman 3 dan 4 soal IM/IPC), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), serta ipc_app/CLAUDE.md (hanya baca).
+
+Konteks: Tahap 1-5 selesai di salinan lokal (migrasi v2.0 dan backfill belum dijalankan di dev/prod). Atasan menetapkan: IM adalah domain QA (satu IM master per FG Code, N revisi), QA memilih bukti trial approved dan sumber resmi lain (approval trial BUKAN approval IM), parameter terstruktur + PDF yang dihasilkan sepadan dokumen existing, review lalu approval QA wajib (QA governance SOP), status Draft / Effective / Superseded, maksimal satu Effective pada satu waktu, versi mendatang efektif pada tanggal rilisnya, perubahan di tengah run butuh disposisi QA, IM Draft tidak boleh dipakai IPC, onboarding IM existing. Nomor IM dari Tahap 3 (IssueImNumber, IM-{BRAND}-{PRODUK}[ V{n}]) dipertahankan sebagai identitas master/revisi. Tanyakan ke saya lebih dulu sebelum membangun: siapa yang me-review dan menyetujui IM (departemen/akun QA apa, satu atau dua tingkat), isi parameter terstruktur IM dan contoh dokumen IM existing (format PDF yang harus disamai), dan bagaimana IM existing di-onboarding (impor, atau QA membuat ulang satu per satu). Jangan menebak.
+
+Kerjakan HANYA Tahap 6 sesuai bagian 6: model IM master + revisi + parameter terstruktur (tabel baru vd_*, additive, hasTable guard, tanpa FK), alur Draft -> review QA -> approval QA (e-signature seperti Trial/Mixing, dan SelfApprovalGuard berlaku), status Effective/Superseded dengan aturan satu efektif pada satu waktu dan tanggal rilis, pilihan bukti trial approved dari Case, PDF IM lewat PdfService (Blade + Browsershot), tautan ke Case lewat vd_case_links kind im, id/en/ko, Pest test, gate lengkap (Pint hanya `composer run lint:check`; Larastan, php artisan test, ESLint, Prettier, tsc, npm run build), verifikasi live di DB SALINAN baru dari trial_validation_system_v2t5 lewat mysqldump dengan DB_DATABASE env override (cek namanya dulu; Playwright lokal butuh executablePath ke chromium_headless_shell-1248), lalu ritual penutup: update plan bagian 8, CLAUDE.md (root dan new_trial_validation_app/), commit pesan English dengan stage file spesifik, dan catatan penutup.
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama/dev/prod, jangan --env= tanpa file .env.<nama>, jangan factory di tinker, jangan menyentuh Project-Tracking-PIE-Team/, jangan UPDATE trials_header, jangan menulis ke ipc_system atau mengubah ipc_app/. Edit file lewat skrip Python harus memakai newline='' (kalau tidak Windows menulis CRLF); heredoc berisi tanda kutip gagal di shell ini, pakai tool Write.
+```
+
+### Prompt Tahap 5 (arsip, sudah dikerjakan 2026-11-26)
+
+```text
+Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 6 terutama "Penyelarasan dengan Visual Developer Brief" dan "Tahap 5", 7 (D10-D14), 8 terutama "Penyelarasan brief atasan" dan 8.20-8.21), docs/QAC SuperApp_Integrated_Quality_Visual_Brief_20261126.pdf (brief atasan, baca semua 5 halaman), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), serta ipc_app/CLAUDE.md (hanya baca).
+
+Konteks: Tahap 1-4 selesai di salinan lokal (belum ada migrasi/backfill di dev/prod). Brief atasan mengubah arah: IM wajib approval QA, IPC dinamis, klasifikasi dipisah, Line Configuration ikut. Tanyakan ke saya lebih dulu sebelum membangun: format sumber iERP untuk FG Code dan FG Batch (D11), siapa yang boleh jadi reviewer PIE khusus dan pool PIC eligible per departemen (D14), dan urutan final approval Line Config yang sudah dikonfirmasi PIE/PROD atau belum (D13). Jangan menebak.
+
+Kerjakan HANYA Tahap 5 sesuai bagian 6: pemisahan sumbu klasifikasi lewat tabel samping vd_* (D10), FG verified mapping dan Case/Trial tanpa Assessment/Project (D11), penanda kohort 16 Nov 2026 (D12), audit kontrol approval Trial/Mixing/Validation Plan/Line Config termasuk K6 (D14), lalu perubahan workflow Line Config hanya setelah urutannya terkonfirmasi (D13). Tabel baru additive dengan hasTable guard, tanpa FK, tanpa ALTER tabel bersama. id/en/ko, Pest test, gate lengkap (Pint hanya `composer run lint:check`; Larastan, php artisan test, ESLint, Prettier, tsc, npm run build), verifikasi live Playwright di DB SALINAN baru dari trial_validation_system_v2t4 lewat mysqldump dengan DB_DATABASE env override (cek namanya dulu; Playwright lokal butuh executablePath ke chromium_headless_shell-1248), lalu ritual penutup: update plan bagian 8, CLAUDE.md (root dan new_trial_validation_app/), commit pesan English dengan stage file spesifik, dan catatan penutup.
+
+Batasan: jangan migrate:fresh/refresh/db:wipe, jangan migrate manual ke DB bersama/dev/prod, jangan --env= tanpa file .env.<nama>, jangan factory di tinker, jangan menyentuh Project-Tracking-PIE-Team/, jangan UPDATE trials_header, jangan menulis ke ipc_system atau mengubah ipc_app/. Edit file lewat skrip Python harus memakai newline='' (kalau tidak Windows menulis CRLF); heredoc berisi tanda kutip gagal di shell ini, pakai tool Write.
+```
+
+### Prompt Tahap 7-8 (garis besar, prompt lengkap ditulis saat tahap sebelumnya selesai)
+
+Tahap 7 IPC dinamis (rencana sendiri untuk `ipc_app/`), Tahap 8 dashboard readiness + Product Journey penuh + ekspor + feedback loop. Isi lengkap: bagian 6.
+
+### Prompt Tahap 5 lama (diganti 2026-11-26, isinya kini Tahap 8)
 
 ```text
 Kita mengerjakan Trial Validation v2.0 di new_trial_validation_app/. Baca dulu: TRIAL_VALIDATION_V2_PLAN.md (repo root; bagian 2, 3, 6 "Tahap 5", 7, dan 8 terutama "Hasil Tahap 4" 8.20-8.21), CLAUDE.md di root dan new_trial_validation_app/CLAUDE.md (insiden DB 2026-08-24, aturan prod additive-only), serta ipc_app/CLAUDE.md (hanya baca).

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ValidationAssessmentController;
+use App\Http\Controllers\ValidationCaseAlignmentController;
 use App\Http\Controllers\ValidationCaseImprovementController;
 use App\Http\Controllers\ValidationCaseNumberController;
 use App\Http\Controllers\ValidationCaseToolingController;
@@ -23,6 +24,8 @@ Route::middleware(['auth', 'verified'])->prefix('journey')->as('journey.')->grou
     Route::post('{case}/numbers', [ValidationCaseNumberController::class, 'store'])->whereNumber('case')->name('numbers.store');
     Route::delete('{case}/numbers/{kind}/{number}', [ValidationCaseNumberController::class, 'destroy'])
         ->whereNumber('case')->whereNumber('number')->whereIn('kind', ['qco', 'im'])->name('numbers.destroy');
+    Route::put('{case}/classification', [ValidationCaseAlignmentController::class, 'classify'])->whereNumber('case')->name('classification.update');
+    Route::post('{case}/fg/verify', [ValidationCaseAlignmentController::class, 'verifyFg'])->whereNumber('case')->name('fg.verify');
     Route::post('{case}/trials/{trial}/client-approval', [ValidationJourneyController::class, 'clientApproval'])
         ->whereNumber('case')->whereNumber('trial')->name('client-approval');
 });
