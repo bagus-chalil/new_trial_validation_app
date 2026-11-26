@@ -51,6 +51,8 @@ return [
     ],
 
     'im' => [
+        'open_sheet' => 'Buka lembar IM',
+        'create_sheet' => 'Buat lembar IM',
         'title' => 'Nomor IM',
         'description' => 'Daftar nomor Instruksi Mutu (IM) yang diterbitkan QA. Format IM-KODE-NAMA PRODUK, revisi V2, V3 dan seterusnya.',
         'issue' => 'Terbitkan IM',

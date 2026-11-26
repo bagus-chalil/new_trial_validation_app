@@ -19,15 +19,17 @@
     .box { border: 1px solid #c0392b; padding: 4px 6px; margin: 4px 0; }
     .box h5 { margin: 0 0 2px; font-size: 9px; color: #c0392b; }
     .box ol, .box ul { margin: 0; padding-left: 14px; }
-    .gallery { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
-    .gallery figure { margin: 0; text-align: center; max-width: 30%; }
-    .gallery img { max-width: 100%; max-height: 170px; object-fit: contain; }
-    .gallery figcaption { font-size: 8px; color: #444; }
+    .gallery { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin: 4px 0; }
+    .gallery figure { margin: 0; text-align: center; flex: 0 1 auto; max-width: 31%; }
+    .gallery img { max-width: 100%; max-height: 150px; object-fit: contain; }
+    .gallery figcaption { margin-top: 3px; padding: 2px 4px; border: 1px solid #2b6cb0; background: #eaf3fb; color: #1a4d80; font-size: 8px; font-weight: 700; }
+    .subhead { font-weight: 700; font-size: 10px; margin: 6px 0 2px; }
+    .sig tr.sigcols td { background: #eee; font-weight: 700; font-size: 8px; height: auto; padding: 1px 4px; border-bottom: 0; }
     .pre { white-space: pre-line; }
     .page-break { page-break-before: always; }
     .num { text-align: right; white-space: nowrap; }
     .wm { position: fixed; top: 40%; left: 20%; font-size: 70px; color: rgba(200, 0, 0, .12); transform: rotate(-20deg); z-index: 0; }
-    .sig td { height: 46px; }
+    .sig td { height: 34px; }
     .sig tr.grp td { height: auto; padding: 3px 4px; }
     .grp { background: #333; color: #fff; font-weight: 700; }
     .muted { color: #666; }
@@ -47,6 +49,18 @@
     $lines = fn ($text) => collect(preg_split('/\r\n|\r|\n/', (string) $text))->map(fn ($l) => trim($l))->filter()->values();
     $section = fn ($key) => $params->get($key, collect());
     $nameOf = fn ($row) => $row->name.($row->description ? ' — '.$row->description : '');
+    // All pictures of one category sit side by side in one row, each with its blue note box.
+    $gallery = function (array $imgs) {
+        if (empty($imgs)) {
+            return '';
+        }
+        $html = '<div class="gallery">';
+        foreach ($imgs as $img) {
+            $html .= '<figure><img src="'.e($img['src']).'" alt="">'.(trim((string) $img['caption']) !== '' ? '<figcaption>'.e($img['caption']).'</figcaption>' : '').'</figure>';
+        }
+
+        return new \Illuminate\Support\HtmlString($html.'</div>');
+    };
 @endphp
 
 {{-- The header block repeats on every page, like the paper IM --}}
@@ -99,9 +113,7 @@
                         <ol>@foreach ($section('filling_point') as $row)<li>{{ $nameOf($row) }}</li>@endforeach</ol></div>
                     <div class="box"><h5>{{ __('im_master.pdf.point_appearance') }}</h5>
                         <ol>@foreach ($section('appearance_point') as $row)<li>{{ $nameOf($row) }}</li>@endforeach</ol></div>
-                    @foreach ($images['appearance_filling'] ?? [] as $img)
-                        <div class="gallery"><figure><img src="{{ $img['src'] }}" alt=""><figcaption>{{ $img['caption'] }}</figcaption></figure></div>
-                    @endforeach
+                    {{ $gallery($images['appearance_filling'] ?? []) }}
 
                     <div class="sub">A.3 {{ __('im_master.pdf.weight_filling') }}</div>
                     @if (! empty($content['legal_note']))<p class="legal">{{ $content['legal_note'] }}</p>@endif
@@ -119,9 +131,7 @@
                 </td>
                 <td class="col">
                     <div class="sec">A.2 {{ __('im_master.pdf.appearance_packing') }}</div>
-                    @foreach ($images['primary_packaging'] ?? [] as $img)
-                        <div class="gallery"><figure><img src="{{ $img['src'] }}" alt=""><figcaption>{{ $img['caption'] }}</figcaption></figure></div>
-                    @endforeach
+                    {{ $gallery($images['primary_packaging'] ?? []) }}
                     <div class="box"><h5>{{ __('im_master.pdf.point_batch') }}</h5>
                         <ul>@foreach ($section('coding') as $row)<li><strong>{{ $row->name }}</strong>@if ($row->description) : {{ $row->description }}@endif @if ($row->specification) — {{ $row->specification }}@endif</li>@endforeach</ul>
                         @foreach (['batch_format_tube' => 'Tube', 'batch_format_unit_box' => 'Unit Box', 'batch_format_master_box' => 'Master Box'] as $key => $label)
@@ -163,9 +173,10 @@
         @if ($page === 2)
             <div class="sec">A. {{ __('im_master.pdf.fg_spec') }}</div>
             <div class="sub">A.4 {{ __('im_master.pdf.appearance_packing') }}</div>
-            @foreach (['secondary_packaging', 'tertiary_packaging'] as $cat)
+            @foreach (['secondary_packaging' => 'secondary', 'tertiary_packaging' => 'tertiary'] as $cat => $label)
                 @if (! empty($images[$cat]))
-                    <div class="gallery">@foreach ($images[$cat] as $img)<figure><img src="{{ $img['src'] }}" alt=""><figcaption>{{ $img['caption'] }}</figcaption></figure>@endforeach</div>
+                    <div class="subhead">{{ __('im_master.pdf.packing_'.$label) }}</div>
+                    {{ $gallery($images[$cat]) }}
                 @endif
             @endforeach
             <div class="box"><h5>{{ __('im_master.pdf.packing_process') }}</h5>
@@ -186,10 +197,12 @@
             <div class="sec">VALIDATION</div>
             <table class="sig">
                 <tr class="grp"><td colspan="4">PREPARED BY</td></tr>
+                <tr class="sigcols"><td>{{ __('im_master.pdf.col_name') }}</td><td>Signature</td><td>Date</td><td>Remarks</td></tr>
                 <tr><td style="width:24%">{{ $prepared?->user_name ?? $revision->prepared_by_name }}<br><span class="muted">{{ $prepared?->role_label ?: config('im_signoff.prepared_label') }}</span></td>
                     <td style="width:24%">@if ($prepared?->status === 'Signed')<strong>{{ __('im_master.pdf.signed_electronically') }}</strong>@endif</td>
                     <td style="width:16%">{{ $prepared?->signed_at?->format('d-m-Y H:i') }}</td><td>{{ $prepared?->comment }}</td></tr>
                 <tr class="grp"><td colspan="4">REVIEW BY</td></tr>
+                <tr class="sigcols"><td>{{ __('im_master.pdf.col_name') }}</td><td>Signature</td><td>Date</td><td>Remarks</td></tr>
                 @foreach ($fixedReview as $label)
                     @php $r = $reviews->firstWhere('role_label', $label); @endphp
                     <tr><td>{{ $r?->user_name }}<br><span class="muted">{{ $label }}</span></td>
@@ -202,6 +215,7 @@
                         <td>{{ $r->signed_at?->format('d-m-Y H:i') }}</td><td class="pre">{{ $r->comment }}</td></tr>
                 @endforeach
                 <tr class="grp"><td colspan="4">KNOWLEDGE BY</td></tr>
+                <tr class="sigcols"><td>{{ __('im_master.pdf.col_name') }}</td><td>Signature</td><td>Date</td><td>Remarks</td></tr>
                 @foreach ($knowledgeSlots as $slot)
                     @php $k = $knowledge->get($slot['label']); @endphp
                     <tr><td>{{ $k?->user_name }}<br><span class="muted">{{ $slot['label'] }}</span></td>
@@ -209,6 +223,7 @@
                         <td>{{ $k?->signed_at?->format('d-m-Y H:i') }}</td><td class="pre">{{ $k?->comment }}</td></tr>
                 @endforeach
                 <tr class="grp"><td colspan="4">APPROVED BY</td></tr>
+                <tr class="sigcols"><td>{{ __('im_master.pdf.col_name') }}</td><td>Signature</td><td>Date</td><td>Remarks</td></tr>
                 <tr><td>{{ $approval?->user_name }}<br><span class="muted">{{ $approval?->role_label ?: config('im_signoff.approved_label') }}</span></td>
                     <td>@if ($approval?->status === 'Signed')<strong>{{ __('im_master.pdf.signed_electronically') }}</strong>@endif</td>
                     <td>{{ $approval?->signed_at?->format('d-m-Y H:i') }}</td><td class="pre">{{ $approval?->comment }}</td></tr>

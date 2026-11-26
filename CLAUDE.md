@@ -173,6 +173,8 @@ Plan and decisions: `TRIAL_VALIDATION_V2_PLAN.md` (repo root). Tahap 0 (read-onl
 
 **IM sign-off sheet like the paper (2026-11-26):** Knowledge by rows are now electronic signatures by the matching team (informative, never block release), reviewer titles per row, PDF page 1 in two columns, interactive sign-off timeline; QCO left unchanged, old-IM import postponed. Details: `new_trial_validation_app/CLAUDE.md`.
 
+**IM PDF like the paper + "Open IM sheet" button (2026-11-26):** PDF pictures now sit side by side per category with blue note boxes, page 2 has Secondary / Tertiary headings, the VALIDATION sheet has Signature / Date / Remarks column headers (still 3 pages). IM Numbers page links each number to its sheet or to the create dialog with that number preselected (`/validation/im-masters?number=`). No schema change. Details: `new_trial_validation_app/CLAUDE.md`.
+
 ### Fase 4 — Decommission
 - [ ] Turn off legacy PHP app
 - [ ] Remove SSO bridge (`/sso/*` routes both sides, `sso_tickets` table)

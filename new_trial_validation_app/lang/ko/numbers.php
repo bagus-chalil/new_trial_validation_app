@@ -51,6 +51,8 @@ return [
     ],
 
     'im' => [
+        'open_sheet' => 'IM 시트 열기',
+        'create_sheet' => 'IM 시트 만들기',
         'title' => 'IM 번호',
         'description' => 'QA가 발급한 품질 지침(IM) 번호입니다. 형식은 IM-코드-제품명이며 개정은 V2, V3 순입니다.',
         'issue' => 'IM 발급',

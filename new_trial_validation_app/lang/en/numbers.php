@@ -51,6 +51,8 @@ return [
     ],
 
     'im' => [
+        'open_sheet' => 'Open IM sheet',
+        'create_sheet' => 'Create IM sheet',
         'title' => 'IM Numbers',
         'description' => 'Quality Instruction (IM) numbers issued by QA. Format IM-CODE-PRODUCT NAME, revisions are V2, V3 and so on.',
         'issue' => 'Issue IM',

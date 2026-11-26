@@ -33,6 +33,8 @@ import {
 import { useTranslation } from '@/hooks/use-translation';
 import { show as journeyShow } from '@/routes/journey';
 import { index as imIndex } from '@/routes/validation/im';
+import { index as mastersIndex } from '@/routes/validation/im-masters';
+import { show as revisionShow } from '@/routes/validation/im-revisions';
 import type { Paginated } from '@/types';
 
 type Row = {
@@ -52,6 +54,7 @@ type Row = {
     issued_by_name: string;
     case_id: number | null;
     case_no: string | null;
+    sheet_revision_id: number | null;
 };
 
 type Filters = { q: string; status: string };
@@ -70,7 +73,7 @@ type PageProps = {
     brands: { code: string; name: string }[];
     products: Product[];
     ready: boolean;
-    can: { issue: boolean };
+    can: { issue: boolean; master: boolean };
 };
 
 function statusClassName(status: string): string {
@@ -498,6 +501,41 @@ export default function ImIndex({
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
+                                            {(row.sheet_revision_id !== null ||
+                                                (can.master &&
+                                                    row.status ===
+                                                        'Active')) && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    asChild
+                                                >
+                                                    {row.sheet_revision_id !==
+                                                    null ? (
+                                                        <Link
+                                                            href={revisionShow(
+                                                                row.sheet_revision_id,
+                                                            )}
+                                                        >
+                                                            {t(
+                                                                'numbers.im.open_sheet',
+                                                            )}
+                                                        </Link>
+                                                    ) : (
+                                                        <Link
+                                                            href={mastersIndex({
+                                                                query: {
+                                                                    number: row.id,
+                                                                },
+                                                            })}
+                                                        >
+                                                            {t(
+                                                                'numbers.im.create_sheet',
+                                                            )}
+                                                        </Link>
+                                                    )}
+                                                </Button>
+                                            )}
                                             {can.issue && (
                                                 <div className="flex gap-2">
                                                     {row.status ===

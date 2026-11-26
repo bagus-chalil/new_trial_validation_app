@@ -580,3 +580,29 @@ test('the revision page lists the Knowledge by rows the viewer may sign', functi
         ->assertInertia(fn ($page) => $page->where('myKnowledgeIds', [])->has('reviewLabels', 4));
     expect($rniSlot->status)->toBe('Pending');
 });
+
+test('the IM numbers page links each number to its sheet or to creating one', function () {
+    $qa = imQa('Preparer');
+    $revision = imDraft($qa);
+
+    // A second issued number that no master owns yet.
+    $this->actingAs($qa)->post(route('validation.im.store'), ['brand_code' => 'BHM', 'product_part' => 'free number'])->assertRedirect();
+    $free = ImNumber::query()->where('product_part', 'FREE NUMBER')->orWhere('number', 'like', '%FREE NUMBER%')->firstOrFail();
+
+    $this->actingAs($qa)->get(route('validation.im.index'))->assertInertia(function ($page) use ($revision, $free) {
+        $rows = collect($page->toArray()['props']['numbers']['data'])->keyBy('id');
+        expect($rows[$revision->im_number_id]['sheet_revision_id'])->toBe($revision->id)
+            ->and($rows[$free->id]['sheet_revision_id'])->toBeNull();
+        $page->where('can.master', true);
+    });
+
+    // Opening the master list with that number preselects it in the create dialog.
+    $this->actingAs($qa)->get(route('validation.im-masters.index', ['number' => $free->id]))
+        ->assertInertia(fn ($page) => $page->where('prefillNumberId', $free->id)
+            ->where('issuedNumbers', fn ($numbers) => collect($numbers)->pluck('id')->contains($free->id)));
+
+    // A reader without QA rights gets neither the button nor a prefill.
+    $reader = User::factory()->role('Staff', 'PRD')->create();
+    $this->actingAs($reader)->get(route('validation.im.index'))->assertInertia(fn ($page) => $page->where('can.master', false));
+    $this->actingAs($reader)->get(route('validation.im-masters.index', ['number' => $free->id]))->assertInertia(fn ($page) => $page->where('prefillNumberId', null));
+});

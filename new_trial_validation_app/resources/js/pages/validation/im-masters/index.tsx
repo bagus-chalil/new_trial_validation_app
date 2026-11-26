@@ -68,26 +68,33 @@ type PageProps = {
     brands: { code: string; name: string }[];
     products: { id: number; label: string; fg: string | null }[];
     issuedNumbers: { id: number; number: string; fg: string }[];
+    prefillNumberId: number | null;
 };
 
 function CreateDialog({
     brands,
     products,
     issuedNumbers,
+    prefillNumber,
     onClose,
 }: {
     brands: PageProps['brands'];
     products: PageProps['products'];
     issuedNumbers: PageProps['issuedNumbers'];
+    prefillNumber: PageProps['issuedNumbers'][number] | null;
     onClose: () => void;
 }) {
     const { t } = useTranslation();
-    const [mode, setMode] = useState<'new' | 'existing'>('new');
+    const [mode, setMode] = useState<'new' | 'existing'>(
+        prefillNumber ? 'existing' : 'new',
+    );
     const [brand, setBrand] = useState('');
     const [productId, setProductId] = useState('');
     const [productPart, setProductPart] = useState('');
-    const [fg, setFg] = useState('');
-    const [existingId, setExistingId] = useState('');
+    const [fg, setFg] = useState(prefillNumber?.fg ?? '');
+    const [existingId, setExistingId] = useState(
+        prefillNumber ? String(prefillNumber.id) : '',
+    );
 
     function pickProduct(id: string) {
         setProductId(id);
@@ -292,11 +299,14 @@ export default function ImMastersIndex({
     brands,
     products,
     issuedNumbers,
+    prefillNumberId,
 }: PageProps) {
     const { t } = useTranslation();
     const url = mastersIndex().url;
     const [form, setForm] = useState(filters);
-    const [creating, setCreating] = useState(false);
+    const prefillNumber =
+        issuedNumbers.find((n) => n.id === prefillNumberId) ?? null;
+    const [creating, setCreating] = useState(prefillNumber !== null);
 
     function submit(e: FormEvent) {
         e.preventDefault();
@@ -468,6 +478,7 @@ export default function ImMastersIndex({
                     brands={brands}
                     products={products}
                     issuedNumbers={issuedNumbers}
+                    prefillNumber={prefillNumber}
                     onClose={() => setCreating(false)}
                 />
             )}

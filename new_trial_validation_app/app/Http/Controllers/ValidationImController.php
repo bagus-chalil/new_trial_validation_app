@@ -11,6 +11,7 @@ use App\Models\ValidationCaseLink;
 use App\Services\Validation\ValidationRoles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -56,6 +57,12 @@ class ValidationImController extends Controller
                 ->get()
                 ->keyBy('ref_key');
 
+            // The IM sheet (revision) that owns each number on this page, when the viewer may open it.
+            $sheets = Schema::hasTable('vd_im_revisions')
+                ? ImRevision::query()->whereIn('im_number_id', $paginator->getCollection()->pluck('id'))->get()
+                    ->filter(fn (ImRevision $r) => Gate::allows('view', $r))->keyBy('im_number_id')
+                : collect();
+
             $rows = $paginator->getCollection()->map(fn (ImNumber $n) => [
                 'id' => $n->id,
                 'number' => $n->number,
@@ -71,6 +78,7 @@ class ValidationImController extends Controller
                 'status' => $n->status,
                 'void_reason' => $n->void_reason,
                 'issued_by_name' => $n->issued_by_name,
+                'sheet_revision_id' => $sheets->get($n->id)?->id,
                 'case_id' => $cases->get($n->number)?->case_id,
                 'case_no' => $cases->get($n->number)?->validationCase?->case_no,
             ]);
@@ -95,7 +103,10 @@ class ValidationImController extends Controller
                     ->map(fn (Product $p) => ['id' => $p->id, 'label' => trim($p->product_name.' · '.$p->finish_good_code, ' ·'), 'name' => $p->product_name, 'fg' => $p->finish_good_code])->values()
                 : [],
             'ready' => $ready,
-            'can' => ['issue' => $canIssue],
+            'can' => [
+                'issue' => $canIssue,
+                'master' => $ready && Schema::hasTable('vd_im_masters') && Gate::allows('create', ImRevision::class),
+            ],
         ]);
     }
 

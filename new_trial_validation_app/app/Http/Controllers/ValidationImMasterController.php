@@ -97,6 +97,8 @@ class ValidationImMasterController extends Controller
             'statuses' => ImRevision::STATUSES,
             'ready' => $ready,
             'can' => ['create' => $canCreate],
+            // Arrives from the IM numbers page: open the create dialog with this issued number preselected.
+            'prefillNumberId' => $canCreate && $request->filled('number') ? (int) $request->query('number') : null,
             'brands' => $ready && $canCreate
                 ? ImBrandCode::query()->where('is_active', true)->orderBy('code')->get(['code', 'name'])->map(fn (ImBrandCode $b) => ['code' => $b->code, 'name' => $b->name])->values()
                 : [],
