@@ -29,8 +29,16 @@ class SaveValidationAssessmentRequest extends FormRequest
             ->where('is_active', 1);
 
         return [
-            // The Case type is fixed by the number, so it is only set on create.
-            'case_type' => [$this->route('assessment') === null ? 'required' : 'nullable', Rule::in(ValidationCaseType::ALL)],
+            // The Case type is fixed by the number, so it is only set on create
+            // (and not at all when completing an existing Case: `case_id`).
+            'case_type' => [$this->route('assessment') === null ? 'required_without:case_id' : 'nullable', 'nullable', Rule::in(ValidationCaseType::ALL)],
+            // "Lengkapi Assessment": attach the Assessment to a Case that has none yet.
+            'case_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vd_cases', 'id')->whereNull('deleted_at'),
+                Rule::unique('vd_assessments', 'case_id')->whereNull('deleted_at'),
+            ],
             'product_id' => ['nullable', 'integer', Rule::exists('products', 'id')->where('is_active', 1)->whereNull('deleted_at')],
             // A new NPD SKU may not be in the master yet; then the name is required.
             'product_name' => ['nullable', 'required_without:product_id', 'string', 'max:255'],

@@ -86,6 +86,8 @@ return [
         'plan_cancelled' => '일정 요청이 취소되었습니다.',
         'tooling_linked' => 'Check Tooling이 Case에 연결되었습니다.',
         'tooling_unlinked' => 'Check Tooling 연결이 해제되었습니다.',
+        'improvement_linked' => 'Improvement가 Case에 연결되었습니다.',
+        'improvement_unlinked' => 'Improvement 연결이 해제되었습니다.',
     ],
 
     'tooling' => [
@@ -97,6 +99,22 @@ return [
         'unlink' => '연결 해제',
         'already_linked' => '이 Check Tooling은 이미 다른 Case에 연결되어 있습니다.',
         'old_ref' => '기존 NPD 번호',
+    ],
+
+    'improvement' => [
+        'title' => 'Improvement',
+        'empty' => '연결된 Improvement가 없습니다.',
+        'link' => 'Improvement 연결',
+        'pick' => 'Improvement 선택',
+        'none_available' => '연결되지 않은 Improvement가 없습니다.',
+        'unlink' => '연결 해제',
+        'already_linked' => '이 Improvement는 이미 다른 Case에 연결되어 있습니다.',
+        'case_label' => '검증 Case',
+    ],
+
+    'complete' => [
+        'title' => ':case의 Assessment 완성',
+        'button' => 'Assessment 완성',
     ],
 
     'trial_from_case' => [

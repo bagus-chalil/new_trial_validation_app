@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ValidationAssessmentController;
+use App\Http\Controllers\ValidationCaseImprovementController;
 use App\Http\Controllers\ValidationCaseToolingController;
 use App\Http\Controllers\ValidationJourneyController;
 use App\Http\Controllers\ValidationPlanController;
@@ -13,6 +14,9 @@ Route::middleware(['auth', 'verified'])->prefix('journey')->as('journey.')->grou
     Route::post('{case}/toolings', [ValidationCaseToolingController::class, 'store'])->whereNumber('case')->name('toolings.store');
     Route::delete('{case}/toolings/{tooling}', [ValidationCaseToolingController::class, 'destroy'])
         ->whereNumber('case')->whereNumber('tooling')->name('toolings.destroy');
+    Route::post('{case}/improvements', [ValidationCaseImprovementController::class, 'store'])->whereNumber('case')->name('improvements.store');
+    Route::delete('{case}/improvements/{improvement}', [ValidationCaseImprovementController::class, 'destroy'])
+        ->whereNumber('case')->whereNumber('improvement')->name('improvements.destroy');
     Route::post('{case}/trials/{trial}/client-approval', [ValidationJourneyController::class, 'clientApproval'])
         ->whereNumber('case')->whereNumber('trial')->name('client-approval');
 });

@@ -3,10 +3,12 @@
 namespace App\Actions\Improvements;
 
 use App\Actions\Projects\SaveProject;
+use App\Actions\Validation\LinkCaseImprovement;
 use App\Models\Improvement;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
 /**
@@ -19,6 +21,7 @@ class ConvertImprovementToProject
     public function __construct(
         private readonly SaveProject $saveProject,
         private readonly LogImprovementActivity $log,
+        private readonly LinkCaseImprovement $caseLink,
     ) {}
 
     public function __invoke(Improvement $improvement, User $user): Project
@@ -64,6 +67,11 @@ class ConvertImprovementToProject
             ])->save();
 
             ($this->log)($user, 'CONVERT', $improvement, $old, ['project_id' => $project->id]);
+
+            // v2.0: the Project joins the Case its Improvement is tied to (silent until the vd_* tables exist).
+            if (Schema::hasTable('vd_case_links')) {
+                $this->caseLink->inheritForConvertedProject($improvement, $project, $user->id);
+            }
 
             return $project;
         });

@@ -86,6 +86,8 @@ return [
         'plan_cancelled' => 'Schedule request cancelled.',
         'tooling_linked' => 'Check Tooling linked to the Case.',
         'tooling_unlinked' => 'Check Tooling link removed.',
+        'improvement_linked' => 'Improvement linked to the Case.',
+        'improvement_unlinked' => 'Improvement link removed.',
     ],
 
     'tooling' => [
@@ -97,6 +99,22 @@ return [
         'unlink' => 'Unlink',
         'already_linked' => 'This Check Tooling is already linked to another Case.',
         'old_ref' => 'Old NPD no.',
+    ],
+
+    'improvement' => [
+        'title' => 'Improvement',
+        'empty' => 'No Improvement linked yet.',
+        'link' => 'Link Improvement',
+        'pick' => 'Choose an Improvement',
+        'none_available' => 'No unlinked Improvement available.',
+        'unlink' => 'Unlink',
+        'already_linked' => 'This Improvement is already linked to another Case.',
+        'case_label' => 'Validation Case',
+    ],
+
+    'complete' => [
+        'title' => 'Complete the Assessment for :case',
+        'button' => 'Complete Assessment',
     ],
 
     'trial_from_case' => [

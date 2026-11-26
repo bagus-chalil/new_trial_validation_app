@@ -1,6 +1,7 @@
 import { Form, Link } from '@inertiajs/react';
 import { Unlink } from 'lucide-react';
 import { useState } from 'react';
+import ValidationCaseImprovementController from '@/actions/App/Http/Controllers/ValidationCaseImprovementController';
 import ValidationCaseToolingController from '@/actions/App/Http/Controllers/ValidationCaseToolingController';
 import { Combobox } from '@/components/combobox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -9,7 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from '@/hooks/use-translation';
+import { show as improvementShow } from '@/routes/projects/improvements';
 import { show as toolingShow } from '@/routes/projects/toolings';
+import { index as assessmentsIndex } from '@/routes/validation/assessments';
 import { index as plansIndex } from '@/routes/validation/plans';
 
 export type CaseAssessment = {
@@ -38,6 +41,14 @@ export type CaseTooling = {
     status: string;
 };
 
+export type CaseImprovement = {
+    id: number;
+    number: string | null;
+    title: string;
+    status: string;
+    project_id: number | null;
+};
+
 export type CasePlan = {
     id: number;
     week_start: string;
@@ -50,8 +61,11 @@ type Props = {
     assessment: CaseAssessment | null;
     toolings: CaseTooling[];
     availableToolings: { id: number; label: string }[];
+    improvements: CaseImprovement[];
+    availableImprovements: { id: number; label: string }[];
     plans: CasePlan[];
     canManageCase: boolean;
+    canEditAssessment: boolean;
 };
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -68,11 +82,15 @@ export function CaseExtras({
     assessment,
     toolings,
     availableToolings,
+    improvements,
+    availableImprovements,
     plans,
     canManageCase,
+    canEditAssessment,
 }: Props) {
     const { t, formatDateOnly } = useTranslation();
     const [toolingId, setToolingId] = useState('');
+    const [improvementId, setImprovementId] = useState('');
     const na = t('assessment.na');
     const dateOrNa = (isNa: boolean, date: string | null) =>
         isNa ? na : date ? formatDateOnly(date) : '-';
@@ -87,9 +105,24 @@ export function CaseExtras({
                 </CardHeader>
                 <CardContent className="text-sm">
                     {assessment === null ? (
-                        <p className="text-muted-foreground">
-                            {t('assessment.journey.assessment_empty')}
-                        </p>
+                        <div className="space-y-2">
+                            <p className="text-muted-foreground">
+                                {t('assessment.journey.assessment_empty')}
+                            </p>
+                            {canEditAssessment && (
+                                <Button asChild variant="outline" size="sm">
+                                    <Link
+                                        href={
+                                            assessmentsIndex({
+                                                query: { complete: caseId },
+                                            }).url
+                                        }
+                                    >
+                                        {t('assessment.complete.button')}
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
                     ) : (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <Field
@@ -271,6 +304,110 @@ export function CaseExtras({
                                             }
                                         >
                                             {t('assessment.tooling.link')}
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        ))}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{t('assessment.improvement.title')}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                    {improvements.map((item) => (
+                        <div
+                            key={item.id}
+                            className="flex flex-wrap items-center gap-2"
+                        >
+                            <Link
+                                href={improvementShow(item.id).url}
+                                className="text-primary underline-offset-4 hover:underline"
+                            >
+                                {item.number ?? `#${item.id}`}
+                            </Link>
+                            <span>{item.title}</span>
+                            <Badge variant="secondary">{item.status}</Badge>
+                            {canManageCase && (
+                                <ConfirmDialog
+                                    trigger={
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="gap-1"
+                                        >
+                                            <Unlink className="size-4" />
+                                            {t('assessment.improvement.unlink')}
+                                        </Button>
+                                    }
+                                    title={t('assessment.improvement.unlink')}
+                                    description={item.title}
+                                    confirmLabel={t(
+                                        'assessment.improvement.unlink',
+                                    )}
+                                    formProps={ValidationCaseImprovementController.destroy.form(
+                                        { case: caseId, improvement: item.id },
+                                    )}
+                                />
+                            )}
+                        </div>
+                    ))}
+                    {improvements.length === 0 && (
+                        <p className="text-muted-foreground">
+                            {t('assessment.improvement.empty')}
+                        </p>
+                    )}
+
+                    {canManageCase &&
+                        (availableImprovements.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                                {t('assessment.improvement.none_available')}
+                            </p>
+                        ) : (
+                            <Form
+                                {...ValidationCaseImprovementController.store.form(
+                                    caseId,
+                                )}
+                                options={{ preserveScroll: true }}
+                                onSuccess={() => setImprovementId('')}
+                                className="flex flex-wrap items-start gap-2"
+                            >
+                                {({ errors, processing }) => (
+                                    <>
+                                        <input
+                                            type="hidden"
+                                            name="improvement_id"
+                                            value={improvementId}
+                                        />
+                                        <div className="grid min-w-64 gap-1">
+                                            <Combobox
+                                                options={availableImprovements.map(
+                                                    (item) => ({
+                                                        value: String(item.id),
+                                                        label: item.label,
+                                                    }),
+                                                )}
+                                                value={improvementId}
+                                                onChange={setImprovementId}
+                                                placeholder={t(
+                                                    'assessment.improvement.pick',
+                                                )}
+                                            />
+                                            <InputError
+                                                message={errors.improvement_id}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            variant="outline"
+                                            disabled={
+                                                processing ||
+                                                improvementId === ''
+                                            }
+                                        >
+                                            {t('assessment.improvement.link')}
                                         </Button>
                                     </>
                                 )}

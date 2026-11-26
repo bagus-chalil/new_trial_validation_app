@@ -376,3 +376,89 @@ test('assessment lang group has id en ko parity', function () {
 
     expect($keys('en'))->toBe($keys('id'))->and($keys('ko'))->toBe($keys('id'));
 });
+
+test('an improvement is tied to one Case, shown on both pages, and its Project inherits the Case on To Project', function () {
+    $pie = vaUser('PIE');
+    $a = vaAssessment($pie);
+    $b = vaAssessment($pie, ['product_id' => vaProduct('Second', 'FG-9')->id]);
+    $owner = User::factory()->role('Staff')->create();
+    $improvement = Improvement::create([
+        'title' => 'Faster filling',
+        'department' => 'PROD',
+        'submitted_by_user_id' => $owner->id,
+        'status' => 'Review PI',
+        'decision' => 'Pending',
+    ]);
+
+    $this->actingAs(vaUser('PRNI'))->post(route('journey.improvements.store', $a->case_id), ['improvement_id' => $improvement->id])->assertForbidden();
+
+    $this->actingAs($pie)->post(route('journey.improvements.store', $a->case_id), ['improvement_id' => $improvement->id])->assertRedirect();
+    expect(ValidationCaseLink::where('kind', 'improvement')->where('case_id', $a->case_id)->count())->toBe(1);
+
+    // Once only: same Case is a no-op, another Case is rejected.
+    $this->actingAs($pie)->post(route('journey.improvements.store', $a->case_id), ['improvement_id' => $improvement->id])->assertRedirect();
+    expect(ValidationCaseLink::where('kind', 'improvement')->count())->toBe(1);
+    $this->actingAs($pie)->post(route('journey.improvements.store', $b->case_id), ['improvement_id' => $improvement->id])->assertSessionHasErrors('improvement_id');
+
+    $this->actingAs($pie)->get(route('journey.show', $a->case_id))
+        ->assertInertia(fn ($page) => $page->has('improvements', 1)->where('improvements.0.title', 'Faster filling'));
+    $this->actingAs($pie)->get(route('projects.improvements.show', $improvement))
+        ->assertInertia(fn ($page) => $page->where('validationCase.case_no', $a->case->case_no));
+
+    // "To Project" ties the new Project to the same Case.
+    $this->actingAs($pie)->post(route('projects.improvements.convert', $improvement))->assertRedirect();
+    $projectId = $improvement->fresh()->project_id;
+    $link = ValidationCaseLink::where('kind', 'project')->where('ref_key', (string) $projectId)->firstOrFail();
+    expect((int) $link->case_id)->toBe($a->case_id);
+
+    $this->actingAs($pie)->delete(route('journey.improvements.destroy', [$a->case_id, $improvement->id]))->assertRedirect();
+    expect(ValidationCaseLink::where('kind', 'improvement')->count())->toBe(0);
+});
+
+test('an improvement linked after it became a Project brings that Project along', function () {
+    $pie = vaUser('PIE');
+    $a = vaAssessment($pie);
+    $owner = User::factory()->role('Staff')->create();
+    $improvement = Improvement::create(['title' => 'Late link', 'submitted_by_user_id' => $owner->id, 'status' => 'Review PI', 'decision' => 'Pending']);
+
+    $this->actingAs($pie)->post(route('projects.improvements.convert', $improvement))->assertRedirect();
+    $projectId = $improvement->fresh()->project_id;
+    expect(ValidationCaseLink::where('kind', 'project')->count())->toBe(0);
+
+    $this->actingAs($pie)->post(route('journey.improvements.store', $a->case_id), ['improvement_id' => $improvement->id])->assertRedirect();
+    expect((int) ValidationCaseLink::where('kind', 'project')->where('ref_key', (string) $projectId)->value('case_id'))->toBe($a->case_id);
+});
+
+test('an older Case without an Assessment can be completed, keeping its number', function () {
+    vaOptions();
+    $pie = vaUser('PIE');
+    $product = vaProduct('Backfilled Cream', 'FG-77');
+    $case = ValidationCase::create([
+        'case_no' => 'VAL-IMP-2610-007', 'case_type' => 'IMP', 'period' => '2610', 'seq' => 7,
+        'product_id' => $product->id, 'product_name' => $product->product_name, 'source' => 'backfill',
+    ]);
+
+    // The Case page offers it, and the register opens the dialog for it.
+    $this->actingAs($pie)->get(route('journey.show', $case->id))
+        ->assertInertia(fn ($page) => $page->where('assessment', null)->where('canEditAssessment', true));
+    $this->actingAs($pie)->get(route('validation.assessments.index', ['complete' => $case->id]))
+        ->assertInertia(fn ($page) => $page->where('completeCase.case_no', 'VAL-IMP-2610-007')->where('completeCase.product_id', $product->id));
+
+    $payload = vaPayload(['product_id' => $product->id]);
+    unset($payload['case_type']);
+    $this->actingAs(vaUser('PRNI'))->post(route('validation.assessments.store'), $payload + ['case_id' => $case->id])->assertForbidden();
+    $this->actingAs($pie)->post(route('validation.assessments.store'), $payload + ['case_id' => $case->id])->assertRedirect();
+
+    $assessment = ValidationAssessment::firstOrFail();
+    expect((int) $assessment->case_id)->toBe($case->id)
+        ->and(ValidationCase::count())->toBe(1)
+        ->and($case->fresh()->case_no)->toBe('VAL-IMP-2610-007');
+
+    // A Case can only be completed once, and a done Case is not offered again.
+    $this->actingAs($pie)->post(route('validation.assessments.store'), $payload + ['case_id' => $case->id])->assertSessionHasErrors('case_id');
+    $this->actingAs($pie)->get(route('validation.assessments.index', ['complete' => $case->id]))
+        ->assertInertia(fn ($page) => $page->where('completeCase', null));
+
+    // Without a Case to complete, the type is still required.
+    $this->actingAs($pie)->post(route('validation.assessments.store'), $payload)->assertSessionHasErrors('case_type');
+});

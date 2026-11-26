@@ -30,6 +30,7 @@ import {
     improvementStatusClassName,
     improvementStatusLabel,
 } from '@/lib/project';
+import { show as journeyShow } from '@/routes/journey';
 import { show as projectShow } from '@/routes/projects';
 import { index as improvementsIndex } from '@/routes/projects/improvements';
 
@@ -92,6 +93,7 @@ type LogItem = {
 type PageProps = {
     improvement: Improvement;
     project: { id: number; name: string; code: string } | null;
+    validationCase?: { id: number; case_no: string } | null;
     files: FileItem[];
     logs: LogItem[];
     options: { statuses: string[]; decisions: string[] };
@@ -147,6 +149,7 @@ function FieldBlock({
 export default function ImprovementShow({
     improvement,
     project,
+    validationCase = null,
     files,
     logs,
     options,
@@ -250,6 +253,20 @@ export default function ImprovementShow({
                         )}
                     </div>
                 </div>
+
+                {validationCase && (
+                    <Alert>
+                        <AlertDescription>
+                            {t('assessment.improvement.case_label')}:{' '}
+                            <Link
+                                href={journeyShow(validationCase.id).url}
+                                className="font-medium underline underline-offset-2"
+                            >
+                                {validationCase.case_no}
+                            </Link>
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 {project && (
                     <Alert>

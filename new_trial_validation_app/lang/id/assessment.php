@@ -86,6 +86,8 @@ return [
         'plan_cancelled' => 'Permintaan jadwal dibatalkan.',
         'tooling_linked' => 'Cek Tooling ditautkan ke Case.',
         'tooling_unlinked' => 'Tautan Cek Tooling dilepas.',
+        'improvement_linked' => 'Improvement ditautkan ke Case.',
+        'improvement_unlinked' => 'Tautan Improvement dilepas.',
     ],
 
     'tooling' => [
@@ -97,6 +99,22 @@ return [
         'unlink' => 'Lepas',
         'already_linked' => 'Cek Tooling ini sudah tertaut ke Case lain.',
         'old_ref' => 'No. NPD lama',
+    ],
+
+    'improvement' => [
+        'title' => 'Improvement',
+        'empty' => 'Belum ada Improvement yang tertaut.',
+        'link' => 'Tautkan Improvement',
+        'pick' => 'Pilih Improvement',
+        'none_available' => 'Tidak ada Improvement yang belum tertaut.',
+        'unlink' => 'Lepas',
+        'already_linked' => 'Improvement ini sudah tertaut ke Case lain.',
+        'case_label' => 'Case validasi',
+    ],
+
+    'complete' => [
+        'title' => 'Lengkapi Assessment untuk :case',
+        'button' => 'Lengkapi Assessment',
     ],
 
     'trial_from_case' => [

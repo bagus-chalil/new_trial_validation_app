@@ -2,6 +2,8 @@
 
 namespace App\Services\Validation;
 
+use App\Actions\Validation\AssignImprovementNumber;
+use App\Models\Improvement;
 use App\Models\Project;
 use App\Models\Tooling;
 use App\Models\Trial;
@@ -93,7 +95,7 @@ class CaseJourney
     {
         // The Tahap 2 migration may not have run on this server yet.
         if (! Schema::hasTable('vd_assessments') || ! Schema::hasTable('vd_validation_plans')) {
-            return ['assessment' => null, 'toolings' => [], 'availableToolings' => [], 'plans' => []];
+            return ['assessment' => null, 'toolings' => [], 'availableToolings' => [], 'improvements' => [], 'availableImprovements' => [], 'plans' => []];
         }
 
         $assessment = ValidationAssessment::query()->whereNull('deleted_at')->where('case_id', $case->id)->first();
@@ -109,6 +111,17 @@ class CaseJourney
             ->get(['id', 'npd_no', 'product_name', 'status']);
 
         $taken = ValidationCaseLink::query()->where('kind', 'tooling')->pluck('ref_id');
+
+        $improvementIds = ValidationCaseLink::query()
+            ->where('case_id', $case->id)
+            ->where('kind', 'improvement')
+            ->pluck('ref_id');
+        $improvementsTaken = ValidationCaseLink::query()->where('kind', 'improvement')->pluck('ref_id');
+        $linkedImprovements = Improvement::query()
+            ->whereNull('deleted_at')
+            ->whereIn('id', $improvementIds)
+            ->get(['id', 'title', 'status', 'project_id']);
+        $numbers = AssignImprovementNumber::numbersFor($linkedImprovements->pluck('id'));
 
         return [
             'assessment' => $assessment === null ? null : [
@@ -143,6 +156,23 @@ class CaseJourney
                 ->limit(200)
                 ->get(['id', 'npd_no', 'product_name'])
                 ->map(fn (Tooling $t) => ['id' => $t->id, 'label' => trim($t->npd_no.' · '.$t->product_name, ' ·')])
+                ->values()
+                ->all(),
+            'improvements' => $linkedImprovements->map(fn (Improvement $i) => [
+                'id' => $i->id,
+                'number' => $numbers[$i->id] ?? null,
+                'title' => $i->title,
+                'status' => $i->status,
+                'project_id' => $i->project_id,
+            ])->values()->all(),
+            // Not yet tied to any Case: the pick list of the link dialog.
+            'availableImprovements' => Improvement::query()
+                ->whereNull('deleted_at')
+                ->whereNotIn('id', $improvementsTaken)
+                ->orderByDesc('id')
+                ->limit(200)
+                ->get(['id', 'title'])
+                ->map(fn (Improvement $i) => ['id' => $i->id, 'label' => $i->title])
                 ->values()
                 ->all(),
             'plans' => ValidationPlan::query()

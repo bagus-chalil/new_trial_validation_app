@@ -8,6 +8,7 @@ use App\Models\ActivityLog;
 use App\Models\MasterOption;
 use App\Models\Product;
 use App\Models\ValidationAssessment;
+use App\Models\ValidationCase;
 use App\Models\ValidationCaseLink;
 use App\Support\ValidationCaseType;
 use Illuminate\Http\RedirectResponse;
@@ -121,9 +122,36 @@ class ValidationAssessmentController extends Controller
                 'machine_used' => $option('machine_used'),
             ],
             'caseTypes' => ValidationCaseType::ALL,
+            'completeCase' => $this->completeCase((int) $request->query('complete', 0)),
             'riskLevels' => ['Low', 'Medium', 'High'],
             'can' => ['create' => $canCreate, 'delete' => $user->isAdmin()],
         ]);
+    }
+
+    /**
+     * "Lengkapi Assessment": a live Case without an Assessment (made by the
+     * backfill from older trials), to open the dialog for.
+     *
+     * @return array{id: int, case_no: string, case_type: string, product_id: int|null, product_name: string}|null
+     */
+    private function completeCase(int $caseId): ?array
+    {
+        if ($caseId <= 0) {
+            return null;
+        }
+
+        $case = ValidationCase::query()->whereNull('deleted_at')->with('product:id,product_name')->find($caseId);
+        if ($case === null || ValidationAssessment::query()->whereNull('deleted_at')->where('case_id', $case->id)->exists()) {
+            return null;
+        }
+
+        return [
+            'id' => $case->id,
+            'case_no' => $case->case_no,
+            'case_type' => $case->case_type,
+            'product_id' => $case->product_id,
+            'product_name' => $case->product->product_name ?? $case->product_name,
+        ];
     }
 
     public function store(SaveValidationAssessmentRequest $request, SaveValidationAssessment $action): RedirectResponse

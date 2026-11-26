@@ -93,6 +93,13 @@ type PageProps = {
     caseTypes: string[];
     riskLevels: string[];
     can: { create: boolean; delete: boolean };
+    completeCase: {
+        id: number;
+        case_no: string;
+        case_type: string;
+        product_id: number | null;
+        product_name: string;
+    } | null;
 };
 
 function riskClassName(risk: string): string {
@@ -106,8 +113,11 @@ function riskClassName(risk: string): string {
     }
 }
 
+type CompleteCase = NonNullable<PageProps['completeCase']>;
+
 function AssessmentDialog({
     editing,
+    forCase,
     open,
     onOpenChange,
     products,
@@ -116,6 +126,7 @@ function AssessmentDialog({
     riskLevels,
 }: {
     editing: Row | null;
+    forCase: CompleteCase | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     products: PageProps['products'];
@@ -125,7 +136,11 @@ function AssessmentDialog({
 }) {
     const { t } = useTranslation();
     const [productId, setProductId] = useState(
-        editing?.product_id ? String(editing.product_id) : '',
+        editing?.product_id
+            ? String(editing.product_id)
+            : forCase?.product_id
+              ? String(forCase.product_id)
+              : '',
     );
     const [packaging, setPackaging] = useState(editing?.packaging_type ?? '');
     const [scope, setScope] = useState<string[]>(
@@ -143,7 +158,13 @@ function AssessmentDialog({
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>
-                        {editing ? t('assessment.edit') : t('assessment.add')}
+                        {editing
+                            ? t('assessment.edit')
+                            : forCase
+                              ? t('assessment.complete.title', {
+                                    case: forCase.case_no,
+                                })
+                              : t('assessment.add')}
                     </DialogTitle>
                 </DialogHeader>
                 <Form
@@ -154,6 +175,13 @@ function AssessmentDialog({
                 >
                     {({ errors, processing }) => (
                         <>
+                            {forCase && (
+                                <input
+                                    type="hidden"
+                                    name="case_id"
+                                    value={forCase.id}
+                                />
+                            )}
                             <input
                                 type="hidden"
                                 name="product_id"
@@ -184,7 +212,7 @@ function AssessmentDialog({
                             />
 
                             <div className="grid gap-4 sm:grid-cols-2">
-                                {!editing && (
+                                {!editing && !forCase && (
                                     <div className="grid gap-2">
                                         <Label htmlFor="case_type">
                                             {t('assessment.form.case_type')}
@@ -559,10 +587,18 @@ export default function AssessmentsIndex({
     caseTypes,
     riskLevels,
     can,
+    completeCase,
 }: PageProps) {
     const { t, formatDateOnly } = useTranslation();
     const [form, setForm] = useState<Filters>(filters);
-    const [dialog, setDialog] = useState<{ row: Row | null } | null>(null);
+    const [dialog, setDialog] = useState<{
+        row: Row | null;
+        forCase: CompleteCase | null;
+    } | null>(
+        can.create && completeCase
+            ? { row: null, forCase: completeCase }
+            : null,
+    );
     const url = assessmentsIndex().url;
 
     function submit(e: FormEvent) {
@@ -587,7 +623,9 @@ export default function AssessmentsIndex({
                     {can.create && (
                         <Button
                             className="gap-1.5"
-                            onClick={() => setDialog({ row: null })}
+                            onClick={() =>
+                                setDialog({ row: null, forCase: null })
+                            }
                         >
                             <Plus className="size-4" />
                             {t('assessment.add')}
@@ -818,7 +856,10 @@ export default function AssessmentsIndex({
                                                             'assessment.edit',
                                                         )}
                                                         onClick={() =>
-                                                            setDialog({ row })
+                                                            setDialog({
+                                                                row,
+                                                                forCase: null,
+                                                            })
                                                         }
                                                     >
                                                         <Pencil className="size-4" />
@@ -884,6 +925,7 @@ export default function AssessmentsIndex({
                 <AssessmentDialog
                     key={dialog.row?.id ?? 'new'}
                     editing={dialog.row}
+                    forCase={dialog.forCase}
                     open
                     onOpenChange={(open) => {
                         if (!open) {

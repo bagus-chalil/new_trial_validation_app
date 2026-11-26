@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\ValidationAssessment;
+use App\Models\ValidationCase;
 use App\Models\ValidationCaseLink;
 use App\Services\Validation\CaseNumbering;
 use Illuminate\Support\Carbon;
@@ -51,6 +52,21 @@ class SaveValidationAssessment
                 'risk_level' => $data['risk_level'],
                 'notes' => $data['notes'] ?? null,
             ];
+
+            if ($assessment === null && ($data['case_id'] ?? null) !== null) {
+                // Complete an existing Case (made by the backfill from older trials): the number stays.
+                $case = ValidationCase::query()->whereNull('deleted_at')->where('id', (int) $data['case_id'])->firstOrFail();
+
+                $assessment = ValidationAssessment::create($attributes + [
+                    'case_id' => $case->id,
+                    'created_by_user_id' => $user->id,
+                    'created_by_name' => $user->name,
+                ]);
+
+                $this->log($user, 'CREATE', $assessment, null, ['case_no' => $case->case_no, 'completed_existing_case' => true]);
+
+                return $assessment;
+            }
 
             if ($assessment === null) {
                 $period = ($attributes['receive_date'] !== null ? Carbon::parse($attributes['receive_date']) : Carbon::now())->format('ym');

@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CaseExtras } from '@/components/validation/case-extras';
 import type {
     CaseAssessment,
+    CaseImprovement,
     CasePlan,
     CaseTooling,
 } from '@/components/validation/case-extras';
@@ -87,6 +88,9 @@ type PageProps = {
     }[];
     canRecordClientApproval: boolean;
     assessment: CaseAssessment | null;
+    improvements: CaseImprovement[];
+    availableImprovements: { id: number; label: string }[];
+    canEditAssessment: boolean;
     toolings: CaseTooling[];
     availableToolings: { id: number; label: string }[];
     plans: CasePlan[];
@@ -173,6 +177,9 @@ export default function JourneyShow({
     projects,
     canRecordClientApproval,
     assessment,
+    improvements,
+    availableImprovements,
+    canEditAssessment,
     toolings,
     availableToolings,
     plans,
@@ -214,6 +221,9 @@ export default function JourneyShow({
                 <CaseExtras
                     caseId={caseData.id}
                     assessment={assessment}
+                    improvements={improvements}
+                    availableImprovements={availableImprovements}
+                    canEditAssessment={canEditAssessment}
                     toolings={toolings}
                     availableToolings={availableToolings}
                     plans={plans}

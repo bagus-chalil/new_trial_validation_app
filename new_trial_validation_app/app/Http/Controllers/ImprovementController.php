@@ -12,12 +12,15 @@ use App\Http\Requests\Improvements\SaveImprovementRequest;
 use App\Models\ActivityLog;
 use App\Models\Improvement;
 use App\Models\ImprovementFile;
+use App\Models\ValidationCase;
+use App\Models\ValidationCaseLink;
 use App\Policies\ImprovementPolicy;
 use App\Support\ProjectOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 use InvalidArgumentException;
@@ -121,6 +124,7 @@ class ImprovementController extends Controller
                     ->values(),
             ],
             'project' => $project ? ['id' => $project->id, 'name' => $project->name, 'code' => $project->code] : null,
+            'validationCase' => $this->linkedCase($improvement),
             'files' => $files->map(fn (ImprovementFile $f) => [
                 'id' => $f->id,
                 'file_name' => $f->file_name,
@@ -203,6 +207,27 @@ class ImprovementController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('improvements.toast.deleted')]);
 
         return to_route('projects.improvements.index');
+    }
+
+    /**
+     * The v2.0 Case this Improvement is tied to, if any.
+     *
+     * @return array{id: int, case_no: string}|null
+     */
+    private function linkedCase(Improvement $improvement): ?array
+    {
+        if (! Schema::hasTable('vd_case_links')) {
+            return null;
+        }
+
+        $caseId = ValidationCaseLink::query()
+            ->where('kind', 'improvement')
+            ->where('ref_key', (string) $improvement->id)
+            ->value('case_id');
+
+        $case = $caseId === null ? null : ValidationCase::query()->whereNull('deleted_at')->where('id', $caseId)->first();
+
+        return $case === null ? null : ['id' => $case->id, 'case_no' => $case->case_no];
     }
 
     /**
