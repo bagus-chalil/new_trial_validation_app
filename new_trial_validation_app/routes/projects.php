@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\ImprovementController;
 use App\Http\Controllers\ImprovementFileController;
+use App\Http\Controllers\ImprovementReportController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectDashboardController;
 use App\Http\Controllers\ProjectFileController;
 use App\Http\Controllers\ProjectGanttController;
 use App\Http\Controllers\ProjectMilestoneController;
@@ -35,6 +37,7 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
         Route::delete('{purchaseOrder}', [ProjectPurchaseOrderController::class, 'destroy'])->name('destroy');
     });
 
+    Route::get('dashboard', [ProjectDashboardController::class, 'index'])->name('dashboard');
     Route::get('gantt', [ProjectGanttController::class, 'index'])->name('gantt');
 
     Route::prefix('improvements')->as('improvements.')->where(['improvement' => '[0-9]+', 'file' => '[0-9]+'])->group(function () {
@@ -44,6 +47,10 @@ Route::middleware(['auth', 'verified'])->prefix('projects')->as('projects.')->gr
         Route::put('{improvement}', [ImprovementController::class, 'update'])->name('update');
         Route::post('{improvement}/review', [ImprovementController::class, 'review'])->name('review');
         Route::post('{improvement}/convert', [ImprovementController::class, 'convert'])->name('convert');
+        Route::post('{improvement}/close', [ImprovementController::class, 'close'])->name('close');
+        Route::post('{improvement}/reject', [ImprovementController::class, 'reject'])->name('reject');
+        Route::get('{improvement}/pdf', [ImprovementReportController::class, 'pdf'])->name('pdf');
+        Route::get('{improvement}/word', [ImprovementReportController::class, 'word'])->name('word');
         Route::delete('{improvement}', [ImprovementController::class, 'destroy'])->name('destroy');
 
         Route::post('{improvement}/files', [ImprovementFileController::class, 'store'])->name('files.store');

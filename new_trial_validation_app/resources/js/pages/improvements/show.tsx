@@ -1,9 +1,19 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { Download, FolderPlus, Pencil, Trash2 } from 'lucide-react';
+import {
+    Check,
+    CheckCircle2,
+    Download,
+    FileText,
+    FolderPlus,
+    Pencil,
+    Trash2,
+    XCircle,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import ImprovementController from '@/actions/App/Http/Controllers/ImprovementController';
 import ImprovementFileController from '@/actions/App/Http/Controllers/ImprovementFileController';
+import ImprovementReportController from '@/actions/App/Http/Controllers/ImprovementReportController';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { ImprovementDialog } from '@/components/improvements/improvement-dialog';
@@ -103,9 +113,118 @@ type PageProps = {
         delete: boolean;
         attach: boolean;
         convert: boolean;
+        close: boolean;
     };
     uploadLimitMb: number;
 };
+
+function ImprovementStepper({
+    improvement,
+    project,
+}: {
+    improvement: Improvement;
+    project: PageProps['project'];
+}) {
+    const { t } = useTranslation();
+    const finalReview = [
+        'Disetujui',
+        'Selesai',
+        'Ditolak',
+        'Tidak Perlu Improvement',
+    ].includes(improvement.status);
+    const stepIdx = project
+        ? 4
+        : finalReview
+          ? 3
+          : ['Review PI', 'Menunggu Data'].includes(improvement.status)
+            ? 2
+            : 1;
+    const steps = [
+        {
+            n: 1,
+            title: t('improvements.stepper.submitted'),
+            sub: `${improvement.submitted_by_name || '-'} · ${improvement.department || '-'}`,
+        },
+        {
+            n: 2,
+            title: t('improvements.stepper.review'),
+            sub: improvement.pi_owner
+                ? t('improvements.stepper.review_pic', {
+                      name: improvement.pi_owner,
+                  })
+                : t('improvements.stepper.review_sub'),
+        },
+        {
+            n: 3,
+            title: t('improvements.stepper.decision'),
+            sub:
+                improvement.decision === 'To Project'
+                    ? t('improvements.stepper.decision_project')
+                    : improvement.decision === 'Suggestion Only'
+                      ? t('improvements.stepper.decision_suggestion')
+                      : t('improvements.stepper.decision_pending'),
+        },
+        {
+            n: 4,
+            title: t('improvements.stepper.followup'),
+            sub: project
+                ? project.code || project.name
+                : t('improvements.stepper.followup_none'),
+        },
+    ];
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-base">
+                    {t('improvements.stepper.title')}
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ol className="grid gap-4 sm:grid-cols-4">
+                    {steps.map((step) => {
+                        const done =
+                            step.n < stepIdx ||
+                            (step.n === stepIdx && (project || finalReview));
+                        const active = step.n === stepIdx && !done;
+
+                        return (
+                            <li
+                                key={step.n}
+                                className="flex items-start gap-3"
+                                aria-current={active ? 'step' : undefined}
+                            >
+                                <span
+                                    className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                                        done
+                                            ? 'border-emerald-600 bg-emerald-600 text-white'
+                                            : active
+                                              ? 'border-brand bg-brand/10 text-brand'
+                                              : 'text-muted-foreground'
+                                    }`}
+                                >
+                                    {done ? (
+                                        <Check className="size-4" />
+                                    ) : (
+                                        step.n
+                                    )}
+                                </span>
+                                <span className="min-w-0 text-sm">
+                                    <span className="block font-medium">
+                                        {step.title}
+                                    </span>
+                                    <span className="block truncate text-xs text-muted-foreground">
+                                        {step.sub}
+                                    </span>
+                                </span>
+                            </li>
+                        );
+                    })}
+                </ol>
+            </CardContent>
+        </Card>
+    );
+}
 
 function Detail({
     label,
@@ -200,6 +319,28 @@ export default function ImprovementShow({
                                 {t('improvements.back')}
                             </Link>
                         </Button>
+                        <Button variant="outline" asChild>
+                            <a
+                                href={ImprovementReportController.pdf.url(
+                                    improvement.id,
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <FileText />
+                                {t('improvements.show.print_pdf')}
+                            </a>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a
+                                href={ImprovementReportController.word.url(
+                                    improvement.id,
+                                )}
+                            >
+                                <Download />
+                                {t('improvements.show.download_word')}
+                            </a>
+                        </Button>
                         {can.update && (
                             <Button
                                 variant="outline"
@@ -229,6 +370,60 @@ export default function ImprovementShow({
                             >
                                 {({ errors }) => (
                                     <InputError message={errors.convert} />
+                                )}
+                            </ConfirmDialog>
+                        )}
+                        {can.close && (
+                            <ConfirmDialog
+                                trigger={
+                                    <Button variant="outline">
+                                        <CheckCircle2 />
+                                        {t('improvements.show.close')}
+                                    </Button>
+                                }
+                                title={t('improvements.show.close_title')}
+                                description={t('improvements.show.close_hint')}
+                                confirmLabel={t('improvements.show.close')}
+                                confirmVariant="default"
+                                formProps={ImprovementController.close.form(
+                                    improvement.id,
+                                )}
+                            >
+                                {({ errors }) => (
+                                    <InputError message={errors.close} />
+                                )}
+                            </ConfirmDialog>
+                        )}
+                        {can.close && (
+                            <ConfirmDialog
+                                trigger={
+                                    <Button variant="outline">
+                                        <XCircle />
+                                        {t('improvements.show.reject')}
+                                    </Button>
+                                }
+                                title={t('improvements.show.reject_title')}
+                                description={t('improvements.show.reject_hint')}
+                                confirmLabel={t('improvements.show.reject')}
+                                formProps={ImprovementController.reject.form(
+                                    improvement.id,
+                                )}
+                            >
+                                {({ errors }) => (
+                                    <div className="mt-3 grid gap-2">
+                                        <Label htmlFor="reject-reason">
+                                            {t(
+                                                'improvements.show.reject_reason',
+                                            )}
+                                        </Label>
+                                        <Textarea
+                                            id="reject-reason"
+                                            name="reason"
+                                            rows={3}
+                                            required
+                                        />
+                                        <InputError message={errors.reason} />
+                                    </div>
                                 )}
                             </ConfirmDialog>
                         )}
@@ -267,6 +462,11 @@ export default function ImprovementShow({
                         </AlertDescription>
                     </Alert>
                 )}
+
+                <ImprovementStepper
+                    improvement={improvement}
+                    project={project}
+                />
 
                 {project && (
                     <Alert>

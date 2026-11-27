@@ -205,6 +205,13 @@ export function contextualBreadcrumbs(
             ];
         }
 
+        if (segments[1] === 'dashboard') {
+            return [
+                item(projects, '/projects'),
+                item(t('common.nav.project_tab_dashboard'), '#'),
+            ];
+        }
+
         if (segments[1] === 'gantt') {
             return [
                 item(projects, '/projects'),

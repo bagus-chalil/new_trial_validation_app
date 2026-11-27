@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Improvements\CloseImprovement;
 use App\Actions\Improvements\ConvertImprovementToProject;
 use App\Actions\Improvements\DeleteImprovement;
 use App\Actions\Improvements\ReviewImprovement;
@@ -106,7 +107,7 @@ class ImprovementController extends Controller
                 'issue' => $improvement->issue,
                 'saving_mp' => $improvement->saving_mp,
                 'quality_metric' => $improvement->quality_metric,
-                'links' => $improvement->links ?? [],
+                'links' => $this->linkUrls($improvement->links),
                 'pi_owner' => $improvement->pi_owner,
                 'pi_feedback' => $improvement->pi_feedback,
                 'pi_suggestion' => $improvement->pi_suggestion,
@@ -152,6 +153,7 @@ class ImprovementController extends Controller
                 'delete' => $user->can('delete', $improvement),
                 'attach' => $user->can('update', $improvement) || $user->can('review', $improvement),
                 'convert' => $user->can('review', $improvement) && $project === null,
+                'close' => $user->can('review', $improvement) && CloseImprovement::isOpen($improvement),
             ],
             'uploadLimitMb' => ProjectOptions::MAX_UPLOAD_BYTES / 1024 / 1024,
         ]);
@@ -194,6 +196,42 @@ class ImprovementController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('improvements.toast.converted')]);
 
         return to_route('projects.show', $project);
+    }
+
+    public function close(Request $request, int $improvement, CloseImprovement $action): RedirectResponse
+    {
+        $improvement = Improvement::whereNull('deleted_at')->findOrFail($improvement);
+
+        Gate::authorize('review', $improvement);
+
+        if (! CloseImprovement::isOpen($improvement)) {
+            return back()->withErrors(['close' => __('improvements.errors.already_final')]);
+        }
+
+        $action->done($improvement, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('improvements.toast.closed')]);
+
+        return to_route('projects.improvements.show', $improvement);
+    }
+
+    public function reject(Request $request, int $improvement, CloseImprovement $action): RedirectResponse
+    {
+        $improvement = Improvement::whereNull('deleted_at')->findOrFail($improvement);
+
+        Gate::authorize('review', $improvement);
+
+        $data = $request->validate(['reason' => ['required', 'string', 'max:5000']]);
+
+        if (! CloseImprovement::isOpen($improvement)) {
+            return back()->withErrors(['reason' => __('improvements.errors.already_final')]);
+        }
+
+        $action->reject($improvement, $request->user(), $data['reason']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('improvements.toast.rejected')]);
+
+        return to_route('projects.improvements.show', $improvement);
     }
 
     public function destroy(Request $request, int $improvement, DeleteImprovement $action): RedirectResponse
@@ -246,6 +284,27 @@ class ImprovementController extends Controller
             'submitted_at' => $i->submitted_at?->format('Y-m-d'),
             'project_id' => $i->project_id,
         ];
+    }
+
+    /**
+     * Plain list of http(s) URLs. Rows imported before the importer cleaned
+     * them hold the old tracker's link objects ({id, url, title, ...}).
+     *
+     * @param  array<int, mixed>|null  $links
+     * @return list<string>
+     */
+    private function linkUrls(?array $links): array
+    {
+        $out = [];
+
+        foreach ($links ?? [] as $link) {
+            $url = trim((string) (is_array($link) ? ($link['url'] ?? '') : $link));
+            if (preg_match('#^https?://#i', $url) === 1) {
+                $out[] = $url;
+            }
+        }
+
+        return $out;
     }
 
     /**

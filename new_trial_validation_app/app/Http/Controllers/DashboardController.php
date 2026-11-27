@@ -9,6 +9,7 @@ use App\Models\Tooling;
 use App\Models\Trial;
 use App\Models\TrialReview;
 use App\Models\User;
+use App\Services\Projects\ProjectDashboard;
 use App\Services\Projects\ToolingWorkflow;
 use App\Services\Validation\CaseJourney;
 use App\Services\Validation\DashboardValidationOverview;
@@ -30,7 +31,7 @@ use Inertia\Response;
  */
 class DashboardController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, ProjectDashboard $projectDashboard): Response
     {
         $user = $request->user();
 
@@ -101,6 +102,7 @@ class DashboardController extends Controller
             'validationScopes' => $validationScopes,
             'summary' => $summary,
             'overview' => $overview,
+            'projectOverview' => Gate::forUser($user)->allows('viewAny', Project::class) ? $projectDashboard->overview($user) : null,
             'period' => [
                 'from' => $period['from'] ?? '',
                 'to' => $period['to'] ?? '',

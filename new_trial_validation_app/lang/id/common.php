@@ -46,6 +46,7 @@ return [
         'project_tab_list' => 'Daftar',
         'project_toolings_menu' => 'Check Tooling',
         'project_purchase_orders' => 'Purchase Order',
+        'project_tab_dashboard' => 'Dashboard',
         'project_gantt' => 'Gantt',
         'project_improvements' => 'Improvement',
         'project_toolings' => 'Check Tooling',

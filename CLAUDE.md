@@ -175,6 +175,8 @@ Plan and decisions: `TRIAL_VALIDATION_V2_PLAN.md` (repo root). Tahap 0 (read-onl
 
 **IM PDF like the paper + "Open IM sheet" button (2026-11-26):** PDF pictures now sit side by side per category with blue note boxes, page 2 has Secondary / Tertiary headings, the VALIDATION sheet has Signature / Date / Remarks column headers (still 3 pages). IM Numbers page links each number to its sheet or to the create dialog with that number preselected (`/validation/im-masters?number=`). No schema change. Details: `new_trial_validation_app/CLAUDE.md`.
 
+**Improvement + dashboard parity and cutover rehearsal (2026-11-27, local only, prod NOT touched):** against the fresh tracker dump (49 projects / 7 improvements / 26 toolings) the Projects module gained Improvement "Tandai selesai"/"Tolak usulan"/PDF+Word form (FR.IMP.001.00)/stepper, a Project Dashboard tab (`/projects/dashboard`: period filter, KPIs, status donut, priority reminders, needs-attention, expandable Progress Board, card pop-up lists) and a Project/Improvement/Check Tooling overview on the main Dashboard. A full runbook rehearsal on a pm-free local copy (`trial_validation_system_fase7`) matched the dump exactly and is idempotent; `deploy/README.md` §14 now lists 5 migrations / 15 tables and the 27 Nov numbers. Still open before the real cutover: fresh dump + the 225 physical files on the server, K6 (Viewer accounts that can sign), and the owner's explicit go.
+
 ### Fase 4 — Decommission
 - [ ] Turn off legacy PHP app
 - [ ] Remove SSO bridge (`/sso/*` routes both sides, `sso_tickets` table)

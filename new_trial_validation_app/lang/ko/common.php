@@ -44,6 +44,7 @@ return [
         'project_tab_list' => '목록',
         'project_toolings_menu' => '금형 점검',
         'project_purchase_orders' => '구매 주문서',
+        'project_tab_dashboard' => '대시보드',
         'project_gantt' => '간트',
         'project_improvements' => '개선 제안',
         'project_toolings' => '금형 점검',

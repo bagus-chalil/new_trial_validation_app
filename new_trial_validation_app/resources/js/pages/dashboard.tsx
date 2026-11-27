@@ -18,6 +18,8 @@ import { KpiTile } from '@/components/dashboard/kpi-tile';
 import { DashboardPeriodFilter } from '@/components/dashboard/period-filter';
 import type { DashboardPeriod } from '@/components/dashboard/period-filter';
 import { ProductTypePieChart } from '@/components/dashboard/product-type-pie-chart';
+import type { ProjectOverviewData } from '@/components/dashboard/project-overview';
+import { ProjectOverview } from '@/components/dashboard/project-overview';
 import { StatusDistributionChart } from '@/components/dashboard/status-distribution-chart';
 import type { StatusDatum } from '@/components/dashboard/status-distribution-chart';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -75,6 +77,7 @@ type Overview = {
 };
 
 type PageProps = {
+    projectOverview: ProjectOverviewData | null;
     trials: Paginated<TrialRow>;
     filters: Filters;
     productTypes: string[];
@@ -152,6 +155,7 @@ export default function Dashboard({
     validationScopes,
     summary,
     overview,
+    projectOverview,
     period,
     validationOverview,
     leadTime,
@@ -267,6 +271,8 @@ export default function Dashboard({
                         onChange={changePeriod}
                     />
                 </div>
+
+                {projectOverview && <ProjectOverview data={projectOverview} />}
 
                 <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <KpiTile

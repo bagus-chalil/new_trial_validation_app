@@ -303,7 +303,8 @@ class LegacyProjectImporter
                 'goals' => $imp['goals'] ?? null,
                 'saving_mp' => mb_substr((string) ($imp['savingMp'] ?? ''), 0, 255),
                 'quality_metric' => mb_substr((string) ($imp['qualityMetric'] ?? ''), 0, 255),
-                'links' => $imp['links'] ?? [],
+                // The old tracker stores link objects ({id,url,title,...}); this app keeps plain URLs.
+                'links' => array_column($this->links($imp['links'] ?? []), 'url'),
                 'status' => (string) ($imp['status'] ?? 'Baru'),
                 'decision' => (string) ($imp['decision'] ?? 'Pending'),
                 'pi_owner' => mb_substr((string) ($imp['piOwner'] ?? ''), 0, 100),
