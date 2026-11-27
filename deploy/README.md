@@ -1074,6 +1074,67 @@ setelah backup). Urutannya:
    modul tampil kosong). File yang tersalin ada di `new_trial_validation_app/storage/app/project-files` dan boleh dihapus.
 3. Impor bisa diulang kapan saja (idempoten).
 
+## 15. Rilis Master Mesin (Machine Master) + tautan IPC + pemetaan opsi Trial
+
+Menambah master plant → line → mesin (`mc_*`) di `new_trial_validation_app`, kolom tautan `master_lines.machine_line_code`
+di `ipc_app`, dan tabel pemetaan opsi "Machine Used" Trial ke master (`mc_option_maps`). Sumber data:
+`docs/Cosmax Line Specification Database 2026.xlsx` (66 line, 97 mesin). Semua perubahan **additive** (tabel/kolom baru,
+tanpa FK, tanpa mengubah tabel Trial atau `master_options`). **Setiap langkah yang menulis ke server atau DB bersama hanya
+dijalankan atas perintah eksplisit pemilik; kerjakan di development dulu dengan urutan yang sama, baru production.**
+
+### a. Persiapan (tanpa downtime)
+1. Backup DB `trial_validation_system` (Trial) dan `ipc_system` (IPC) di host DB (`mysqldump`).
+2. Pastikan PHP server punya ekstensi `zip` (`php -m | grep -i zip`); impor Excel butuh `ZipArchive`.
+3. Salin workbook ke server (mis. `/tmp/cosmax-line-spec.xlsx`). Itu satu-satunya file yang dibutuhkan.
+4. Siapkan CSV plant (opsional, bagian e) bila datanya sudah ada.
+
+### b. Urutan di `new_trial_validation_app`
+1. Deploy kode. Pipeline menjalankan `migrate --force`; migration baru hanya membuat tabel bila belum ada
+   (`Schema::hasTable` guard): `2026_12_02_000001` (`mc_plants`, `mc_lines`, `mc_equipment`) dan
+   `2026_12_03_000001` (`mc_option_maps`). Bila tidak lewat pipeline, jalankan hanya keduanya:
+   `php artisan migrate --force --path=database/migrations/2026_12_02_000001_create_mc_machine_tables.php` lalu
+   `--path=database/migrations/2026_12_03_000001_create_mc_option_maps_table.php`. Jangan `migrate:fresh`/`db:wipe`.
+2. Dry-run impor: `php artisan machines:import-excel /tmp/cosmax-line-spec.xlsx --dry-run`. Harus melapor
+   `Read 66 line(s), 97 equipment row(s)` tanpa peringatan.
+3. Impor sungguhan: `php artisan machines:import-excel /tmp/cosmax-line-spec.xlsx` (idempoten: kunci Line ID / Equipment ID;
+   dijalankan ulang = memperbarui, tidak menggandakan). Hasil: `Lines: 66 created`, `Equipment: 97 created`.
+4. Plant (bagian e).
+5. Pemetaan opsi Trial: `php artisan machines:map-trial-options` (dry-run, tabel saran) → tinjau →
+   `php artisan machines:map-trial-options --apply`. Menulis hanya `mc_option_maps` (status `auto` skor ≥ 0.95, sisanya
+   `suggested`); baris yang sudah ditetapkan admin (`manual`/`not_applicable`) tidak pernah ditimpa. Lalu admin menyelesaikan
+   sisanya di UI **Master Mesin → Pemetaan Opsi Trial** (`/admin/machines/options`).
+
+### c. Urutan di `ipc_app` (setelah bagian b selesai, karena IPC membaca `mc_lines`)
+1. `.env` server IPC: `MACHINE_MASTER_DB_DATABASE=trial_validation_system` (prod) / `trial_validation_system_dev` (dev) pada
+   host yang sama dengan DB Trial (`MACHINE_MASTER_DB_HOST` bila beda host). `MACHINE_MASTER_DB_USERNAME/PASSWORD` kosong =
+   memakai `DB_*`; idealnya akun **SELECT-only** ke database Trial. Lalu `php artisan config:clear`.
+2. Deploy kode; pipeline menjalankan `migrate --force` → migration `2026_12_02_100000` menambah kolom nullable
+   `master_lines.machine_line_code` (tanpa mengubah data).
+3. `php artisan lines:map-machine-master` (dry-run). Data lokal: 33 dari 47 line cocok otomatis; yang manual: 2 line mascara
+   dan 12 line Packing `MU 01–12`. Tinjau, lalu `php artisan lines:map-machine-master --apply` (tidak pernah menimpa tautan
+   yang sudah ada). Sisanya diisi lewat picker "Line di Master Mesin" di form Master Line.
+4. Bila master Trial tidak terjangkau, IPC tetap jalan (opsi picker kosong); tidak ada fitur IPC lain yang bergantung padanya.
+
+### d. Verifikasi
+- Trial: `/admin/machines` menampilkan 66 line; satu line menampilkan mesinnya; `/admin/machines/options` memuat semua opsi.
+- IPC: Master Line → picker berisi line master; baris yang sudah dipetakan menampilkan kodenya.
+- `SELECT COUNT(*) FROM mc_lines` = 66, `mc_equipment` = 97.
+
+### e. Plant / gedung / lantai
+Excel tidak punya kolom plant, jadi plant diisi terpisah. Buat template berisi semua line:
+`php artisan machines:import-plants /tmp/plants.csv --template`, isi kolom `Plant Code`, `Plant Name`, `Building`, `Floor`
+(dan `Area` bila ingin menimpa), lalu `php artisan machines:import-plants /tmp/plants.csv --dry-run` dan tanpa `--dry-run`.
+Sel kosong tidak pernah menghapus nilai yang sudah ada; satu kesalahan = tidak ada yang tertulis. Bisa juga lewat UI
+**Kelola Plant** dan form line.
+
+### f. Rollback
+Perubahan additive, jadi **jangan** restore backup penuh (menghapus data Trial/IPC yang masuk sesudahnya).
+1. IPC: `UPDATE master_lines SET machine_line_code = NULL;` (opsional; kolom boleh dibiarkan, tidak dipakai bila kosong).
+2. Trial: `TRUNCATE mc_option_maps; TRUNCATE mc_equipment; TRUNCATE mc_lines; TRUNCATE mc_plants;` lalu bila perlu
+   `DELETE FROM activity_logs WHERE module='MACHINE';`. Tabel dibiarkan ada (aman, layar tampil kosong); `DROP TABLE` hanya bila
+   benar-benar perlu, urutan: `mc_option_maps`, `mc_equipment`, `mc_lines`, `mc_plants`.
+3. Impor dan pemetaan bisa diulang kapan saja (idempoten). Trial lama tidak pernah diubah oleh langkah mana pun.
+
 ## Catatan keamanan
 
 `config/database.php` dan `config/sso.php` **sudah ter-commit di git** dengan

@@ -2,6 +2,7 @@ import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import MachineLineController from '@/actions/App/Http/Controllers/Admin/MachineLineController';
+import MachineOptionMapController from '@/actions/App/Http/Controllers/Admin/MachineOptionMapController';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { FilterBar, FilterSelect } from '@/components/filter-bar';
 import Heading from '@/components/heading';
@@ -531,6 +532,11 @@ export default function MachineLinesIndex({
 
                 <Card>
                     <CardHeader className="flex-row items-center justify-end gap-2">
+                        <Button asChild variant="outline">
+                            <Link href={MachineOptionMapController.index()}>
+                                {t('machines.mapping.btn')}
+                            </Link>
+                        </Button>
                         <Button
                             type="button"
                             variant="outline"
