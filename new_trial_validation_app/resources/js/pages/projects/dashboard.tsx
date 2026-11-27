@@ -1,7 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertTriangle, CalendarRange } from 'lucide-react';
+import {
+    AlertTriangle,
+    CalendarRange,
+    ChevronDown,
+    ChevronRight,
+} from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { FeatureListDialog } from '@/components/projects/feature-list-dialog';
+import type {
+    FeatureKind,
+    FeatureRow,
+} from '@/components/projects/feature-list-dialog';
 import { ProgressBar } from '@/components/projects/progress-bar';
 import { SectionTabs } from '@/components/projects/section-tabs';
 import { Badge } from '@/components/ui/badge';
@@ -17,10 +27,26 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useTranslation } from '@/hooks/use-translation';
-import { projectStatusClassName, projectStatusLabel } from '@/lib/project';
+import {
+    improvementStatusClassName,
+    improvementStatusLabel,
+    projectStatusClassName,
+    projectStatusLabel,
+    quotationStatusClassName,
+    quotationStatusLabel,
+} from '@/lib/project';
+import { ATTENTION_TAG_COLOR, attentionText } from '@/lib/project-dashboard';
+import type { AttentionItem } from '@/lib/project-dashboard';
+import { toolingStatusClassName, toolingStatusLabel } from '@/lib/tooling';
 import { dashboard, index as portfolioIndex, show } from '@/routes/projects';
-import { index as improvementsIndex } from '@/routes/projects/improvements';
-import { index as purchaseOrdersIndex } from '@/routes/projects/purchase-orders';
+import {
+    index as improvementsIndex,
+    show as improvementShow,
+} from '@/routes/projects/improvements';
+import {
+    index as purchaseOrdersIndex,
+    show as purchaseOrderShow,
+} from '@/routes/projects/purchase-orders';
 import { index as quotationsIndex } from '@/routes/projects/quotations';
 import {
     index as toolingsIndex,
@@ -48,23 +74,19 @@ type Reminder = {
     } | null;
 };
 
-type AttentionItem = {
-    project: ProjectRef;
-    sev: number;
-    tag:
-        | 'late'
-        | 'at_risk'
-        | 'on_hold'
-        | 'deadline'
-        | 'late_stage'
-        | 'late_start';
-    days: number | null;
-    progress: number;
-    planned: number;
-    items: string[];
-};
-
 type StageDot = { name: string; status: string };
+
+type StageDetail = {
+    id: number;
+    name: string;
+    status: string;
+    pic_name: string;
+    plan_start: string | null;
+    plan_end: string | null;
+    actual_start: string | null;
+    actual_end: string | null;
+    progress: number;
+};
 
 type BoardRow = {
     id: number;
@@ -84,6 +106,7 @@ type BoardRow = {
     late_stages: number;
     current_stage: string | null;
     stage_strip: StageDot[];
+    stages: StageDetail[];
 };
 
 type Cards = {
@@ -114,6 +137,7 @@ type PageProps = {
     statusDonut: { label: string; value: number }[];
     categoryDonut: { label: string; value: number }[];
     cards: Cards;
+    lists: Record<FeatureKind, FeatureRow[]>;
     reminders: Reminder[];
     attention: AttentionItem[];
     board: BoardRow[];
@@ -129,20 +153,12 @@ const STATUS_COLOR: Record<string, string> = {
     Completed: '#059669',
 };
 
-const TAG_COLOR: Record<AttentionItem['tag'], string> = {
-    late: 'bg-red-600',
-    at_risk: 'bg-orange-500',
-    on_hold: 'bg-amber-500',
-    deadline: 'bg-sky-600',
-    late_stage: 'bg-red-500',
-    late_start: 'bg-orange-500',
-};
-
 function StatCard({
     label,
     value,
     sub,
     href,
+    onClick,
     tone,
     progress,
 }: {
@@ -150,11 +166,16 @@ function StatCard({
     readonly value: string | number;
     readonly sub?: string;
     readonly href?: string;
+    readonly onClick?: () => void;
     readonly tone?: 'danger';
     readonly progress?: number;
 }) {
     const body = (
-        <Card className={href ? 'transition-colors hover:bg-muted/40' : ''}>
+        <Card
+            className={
+                href || onClick ? 'transition-colors hover:bg-muted/40' : ''
+            }
+        >
             <CardContent className="space-y-1">
                 <p className="text-sm text-muted-foreground">{label}</p>
                 <p
@@ -174,6 +195,18 @@ function StatCard({
             </CardContent>
         </Card>
     );
+
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                className="block w-full rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+                {body}
+            </button>
+        );
+    }
 
     return href ? (
         <Link
@@ -308,6 +341,7 @@ export default function ProjectDashboard({
     statusDonut,
     categoryDonut,
     cards,
+    lists,
     reminders,
     attention,
     board,
@@ -316,6 +350,16 @@ export default function ProjectDashboard({
     const { t } = useTranslation();
     const [start, setStart] = useState(range.start ?? '');
     const [end, setEnd] = useState(range.end ?? '');
+    const [dialog, setDialog] = useState<FeatureKind | null>(null);
+    const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+    const expandable = board.filter((p) => p.stages_total > 0);
+    const allExpanded =
+        expandable.length > 0 && expandable.every((p) => expanded[p.id]);
+
+    const toggleAll = (open: boolean) =>
+        setExpanded(
+            open ? Object.fromEntries(expandable.map((p) => [p.id, true])) : {},
+        );
 
     const go = (params: Record<string, string>) =>
         router.get(
@@ -339,24 +383,6 @@ export default function ProjectDashboard({
     const reminderTitle = t(
         `projects.dashboard.reminders.title_${reminderPeriod}`,
     );
-
-    const attentionText = (a: AttentionItem): string => {
-        const base = {
-            days: a.days ?? 0,
-            progress: a.progress,
-            planned: a.planned,
-            items: a.items.join(', '),
-        };
-
-        switch (a.tag) {
-            case 'late':
-                return a.days === null
-                    ? t('projects.dashboard.attention.text.late_flagged', base)
-                    : t('projects.dashboard.attention.text.late', base);
-            default:
-                return t(`projects.dashboard.attention.text.${a.tag}`, base);
-        }
-    };
 
     return (
         <>
@@ -520,7 +546,7 @@ export default function ProjectDashboard({
                             avg: cards.improvement.avg_progress,
                         })}
                         progress={cards.improvement.avg_progress}
-                        href={improvementsIndex().url}
+                        onClick={() => setDialog('improvement')}
                     />
                     <StatCard
                         label={t('projects.dashboard.cards.tooling')}
@@ -530,7 +556,7 @@ export default function ProjectDashboard({
                             avg: cards.tooling.avg_progress,
                         })}
                         progress={cards.tooling.avg_progress}
-                        href={toolingsIndex().url}
+                        onClick={() => setDialog('tooling')}
                     />
                     {can.finance && cards.quotation && (
                         <StatCard
@@ -539,7 +565,7 @@ export default function ProjectDashboard({
                             sub={t('projects.dashboard.cards.quotation_sub', {
                                 count: cards.quotation.waiting,
                             })}
-                            href={quotationsIndex().url}
+                            onClick={() => setDialog('quotation')}
                         />
                     )}
                     {can.finance && cards.po && (
@@ -549,7 +575,7 @@ export default function ProjectDashboard({
                             sub={t('projects.dashboard.cards.po_sub', {
                                 count: cards.po.waiting,
                             })}
-                            href={purchaseOrdersIndex().url}
+                            onClick={() => setDialog('po')}
                         />
                     )}
                 </div>
@@ -745,7 +771,7 @@ export default function ProjectDashboard({
                                                 className="flex items-start gap-3 py-2 hover:bg-muted/50"
                                             >
                                                 <span
-                                                    className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium text-white ${TAG_COLOR[a.tag]}`}
+                                                    className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium text-white ${ATTENTION_TAG_COLOR[a.tag]}`}
                                                 >
                                                     {t(
                                                         `projects.dashboard.attention.tags.${a.tag}`,
@@ -756,7 +782,7 @@ export default function ProjectDashboard({
                                                         {a.project.name}
                                                     </b>
                                                     <span className="block text-xs text-muted-foreground">
-                                                        {attentionText(a)}
+                                                        {attentionText(t, a)}
                                                     </span>
                                                 </span>
                                             </Link>
@@ -778,11 +804,29 @@ export default function ProjectDashboard({
                                 {t('projects.dashboard.board.description')}
                             </p>
                         </div>
-                        <b className="text-sm">
-                            {t('projects.dashboard.board.count', {
-                                count: board.length,
-                            })}
-                        </b>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <b className="text-sm">
+                                {t('projects.dashboard.board.count', {
+                                    count: board.length,
+                                })}
+                            </b>
+                            {expandable.length > 0 && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => toggleAll(!allExpanded)}
+                                >
+                                    {allExpanded
+                                        ? t(
+                                              'projects.dashboard.board.collapse_all',
+                                          )
+                                        : t(
+                                              'projects.dashboard.board.expand_all',
+                                          )}
+                                </Button>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {board.length === 0 ? (
@@ -793,136 +837,231 @@ export default function ProjectDashboard({
                             <ul className="divide-y">
                                 {board.map((p) => (
                                     <li key={p.id}>
-                                        <Link
-                                            href={show(p.id).url}
-                                            className="grid gap-3 py-3 hover:bg-muted/40 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_auto] md:items-center md:px-2"
-                                        >
-                                            <div className="min-w-0">
-                                                <b className="block truncate text-sm">
-                                                    {p.name}
-                                                </b>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {p.code} ·{' '}
-                                                    {p.pic_name || '-'} ·{' '}
-                                                    {p.category || '-'}
-                                                </span>
-                                            </div>
-                                            <div className="min-w-0 space-y-1.5">
-                                                <div className="relative">
-                                                    <ProgressBar
-                                                        value={p.progress}
-                                                    />
-                                                    {p.planned !== null &&
-                                                        p.stages_total ===
-                                                            0 && (
-                                                            <span
-                                                                className="absolute top-0 h-2 w-0.5 bg-foreground/60"
-                                                                style={{
-                                                                    left: `calc(${p.planned}% * 0.85)`,
-                                                                }}
-                                                                title={t(
-                                                                    'projects.dashboard.board.plan',
-                                                                    {
-                                                                        percent:
-                                                                            p.planned,
-                                                                    },
-                                                                )}
-                                                            />
-                                                        )}
+                                        <div className="flex items-start gap-1">
+                                            {p.stages_total > 0 ? (
+                                                <button
+                                                    type="button"
+                                                    className="mt-3 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                    aria-expanded={
+                                                        !!expanded[p.id]
+                                                    }
+                                                    aria-label={t(
+                                                        'projects.dashboard.board.toggle_stages',
+                                                        { name: p.name },
+                                                    )}
+                                                    onClick={() =>
+                                                        setExpanded((prev) => ({
+                                                            ...prev,
+                                                            [p.id]: !prev[p.id],
+                                                        }))
+                                                    }
+                                                >
+                                                    {expanded[p.id] ? (
+                                                        <ChevronDown className="size-4" />
+                                                    ) : (
+                                                        <ChevronRight className="size-4" />
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                <span className="mt-3 size-6 shrink-0" />
+                                            )}
+                                            <Link
+                                                href={show(p.id).url}
+                                                className="grid min-w-0 flex-1 gap-3 py-3 hover:bg-muted/40 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_auto] md:items-center md:px-2"
+                                            >
+                                                <div className="min-w-0">
+                                                    <b className="block truncate text-sm">
+                                                        {p.name}
+                                                    </b>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {p.code} ·{' '}
+                                                        {p.pic_name || '-'} ·{' '}
+                                                        {p.category || '-'}
+                                                    </span>
                                                 </div>
-                                                {p.stage_strip.length > 0 && (
-                                                    <div
-                                                        className="flex gap-0.5"
-                                                        aria-hidden
-                                                    >
-                                                        {p.stage_strip.map(
-                                                            (s, i) => (
+                                                <div className="min-w-0 space-y-1.5">
+                                                    <div className="relative">
+                                                        <ProgressBar
+                                                            value={p.progress}
+                                                        />
+                                                        {p.planned !== null &&
+                                                            p.stages_total ===
+                                                                0 && (
                                                                 <span
-                                                                    key={i}
-                                                                    className="h-1.5 flex-1 rounded-sm"
+                                                                    className="absolute top-0 h-2 w-0.5 bg-foreground/60"
                                                                     style={{
-                                                                        background:
-                                                                            s.status ===
-                                                                            'Not Started'
-                                                                                ? 'var(--border)'
-                                                                                : STATUS_COLOR[
-                                                                                      s
-                                                                                          .status
-                                                                                  ],
+                                                                        left: `calc(${p.planned}% * 0.85)`,
                                                                     }}
-                                                                    title={`${s.name} · ${projectStatusLabel(t, s.status)}`}
+                                                                    title={t(
+                                                                        'projects.dashboard.board.plan',
+                                                                        {
+                                                                            percent:
+                                                                                p.planned,
+                                                                        },
+                                                                    )}
                                                                 />
-                                                            ),
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <p className="text-xs text-muted-foreground">
-                                                    {p.start_date ?? '-'} →{' '}
-                                                    {p.end_date ?? '-'}
-                                                    {p.completed_on && (
-                                                        <b className="ml-1 text-emerald-600 dark:text-emerald-400">
-                                                            ·{' '}
-                                                            {t(
-                                                                'projects.dashboard.board.completed_on',
-                                                                {
-                                                                    date: p.completed_on,
-                                                                },
                                                             )}
-                                                        </b>
+                                                    </div>
+                                                    {p.stage_strip.length >
+                                                        0 && (
+                                                        <div
+                                                            className="flex gap-0.5"
+                                                            aria-hidden
+                                                        >
+                                                            {p.stage_strip.map(
+                                                                (s, i) => (
+                                                                    <span
+                                                                        key={i}
+                                                                        className="h-1.5 flex-1 rounded-sm"
+                                                                        style={{
+                                                                            background:
+                                                                                s.status ===
+                                                                                'Not Started'
+                                                                                    ? 'var(--border)'
+                                                                                    : STATUS_COLOR[
+                                                                                          s
+                                                                                              .status
+                                                                                      ],
+                                                                        }}
+                                                                        title={`${s.name} · ${projectStatusLabel(t, s.status)}`}
+                                                                    />
+                                                                ),
+                                                            )}
+                                                        </div>
                                                     )}
-                                                    {p.stages_total > 0 && (
-                                                        <>
-                                                            {' · '}
-                                                            {p.current_stage
-                                                                ? t(
-                                                                      'projects.dashboard.board.stage_current',
-                                                                      {
-                                                                          name: p.current_stage,
-                                                                          done: p.stages_done,
-                                                                          total: p.stages_total,
-                                                                      },
-                                                                  )
-                                                                : t(
-                                                                      'projects.dashboard.board.all_done',
-                                                                  )}
-                                                        </>
-                                                    )}
-                                                    {p.late_stages > 0 &&
-                                                        p.status !==
-                                                            'Completed' && (
-                                                            <b className="ml-1 text-red-600 dark:text-red-400">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {p.start_date ?? '-'} →{' '}
+                                                        {p.end_date ?? '-'}
+                                                        {p.completed_on && (
+                                                            <b className="ml-1 text-emerald-600 dark:text-emerald-400">
                                                                 ·{' '}
                                                                 {t(
-                                                                    'projects.dashboard.board.late_stages',
+                                                                    'projects.dashboard.board.completed_on',
                                                                     {
-                                                                        count: p.late_stages,
+                                                                        date: p.completed_on,
                                                                     },
                                                                 )}
                                                             </b>
                                                         )}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2 md:justify-end">
-                                                <Badge
-                                                    variant="outline"
-                                                    className={projectStatusClassName(
-                                                        p.status,
-                                                    )}
-                                                >
-                                                    {projectStatusLabel(
-                                                        t,
-                                                        p.status,
-                                                    )}
-                                                </Badge>
-                                                {p.at_risk && (
-                                                    <Badge className="bg-orange-500 text-white hover:bg-orange-500">
-                                                        {t(
-                                                            'projects.dashboard.board.at_risk',
+                                                        {p.stages_total > 0 && (
+                                                            <>
+                                                                {' · '}
+                                                                {p.current_stage
+                                                                    ? t(
+                                                                          'projects.dashboard.board.stage_current',
+                                                                          {
+                                                                              name: p.current_stage,
+                                                                              done: p.stages_done,
+                                                                              total: p.stages_total,
+                                                                          },
+                                                                      )
+                                                                    : t(
+                                                                          'projects.dashboard.board.all_done',
+                                                                      )}
+                                                            </>
+                                                        )}
+                                                        {p.late_stages > 0 &&
+                                                            p.status !==
+                                                                'Completed' && (
+                                                                <b className="ml-1 text-red-600 dark:text-red-400">
+                                                                    ·{' '}
+                                                                    {t(
+                                                                        'projects.dashboard.board.late_stages',
+                                                                        {
+                                                                            count: p.late_stages,
+                                                                        },
+                                                                    )}
+                                                                </b>
+                                                            )}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-2 md:justify-end">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={projectStatusClassName(
+                                                            p.status,
+                                                        )}
+                                                    >
+                                                        {projectStatusLabel(
+                                                            t,
+                                                            p.status,
                                                         )}
                                                     </Badge>
-                                                )}
-                                            </div>
-                                        </Link>
+                                                    {p.at_risk && (
+                                                        <Badge className="bg-orange-500 text-white hover:bg-orange-500">
+                                                            {t(
+                                                                'projects.dashboard.board.at_risk',
+                                                            )}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </Link>
+                                        </div>
+                                        {expanded[p.id] && (
+                                            <ul className="mb-3 ml-8 divide-y rounded-md border text-sm">
+                                                {p.stages.map((st) => (
+                                                    <li
+                                                        key={st.id}
+                                                        className="grid gap-1 px-3 py-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_auto] sm:items-center"
+                                                    >
+                                                        <span className="min-w-0">
+                                                            <b className="block truncate">
+                                                                {st.name}
+                                                            </b>
+                                                            {st.pic_name && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {
+                                                                        st.pic_name
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {t(
+                                                                'projects.dashboard.board.plan_dates',
+                                                                {
+                                                                    from:
+                                                                        st.plan_start ??
+                                                                        '-',
+                                                                    to:
+                                                                        st.plan_end ??
+                                                                        '-',
+                                                                },
+                                                            )}
+                                                            {(st.actual_start ||
+                                                                st.actual_end) &&
+                                                                ` · ${t(
+                                                                    'projects.dashboard.board.actual_dates',
+                                                                    {
+                                                                        from:
+                                                                            st.actual_start ??
+                                                                            '-',
+                                                                        to:
+                                                                            st.actual_end ??
+                                                                            '...',
+                                                                    },
+                                                                )}`}
+                                                        </span>
+                                                        <span className="flex items-center gap-2">
+                                                            <span className="w-9 text-right text-xs tabular-nums">
+                                                                {st.progress}%
+                                                            </span>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={projectStatusClassName(
+                                                                    st.status,
+                                                                )}
+                                                            >
+                                                                {projectStatusLabel(
+                                                                    t,
+                                                                    st.status,
+                                                                )}
+                                                            </Badge>
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
@@ -930,6 +1069,53 @@ export default function ProjectDashboard({
                     </CardContent>
                 </Card>
             </div>
+
+            <FeatureListDialog
+                kind={dialog}
+                rows={dialog ? lists[dialog] : []}
+                onClose={() => setDialog(null)}
+                hrefFor={(kind, row) => {
+                    switch (kind) {
+                        case 'improvement':
+                            return improvementShow(row.id).url;
+                        case 'tooling':
+                            return toolingShow(row.id).url;
+                        case 'po':
+                            return purchaseOrderShow(row.id).url;
+                        default:
+                            return show(
+                                (row as FeatureRow & { project_id?: number })
+                                    .project_id ?? row.id,
+                            ).url;
+                    }
+                }}
+                fullHrefFor={(kind) =>
+                    ({
+                        improvement: improvementsIndex().url,
+                        tooling: toolingsIndex().url,
+                        quotation: quotationsIndex().url,
+                        po: purchaseOrdersIndex().url,
+                    })[kind]
+                }
+                statusLabel={(kind, status) =>
+                    kind === 'improvement'
+                        ? improvementStatusLabel(t, status)
+                        : kind === 'tooling'
+                          ? toolingStatusLabel(t, status)
+                          : kind === 'quotation'
+                            ? quotationStatusLabel(t, status)
+                            : status
+                }
+                statusClassName={(kind, status) =>
+                    kind === 'improvement'
+                        ? improvementStatusClassName(status)
+                        : kind === 'tooling'
+                          ? toolingStatusClassName(status)
+                          : kind === 'quotation'
+                            ? quotationStatusClassName(status)
+                            : ''
+                }
+            />
         </>
     );
 }

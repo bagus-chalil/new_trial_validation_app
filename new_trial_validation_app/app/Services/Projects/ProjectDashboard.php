@@ -4,6 +4,7 @@ namespace App\Services\Projects;
 
 use App\Models\Improvement;
 use App\Models\Project;
+use App\Models\ProjectQuotation;
 use App\Models\ProjectStage;
 use App\Models\PurchaseOrder;
 use App\Models\Tooling;
@@ -74,9 +75,27 @@ class ProjectDashboard
                 ->map(fn (Collection $g, string $name) => ['label' => $name, 'value' => $g->count()])
                 ->sortByDesc('value')->values()->all(),
             'cards' => $this->cards($user, $inRange, $canFinance),
+            'lists' => $this->lists($user, $inRange, $canFinance),
             'reminders' => $this->reminders($open, $reminder, $user),
             'attention' => $this->attention($open),
             'board' => $this->board($inRange),
+        ];
+    }
+
+    /**
+     * Compact all-time overview (projects, improvement, check tooling and the
+     * top items needing attention) for the main Dashboard. No finance data.
+     *
+     * @return array<string, mixed>
+     */
+    public function overview(User $user): array
+    {
+        $projects = Project::query()->whereNull('deleted_at')->with(['stages', 'milestones', 'quotations'])->get();
+
+        return [
+            'kpi' => $this->kpi($projects),
+            'cards' => array_intersect_key($this->cards($user, $projects, false), array_flip(['improvement', 'tooling'])),
+            'attention' => array_slice($this->attention($projects), 0, 4),
         ];
     }
 
@@ -302,6 +321,83 @@ class ProjectDashboard
         }
 
         return $cards;
+    }
+
+    /**
+     * Row lists behind the four feature cards (the old "summary progress"
+     * pop-ups): who/what/status/progress per improvement, check tooling,
+     * quotation and PO. Quotation and PO are finance data.
+     *
+     * @param  Collection<int, Project>  $projects
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function lists(User $user, Collection $projects, bool $canFinance): array
+    {
+        $policy = app(ImprovementPolicy::class);
+        $improvements = Improvement::query()->whereNull('deleted_at')
+            ->when(! $policy->seesAll($user), fn ($q) => $q->where('submitted_by_user_id', $user->id))
+            ->orderByDesc('id')->limit(300)->get();
+        $projectsById = Project::query()->whereIn('id', $improvements->pluck('project_id')->filter())
+            ->whereNull('deleted_at')->get(['id', 'code', 'progress'])->keyBy('id');
+
+        $projectOf = fn (?int $id): ?Project => $id === null ? null : $projectsById->get($id);
+
+        $toolings = Tooling::query()->visibleTo($user)->whereNull('deleted_at')
+            ->with(['approvals', 'items'])->orderByDesc('updated_at')->orderByDesc('id')->limit(300)->get();
+
+        $lists = [
+            'improvement' => $improvements->map(fn (Improvement $i) => [
+                'id' => $i->id,
+                'title' => $i->title,
+                'subtitle' => trim($i->department.' · '.$i->submitted_by_name, ' ·'),
+                'status' => $i->status,
+                'progress' => $this->improvementProgress($i, $projectOf($i->project_id)?->progress),
+                'extra' => $projectOf($i->project_id)->code ?? '',
+                'date' => $i->submitted_at?->toDateString(),
+            ])->values()->all(),
+            'tooling' => $toolings->map(fn (Tooling $t) => [
+                'id' => $t->id,
+                'title' => $t->product_name !== '' ? $t->product_name : '-',
+                'subtitle' => trim($t->npd_no.' · '.$t->client_code, ' ·'),
+                'status' => $t->status,
+                'progress' => $this->toolingProgress($t),
+                'extra' => $t->need_invest === 'YES' ? 'Invest' : '',
+                'critical' => (bool) $t->is_critical,
+                'date' => $t->request_date?->toDateString(),
+            ])->values()->all(),
+            'quotation' => [],
+            'po' => [],
+        ];
+
+        if ($canFinance) {
+            $ids = $projects->pluck('id');
+            $byProject = $projects->keyBy('id');
+
+            $lists['quotation'] = ProjectQuotation::query()->whereIn('project_id', $ids)
+                ->orderByDesc('quotation_date')->orderByDesc('id')->limit(300)->get()
+                ->map(fn ($q) => [
+                    'id' => $q->id,
+                    'title' => $q->vendor_name,
+                    'subtitle' => trim($q->quotation_no.' · '.($byProject->get($q->project_id)->name ?? ''), ' ·'),
+                    'status' => $q->status,
+                    'amount' => (float) $q->amount,
+                    'currency' => $q->currency,
+                    'project_id' => $q->project_id,
+                    'date' => $q->quotation_date?->toDateString(),
+                ])->values()->all();
+
+            $lists['po'] = PurchaseOrder::query()->whereIn('project_id', $ids)
+                ->orderByDesc('po_date')->orderByDesc('id')->limit(300)->get()
+                ->map(fn (PurchaseOrder $po) => [
+                    'id' => $po->id,
+                    'title' => $po->po_no,
+                    'subtitle' => trim($po->vendor_name.' · '.($byProject->get($po->project_id)->name ?? ''), ' ·'),
+                    'project_id' => $po->project_id,
+                    'date' => $po->po_date?->toDateString(),
+                ])->values()->all();
+        }
+
+        return $lists;
     }
 
     private function improvementProgress(Improvement $i, mixed $projectProgress): int
@@ -557,6 +653,17 @@ class ProjectDashboard
                         ? null
                         : $currentIdx->map(fn ($i) => $stages[$i]->name)->implode(' + '),
                     'stage_strip' => $stages->map(fn (ProjectStage $s, int $i) => ['name' => $s->name, 'status' => $statuses[$i]])->all(),
+                    'stages' => $stages->map(fn (ProjectStage $s, int $i) => [
+                        'id' => $s->id,
+                        'name' => $s->name,
+                        'status' => $statuses[$i],
+                        'pic_name' => $s->pic_name,
+                        'plan_start' => $s->plan_start?->toDateString(),
+                        'plan_end' => $s->plan_end?->toDateString(),
+                        'actual_start' => $s->actual_start?->toDateString(),
+                        'actual_end' => $s->actual_end?->toDateString(),
+                        'progress' => (int) $s->progress,
+                    ])->all(),
                 ];
             })
             ->values()

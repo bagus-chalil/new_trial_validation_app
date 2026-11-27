@@ -281,6 +281,20 @@ Sumber fitur: kode app lama PROD (zip 23 Nov, diekstrak ke scratchpad tanpa `.en
 - App lama masih dipakai; saat cutover ambil dump + folder file terbaru (angka akan lebih besar dari 23 Nov).
 - DB lokal `trial_validation_system_fase4b` dan folder file scratchpad hanya untuk gladi; boleh dihapus (tidak ada yang bergantung).
 
+### Hasil gladi cutover dengan dump terbaru (2026-11-27)
+
+Dump `project_tracker.sql` terbaru (49 project, 7 improvement, 26 check tooling, 4 PO) dimuat ke DB lokal baru `project_tracker_fresh`.
+Gladi penuh runbook `deploy/README.md` §14 (#3-#10) dijalankan di `trial_validation_system_fase7`: salinan DB yang semua jejak `pm_*`
+(tabel, baris `migrations`, log `PROJECT/IMPROVEMENT/TOOLING`, `master_options` `project_*`) dibuang, meniru prod sebelum cutover.
+Hasil: `migrate --force` menjalankan 5 migration `pm_*` (bukan 3 seperti runbook lama) dan membuat 15 tabel kosong; impor
+membuat 49 project / 290 stage / 31 quotation / 7 improvement / 26 tooling (71 kotak tanda tangan) / 4 PO / 216+9 file / 1379 log;
+`diff` baris semua tabel hanya menunjukkan `activity_logs` (+1380), `master_options` (+24) dan 15 tabel `pm_*`; impor kedua
+`created: 0`, tidak ada baris ganda; `projects:sync-trial-stages` 0 tautan; PIC Zahra/Rozy terpetakan lewat `--user-map`.
+Smoke test Playwright (13 halaman Projects) 200 tanpa error. Temuan: (1) impor ke target yang sudah pernah diimpor bisa bentrok
+`po_no` unik bila PO lama sudah hilang di sumber (catatan di runbook a#6), prod tidak terkena; (2) `links` improvement impor berupa
+objek lama, sudah dinormalkan di importer dan controller; (3) folder file asli belum ada di mesin ini (225 baris `is_missing`),
+harus tersedia di server pada hari H. Cutover prod tetap belum dijalankan.
+
 ## 8. Prompt siap pakai
 
 ### Prompt Fase 1 (tempel di chat baru)

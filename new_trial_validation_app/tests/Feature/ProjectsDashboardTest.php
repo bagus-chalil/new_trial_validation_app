@@ -184,3 +184,66 @@ test('the dashboard lang group has id en ko parity and the tab is translated', f
         ->and(array_keys($flatten(trans('projects.dashboard', [], 'en'))))->toBe($id)
         ->and(array_keys($flatten(trans('projects.dashboard', [], 'ko'))))->toBe($id);
 });
+
+test('the main dashboard carries a compact project, improvement and tooling overview', function () {
+    dashProject(['name' => 'Running']);
+    dashProject(['name' => 'Overdue', 'end_date' => '2026-11-10', 'progress' => 40]);
+    dashProject(['name' => 'Done', 'status' => 'Completed', 'progress' => 100]);
+    Improvement::create(['title' => 'New idea', 'status' => 'Baru', 'decision' => 'Pending']);
+
+    $pi = User::factory()->create(['role' => 'Team Leader', 'department' => 'PI']);
+
+    $this->actingAs($pi)->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('dashboard')
+            ->where('projectOverview.kpi.total', 3)
+            ->where('projectOverview.kpi.delayed', 1)
+            ->where('projectOverview.kpi.completed', 1)
+            ->where('projectOverview.cards.improvement.count', 1)
+            ->where('projectOverview.cards.improvement.new', 1)
+            ->has('projectOverview.cards.tooling')
+            ->missing('projectOverview.cards.quotation')
+            ->where('projectOverview.attention.0.tag', 'late')
+            ->where('projectOverview.attention.0.project.name', 'Overdue'));
+});
+
+test('the card pop-ups get their row lists, finance rows only for Admin or PI', function () {
+    $project = dashProject(['name' => 'Buying']);
+    ProjectQuotation::create(['project_id' => $project->id, 'vendor_name' => 'Vendor A', 'quotation_no' => 'Q-1', 'amount' => 1500000, 'currency' => 'IDR', 'status' => 'Terpilih']);
+    PurchaseOrder::create(['project_id' => $project->id, 'po_no' => '009/PO/X', 'vendor_name' => 'Vendor A']);
+    Improvement::create(['title' => 'Idea', 'department' => 'PROD', 'submitted_by_name' => 'Fauzi', 'status' => 'Baru', 'decision' => 'Pending']);
+
+    $pi = User::factory()->create(['role' => 'Team Leader', 'department' => 'PI']);
+    $this->actingAs($pi)->get(route('projects.dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->has('lists.improvement', 1)
+            ->where('lists.improvement.0.title', 'Idea')
+            ->where('lists.improvement.0.progress', 25)
+            ->where('lists.improvement.0.subtitle', 'PROD · Fauzi')
+            ->has('lists.tooling')
+            ->has('lists.quotation', 1)
+            ->where('lists.quotation.0.amount', 1500000)
+            ->where('lists.quotation.0.project_id', $project->id)
+            ->has('lists.po', 1)
+            ->where('lists.po.0.title', '009/PO/X'));
+
+    $this->actingAs(dashViewer())->get(route('projects.dashboard'))
+        ->assertInertia(fn ($page) => $page->where('lists.quotation', [])->where('lists.po', [])->where('lists.improvement', []));
+});
+
+test('the board carries per-stage details for the expandable rows', function () {
+    $project = dashProject(['name' => 'Staged']);
+    ProjectStage::create(['project_id' => $project->id, 'name' => 'Design', 'status' => 'On Progress', 'pic_name' => 'Zahra', 'plan_start' => '2026-11-01', 'plan_end' => '2026-12-01', 'actual_start' => '2026-11-02', 'progress' => 40]);
+    ProjectStage::create(['project_id' => $project->id, 'name' => 'Build', 'status' => 'Not Started', 'plan_start' => '2026-12-02', 'plan_end' => '2026-12-20', 'progress' => 0]);
+
+    $this->actingAs(dashViewer())->get(route('projects.dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('board.0.stages_total', 2)
+            ->has('board.0.stages', 2)
+            ->where('board.0.stages.0.name', 'Design')
+            ->where('board.0.stages.0.status', 'On Progress')
+            ->where('board.0.stages.0.progress', 40)
+            ->where('board.0.stages.0.actual_start', '2026-11-02')
+            ->where('board.0.stages.1.status', 'Not Started'));
+});
