@@ -1,7 +1,11 @@
 import { Link } from '@inertiajs/react';
 import { useTranslation } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
-import { gantt, index as portfolioIndex } from '@/routes/projects';
+import {
+    dashboard as projectDashboard,
+    gantt,
+    index as portfolioIndex,
+} from '@/routes/projects';
 import { index as purchaseOrdersIndex } from '@/routes/projects/purchase-orders';
 import { index as quotationsIndex } from '@/routes/projects/quotations';
 import {
@@ -15,6 +19,11 @@ type Tab = { key: string; labelKey: string; href: string };
 
 const SECTIONS: Record<ProjectSection, Tab[]> = {
     portfolio: [
+        {
+            key: 'dashboard',
+            labelKey: 'common.nav.project_tab_dashboard',
+            href: projectDashboard().url,
+        },
         {
             key: 'list',
             labelKey: 'common.nav.project_tab_list',
