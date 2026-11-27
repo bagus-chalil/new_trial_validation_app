@@ -6,6 +6,7 @@ use App\Exports\MasterLinesTemplateExport;
 use App\Http\Requests\StoreMasterLineRequest;
 use App\Models\MasterLine;
 use App\Services\LineStatus\QrSvg;
+use App\Services\MachineMaster\MachineLineDirectory;
 use App\Support\SearchTerm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class MasterLineController extends Controller
 
         return Inertia::render('masters/lines/index', [
             'lines' => $lines,
+            'machineLines' => MachineLineDirectory::options(),
             'filters' => $request->only('q'),
         ]);
     }

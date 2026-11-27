@@ -20,8 +20,17 @@ interface MasterLine {
     area: string;
     code: string;
     name: string;
+    machine_line_code: string | null;
     is_active: boolean;
     share?: ShareLinkInfo;
+}
+
+interface MachineLineOption {
+    code: string;
+    name: string;
+    category: string;
+    area: string | null;
+    status: string;
 }
 
 interface Paginated<T> {
@@ -32,9 +41,18 @@ interface Paginated<T> {
     total: number;
 }
 
-const emptyForm = { id: null as number | null, category: '', area: '', code: '', name: '', is_active: true };
+const emptyForm = { id: null as number | null, category: '', area: '', code: '', machine_line_code: '', name: '', is_active: true };
 
-export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<MasterLine>; filters: { q?: string } }) {
+export default function MasterLinesIndex({
+    lines,
+    filters,
+    machineLines,
+}: {
+    lines: Paginated<MasterLine>;
+    filters: { q?: string };
+    machineLines: MachineLineOption[];
+}) {
+    const machineNames = Object.fromEntries(machineLines.map((m) => [m.code, m.name]));
     const [open, setOpen] = useState(false);
     const [sharing, setSharing] = useState<MasterLine | null>(null);
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm(emptyForm);
@@ -47,7 +65,15 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
 
     const openEdit = (line: MasterLine) => {
         clearErrors();
-        setData({ id: line.id, category: line.category, area: line.area, code: line.code, name: line.name, is_active: line.is_active });
+        setData({
+            id: line.id,
+            category: line.category,
+            area: line.area,
+            code: line.code,
+            machine_line_code: line.machine_line_code ?? '',
+            name: line.name,
+            is_active: line.is_active,
+        });
         setOpen(true);
     };
 
@@ -104,6 +130,16 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
                                     <MapPin className="size-3.5" strokeWidth={2} />
                                     {line.category} &middot; {line.area}
                                 </div>
+                                <p className="text-muted-foreground/70 mt-1 text-[12px] font-medium">
+                                    {line.machine_line_code ? (
+                                        <>
+                                            Master Mesin: <span className="font-mono">{line.machine_line_code}</span>
+                                            {machineNames[line.machine_line_code] ? ` · ${machineNames[line.machine_line_code]}` : ''}
+                                        </>
+                                    ) : (
+                                        <span className="text-amber-600">Belum terhubung ke Master Mesin</span>
+                                    )}
+                                </p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
                                 <Button
@@ -171,6 +207,27 @@ export default function MasterLinesIndex({ lines, filters }: { lines: Paginated<
                             <Label htmlFor="code">Kode Line</Label>
                             <Input id="code" value={data.code} onChange={(e) => setData('code', e.target.value)} />
                             <InputError message={errors.code} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="machine_line_code">Line di Master Mesin</Label>
+                            <select
+                                id="machine_line_code"
+                                value={data.machine_line_code}
+                                onChange={(e) => setData('machine_line_code', e.target.value)}
+                                className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                            >
+                                <option value="">Belum terhubung</option>
+                                {machineLines.map((m) => (
+                                    <option key={m.code} value={m.code}>
+                                        {m.code} - {m.name} ({m.category})
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-muted-foreground text-xs">
+                                Standar line dari Master Mesin (app Trial Validation). Kosongkan untuk line yang belum ada di sana, misalnya line
+                                Packing.
+                            </p>
+                            <InputError message={errors.machine_line_code} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="name">Nama Line</Label>

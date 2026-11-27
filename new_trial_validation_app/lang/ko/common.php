@@ -26,6 +26,7 @@ return [
         'approved' => '승인 완료',
         'rejected' => '반려',
         'reports' => '보고서',
+        'machines' => '설비 마스터',
         'products' => '제품',
         'parameters' => '파라미터',
         'masters' => '마스터 항목',

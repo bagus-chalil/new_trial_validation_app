@@ -30,7 +30,28 @@ return [
     |
     */
 
+    // Connection MachineLineDirectory reads the Machine Master (`mc_lines`) through.
+    // Tests point this at the default connection instead.
+    'machine_master_connection' => env('MACHINE_MASTER_CONNECTION', 'machine_master'),
+
     'connections' => [
+
+        // READ-ONLY lookup into new_trial_validation_app's database, where the Machine
+        // Master (mc_lines / mc_equipment) lives (same MySQL instance). IPC never writes
+        // to it; point MACHINE_MASTER_DB_USERNAME at a SELECT-only account where one exists.
+        'machine_master' => [
+            'driver' => 'mysql',
+            'host' => env('MACHINE_MASTER_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('MACHINE_MASTER_DB_PORT', env('DB_PORT', '3306')),
+            'database' => env('MACHINE_MASTER_DB_DATABASE', 'trial_validation_system'),
+            'username' => env('MACHINE_MASTER_DB_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('MACHINE_MASTER_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
 
         'sqlite' => [
             'driver' => 'sqlite',

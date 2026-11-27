@@ -14,6 +14,7 @@ class MasterLine extends Model
         'category',
         'area',
         'code',
+        'machine_line_code',
         'name',
         'is_active',
     ];

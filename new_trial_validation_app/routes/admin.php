@@ -3,8 +3,10 @@
 use App\Http\Controllers\Admin\AccessRightController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\BotQuestionController;
+use App\Http\Controllers\Admin\EquipmentController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\LaneConfigurationController;
+use App\Http\Controllers\Admin\MachineLineController;
 use App\Http\Controllers\Admin\MasterOptionController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ParameterController;
@@ -31,6 +33,15 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::get('parameters', [ParameterController::class, 'index'])->name('parameters.index');
     Route::post('parameters', [ParameterController::class, 'store'])->name('parameters.store');
     Route::delete('parameters/{parameter}', [ParameterController::class, 'destroy'])->name('parameters.destroy');
+
+    Route::get('machines', [MachineLineController::class, 'index'])->name('machines.index');
+    Route::post('machines', [MachineLineController::class, 'store'])->name('machines.store');
+    Route::post('machines/plants', [MachineLineController::class, 'storePlant'])->name('machines.plants.store');
+    Route::delete('machines/plants/{plant}', [MachineLineController::class, 'destroyPlant'])->name('machines.plants.destroy');
+    Route::get('machines/{line}', [MachineLineController::class, 'show'])->name('machines.show')->whereNumber('line');
+    Route::delete('machines/{line}', [MachineLineController::class, 'destroy'])->name('machines.destroy')->whereNumber('line');
+    Route::post('machines/{line}/equipment', [EquipmentController::class, 'store'])->name('machines.equipment.store')->whereNumber('line');
+    Route::delete('machines/equipment/{equipment}', [EquipmentController::class, 'destroy'])->name('machines.equipment.destroy');
 
     Route::get('masters', [MasterOptionController::class, 'index'])->name('masters.index');
     Route::post('masters', [MasterOptionController::class, 'store'])->name('masters.store');

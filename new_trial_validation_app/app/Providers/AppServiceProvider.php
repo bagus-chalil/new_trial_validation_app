@@ -73,6 +73,7 @@ class AppServiceProvider extends ServiceProvider
         // previous isAdmin() || role==='Staff', just correct for a user
         // whose app_role diverges from the legacy-shared `role` column.
         Gate::define('manage-master', fn (User $user) => $user->isStaff());
+        Gate::define('manage-machines', fn (User $user) => $user->isStaff());
         Gate::define('manage-parameters', fn (User $user) => $user->isStaff());
         Gate::define('view-products-template', fn (User $user) => $user->isStaff());
         Gate::define('manage-templates', fn (User $user) => $user->isStaff());

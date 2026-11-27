@@ -26,6 +26,7 @@ return [
         'approved' => 'Approved',
         'rejected' => 'Rejected',
         'reports' => 'Reports',
+        'machines' => 'Machine Master',
         'products' => 'Products',
         'parameters' => 'Parameters',
         'masters' => 'Master Options',

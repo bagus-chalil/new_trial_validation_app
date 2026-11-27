@@ -23,6 +23,7 @@ import {
     KeyRound,
     LayoutGrid,
     ListTree,
+    Factory,
     Package,
     Printer,
     Route as RouteIcon,
@@ -51,6 +52,7 @@ import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { index as archiveIndex } from '@/routes/admin/archive';
 import { index as botQuestionsIndex } from '@/routes/admin/bot-questions';
 import { index as laneConfigurationIndex } from '@/routes/admin/lane-configuration';
+import { index as machinesIndex } from '@/routes/admin/machines';
 import { index as mastersIndex } from '@/routes/admin/masters';
 import { index as notificationsIndex } from '@/routes/admin/notifications';
 import { index as parametersIndex } from '@/routes/admin/parameters';
@@ -262,6 +264,12 @@ export function AppSidebar() {
             label: t('common.nav.master_data'),
             items: canManageTemplates
                 ? [
+                      {
+                          title: t('common.nav.machines'),
+                          href: machinesIndex(),
+                          icon: Factory,
+                          activePattern: /^\/admin\/machines(\/|$)/,
+                      },
                       {
                           title: t('common.nav.products'),
                           href: productsIndex(),

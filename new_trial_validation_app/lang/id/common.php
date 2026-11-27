@@ -28,6 +28,7 @@ return [
         'approved' => 'Disetujui',
         'rejected' => 'Ditolak',
         'reports' => 'Laporan',
+        'machines' => 'Master Mesin',
         'products' => 'Produk',
         'parameters' => 'Parameter',
         'masters' => 'Master',
